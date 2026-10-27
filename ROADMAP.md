@@ -52,13 +52,15 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Latest resolved field — HUD-CARGO.** The [cargo contract](docs/ROADMAP_BACKLOG.md#hud-cargo-contract)
-now specifies saved lifecycle/inventory/reward fields, exact funded Reset/select/
-Start endpoints, depleted-hold refusal and cold-owner/UI expectations. The existing
-source-fixture command and300s limit are bound; no game test ran. Ordinary physical
-caller/whole-sequence limit and distinct-process observations remain open;
-KIT-RELOAD remains parked under its original30s limit. Reuse these fields rather
-than map them again. This definition does not complete the gameplay goal.
+**Latest resolved fields — HUD-CARGO and HUD-CONVOY.** Their
+[cargo](docs/ROADMAP_BACKLOG.md#hud-cargo-contract) and
+[Convoy](docs/ROADMAP_BACKLOG.md#hud-convoy-contract) contracts now fix exact saved
+progress/reward fields, Reset/select/Start endpoints, HUD actions and cold-owner
+expectations. Existing source-fixture commands/original limits are bound; no game
+test ran for these definitions. Ordinary caller/whole-sequence limits and
+separate-process observations remain open. Accepted repairs stay closed and
+parked runs retain their original reopening conditions. Reuse these fields;
+definition completion does not complete either gameplay goal.
 
 ## How we will work from this roadmap
 

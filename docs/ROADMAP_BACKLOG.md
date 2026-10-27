@@ -1042,6 +1042,142 @@ graphical cargo suite; no engine or fixture ran. About4.2minutes through review/
 checks; commit/push stay on the same20minute clock. No branch, worktree, game
 process or retained scratch was created. Missing ordinary/cold proof stays open.
 
+<a id="hud-convoy-contract"></a>
+
+#### Convoy HUD reset, next start and cold-state contract
+
+**HUD-CONVOY field binding, source5e957fe83; ordinary qualification OPEN.**
+This supplies the existing missing save/UI/fixture values, not a new runtime
+repair or qualification PASS. Definition allocation starts2026-10-27
+12:38:45UTC, estimate20minutes/hard12:58:45UTC through source review, checks,
+commit/push and owned cleanup. Root owns roadmap edits and HUD/caller binding;
+one read-only agent binds typed persistence. Reuse the completed470aa24c4/
+4fc5ef9f3 source maps. No engine, fixture, parked Convoy retry or hosted CI run.
+
+Let `A = payload.cinder_convoy_session.activities[0]`,
+`S = A.progress.convoy_session_state`, `H = S.host_state`, and
+`M = H.activity_state`. The outer slot has schema_version1 and one activity;
+`A` has exactly activity_id, generation, state, progress, reward_requested and
+reward_granted. Its activity_id is `cinder_reach_emberline_convoy`. Progress has
+the same activity_id/generation/state plus convoy_session_state. `S` has exactly
+schema_version2, activity_kind=`convoy_escort`, the same activity_id,
+phase_id=`escort`, stable escort_ship_id, stream_location_id=`cinder_reach`,
+host_state and threat_state. Outer/progress/M generations and states agree;
+persisted states are IDLE0/ACTIVE1/COMPLETED2/FAILED3. ABORTED4 exists in the
+model enum but is not an accepted session-record state.
+[Slot validator](../scripts/persistence/cinder_convoy_session_persistence.gd#L174)
+and [session constructor](../scripts/persistence/cinder_convoy_session_persistence.gd#L265)
+are authoritative. Compare canonical saved captures, not raw float spelling.
+
+`H` schema1 contains route_resource_path, activity_id, convoy_id, phase_id,
+arrival_id, arrival_committed, reward_id, reward_requested, reward_granted,
+entity_generation, entity_status, entity_position, last_entity_position,
+next_route_index, configured_movement_speed, movement_distance, movement_backlog,
+physics_tick_count, sample_publication_count, has_escort_sample,
+last_escort_position and activity_state.
+`M` schema1 contains activity_id, configured_escort_proximity_radius,
+configured_maximum_separation_seconds, configured_timeout_seconds, state,
+generation, terminal_result, terminal_reason, convoy_id, convoy_generation,
+next_leg_index, elapsed_seconds, separation_elapsed_seconds, has_entity_sample,
+convoy_position, escort_position, escort_distance, convoy_status and sample_count.
+Threat state schema1 contains generation, attacker_health, tender_health,
+attack_clock, shots_fired and attacker_neutralized.
+[Host capture](../scripts/activities/cinder_convoy_escort_host.gd#L438),
+[model capture](../scripts/activities/convoy_escort_activity.gd#L399),
+[threat capture](../scripts/activities/cinder_convoy_threat.gd#L220).
+
+**Payment authority:** H.arrival_committed/H.reward_requested/H.reward_granted
+are always false placeholders. Actual debt is A.reward_requested=true and
+A.reward_granted=false. Payment changes the outer acknowledgment atomically with
+the game_flow_reward_store receipt/counts; it does not set the host placeholders.
+The separate `cinder_convoy_safe_arrival` schema1 slot is a non-granting,
+non-replayable summary, not live escort state or proof of payment.
+[Arrival adapter](../scripts/persistence/cinder_convoy_arrival_persistence.gd#L78).
+
+For a genuine paid completed model generation `g` and entity epoch `e`, require:
+
+| Ordered boundary | Exact owner/data result and HUD actions |
+| --- | --- |
+| Paid arrival | A/M generation g, COMPLETED2, outer flags=true/true, next_leg_index4, terminal_result1/terminal_reason=`safely_arrived`; retain actual clocks, motion and combat capture. Exactly one `return_convoy_credit_to_shipyard` receipt for g. Selected button `SELECTED  //  EMBERLINE CONVOY ESCORT`; other families disabled; status `LOCKED  //  CURRENT SORTIE ALREADY STARTED`. Objective `CONVOY  ARRIVED  <formatted actual time>  4/4`; do not invent the completion duration or use Patrol's REPEAT shortcut. |
+| Accepted persisted Reset | Model generation g+1/IDLE0; outer flags=false/false; entity epoch remains e. M.convoy_id empty/convoy_generation−1; terminal_result0/reason empty; leg index, both clocks, both positions, distance and sample count0; sample flagfalse/status ACTIVE0. H route index, movement distance/backlog, ticks/publications0; escort samplefalse/position0; entity/last position at route start(84,−68,−724), status ACTIVE0. Prior paid receipt/count unchanged. Saved threat is pristine at generation g+1, attacker35/tender75 health, clock−3/shots0/neutralizedfalse; the old runtime threat is retired. No runtime rebind pending. All four family buttons enabled; selected Convoy status `READY  //  EMBERLINE CONVOY ESCORT`. |
+| Select another unlocked family, then Convoy | Same Convoy owner/generation g+1 and exact retained IDLE capture, at most one attached route owner. Selection creates no convoy progress or reward. Convoy again SELECTED/READY, all four family buttons enabled. |
+| Accepted next Start at the real rendezvous | Healthy current departed pilot in FREE_FLIGHT, no landing request, valid loaded Cinder instance/generation, no other running activity and distance≤4m from activation center. Model generation g+2/ACTIVE1, entity epoch e+1; convoy_id=`emberline_supply_tender`/convoy_generation e+1; fresh zero model/host progress before the next physics sample; outer flags=false/false. Saved escort_ship_id adopts this piloted craft. Fresh threat generation g+2, attacker35/tender75 health, attack_clock−3, shots0, neutralizedfalse. Other families disabled; current-sortie LOCKED status. |
+| Fresh Main from saved IDLE | Exact generation g+1/entity epoch e/IDLE capture retained, threat inactive/rebind pendingfalse; redundant Reset refused. Saved active Race/Patrol can be the selected family while this inert Convoy owner remains retained. Inspect actual family, then use Convoy selection before its next Start; no global last-selected-family field is promised. |
+| Fresh Main from saved ACTIVE | Exact host progress/entity epoch/stable craft identity restored; runtime_rebind_pending=true freezes clocks and outward progress. Objective is `CONVOY  SAVED ESCORT PAUSED  //  Board <saved craft name>, launch and return to Cinder Reach to resume`; nearby row suppresses stale range, separation-threat cues and loss countdown, Start disabled while pending. Wrong craft or invalid phase leaves the same capture frozen. Matching healthy departed piloted craft in FREE_FLIGHT and valid loaded Cinder stream resumes the existing generation, not a fresh Start, and removes paused guidance. |
+
+[Model reset/start](../scripts/activities/convoy_escort_activity.gd#L297),
+[host reset/start](../scripts/activities/cinder_convoy_escort_host.gd#L348),
+[production Start](../scripts/game/game_flow.gd#L19520),
+[reset publication](../scripts/game/game_flow.gd#L19623),
+[cold adoption](../scripts/game/game_flow.gd#L2823),
+[exact rebind gates](../scripts/game/game_flow.gd#L21545),
+[objective formatting](../scripts/ui/hud.gd#L1486) and
+[family label/enabled formula](../scripts/ui/hud.gd#L9784) bind these values.
+Normal home reboarding already resets terminal activities; approaching the real
+rendezvous invokes the existing Start. Do not add UI to bypass those owners.
+Sample fresh zero values at the transaction boundary; later physics legitimately
+advances the live route. Preserve the full typed host/threat capture on cold
+restore; a matching label alone cannot prove saved progress.
+
+**Debt/refusal boundaries.** Durable completed true/false blocks replacement
+while the existing reward retry still fails. Reset/Start expose the existing
+pending-reward refusal; selection likewise cannot discard owed credit. Successful
+retry pays the original generation once even from another craft; repeated retry,
+cold loading and same-generation autosaves retain acknowledgment. A stale old
+completion cannot pay or alter a new active generation. A rejected persisted
+reset preserves disk/live owner/model and publishes no reset signal; measure its
+before-snapshot after any separately successful payment retry. Preserve foreign
+payload and unrelated rewards/arrival summaries. Legacy false/false completion
+does not infer another credit; false/true is invalid.
+[Transition fences](../scripts/persistence/cinder_convoy_session_persistence.gd#L324)
+and [existing debt fixture](../tests/cinder_convoy_session_save_restore_test.gd#L459).
+
+Existing source fixtures, each registered headless under the original300s cap:
+
+| Existing suite | Required terminal marker; precise source coverage |
+| --- | --- |
+| cinder_convoy_production_integration_test | `CINDER_CONVOY_PRODUCTION_INTEGRATION_TEST_OK`; committed reset/family selection retains the host; fresh Main restores active Race, then Patrol above inert Convoy, then re-adopts exact saved Convoy generation. |
+| cinder_convoy_session_save_restore_test | `CINDER_CONVOY_SESSION_SAVE_RESTORE_TEST_OK: <count> assertions`; source sequence paidg1→reset2/start3→paidg3→reset4→fresh IDLE4→new-craft start5, with debt/terminal refusal/once-only credit. Full suite remains PARKED/FAIL at its original300s; this definition authorizes no retry. Its OK-prefixed print is unconditional, so only actual exit0 AND zero diagnostics can establish a pass. |
+| cinder_convoy_retained_feedback_test | `CINDER_CONVOY_RETAINED_FEEDBACK_TEST_OK: <count> assertions`; existing20-assertion accepted scope retains cold/wrong-craft paused guidance and matching-craft resume. Do not rerun unchanged accepted repair. |
+
+The existing command for one separately selected fixture is:
+
+```bash
+tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot \
+  --mode headless --scope "$SELECTED_EXISTING_SUITE" --audio-driver Dummy \
+  --timeout 300 --jobs 1 --results-dir "$FRESH_RESULTS"
+```
+
+SELECTED_EXISTING_SUITE must be exactly one name above, never an invented selector.
+Bind the clean imported source, fresh isolated profile/results and independent
+outer abort at actual selection; matrix owns per-suite user directories and
+the300s process supervisor. Require actual exit0, exactly one corresponding
+terminal line, zero diagnostics and retained raw/matrix results. No command ran
+here except `--list`, which selected exactly these three headless suites/exit0.
+These fixtures stage ships/phases, submit direct lifecycle/combat calls and emit
+button signals; their fresh Main lifetimes share one OS process. Some use a memory
+filesystem, while the debt cases inject actual disk writes. They do not prove
+ordinary input or an OS-process restart. A fixture300s limit is not an ordinary
+HUD reset/select/start/cold whole-sequence cap; the existing full PLAY-CONVOY
+shutdown failure and all original journey limits stay attached to that owner.
+
+**Remaining exact gap—Codex:** ordinary controls/read-only observations for this
+reset→family choice→rendezvous Start sequence and distinct-process cold UI/host/
+threat/payment verification, with actual command, physical route and original
+whole-sequence limit frozen before running. The existing
+`run_native_sortie.py` has no integrated Convoy route selector/caller; the ordinary
+Activity Board selector already exists. The archived failed driver is not ready
+production support. Reuse this field binding, retain the parked full-suite/PLAY-CONVOY
+reopening conditions, and do not infer a new repair. HUD-CONVOY/PLAN-NEXT stay OPEN.
+
+Source-field slice accepted12:43UTC after independent review corrected the
+saved-pristine/runtime-retired threat distinction and named the missing driver
+separately from the existing UI. All337 identities/order, new source links,
+command syntax, exact HUD labels, threat constant and save-suite exit requirement
+check pass, as does `git diff --check`. About4.5minutes through review/checks;
+commit/push remain inside the same20minute allocation. No branch/worktree/game
+process or retained scratch was created; ordinary/cold qualification stays open.
+
 <a id="proof-world"></a>
 
 ### Three solo worlds and exactly21 shared-world proofs
@@ -3069,7 +3205,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Qualification | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled. BLOCKED definition — Codex binds the literal saved activity/debt fields, expected enabled actions after each reset/select/start/fresh-Main step, existing command and original limits. No implementation is selected without a demonstrated runtime defect. | Race: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Qualification | Source field/action binding fixed0e3b58a25 through the [literal reset/branch/cold contract](#hud-patrol-contract): exact codec/reward fields, g→g+1→g+2, HUD labels/enable rules, physical home-reboard Reset and free-flight Start callers. No runtime discrepancy or qualification PASS claimed; no engines run. BLOCKED ordinary-driver/limit binding—Codex: actual normal sequence command/route/original whole-sequence cap and cold-Main UI/state observations remain missing. Existing component selector and original300s fixture limit are explicit; parked30-Main/platform journeys remain closed. Do not repeat source triage or invent new UI; runtime repair needs a demonstrated defect. | [Literal contract](#hud-patrol-contract): actual reset→selection→start→distinct fresh Main shows the exact authoritative saved state and enabled actions; protect real data/debt and retain accepted scopes. |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Capability | Supply-status child DONE0c2dc2e retained. [Literal cargo contract](#hud-cargo-contract) now fixes typed saved lifecycle/inventory/reward fields, funded g1→reset g2→start g3, depleted0/6 refusal, exact HUD labels/locks, cold owner versus family selection, debt/refused-reset protection and existing graphical source-fixture command/original300s cap. Source binding only; no runtime discrepancy, engine run or qualification PASS. BLOCKED ordinary-driver/limit binding—Codex: actual funded physical two-delivery reset/select/start command/route/original whole-sequence cap and distinct-process cold state/UI observations remain missing. KIT-RELOAD stays PARKED at its original30s including preload. Reuse this field binding; do not repeat the completed source survey or infer a successful next start from depleted refusal. | [Literal cargo contract](#hud-cargo-contract): actual funded reset→family selection→Start→distinct fresh Main restores the exact authoritative lifecycle/inventory/reward state and enabled actions; depleted refusal and debt preserve data and accepted scopes. |
-| HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Capability | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Bounded source check2026-10-26 found no new runtime gap: existing production integration664–762 and save/restore566–598 already exercise committed reset, HUD family switching, start and fresh-Main authority. Reuse completed470aa24c4/4fc5ef9f3 source maps; do not repeat this survey. Wider combined ordinary HUD/full Convoy qualification remains open; parked save suite not reopened. Remaining ordinary UI qualification is BLOCKED definition — Codex: record the exact saved activity/generation/progress/debt fields, expected displayed state and enabled actions after reset, selection, start and distinct fresh-Main reload; bind the existing fixture/command, protected payload and original limits. Reuse accepted runtime repairs and completed source maps; no repeated survey or implementation without a reproduced discrepancy. | Convoy: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
+| HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Capability | Restored-objective repair DONE on checkpoint3d92b91; retained-feedback20 assertions accepted in their stated scope. [Literal Convoy contract](#hud-convoy-contract) fixes typed slot/host/model/threat fields, outer debt authority, paid g→reset g+1→Start g+2/entity e→e+1, exact HUD labels/actions, cold frozen/rebind and selected-family distinctions. Existing fixture commands/original300s caps are bound; no runtime discrepancy, engine run or new qualification PASS. BLOCKED ordinary-driver/limit binding—Codex: physical Reset/family selection/rendezvous Start command/route/original whole-sequence cap and distinct-process cold host/threat/UI/payment observations remain missing. Parked full save suite/PLAY-CONVOY remain closed; reuse470aa24c4/4fc5ef9f3 maps and this field binding rather than resurvey. | [Literal Convoy contract](#hud-convoy-contract): actual reset→family choice→rendezvous Start→distinct fresh Main restores exact authoritative host/threat/payment state and correct actions; refused reset/debt protect existing data and accepted repairs. |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | Definition | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | Capability | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; earned-debt interruption transaction DONE c78e0ac | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | Qualification | DONE c78e0ac: source and exact archived Linux executable each complete genuine earned unpaid terminal, actual owned kill/reap, distinct normal Resume/real pilot/production exit/physical payment, exact same-document atomic receipt+ack and third cold paid replay. Privacy/compile/paired exports/strict startups/audit PASS; branch merged/deleted. All original 249.405s failures retained; ordinary combat/active-combat restore/native scope separate. [Delivery](history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
