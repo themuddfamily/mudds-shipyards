@@ -2922,8 +2922,8 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | Qualification | DONE; 2c73494, both exports/three startups/exact payload and archive checks | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | Container | Export prerequisite FIXED6b667235b: real private077 exports now package ELF0755, matching existing contract;23 exporter checks and corrected actual tar/strict startup pass. [Exact repair and scope](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). [Existing package membership/counts](#package-final--existing-members-and-counts) FIXED: two exports; Windows-payload/Linux-direct/Linux-archive startup1/1 each; two complete inventories/full parity/archive checks; four unfiltered probes300s each; GUIDED-FINAL3/3, SANDBOX-RECOVERY1/1, SETTINGS-RETURN1/1 at original caps. Final candidate/bytes remain GATED. Paired-artifact capability DONEd70231901/integrated27d1e70e8:28tests and actual7876 audit9predicates/1529fullentries/unchangedinputs pass. Final approved manifest/source paths remain a release gate; old repair-specific helpers are not generic final commands and1529 is not a permanent count. SETTINGS-INPUT retains its exact missing historical execution artifacts/completed search; Sandbox remains PARKED pending supported changed cause. Other gameplay/installation/matrix/signing/distribution owners are preserved; no unchanged run selected. Native Windows/human facts remain NOT_RUN. | The frozen source commit and actual Windows/Linux exports agree with the production payload manifests and SHA256SUMS; each declared package startup exits0 with STARTUP_MENU_READY_OK; every member of the recorded package/ordinary-route list passes its original counts/caps. Missing member/command/count prevents container closure. Installer transactions, signing and distribution retain their own named goals. |
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | Qualification | Source-version prerequisite770f5b522 remains accepted. Standalone artifact prerequisite DONE17a11183a: compiler exports complete finalized uninstaller after optional signing, records actual path/bytes/SHA in existing schema1; staged exclusive publication/collision/copy-failure/mock-sign-order tests pass. Both existing suites34tests33PASS/1PowerShellskip; actual7876 setup81.969s under600/log0, standalone117593bytes/actualPEversion/hash and unchanged six prior files/extracted game verified independently. [Literal final handoff](WINDOWS_INSTALLER.md#final-installer-identity--install-win-final). GATED on PACKAGE-FINAL actual candidate and SIGN-FINAL trusted artifact checks. Earlier setups without sidecars retain their extraction limit. Native Windows execution remains owner-excluded/NOT_RUN; no missing standalone-export implementation remains. | On the frozen final Windows candidate execute linked NSIS build/extraction/identity commands: exact source/version, setup/result/checksum, extracted staged game and exported standalone uninstaller bytes/size/hash/actual PE version match. Optional signing precedes uninstaller capture; actual trust and signed-byte proof belong to SIGN-FINAL. Close only on that final candidate, not a checkpoint subset. Native Windows execution remains owner-excluded. |
-| INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted b4ff8c0 installed checkpoint recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026) supplies concrete owned paths, byte/mode/launcher checks and full Guided direct-executable command, without graphical desktop or final-candidate acceptance; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the final package to an empty isolated prefix, exact expected files/modes/version and installed launch/ordinary-usability command at original limits; no old package required; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): clean isolated installation with expected files/modes/version and usable installed launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
-| INSTALL-LINUX-UPGRADE | Upgrade on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted499e681→b4ff8c0 checkpoint transaction](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026) supplies actual prior/candidate paths, saved-progress/settings fixture, expected payload/modes/launcher checks and installed full Guided command; final-package/rendered-desktop/retained-save gameplay reload are not accepted; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds exact supported old→final packages, existing progress/settings/unowned-file fixtures, expected updated bytes/modes and usable installed launch at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): old→new installation updates intended bytes while preserving specified user progress/settings; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
+| INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted b4ff8c0 installed checkpoint recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026) supplies concrete owned paths, byte/mode/launcher checks and full Guided direct-executable command, without graphical desktop or final-candidate acceptance; final package acceptance remains PACKAGE-FINAL. Transaction definition DONE in the [literal clean/upgrade contracts](#final-linux-clean-install-and-upgrade--transaction-contracts): absent prefix/no prior save or package, exact private paths/commands/owned payload modes, four protected fixtures and full installed Guided with original30s CLI/300s startup and310s outer/300s Guided and330s outer limits. Final archive/SHA/export/manifest bytes bind before execution. Definition does not accept final execution, graphical desktop launch or other installation transactions. | [Final Linux installation](#proof-release): clean isolated installation with expected files/modes/version and usable installed launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
+| INSTALL-LINUX-UPGRADE | Upgrade on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted499e681→b4ff8c0 checkpoint transaction](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026) supplies actual prior/candidate paths, saved-progress/settings fixture, expected payload/modes/launcher checks and installed full Guided command; final-package/rendered-desktop/retained-save gameplay reload are not accepted; final package acceptance remains PACKAGE-FINAL. Transaction definition DONE in the [literal clean/upgrade contracts](#final-linux-clean-install-and-upgrade--transaction-contracts): actual499e681 prior archive/source/payload hashes verified, future frozen final binding, exact private commands/paths, four then five protected fixtures, new generation/old managed-file retirement, exact final modes and full installed Guided at original30/300/310/330s limits. Final candidate bytes bind before execution. Save preservation is separate from retained-save gameplay reload; graphical desktop/final acceptance stay open. | [Final Linux installation](#proof-release): old→new installation updates intended bytes while preserving specified user progress/settings; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-ROLLBACK | Rollback on final Linux package | 32 | Qualification | Final execution GATED on final package identity/export. Checkpoint selected rollback499→b4→499 ACCEPTED on driver503dbf6f6: exact prior bytes/modes/launcher, actual b4-produced save loaded by499 in healthy session3, credit1/settings preserved, three supported walking goals/normal HUD Quit/OS0; six protected files unchanged after uninstall. [Actual proof and limits](history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026). No failed-update/power-loss/rendered/final acceptance or unchanged checkpoint rerun. | [Final Linux installation](#proof-release): failed/selected rollback restores specified prior installed bytes and protected data, then usable launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-RETAINED | Retained-data handling on final Linux package | 32 | Qualification | Final execution GATED on final Linux package identity/export; checkpoint [retained Heavy load](#installed-retained-heavy-load--selected-checkpoint-contract) ACCEPTED a716c4d8e: source251 Python checks/one actual installed b4 load33.683s, live ledger1/paid terminal/stored settings/healthy session2, 51.262m supported walk/next Torpedo posting unarmed/normal UI OS0/final clean no regrant. [Exact raw proof and retained failures](history/ROADMAP_DELIVERIES.md#installed-retained-heavy-load-accepted-20261026). Existing recipe supplies real fixture/protected fields/private profile/command; final package, full runtime-settings/rendered desktop/native-hardware facts remain open. Original16:11/90min clock includes checks/closure; archive27.680min. | [Final Linux installation](#proof-release): install/update with existing valid user data preserves required progress/settings and loads correctly; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-CORRUPT | Corrupt-data handling on final Linux package | 32 | Qualification | Final execution GATED on frozen final package/export. Executable checkpoint recovery caller source accepted26257272f: actual keyboard confirmation commits27→28/full payload and valid backup preserved/normal first OS0; cold session3/credit1/settings/live paid Torpedo acknowledgement and all3ordinary walking goals52.593m demonstrated. FULL QUALIFICATION FAIL/PARK: second shutdown emits rootWindow focus_entered/tree_exited disconnect errors; final OS0/clean file not independently captured. [Accepted implementation and remaining gate](history/ROADMAP_DELIVERIES.md#corrupt-repair-caller-accepted-shutdown-gate-open-20261026). No diagnostic suppression, new gameplay checkpoint or additional trial selected. Original two caller stops and source archive remain historical; original19:31:09/90min clock and300/330/360caps retained. Reopening needs production popup/connection-removal ownership and independent cumulative-priority decision, not another caller or policy survey. | [Final Linux installation](#proof-release): install/update with named corrupt data selects specified safe fallback while protecting valid recovery copies; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
@@ -5119,6 +5119,120 @@ hard17:27:43. Stop first unexpected failure and retain it before any causal revi
 no automatic correction/retry or renamed budget. Exact final-package,
 failed-update interruption, power-loss, rendered desktop and hardware facts
 remain in their existing open gates.
+
+### Final Linux clean install and upgrade — transaction contracts
+
+**INSTALL-LINUX-CLEAN / INSTALL-LINUX-UPGRADE definitions complete2026-10-27;
+execution GATED on the frozen final PACKAGE-LINUX archive.** These fill the
+existing rows' path/fixture/command/expected-result fields. No install, engine,
+export, hosted CI or accepted checkpoint rerun occurred. Bind FINAL_TAR, SHA256,
+export result, audited package root and extracted shipped FINAL_MANAGER before
+execution. Do not substitute a newer repository manager. Expected final payload
+bytes resolve from that frozen archive, not a historical fixed hash/count.
+
+Both cards use the [exact managed ownership/files/modes and complete launcher
+bytes](#final-linux-uninstallreinstall--install-linux-uninstall): manifest exact
+owner/keys/two hashes, fresh runtime0755/ELF0755/icon0644/manifest0644/desktop0644,
+exact Exec/Path/Icon, no update/uninstall journals and no lockfile. Resolve each
+installed ELF from its actual manifest. Require each existing operation to exit0;
+record first failure and stop. Before execution choose an absent exclusive ROOT;
+never replace an existing installation. Use PREFIX=`$ROOT/installed game`,
+APPS=`$ROOT/applications`, PROFILE_ROOT=`$ROOT/profile`,
+XDG_DATA_HOME=`$PROFILE_ROOT/data`, XDG_CONFIG_HOME=`$PROFILE_ROOT/config`,
+XDG_CACHE_HOME=`$PROFILE_ROOT/cache`, XDG_STATE_HOME=`$PROFILE_ROOT/state`,
+XDG_RUNTIME_DIR=`$PROFILE_ROOT/runtime`, TMPDIR=`$PROFILE_ROOT/tmp`; all private
+directories0700 and inherited HOME unchanged.
+The future selected card freezes helper/driver source and absolute closure deadline.
+
+**INSTALL-LINUX-CLEAN.** ROOT is
+`/srv/mudds-work/linux-clean-final/`. PREFIX and the game's outer-profile user-data
+directory must be absent initially. Precreate only two protected unrelated files:
+`$APPS/other-game.desktop`, exact bytes `other game\n`,0600, and
+`$XDG_DATA_HOME/personal-notes.txt`, `clean fixture\n`,0640. Here and below
+`\n` means one actual newline. No prior package, save entitlement or installation
+manifest is staged. Extract FINAL_MANAGER outside PREFIX under ROOT/package.
+
+```bash
+python3 tools/release/suite_process.py --timeout 30 -- python3 "$FINAL_MANAGER" install --archive "$FINAL_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+Verify the exact final payload/ownership/modes/launcher above. Installation must
+not create game user data in the outer profile or mutate the two unrelated files.
+Add two protected fixtures: `$PREFIX/personal-notes.txt`, `root notes\n`,0640,
+and `$PREFIX/<installed generation>/personal-notes.txt`, `runtime notes\n`,0600.
+Snapshot all four byte/mode identities; run the shared installed-usability commands
+below, then shipped-manager uninstall with30s supervisor. All managed files are
+removed and all four fixtures remain exact; the noted runtime/prefix remain.
+This completes the clean transaction only on the actual final candidate; no
+upgrade, retained-save reload or graphical desktop launch is implied.
+
+**INSTALL-LINUX-UPGRADE.** ROOT is
+`/srv/mudds-work/linux-upgrade-499-final/`. Supported OLD_TAR is the actual
+`/srv/mudds-shipyards/builds/linux/MuddsShipyards-499e681-linux-x86_64.tar.gz`,
+95487977bytes/SHA256`994457c9a15fe3b0b9b4d72bccf8df427f17adba540cc8fb6289acae612bf8ea`,
+source499e6816f53f3e5a2b16bc74c808b447cc248661/rootMuddsShipyards-499e681.
+Read/hash/archive checks2026-10-27 confirm it is present, with ELF149082040bytes/
+SHA256`8802ba25e2dadf56665f39697d48ddb19b340f6cab70f4a7bec42e41c52ff678`,
+icon SHA256`08f8427bd4cc74c8109150ede9df87feec181a1bdb97fc762853db8bf497d473`
+and shipped manager19713bytes/SHA256
+`f0bc2779bd918513f276e9527f5e956e7e75ccd376e192130d036e542a25f467`.
+Extract OLD_MANAGER and FINAL_MANAGER outside PREFIX, under separate old/final
+package roots. First install must meet the exact prior bytes and shared modes.
+
+```bash
+python3 tools/release/suite_process.py --timeout 30 -- python3 "$OLD_MANAGER" install --archive "$OLD_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+Resolve OLD_GENERATION from its manifest. Before upgrade create four fixtures:
+
+| Exact path | Bytes / mode |
+| --- | --- |
+| `$PREFIX/unowned-note.txt` | `Unrelated installation notes\n`,0640 |
+| `$APPS/unrelated.desktop` | `[Desktop Entry]\nName=Unrelated\n`,0600 |
+| `$PREFIX/<old generation>/unowned-old-runtime-note.txt` | `Unowned old runtime annotation\n`,0600 |
+| `$XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/mudds_user_data.json` | Verified earned Heavy8655-byte [fixture/hash](#final-linux-uninstallreinstall--install-linux-uninstall),0644 |
+
+```bash
+python3 tools/release/suite_process.py --timeout 30 -- python3 "$FINAL_MANAGER" install --archive "$FINAL_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+Upgrade must publish a different generation, remove the old managed ELF/icon,
+retain its unowned note/directory and all four fixtures, and install exact final
+bytes/modes/manifest/launcher with no journals. Resolve INSTALLED_ELF from the new
+manifest. Add fifth fixture `$PREFIX/<new generation>/unowned-runtime-note.txt`,
+`Unowned runtime annotation\n`,0600. All five byte/mode identities must survive
+installed usability and final shipped uninstall. Final removal retires new managed
+payload/manifest/launcher/journals; both noted generations remain. This is file
+preservation, not gameplay loading of the retained save.
+
+**Shared installed-usability endpoint, once per selected transaction:**
+
+```bash
+STARTUP_CHECK_RESULT_DIR="$ROOT/startup-results" STARTUP_CHECK_TIMEOUT_SECONDS=300 python3 tools/release/suite_process.py --timeout 310 -- bash tools/release/run_linux_startup_check.sh "$INSTALLED_ELF"
+python3 tools/release/suite_process.py --timeout 330 -- python3 tools/release/run_native_sortie.py "$INSTALLED_ELF" --route guided --output "$ROOT/guided-results"
+python3 tools/release/suite_process.py --timeout 30 -- python3 "$FINAL_MANAGER" uninstall --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+Startup requires actual OS0/exactly one menu-ready marker/zero diagnostics. Full
+original Guided retains ordinary supported walk/boarding, all range targets/live
+interceptor, strict occupied home/OFFLINE/physical exit, normal HUD Quit/actual
+OS0/zero diagnostics, released inputs and reaped game/helper/Xvfb. Existing private
+Xvfb/x11/Dummy/dummy-renderer and separate fresh gameplay/startup profiles preserve
+the outer protected fixtures. Verify those identities after every mutation and
+at closure. Retain raw results before deleting owned scratch. These direct-ELF
+routes do not qualify graphical desktop-entry launch; that final installation/
+PACKAGE-FINAL gate stays open. INSTALL-LINUX-RETAINED owns actual save reload.
+
+Original accepted clean and upgrade wrappers independently bind install/uninstall
+children30s, startup300s with310s outer and Guided300s with330s outer. These are
+not the focused installer tests'10s children/120s consumer and must not be replaced
+by them. No increased cap, automatic retry, new interruption/power-loss case or
+whole-gate acceptance follows from this definition. Reuse the accepted
+[clean recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026)
+and [upgrade recipe](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026);
+root read actual clean archive run.py/continue-fixed.py and the upgrade reader
+verified actual run.py/results and prior payload bytes. All earlier accepted
+results and retained wrapper failures stay in their original scopes.
 
 ### Final Linux uninstall/reinstall — INSTALL-LINUX-UNINSTALL
 

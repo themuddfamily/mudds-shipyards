@@ -250,6 +250,20 @@ review/checks, with final commit/push charged to the same clock. No implementati
 is active. The eight prepared craft SPEC proposals await the explicit owner
 interpretation/design answer requested this turn; no approval has been inferred.
 
+**Definitions complete — final Linux clean install and upgrade.**
+The [existing two transaction contracts](docs/ROADMAP_BACKLOG.md#final-linux-clean-install-and-upgrade--transaction-contracts)
+now fix empty-prefix clean install and actual499e681→final upgrade paths/commands,
+managed/protected bytes/modes, new-generation/old-file retirement, installed full
+Guided and separate original30/300/310/330s limits. Actual prior archive/payload
+hashes and original wrapper limits were read/verified. Final archive identity and
+all actual final execution, graphical desktop and retained-save reload remain
+open; no engine/installer/export/CI run or accepted checkpoint rerun occurred.
+Root owns only these two docs; no branch/worktree/scratch created. Original
+07:14:58UTC start,15minute estimate/07:34:58 hard deadline include review/checks/
+commit/push. Independent source review, all337 identities/order and new anchors
+pass; roughly6minutes through checks, with final push charged to the same clock.
+Craft design approval remains pending; no implementation active.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
