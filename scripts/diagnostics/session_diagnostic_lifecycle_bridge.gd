@@ -178,6 +178,12 @@ func choose_recovery(choice: StringName, safe_graphics_apply: Callable = Callabl
 			return _status(false, &"invalid_recovery_choice")
 
 
+## Cheap readiness query for the caller's retry clock; a clean session must
+## not resume publication even when an earlier sink refusal remains pending.
+func can_retry_recovery_flush() -> bool:
+	return _recovery_flush_pending and (_state == STATE_STARTING or _state == STATE_STABLE)
+
+
 ## Retries publication of the one recovery event without recording another one.
 func flush_recovery_event(physics_tick: int, elapsed_physics_seconds: float) -> Dictionary:
 	if not _recovery_flush_pending:

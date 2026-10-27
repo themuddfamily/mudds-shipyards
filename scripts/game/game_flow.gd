@@ -1150,6 +1150,7 @@ var _session_diagnostics_elapsed_physics_seconds := 0.0
 var _session_diagnostics_runtime_mode := 0
 const SESSION_DIAGNOSTICS_RETRY_DELAY_SECONDS := 1.0
 var _session_diagnostics_retry_remaining_seconds := 0.0
+var _session_diagnostics_recovery_retry_remaining_seconds := 0.0
 var _session_diagnostics_persist_pending := false
 var _session_diagnostics_clean_observation_recorded := false
 var _session_recovery_command_status: Dictionary = {}
@@ -3373,6 +3374,11 @@ func _initialize_session_diagnostics() -> void:
 		_session_diagnostics_record = record
 		_session_diagnostics_persist_pending = false
 		_session_diagnostics_retry_remaining_seconds = 0.0
+		_session_diagnostics_recovery_retry_remaining_seconds = (
+			SESSION_DIAGNOSTICS_RETRY_DELAY_SECONDS
+			if _session_diagnostics_bridge.can_retry_recovery_flush()
+			else 0.0
+		)
 		_session_diagnostics_clean_observation_recorded = false
 
 
@@ -4585,6 +4591,25 @@ func _advance_session_diagnostics_physics(delta: float) -> void:
 	if _session_diagnostics_persist_pending \
 			and _session_diagnostics_retry_remaining_seconds <= 0.0:
 		_persist_session_diagnostics_ring()
+	# File publication has its own clock: successful observation-ring saves
+	# must not reset a refused sink's interval or turn it into per-frame I/O.
+	if _session_diagnostics_bridge != null \
+			and _session_diagnostics_bridge.can_retry_recovery_flush():
+		_session_diagnostics_recovery_retry_remaining_seconds = maxf(
+			0.0, _session_diagnostics_recovery_retry_remaining_seconds - delta
+		)
+		if _session_diagnostics_recovery_retry_remaining_seconds <= 0.0:
+			_session_diagnostics_bridge.flush_recovery_event(
+				_session_diagnostics_physics_tick,
+				_session_diagnostics_elapsed_physics_seconds,
+			)
+			_session_diagnostics_recovery_retry_remaining_seconds = (
+				SESSION_DIAGNOSTICS_RETRY_DELAY_SECONDS
+				if _session_diagnostics_bridge.can_retry_recovery_flush()
+				else 0.0
+			)
+	else:
+		_session_diagnostics_recovery_retry_remaining_seconds = 0.0
 	_observe_session_diagnostic_runtime_mode()
 
 
