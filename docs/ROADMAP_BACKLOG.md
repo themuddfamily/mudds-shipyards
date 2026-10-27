@@ -4742,6 +4742,24 @@ no game authority or save schema change is selected.
   gameplay checkpoint for diagnostic-only release support; actual private export
   proves executable support. Native/device/human/ordinary/installed/final gates open.
 
+**First source stop, before busy exit.** Candidateb9d103645 import22.164s/privacy
+2.671s pass; one accepted-source attempt stops66.108s after real pilot/payment1/
+thrust/home landing, before PREPARED/cut. Runner kills/reaps arm; source/cache
+unchanged. Combined pre-cut assertion contains two source-proven false checks:
+fresh ARM compares actual threat record with cold-only empty restored cache;
+completed landing has overwritten reason to returned_to_shipyard, so expecting
+landing_requested is impossible. Other conjunct values were not recorded.
+
+**One causal continuation approved before correction,03:15UTC.** Independent
+high-risk review confirms both causes and chooses this bounded correction over
+switching at15minutes cumulative/75remaining on original03:00→04:30 clock. Only
+busy-exit ARM uses canonical live-threat comparison; RESUME retains cold cache;
+completed-home expects returned_to_shipyard. No runtime policy change, predicate
+relaxation, new instrumentation layer or fresh budget. Corrected source requires
+review, then one accepted-source rerun; if it passes continue first refused/source
+and private export/package pairs. Next unexpected failure is terminal PARK/no
+second correction. Preserve first source failure/clean-source pin/raw results.
+
 ### Settled docking recovery contract
 
 RECOVERY-DOCK-DEFINE is DONE as a source definition on86d0e4593. No engine

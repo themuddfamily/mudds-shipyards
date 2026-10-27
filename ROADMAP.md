@@ -168,6 +168,9 @@ exit, owned kill and distinct safe restart with conserved progress. Scripted
 setup is disclosed; installed/full ordinary qualification stays open.
 [Finite production-tool contract](docs/ROADMAP_BACKLOG.md#busy-exterior-exit-interruption--frozen-2026-10-27).
 Original03:00→04:30UTC budget includes checks/export/integration/cleanup.
+First source attempt stops before exit at two demonstrated probe assertion errors.
+One independently reviewed causal correction is permitted on the same clock;
+next unexpected failure ends the continuation. No runtime defect is inferred.
 
 **PARKED — full varied encounter capture times out with no images.**
 The one independently reviewed wrapper correction works: fresh import passes
