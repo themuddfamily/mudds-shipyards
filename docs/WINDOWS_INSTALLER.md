@@ -8,7 +8,31 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest local installer `7876ebc` — 2026-10-27
+## Latest local installer `7876ebc`, builder `17a1118` — 2026-10-27
+
+The unsigned [setup](../builds/windows/MuddsShipyards-7876ebc-installer-17a1118-setup.exe),
+[exported uninstaller](../builds/windows/MuddsShipyards-7876ebc-installer-17a1118-setup.exe.uninstall.exe)
+and [notes](../builds/windows/MuddsShipyards-7876ebc-installer-17a1118-notes.txt)
+use the same accepted game7876ebc8da434987700f128483d4e67098cd7319. Builder
+17a11183a3a586f1749a748bf233478d88a4259f exports the finalized uninstaller after
+optional signing, before NSIS embeds it. This adds an actual release artifact;
+no gameplay change or native Windows run is claimed.
+
+Both existing suites pass33 executable tests/one PowerShell skip in4.911s,
+including real exported PE/version/hash, collision refusal, copy-failure cleanup
+and mock-signer ordering. One actual NSIS3.11 build exits0/log0 in81.969s under
+600. Setup88,254,367bytes/SHA256
+`a3e996b44450e7d1e6289e4d190200b4cbde1e5f48b363b009cbfc2188b07c21`;
+uninstaller117,593bytes/SHA256
+`a8b290423bed44ae90b251af60b4e9571c16acb0a624157e3764158e6672ac3a`.
+Both actual PE version resources match0.12.0.0/0.12.0+7876ebc and have no certificate
+table. Existing source EXE/ZIP/previous setup/result/checksum/notes retain exact
+bytes; extracted staged game equals the full accepted EXE. 7-Zip still reports
+BadCmd13/no standalone member; finalizer export supplies this new uninstaller.
+Native install/uninstall, actual trusted signing and final-candidate gates stay
+NOT_RUN/open. Earlier installers without this sidecar retain their own limits.
+
+## Earlier local installer `7876ebc` — source-version repair, 2026-10-27
 
 The unsigned [setup](../builds/windows/MuddsShipyards-7876ebc-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-7876ebc-installer-notes.txt) package the
