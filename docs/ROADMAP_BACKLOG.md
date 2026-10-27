@@ -256,7 +256,7 @@ separate and must not be marked done by the decision.
 | RECOVERY-POLICY-TORPEDO | Same fields for active boat/seeker encounter/objective/timer | Same finite policy artifact |
 | CARGO-REPLENISH-JOVIAN | Legitimate same-world source/refill trigger, conserved source/destination counts, capacity/refusal, and a normal ten-delivery route | User settles product policy; Codex implements/proves it. Existing six kits fund only three two-kit deliveries |
 | CARGO-REPLENISH-CINDER | Legitimate shared-stock refill AND destination turnover; source/sink/trigger/conservation/capacity; normal ten-transfer route | Same. Existing two crates/destination capacity8 cannot prove ten; rebinding/reset cannot mint stock |
-| PERF-MINIMUM / PERF-TARGET / PERF-ROUTES-DEFINE | Actual machine/OS/GPU/driver/resolution/quality and representative workloads; bind existing GPU/VRAM/network/streaming budgets where required but not numeric | User supplies access/target choice; Codex records exact machines, commands and ceilings before measurement. Reuse seven delivered selectors and world endurance; no new benchmark framework |
+| PERF-MINIMUM / PERF-TARGET / PERF-ROUTES-DEFINE / PERF-CELLS-DEFINE | Actual included machine/OS/CPU/RAM/GPU/driver/isolated-session access; per-profile GPU p95/max-ms and dedicated-process VRAM-byte ceilings; per-world loaded/resident-byte ceilings; minimum completed canonical-cycle count and elapsed interval | User supplies these exact missing resources/values in the [fixed performance contract](#performance-machine-cells). Workloads/commands/existing limits are source-bound; network values reuse NET-ENDURANCE-DEFINE. Codex owns native collection and three journey repeat implementations, not another benchmark framework. No run or source result is inferred from a resource answer. |
 | ACCESS-CAPTIONS[overflow policy] | Select current-caption pagination, scrolling or wider/recomposed HUD when valid text exceeds the fixed safe area; settle timing/input/full-text/reservation behavior before implementation | User chooses presentation policy. Actual1280×720/request1.6 case measures650px intrinsic vs411.130435px safe; originalfonts/fulltext/width/reservation cannot all fit simultaneously. [Source and exact failed measurement](CAPTION_VISUAL_PRESENTER.md#open-maximum-payload-overflow-policy). No silent shrinking/truncation/transcript substitution; no runtime fix yet |
 | INPUT-KBM / INPUT-CONTROLLER / AUDIO-MIX | Actual device/backend/session and frozen complete route; audio needs explicit audible authorization and chosen listening episodes/measurement ceilings | Resource/authorization recorded; synthetic input/Dummy remain insufficient for physical/output acceptance |
 | RIGHTS-PROJECT-TERMS | Chosen project release license/terms and distribution disposition | User's explicit terms recorded; engine notices do not choose them |
@@ -3182,8 +3182,9 @@ Other finite memberships stay in their existing rows:21 shared-world cases,
 existing performance selectors. Their missing fields are, respectively:
 participant/role/phase/cut/durable endpoint/ordinary caller; same-world reset/
 rotation/cargo source/sink/equivalent-phase counters; exact fixture/protected
-files/modes/installed-usability command; and representative whole-world
-workload/machine/command/metric ceilings. Codex owns source/caller/fixture work;
+files/modes/installed-usability command; and [fixed seven workloads/three repeat owners with machine/command/metric
+bindings](#performance-workload-contract). Performance source definition is now
+closed at the named exact hardware/value inputs, not a request to resurvey routes. Codex owns source/caller/fixture work;
 the decision register owns the exact unresolved cargo, active-recovery,
 capacity, hardware and metric-policy inputs. Neither unavailable source artifacts
 nor unapproved values authorize substitute runs. These missing bindings keep
@@ -4652,6 +4653,154 @@ reviewing repair/priority. No dependency on parked Heavy Breach debt interruptio
 no unchanged parked retry, and no new validator/schema/persistence entitlement.
 Parent23 and full independent/native combat/recovery acceptance remain OPEN.
 
+<a id="performance-workload-contract"></a>
+
+### Performance — fixed workloads, commands and remaining inputs
+
+PERF-ROUTES-DEFINE / PERF-CELLS-DEFINE sourcec6f88de52. Definition selection
+16:43:05UTC2026-10-27,20minutes through17:03:05UTC includes one bounded workload
+review, root command/limit binding, docs/checks/commit/push/cleanup. No benchmark,
+engine, hardware probe, renderer/display launch, new validator or parked retry.
+
+**Closed selector roster: seven, not an open request for more benchmarks.**
+All instantiate fresh production Main with fixed seed/quality/resolution and
+exclude disclosed staging from measurement. Source owner is existing
+[benchmark runner](../tools/performance/benchmark_runner.gd); full setup/input/
+endpoint disclosure remains in [its documentation](PERFORMANCE_BENCHMARK_RUNNER.md).
+
+| Existing selector | Actual measured workload / full completion |
+| --- | --- |
+| station_embodied_route | Staged Player at production spawn; forward/right/left quarter segments, enabled movement≥1m. No named station-branch endpoint. |
+| nearby_sector_ship_flight_route | Staged Torrent at registered Cinder anchor; real streaming generation, approach-lane forward/reverse shuttle/braking/boost. Healthy accepted ONLINE propulsion and sampled motion, gate endpoint≤20m. |
+| halyard_cabin_walk_route | Player staged once on stationary healthy Halyard's live seat-derived aisle. Ordinary forward/yaw steering; both endpoint visits and≥one aisle sampled path, continued support/occupancy/bounds. |
+| torrent_range_combat_reuse_route | Staged Torrent/reticle at exterior DRONE-01; normal fire, authoritative destruction,1s presentation, production reuse. At least2 sampled cycles, correlated hits/damage, no>10s sampling shot/hit gaps; no mission reward loop. |
+| ember_surface_walk_route | Staged caldera egress; existing nine-leg≈131m circuit. Both sampled endpoints and≥100m sampled supported walking; disclosed gravity adapter. |
+| aurora_surface_walk_route | Staged coastal egress; ten authored points and reverse. Both sampled endpoints and≥100m walking with real terrain/lookout support; disclosed gravity/streaming adapter. |
+| rime_surface_walk_route | Staged survey/return trails,13-point≈216m circuit. All ordered sampled points,≥one loop/closure≤.5m and continuous generated-ice support; disclosed gravity/streaming adapter. |
+
+Original Phase10.2 consumes these cost slices. Phase10.1 repeated whole-game
+stabilization,10.3 gameplay-distance visual review and10.4 complete/repeated
+planetary expeditions retain their actual journey/capture owners. These seven
+staged workloads do not pass those broader outcomes or ordinary craft access.
+Default protocol runs station+nearby together; **every explicit selection is
+currently diagnostic-only**, even on matching native hardware. Preserve those
+labels. No eighth selector, optional craft/cabin axis or duplicate station/nearby
+selection is needed.
+
+**The one uncovered workload class: repeated completed canonical expeditions.**
+Reuse the existing owners below, with their actual registered craft, instead of
+adding a benchmark copy or multiplying craft×world combinations:
+
+| Existing owner/mode | Fixed full-journey member |
+| --- | --- |
+| tests/ember_transit_movement_soak.gd --ember-completed-return | Arrow canonical Ember outward flight, actual surface relay completion/disk reward, reboard/physical home/dock/exit. |
+| tests/aurora_physical_return_soak.gd --aurora-full-roundtrip | Halyard canonical Aurora outward flight, coastal survey/disk reward, physical home/dock/exit. |
+| tests/rime_visit_loop_test.gd --rime-completed-return | Arrow canonical Rime outward flight, actual ice survey/disk reward, physical home/dock/exit. |
+
+These existing modes prove at most one completed journey and disclose initial
+on-foot yard placement. Ember surface-loop/abandon repetition and nine-craft
+local long-session sorties remain narrower; neither supplies repeated completed
+canonical expeditions. Codex must extend those three owners with same-retained-
+Main/world lifecycle repetition and bounded phase/resource sampling, preserving
+all existing travel/rebase/landing/walking/reward/return assertions and setup
+disclosures. No repeated earned payment is inferred; each cycle must retain or
+settle only its current legitimate activity generation, never duplicate a paid
+receipt. Source/runtime repeat behavior must be established in that implementation.
+This is executable journey capability, not a new evidence validator.
+
+The original requires long-session repetition but gives no universal completed-
+cycle count or elapsed interval. **Exact remaining owner input:** specify minimum
+completed cycles and actual elapsed interval for these three canonical workloads
+on each required minimum/target profile. PERF-ROUTES-DEFINE membership is now
+fixed; this missing acceptance value does not authorize arbitrary extra workloads.
+No repeated-journey command exists today. Codex freezes an outer deadline from
+that selected interval/count plus unchanged per-leg bounds before implementation;
+Rime's existing900s suite declaration and Ember's36,000outbound/42,000return/
+3,000landing tick budgets are not a new aggregate repeat cap. Do not shorten
+travel or reset Main/clock to make an endurance record.
+
+<a id="performance-machine-cells"></a>
+
+**Machine/command bindings — PERF-CELLS-DEFINE.** The existing resource owners
+PERF-MINIMUM and PERF-TARGET supply actual machine identity/access, not workloads.
+Preserve the [declared machine classes](PERFORMANCE_BUDGET_SCENE_GEOMETRY.md#the-target-machine):
+minimum4core/8thread≈2018,8GB RAM,GTX1060 6GB/RX580 8GB class; target6core/12thread
+≈2022,16GB RAM,RTX3060 8GB/RX6600 8GB class. Both1920×1080/High/Forward+; target
+1440p headroom is not another required cell. A faster available GPU cannot silently
+replace minimum qualification. User supplies actual included OS/CPU/RAM/GPU/driver,
+isolated session and access for each resource owner. Native Windows execution
+remains owner-excluded/NOT_RUN; no Windows run is selected by these bindings.
+
+For each declared applicable native profile: the default two-scenario batch is
+the existing representative protocol; the five supplemental selectors above
+have explicit diagnostic commands with the same machine identity. They are
+workload bindings, not14 newly claimed native qualification passes. Seven-way
+route completion or hardware match cannot turn diagnostic flags into acceptance.
+The canonical repeated-journey consumers remain separate and await the exact
+interval/count input and missing repeat code above.
+
+On an owned native Linux GPU session, after clean-source/import/cache/profile
+selection and private XDG directories, the existing source command is:
+
+```sh
+env -u WAYLAND_DISPLAY -u KETH_BENCHMARK_SCENARIO -u KETH_BENCHMARK_SMOKE -u KETH_BENCHMARK_WARMUP_FRAMES -u KETH_BENCHMARK_SAMPLE_FRAMES DISPLAY="$OWNED_DISPLAY" XAUTHORITY="$OWNED_XAUTHORITY" XDG_DATA_HOME="$ROOT/profile/data" XDG_CONFIG_HOME="$ROOT/profile/config" XDG_CACHE_HOME="$ROOT/profile/cache" XDG_STATE_HOME="$ROOT/profile/state" XDG_RUNTIME_DIR="$ROOT/profile/runtime" TMPDIR="$ROOT/profile/tmp" KETH_BENCHMARK_TARGET_PROFILE="$TARGET_JSON" KETH_BENCHMARK_JSON="$ROOT/benchmark.json" KETH_BENCHMARK_RESOLUTION=1920x1080 KETH_BENCHMARK_QUALITY_LEVEL=2 python3 tools/release/suite_process.py --timeout 3600 -- "$GODOT" --display-driver x11 --audio-driver Dummy --rendering-method forward_plus --path "$SOURCE" --script res://tools/performance/benchmark_runner.gd
+```
+
+Use absolute frozen GODOT/SOURCE/ROOT/TARGET_JSON paths. ROOT is exclusive outside
+the checkout; private directories0700, inherited HOME unchanged. OWNED_DISPLAY/
+OWNED_XAUTHORITY must identify the dedicated GPU test session, not the user's
+active desktop. Bind its actual renderer/API/driver before execution. Clear
+inherited KETH_BENCHMARK_* overrides first; default omits SCENARIO/SMOKE. For
+one supplemental diagnostic, supply exactly its literal KETH_BENCHMARK_SCENARIO
+above. Current native Windows wrapper/commands remain documented but excluded.
+Xvfb/VM/software-renderer results are environment-specific, not target-GPU proof.
+These source commands do not establish exported-game/package identity.
+
+**Shared existing limits:** each scenario≥3,600warm-up frames AND≥60elapsed
+seconds, then≥18,000measured frames AND≥600elapsed seconds;1920×1080High actual
+framebuffer before/after, p95≤16.7ms/p99≤33.3ms/no measured frame>100ms, peak
+process working set≤4GiB. Longer reviewed windows may extend, not reduce floors.
+Default batch takes≥22min; retain existing3,600s outer limit, actual route
+completion/OS0/zero diagnostics and independent input/cursor/process cleanup.
+Do not override full windows with smoke or claim static engine memory is OS RAM.
+The existing validator checks static_peak_bytes; actual native OS peak working
+set must independently satisfy4GiB before the full memory gate can pass.
+
+**Remaining numeric/collection inputs, named once:**
+
+| Field | Fixed owner / exact missing input or capability |
+| --- | --- |
+| Native GPU frame time | User fixes per-profile p95/max GPU-ms ceilings where not supplied; Codex binds a real per-frame native GPU collector/trace aligned to this PID/run/sample interval. Godot runner currently records unavailable, not0. |
+| Dedicated process VRAM | User supplies per-profile peak-byte ceiling; Codex binds actual per-process dedicated allocation measurement. Board-wide memory or installed card capacity is not that result. |
+| Network load/drift/drain | Consume the adopted NET-ENDURANCE-DEFINE shared traffic/tick/queue rows once; no second network budget table. Benchmarks here do not execute that network workload. |
+| Streaming residency/memory | Preserve each frozen terrain profile's visible/resident/collision tile caps (current shared defaults512/1024/256); user supplies absent per-world loaded/resident-byte ceilings. Codex records actual tiles/bytes during canonical transitions and retirement, not only a static surface walk. |
+| Whole-expedition endurance | User supplies exact count/elapsed input above; Codex delivers repeated ordinary lifecycle/resource observations and original end-to-end proof. No synthetic time or surface-only replacement. |
+
+Existing native normalizer consumes external measurements; it does not collect
+GPU/VRAM or run the game. The existing record validator accepts exactly the
+default two scenarios and requires measured native GPU/VRAM; unavailable metrics,
+missing windows or mismatched framebuffer/source cannot pass. Use existing
+consumers for their actual scope, not another schema/version/provenance family.
+Raw native trace/OS-memory collection and source/package binding stay Codex
+integration work once hardware is supplied. Record any unsupported applicable
+platform in that same concrete collection capability; never relabel Windows or
+software data as native Linux. No hosted CI is enabled.
+
+PERF-ROUTES-DEFINE can close its source roster at this table; PERF-CELLS-DEFINE
+can close this source binding with the exact external values/resources named.
+Neither can mark an actual benchmark, whole-world repeat or performance budget
+accepted. Geometry/draw/light/shadow/particle/node limits stay with the existing
+[scene census](PERFORMANCE_BUDGET_SCENE_GEOMETRY.md); voice counts stay with the
+[existing audio census](PERFORMANCE_BUDGET_AUDIO_VOICES.md). Reuse their commands
+and ceilings; neither census substitutes for native timing or audible mix.
+Freeze source/package/hardware/profile/metric tooling/output paths and
+absolute deadline before each run; preserve first failure, original windows and
+owned cleanup. Broad performance/phase gates remain OPEN.
+Workload review GO after correcting station/Halyard proof scope and consolidating
+the old roster. All337 canonical identities/order, seven selector mappings/three
+journey owners, source links, command shell syntax and original timing constants
+check correctly; no benchmark, hardware/engine probe or performance acceptance.
+
 ### Hardware, accessibility and audio children
 
 Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-frame measurement, 1080p High p95≤16.7ms/p99≤33.3ms/no post-warm frame>100ms/working set≤4GiB and original GPU/VRAM/streaming budgets. Each missing benchmark route, measured hotspot, remap case, readability cell, cue and mix scenario becomes a named child only when the corresponding finite list is resolved. Software/VM/Dummy tests do not qualify actual hardware or audible mix.
@@ -4660,8 +4809,8 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | --- | --- | --- | --- | --- | --- |
 | PERF-MINIMUM | Bind actual minimum-spec machine/profile | 28 | Resource | WAITING; representative isolated hardware | Record actual minimum machine/OS/CPU/RAM/GPU/driver/resolution/quality, isolated access and intended workloads; this resource/profile goal does not claim a measurement pass. |
 | PERF-TARGET | Bind actual target-spec machine/profile | 28 | Resource | WAITING; representative isolated hardware | Record actual target machine/OS/CPU/RAM/GPU/driver/resolution/quality, isolated access and intended workloads; this resource/profile goal does not claim a measurement pass. |
-| PERF-ROUTES-DEFINE | Required representative workloads beyond the seven existing selectors, with whole-expedition repetition mapped to world endurance | 28 | Definition | BLOCKED definition — Codex must bind the seven existing selectors and existing world-endurance journeys to original requirements, recording any uncovered original workload once; no optional craft/cabin/world axes. Missing original workload intent is user input. | One closed workload list binds all seven existing selectors and existing world-endurance journeys to original performance requirements. It fixes the uncovered Phase10.4 whole-expedition craft/world/cycle or records the precise owner choice still required. Machine identities are exclusively PERF-CELLS-DEFINE dependencies; unavailable hardware does not block naming workloads. Additional craft/cabin/combat workload requires an identified uncovered original requirement. Every original workload is covered or dependency-blocked; then PERF-CELLS-DEFINE binds commands/numeric budgets. Do not reopen the roster without a demonstrated gap. |
-| PERF-CELLS-DEFINE | Applicable machine/route measurements | 28 | Definition | BLOCKED definition/input. Codex binds the finite PERF-ROUTES list to PERF-MINIMUM/TARGET identities and exact commands. Preserve the original warmup/measurement/frame/memory budgets; enumerate each missing GPU/VRAM/network/streaming ceiling by name. User supplies actual unavailable machines/access and genuinely unspecified ceilings. Stop at the finite list or those exact blockers; no performance run, optional axes or inferred threshold. | One literal machine/workload/command/metric/ceiling/abort list. Each required field has a source-backed value or an explicitly named unavailable input and owner. A blocked answer ends this definition attempt and cannot mark PERF measurement accepted. Existing floors remain ≥60s/3600 warmup frames, ≥600s/18000 measured frames, 1080p High p95≤16.7ms/p99≤33.3ms, no post-warm frame>100ms, working set≤4GiB. |
+| PERF-ROUTES-DEFINE | Required representative workloads beyond the seven existing selectors, with whole-expedition repetition mapped to world endurance | 28 | Definition | Source roster DONE in [seven workloads and three canonical repeat owners](#performance-workload-contract). No eighth selector or craft×world matrix. Exact whole-expedition minimum completed-cycle count/elapsed interval remains user input; repeat implementation is Codex-owned. Existing staged/diagnostic scopes preserved; no performance acceptance. | One closed workload list binds all seven existing selectors and existing world-endurance journeys to original performance requirements. It fixes the uncovered Phase10.4 whole-expedition craft/world/cycle or records the precise owner choice still required. Machine identities are exclusively PERF-CELLS-DEFINE dependencies; unavailable hardware does not block naming workloads. Additional craft/cabin/combat workload requires an identified uncovered original requirement. Every original workload is covered or dependency-blocked; then PERF-CELLS-DEFINE binds commands/numeric budgets. Do not reopen the roster without a demonstrated gap. |
+| PERF-CELLS-DEFINE | Applicable machine/route measurements | 28 | Definition | Source binding DONE in [machine/command/metric contract](#performance-machine-cells); actual PERF-MINIMUM/TARGET hardware/access and named missing GPU/VRAM/streaming/count/duration values remain input-gated. Native collection/repeated journey capability remains Codex work. Original windows/frame/RAM/geometry caps retained; no run or budget acceptance. | One literal machine/workload/command/metric/ceiling/abort list. Each required field has a source-backed value or an explicitly named unavailable input and owner. A blocked answer ends this definition attempt and cannot mark PERF measurement accepted. Existing floors remain ≥60s/3600 warmup frames, ≥600s/18000 measured frames, 1080p High p95≤16.7ms/p99≤33.3ms, no post-warm frame>100ms, working set≤4GiB. |
 | INPUT-KBM | Physical keyboard/mouse ordinary full route | 8,18,29 | Qualification | BLOCKED definition—Codex: finite action→effect roster, ordinary route, run count, original caps and termination/proof; BLOCKED input—user: actual physical device/backend and isolated-session access. Supplying hardware does not complete the route definition; synthetic coverage does not satisfy physical acceptance | Actual physical keyboard/mouse: bind the existing production InputMap/help actions for menus, walking, boarding, piloting and supported role interaction to one named ordinary route/device/backend. Record each action→expected effect; actual remap/apply/conflict/reset and distinct-restart persistence, enabled menu focus and usable gameplay return must pass. Existing sampled HELM proof is retained; synthetic input is insufficient. |
 | INPUT-CONTROLLER | Physical controller ordinary full route | 8,18,29 | Qualification | BLOCKED definition—Codex: finite action→effect roster, ordinary route, run count, original caps and termination/proof; BLOCKED input—user: actual physical device/backend and isolated-session access. Supplying hardware does not complete the route definition; synthetic coverage does not satisfy physical acceptance | Actual physical supported controller: bind the existing production InputMap/help actions for menus, walking, boarding, piloting and supported role interaction to one named ordinary route/device/backend. Record each action→expected effect; actual remap/apply/conflict/reset and distinct-restart persistence, enabled menu focus and usable gameplay return must pass. Existing sampled HELM proof is retained; synthetic input is insufficient. |
 | MIXED-CONTROL-PROMPTS | Grouped help retains mixed button/stick labels independent of action order | 8,29 | Capability | DONEb86264f; actual MOVE/default shorthand, glyph40/camera27/help20 and paired checkpoint; no physical device/whole apply-flight claim | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -7520,7 +7669,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | GATED on PERF-ROUTES-DEFINE naming a concrete uncovered workload | Implement the selected actor/action/measurement through the existing runner, with its focused selection check. Seven selectors already exist; see coverage below. Cabin/surface repetition and combat reuse are implemented. Do not infer another missing route from those family labels. Preserve default combined scope and original measurement floors; stop at the selected executable route, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | Seven-selector roster CLOSED; [canonical repetition capability](#performance-workload-contract) remains input/implementation-gated | The uncovered workload extends three existing canonical journey owners, not an eighth selector or another runner. Preserve default/diagnostic scopes and original travel/measurement limits; bind exact cycle/elapsed input before repeat implementation. No source resurvey or duplicate world-endurance requirement. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
@@ -7533,19 +7682,11 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 
 ### Benchmark workload definition — retained coverage and missing decision
 
-PERF-ROUTES-DEFINE remains **DEFINE**, not a missing implementation roster.
-Source review of `tools/performance/benchmark_runner.gd` establishes these seven
-selectors; it is not a new benchmark run or native performance qualification.
-
-| Existing selector | Implemented workload |
-| --- | --- |
-| `station_embodied_route` | Station player walk; part of the default pair. |
-| `nearby_sector_ship_flight_route` | Torrent flight along the streamed Cinder approach lane; part of the default pair. |
-| `halyard_cabin_walk_route` | Stationary Halyard aisle, repeated out-and-back. |
-| `torrent_range_combat_reuse_route` | Torrent fire, authoritative DRONE-01 destruction, reset and reuse. |
-| `ember_surface_walk_route` | Repeated authored Ember surface trail. |
-| `aurora_surface_walk_route` | Repeated authored Aurora coastal trail. |
-| `rime_surface_walk_route` | Repeated authored Rime icefall survey/return trail; delivered on a8f563e39. |
+PERF-ROUTES-DEFINE source roster is closed at the [single seven-workload
+contract](#performance-workload-contract), which binds exact inputs/endpoints,
+default-versus-diagnostic scope and the three canonical repeat owners. Do not
+repeat this source survey or add an eighth selector. No new benchmark result
+or native performance qualification follows from that definition.
 
 Retained deliveries: Halyard D5, Torrent combat E1, Ember E2, Aurora
 c47b5cd55 and Rime a8f563e39. Rime's recorded check sampled521.227m across13
@@ -7558,15 +7699,13 @@ selectors stage production actors; they do not perform admitted Host expeditions
 outbound travel, landing or return. Aurora's benchmark supplies its binding
 cadence explicitly without inventing an admitted visit.
 
-**Uncovered workload:** whole orbit-to-surface expedition repetition from the
-original Phase10.4 long-session requirement. The retained contract does not name
-its representative benchmark craft, world or cycle. Define those and map the
-measurement to the existing world-endurance outcome before selecting a route;
-do not duplicate that journey as a second completion requirement. Additional
-fleet/cabin/combat representatives also need an explicit workload justification,
-not a selector per craft or another copy of an existing walker. No new selector,
-profiling run or retry of parked Q4 startup work is selected here. Minimum/target
-hardware and all PERF-RUN timing, frame-count and memory/GPU budgets remain open.
+**Uncovered implementation:** repeat the existing completed Ember/Arrow,
+Aurora/Halyard and Rime/Arrow canonical journeys through retained lifecycle, as
+bound above. Exact minimum completed cycles/elapsed interval remain owner input;
+craft/world membership is fixed. Implement repetition in those existing journey
+owners and consume its result once, not another benchmark copy. Actual hardware,
+named numeric ceilings/native collection and repeat code remain open. No extra
+selector, profiling run or parked Q4 retry is selected by this reconciliation.
 
 ### Dormant opponent presentation — bounded cost decision
 
