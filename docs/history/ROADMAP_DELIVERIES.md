@@ -32518,3 +32518,11 @@ canonical checkpoint files retain exact audited bytes. Only records.tar.gz and
 closeout.json remain in `/srv/mudds-work/crashlog-retry-20261027/`: archive11274171
 bytes/223members/87regular files independently reread/hash-verified, SHA256
 `4e1875185ffbfb84f8418c9471e4e097639519c94ad47efb80114ab3c120cf34`.
+
+One remaining launch-definition field resolved after reading the preserved
+installation promise at ROADMAP_SCOPE_20261017.md:200: it requires graphical
+direct and actual desktop-entry play but supplies no repetition count. Codex
+explicitly selects one complete rendered Guided journey per method (two total),
+keeping the original per-journey CAP300 and separate GUIDED-FINAL3/3 intact. This
+is an engineering acceptance choice, not a historical count or runtime PASS.
+Other PLAN-NEXT contract fields remain open; no new driver or run is selected.
