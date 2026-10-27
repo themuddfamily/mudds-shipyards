@@ -4,6 +4,39 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+
+## Varied encounter preparation refused before engine 20261027
+
+Existing capture-varied-encounters selected one full18-frame1600x900 capture,
+including the missing scatter-fan plate, on clean pushed source
+`8c99f6c54430eee7588df0100cc6bc2d5a87848a`. Frozen original300s engine limit,
+Forward+/Vulkan/private Xvfb/Dummy, declared llvmpipe scope and first-failure stop
+remain. Read-only independent selection/source review accepted the bounded
+contract, not any output. No game/harness/art/registry change.
+
+**PARKED, preparation failure.** Root's external run.py called existing
+suite_process.py with --log/--status without --detach. Exact parser message:
+`--detach requires both --log and --status; paths require --detach`; exit2.
+This occurs before process creation, so no Godot import/capture/Xvfb ran. The
+wrapper then raised FileNotFoundError while reading the never-created engine.log,
+before its own result/STOP publication. Terminal record and STOP were written
+manually afterward, without another invocation. Independent wrapper review
+confirms this exact cause and the terminal stop. No retry, accepted image,
+engine/rendering conclusion, runtime delivery or new playable checkpoint.
+
+Six record files (wrapper, original command/environment, full tracked-input
+hashes, raw parser log, STOP and terminal record) are byte/mode verified in
+`/srv/mudds-work/varied-encounters-20261027/records.tar.gz`,562150bytes,
+SHA256 `3ce41b515cb2f7d42d61080e7b7e468bff7f55b11ee03cffd7ae4347ae3ccb4e`.
+Source is reachable in pushed main; no unique source branch existed. No process
+holds the owned checkout; detached worktree, empty profiles and loose scratch
+removed. Only archive/closeout remain. Cleanup02:49:05.553706UTC,9.092562minutes
+from conservative original02:40UTC selection start, plus final docs/push time
+recorded in closeout. Historical17 images remain protected; registry unchanged.
+Reopening requires a new explicit cumulative-priority decision and corrected
+wrapper source review before any engine invocation; this result selects none.
+
+
 ## Cinder codec continuation parked at component regression 20261027
 
 **Authorized correction preparation FAIL/PARK; no second native attempt.**

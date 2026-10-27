@@ -162,11 +162,14 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — capture-varied-encounters: complete18-frame visual qualification.**
-One frozen source-specific Forward+/1600x900 capture and inspection, including
-missing scatter-fan plate. Original300s cap, silent private Xvfb/llvmpipe,
-first-failure stop and owned cleanup; no parked gameplay retry or art change.
-[Exact acceptance and hard deadline](docs/ROADMAP_BACKLOG.md#varied-encounter-complete-image-set--frozen-2026-10-27).
+**PARKED — varied encounter capture preparation; no engine launched.**
+The external wrapper passed log/status options without the supervisor's required
+`--detach`; argument parsing refused before import. Its subsequent missing-log
+read also failed. No capture, image, runtime change or qualification is delivered.
+First-failure stop retained; no patch/retry selected. Owned checkout/profile/
+scratch removed; six record files verified archived,9.093minutes through cleanup
+on the original02:40UTC clock, plus final documentation/push cost.
+[Exact failure and next reopening requirement](docs/history/ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027).
 
 **PARKED — Cinder codec continuation stops at a component regression.**
 One independently approved correction retains the raw acknowledgement and uses
