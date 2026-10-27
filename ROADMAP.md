@@ -162,15 +162,19 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — busy exterior-exit interruption release support.**
-Extend the existing runner for accepted/refused save publication during an actual
-exit, owned kill and distinct safe restart with conserved progress. Scripted
-setup is disclosed; installed/full ordinary qualification stays open.
-[Finite production-tool contract](docs/ROADMAP_BACKLOG.md#busy-exterior-exit-interruption--frozen-2026-10-27).
-Original03:00→04:30UTC budget includes checks/export/integration/cleanup.
-First source attempt stops before exit at two demonstrated probe assertion errors.
-One independently reviewed causal correction is permitted on the same clock;
-next unexpected failure ends the continuation. No runtime defect is inferred.
+**Accepted — busy exterior-exit release interruption support.**
+Existing runner now tests accepted/refused publication during a real busy exit,
+owned kill and distinct cold recovery. Both source pairs and both embedded Linux
+pairs pass on24774c04; actual archive startup is exit0/exactone menu-ready marker.
+Accepted save yields supported station walking; refused save retains a fresh home
+pilot with working throttle. Exact files/generation/backups, paid1/activity/debt/
+settings, process cleanup and clean shutdown are checked independently.
+One66.108s source stop and its source-proven correction remain charged; total
+27.803minutes through archive/owned branch/worktree/process cleanup, plus final
+notes/push. [Actual proof and scope](docs/history/ROADMAP_DELIVERIES.md#busy-exterior-exit-release-interruption-support-accepted-20261027).
+This delivers executable release support; installed/full ordinary/native/final
+qualification remains open. Runtime policy and playable checkpoint7876ebc stay
+unchanged. No new task is selected by this closure.
 
 **PARKED — full varied encounter capture times out with no images.**
 The one independently reviewed wrapper correction works: fresh import passes

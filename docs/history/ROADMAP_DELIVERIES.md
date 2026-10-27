@@ -5,6 +5,63 @@ results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
 
+
+## Busy exterior exit release interruption support accepted 20261027
+
+The existing release interruption runner can now exercise actual busy exterior
+exit publication through `PACKAGE_PROBE_RECOVERY_CONTEXT=exit` or `exit_refused`,
+Convoy only, actual headless/Dummy drivers and existing conflict guards. Candidate
+`24774c0418f6fd10c9529db4bf3a13221df36d43` is integrated/pushed in57c9b3eb0.
+Only startup admission, existing interruption probe/runner and privacy test change;
+no GameFlow authority, recovery policy, save schema or new validator family.
+
+Disclosed existing escort/3m home-approach setup earns one actual Convoy credit,
+then fails a distinct second Convoy through real landing/automatic OFFLINE.
+Runner independently reads actual primary/backup before its paused gate, releases
+normal `_try_exit_ship`, then kills at the synchronous busy publication before
+canopy completion. Accepted24→25 changes only recovery preference to unavailable,
+backup equals exact prior primary. Real `.tmp`-directory refusal retains both
+files/generation24/pilot preference exactly and schedules retry; blocker removed
+while paused. Actual SIGKILL/reap/distinct normal Boot then proves station fallback
+and24-tick1.872771m floor walk, or fresh home pilot/seat/hatch and2-tick throttle1/
+ONLINE. Failed Convoy/paid1/debt/settings/all unrelated payload fields remain
+exact; only individually enumerated existing lifecycle fields change; both clean
+markers and actual OS0 verified. Scripted setup is not ordinary whole-route proof.
+
+Validation: fresh import22.164s/privacy2.671s; corrected source pairs99.442s/
+101.923s and actual embedded Linux pairs76.991s/78.713s, original300s per arm and
+restart. All four raw results independently reviewed; no diagnostics, equal
+source/import caches, actual-9/0 on distinct PIDs, owned children reaped.
+Clean private export43.263s; actual archive strict startup25.482s/exit0/one
+STARTUP_MENU_READY_OK/no diagnostics. Native argv has no source/pack/script
+override. ELF149096888bytes SHA256
+`035d77a0b253da0da73b11f594eb1ca4b32d95a5ceaba49115174b8d77f4c186`;
+TAR95505564bytes SHA256
+`00e70d0289757bf540d25c80d4a30d0bcc3c0e19c587599a491254c29789279b`.
+Export, actual archive startup and both package pairs bind the same ELF.
+
+First b9d103645 source attempt stops66.108s before cut. Source review establishes
+two wrong probe predicates: ARM used an empty cold-only threat cache; completed
+landing overwrites terminal reason to returned_to_shipyard. Independent cumulative
+GO recorded62ee65b1f before one correction; remaining predicates/caps unchanged.
+The corrected accepted-source rerun and first remaining cases pass; no production
+bug inferred. Original03:00→04:30UTC clock retains first failure and all closure.
+
+All128 members, including records/profiles/caches and the single actual private
+package, are byte/mode/link-target verified in
+`/srv/mudds-work/busy-exit-recovery-20261027/records.tar.gz`,114563861bytes,
+SHA256 `cc27ab64efd6672903b7c532efc1bdcb3024485ab0c0fa911f10d02a9367404d`.
+The archive includes one TAR, not a duplicate149MB ELF. Nine supervisor identities
+absent/reused, nine game processes reaped, no checkout cwd holders. Fresh remote
+main matches integration; task remote branch absent/never created. Accepted local
+tip is contained in pushed main; owned worktree removed, exact24774c04 branch ref
+CAS-deleted, loose profiles/scratch cleaned. Only archive/closeout remain.
+Cleanup03:27:48.187893UTC/27.803132minutes; final notes/push time in closeout.
+Installed/full ordinary journey/final acceptance stays open; native GPU/device
+and excluded Windows/human facts remain NOT_RUN as applicable. No duplicate
+public gameplay checkpoint.
+
+
 ## Varied encounter preparation refused before engine 20261027
 
 Existing capture-varied-encounters selected one full18-frame1600x900 capture,
