@@ -162,20 +162,16 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — one reviewed varied-capture preparation correction.**
-Independent cumulative review permits synchronous supervisor logging, then one
-import and one unchanged18-frame capture. Original02:40→03:40UTC clock and
-03:00/03:05 preparation/launch cutoffs remain; next failure ends the continuation.
-[Exact limited authorization](docs/ROADMAP_BACKLOG.md#varied-encounter-complete-image-set--frozen-2026-10-27).
-
-**PARKED — varied encounter capture preparation; no engine launched.**
-The external wrapper passed log/status options without the supervisor's required
-`--detach`; argument parsing refused before import. Its subsequent missing-log
-read also failed. No capture, image, runtime change or qualification is delivered.
-First-failure stop retained; no patch/retry selected. Owned checkout/profile/
-scratch removed; six record files verified archived,9.093minutes through cleanup
-on the original02:40UTC clock, plus final documentation/push cost.
-[Exact failure and next reopening requirement](docs/history/ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027).
+**PARKED — full varied encounter capture times out with no images.**
+The one independently reviewed wrapper correction works: fresh import passes
+22.169s. One unchanged18-frame1600x900/Forward+/llvmpipe capture then exits124
+at the original300s limit (302.300s including teardown),0images/0DONE/no engine
+diagnostics. Source/imported resources remain unchanged; startup-only output
+establishes no shader/material/art/gameplay cause. No further correction/run.
+All six recorded processes are absent; owned checkout/profile/scratch removed,
+records verified archived. Cleanup18.422minutes from original02:40UTC start,
+plus final docs/push; original preparation failure remains charged and retained.
+[Both stops, precise scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027).
 
 **PARKED — Cinder codec continuation stops at a component regression.**
 One independently approved correction retains the raw acknowledgement and uses

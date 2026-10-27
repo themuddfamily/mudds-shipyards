@@ -36,6 +36,38 @@ recorded in closeout. Historical17 images remain protected; registry unchanged.
 Reopening requires a new explicit cumulative-priority decision and corrected
 wrapper source review before any engine invocation; this result selects none.
 
+**Single approved continuation, same clock; terminal PARK.** Before restoring or
+correcting the wrapper, independent high-risk cumulative review chooses one
+causal correction: remove unsupported supervisor --log/--status options, redirect
+combined output directly, and use synchronous supervised actual exit. Approval
+recorded/pushed d96b60750, preserving prior9.862minutes and original02:40→03:40
+clock,03:00 readiness/03:05 launch, original18frames/quality/300s, and next-failure
+stop. Corrected source independently reviewed before invocation; no game/harness
+mutation or fresh budget. Original8c99f6c54 source stays pinned.
+
+One silent fresh import passes22.168921s/exit0/no diagnostics/source drift.
+One full Forward+/Vulkan/1600x900 private Xvfb/Dummy/llvmpipe capture returns124
+in302.300156s including teardown, **0/18PNG/0DONE**. Source and complete imported
+resources remain unchanged. No warnings/errors; log contains only engine/Vulkan
+startup. The live watcher reports305.041674s/no early abort; independent330s
+supervisor allowance was not exhausted. This is failure at the original300s
+capture limit, not successful preparation or visual qualification. No shader,
+material, art, gameplay or reflection-cleanup cause is established. Independent
+terminal review confirms PARK and all six recorded PID/start identities absent.
+No additional correction, probe or run is selected.
+
+Continuation312regular record/profile/cache files are byte/mode verified in
+`/srv/mudds-work/varied-encounters-20261027/continuation/records.tar.gz`,
+37946934bytes,SHA256
+`e29146115528fc62767c609601742e3e83f11d4fea9ed6a5edea74e93261c526`.
+Original562150-byte archive hash remains unchanged. Source already reachable in
+pushed main, no unique source/task branch; detached worktree, profiles and loose
+scratch removed after all six identities absent/no cwd holders. Only archive and
+closeout remain in continuation. Cleanup02:58:25.349812UTC/18.422497 cumulative
+minutes including both stops; final docs/push cost recorded in closeout.
+No images, inspection, registry promotion, playable checkpoint or native/human/
+final-candidate qualification delivered. Historical17 images remain protected.
+
 
 ## Cinder codec continuation parked at component regression 20261027
 
