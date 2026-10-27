@@ -2032,6 +2032,151 @@ real fixture production remain Codex implementation; final candidate gates stay
 open. No branch/worktree/scratch created; commit/push/cleanup stays inside the
 original19:50:52deadline and prior definition/parked costs remain attached.
 
+<a id="shared-aurora-baseline-contract"></a>
+#### Shared Aurora baseline: three peers,remote survey and durable home return
+
+Definition2026-10-27,22:52–23:17UTC including source review,checks,push and
+cleanup. Root owns these documents;one read-only source agent binds Aurora.
+No engine,reproduction,artifact restoration or parked retry. Literal prerequisite
+HALYARD-BOARD supplies ordinary crew admission in its accepted scope;reuse the
+Aurora world/control owners behind SOLO-AURORA without claiming its solo roles
+or requiring its entire container to close first. MATRIX-FINAL owns candidate
+qualification. The original47ffce740 invocation/build/profile/participants/raw
+bundle remains WAITING at its completed bounded search boundary;this contract
+is neither recovered47ffce evidence nor permission to reproduce it.
+
+**Full target roster.** Halyard halyard_new_design,home
+halyard_fleet_dock_berth;independent host authority/pilot,client authenticated
+surface surveyor and client_b companion,no observer. Both clients must physically
+exit,walk and reboard;one client cannot stand in for the second. Current opt-in
+Aurora arrival/home modes spawn only one client;the default shared-cruise
+multi-client roster does not automatically carry into those modes. Production
+surface grants are per-avatar,survey authorization is per retained body/context,
+and readiness/return checks iterate all admitted/cabin peers;there is no inspected
+one-companion limit. Missing work is the ordinary three-peer caller,not a new
+world,survey authority or final-release capacity decision.
+
+Extend tests/network/halyard_network_shared_planetary_cruise_test.gd and its
+existing peer owners,connecting the real remote-survey input seam already
+exercised by tests/game_flow_ember_surface_presentation_integration_test.gd.
+That latter fixture uses two Main instances in one process with staged arrival;
+it is not this independent whole baseline. The current arrival caller teleports
+hatch approaches,stages the departed ship into a9995m envelope and emits HUD
+button signals directly. None supplies ordinary Boot/access/departure/UI proof.
+
+| Finite ordinary stage | Literal expected result |
+| --- | --- |
+| Outward admission and travel | Normal Boot/Begin Shift,Halyard station/hatch/pilot/cabin input and current host/client/client_b body/seat/frame/source/claim identities. Choose the idle activity and actual PlanetaryDestinationAction_aurora_temperate_world through input. Preserve actual default pilot command source;canonical12Mm outward travel must sample>11.8Mm and>1100 committed origin rebases,zero placement after departure and full hull. No9995m entry fixture or destination pressed.emit() passes. |
+| Physical arrival | Actual typed Aurora approach/current frame/location/caller fences and occupied aurora_exploration_pad in aurora_foundation_landing;true DOCKED/landed/OFFLINE. Both current clients use real shared hatch admission into authenticated surface contexts,walk on actual collision and retain usable controls. Host stays the pilot/cabin participant;do not copy Ember's host-surveyor assumption. |
+| Real shared survey | Client's same supported server-owned body walks live SurveyTrailSign→SurveyLookout→SurveyStones,fresh E within3.2m. Host Director aurora_coastal_observation remains the same positive activity generation:ACTIVE/index0→ACTIVE/index1→COMPLETED/index2. Client consumes actual host progress/HUD;client_b remains independently supported/controllable. No direct activity completion or submitted runner position/payment. |
+| Actual progress save | Normal survey interactions and save_interrupted_aurora_visit persist current shared landed visit. Read real authority-owned file commits/primary/backup/generation,not a memory fixture. aurora_expedition_active_visit envelope retains schema_version,payload_kind,slot_id,visit,receipt_sha256;visit contains landed,Halyard home,host on_foot flag and survey(schema_version1,activity_id,state,generation,next_checkpoint_index,failure_reason). Host remains seated at this cut,so on_foot=false even while the remote surveyor walks. |
+| Paid result | Independently validated game_flow_reward_store has aurora_coastal_survey_data0→1,total_receipts+1,last receipt matching activity/positive generation/reward with granted=true/replay_allowed=false. Unpaid aurora_shared_coastal_survey contains craft_home_berth_id/survey;paid completion clears that passive checkpoint. Repeated E/save/home must preserve one paid receipt,not another grant. Active completed visit may still be captured until normal return retires it. |
+| All-crew reboard and return | Both same clients physically return/reboard;no exterior/unconfirmed same-ship crew may remain. Host's real RETURN TO MUDDS action must pass actual context session/epoch/journey/world/craft/scene/location/surface token/home and all crew body/entity/seat/frame-generation fences. Physical ascent≥1200m releases surface lease;actual typed handoff restores manual/default-source control and full canonical return. |
+| Strict usable home | Exact registered occupied Halyard home/current token and authoritative landing handoff/return_registered,actual engine OFFLINE,all three physical exits and supported controllable home walking>.25m. SHUT_DOWN is not OFFLINE;host merely standing on floor is not walking. Preserve current actors/claims until their legitimate exit,retire surface/approach/presentation owners and forbid station-spawn recall as physical exit. Shared Halyard physical-egress repair remains a production dependency where the generic path currently dispatches only Jovian. |
+
+The older arrival harness assertion that shared capture must be empty is stale:
+current capture_interrupted_visit permits current shared landed/surface visits
+under live server/epoch/lease fences. Remove/replace that stale expectation only
+when implementing the bounded caller;do not claim the current production save
+is missing or revive the old invariant. The optional source home component does
+not yet prove literal OFFLINE or host home walking;the new ordinary baseline
+must actually observe both.
+
+**Limits and historical boundary.** Existing current opt-in staged arrival/home
+components retain2400s aggregate/120s landing and their tighter readiness,
+admission,board,support,walk/reboard/return/exit waits. Those are component caps,
+not recovered47ffce invocation metadata and not solo2700s/2760s limits. The
+ordinary three-peer caller is missing;freeze its exact aggregate/internal/outer
+and constituent command bindings from the recovered original bundle before any
+selected reproduction. Until that original input is available,this deadline
+field remains specifically artifact-blocked,not an assumed new allowance or
+permission to rerun the two-peer mode. No longer cap,shorter route or changed
+roster can replace the unknown original47ffce attempt.
+
+Require actual independent peer logs,current crew/visit/survey/primary/backup/
+reward/home operand receipts,actual all-three OS0,zero runtime diagnostics and
+owned input/process/display cleanup. Use private profiles,isolated Xvfb/x11 and
+Dummy audio. A new full-baseline success receipt must be implemented in the
+existing caller;current component markers do not accept this baseline. Source
+field binding is complete except the exact unavailable original invocation/
+limits/bundle;caller/observers and any required shared home-egress integration
+remain unimplemented/unrun. Each future implementation keeps≤90min all-in and
+existing stop/correction/checkpoint rules. SHARED-AURORA-BASELINE stays OPEN;
+its six dependent cases are not selected or passed here.
+
+<a id="shared-rime-baseline-contract"></a>
+#### Shared Rime baseline: preserve the original three-peer survey/home contract
+
+Same22:52–23:17UTC definition allocation;one independent read-only source agent
+binds Rime. Reuse the [original closed Rime batch contract](history/ROADMAP_DELIVERIES.md#closed-rime-batch--original-task-contracts),
+not a replacement two-peer arrival test. Prerequisite HALYARD-BOARD supplies its
+ordinary physical crew prefix;Rime arrival remains the parked causal gate below.
+No engine,restored-candidate preparation,reproduction or new correction.
+
+**Exact original roster/limits.** Halyard halyard_new_design/home
+halyard_fleet_dock_berth;independent host pilot,client remote survey participant
+and client_b companion,no observer. Preserve all three original actors/bodies/
+streams/claims through outbound,each client's physical exit/walk/reboard and
+usable home return. Original whole2400s includes survey/home;physical landing
+120s,outbound48000ticks/return72000ticks and all original local barriers remain.
+No SOLO-RIME2700s/2760s cap,renamed selector or absence of the second client can
+relax this baseline. Existing pre-route hatch placement remains disclosed in its
+historical component scope;it cannot establish a new ordinary station approach.
+
+**Missing caller,not missing world/survey.** Current
+halyard_network_shared_planetary_cruise_test.gd --rime-shared-arrival stages the
+hatch/9995m flight envelope,emits a UI button signal,starts only client and still
+asserts obsolete hatch refusal/unsupported return. Proposed survey/home selectors
+are not available commands. Extend that actual existing peer caller to the
+original full roster,normal admission/departure/destination input,production
+surface survey/disk readbacks and canonical all-crew home. Existing
+tests/network/game_flow_landing_network_integration_test.gd proves the remote survey
+seam with staged same-process ENet/memory storage;it is not independent durable
+whole-journey proof. GameFlow's shared survey gateway explicitly requires a
+current NetworkRemoteBodySimulation body;host pilot cannot be documented as
+the remote physical surveyor without a new unsupported production change.
+There is also a concrete presentation defect:the existing Rime host arrival
+banner in PlanetarySurfaceVisitExpedition still says the shared ice-core survey
+is unavailable. Replace it with this exact shared-Rime template:
+“[profile.display_name] arrival — crew may follow the ice-core survey; reboard
+all crew for the host’s return to Mudds”. Keep the normal STAND IN CABIN prompt,
+Aurora's coastal message and unshared survey behavior. Verify actual host/client
+HUD against current progress;do not advertise a nonexistent host-surveyor
+gateway. This is a bounded production UI fix,not missing world/survey authority.
+
+| Finite original member | Literal expected result |
+| --- | --- |
+| Canonical actual arrival | Real Rime world/body/frame,current typed approach generation/attachment/location fence,>9.8Mm outward movement/>900 rebases,zero post-departure placement,full hull and exact occupied rime_icefall_pad/DOCKED/landed/OFFLINE. RimeVisitApproachSource is a readiness/frame Node,not replacement ship input;keep the actual host default command source. Both original clients physically exit to current supported surface bodies. |
+| Actual client survey | Client walks beacon(-24,0,-16)→drill(-54,0,-46)→gauge(30,0,-62),fresh E≤3.2m. Preserve shared return trail via(-52,-42),(-50,-54),(-30,-66),(-8,-68),(14,-70),(28,-63) in authored X/Z. rime_ice_core_survey same positive generation:ACTIVE/index0→index1→COMPLETED/index2;second companion retains usable supported controls. |
+| Natural heat and save | Capacity120s/drain1s per second/refill10s per second;craft warmth16m/hut7m. Observe natural heat drain and ordinary hut refill,failures0. No forced cold exhaustion,recovery,abandonment or refused write belongs to this baseline;SOLO-RIME keeps its separate cold/restart requirement. Actual survey E invokes _save→save_interrupted_rime_visit through the trusted shared-store fence. |
+| Exact durable visit/payment | Real host primary/backup and distinct fresh-process read-only reload preserve rime_expedition_active_visit envelope(schema_version,payload_kind,slot_id,visit,receipt_sha256). Visit records landed,Halyard home,on_foot=false for the seated host,and survey(schema_version1,activity_id,state,generation,next_checkpoint_index,failure_reason,heat_s). rime_ice_core_record0→1,matching activity/generation receipt,granted=true/replay_allowed=false. Repeated E,home return and reload preserve count1;memory:// or same-process reload alone fails. |
+| All-crew ascent/home | Both same clients physically reboard;actual RETURN checks no exterior contexts and freezes current authenticated body/peer/entity/seat/ship/frame manifest. Real thrust/pitch ascent releases pad lease only after takeoff;typed return_handoff_ready restores manual flight while shared returning state persists. Full canonical home flight→strict original occupied berth/current token/authoritative landing/return_registered→actual OFFLINE→all three physical exits and supported usable home walking. Preserve shared Halyard home-egress dependency;no recall or stale crew context may pass. |
+
+Keep the existing physical surface/reboard/walking/continuity/sampler assertions,
+current host/client source identity and exact durable progress through every
+handoff. A matching old default marker or arrived scene is not survey/home
+acceptance. Fresh-process file reload after normal shutdown proves durability,
+not actual OS-kill recovery or the separate SHARED-RIME-INTERRUPT case.
+
+**Frozen failed boundary.** Original3485corridor ticks=58.083simulation-seconds
+under120s wall remains failed. Restored9a073c98 full route also failed
+1624.422189s at peer host.landed:105 usable sampled frame groups,no END/
+ACCUMULATED,controllerleg−1 unavailable. Halyard/native attribution and causal
+repair remain unresolved. Caller-field definition does not make that witness
+pass or authorize another attempt. Preserve original120s/2400s,archived source/
+raw/cleanup and cumulative costs;only the recorded causal/priority reopening
+condition can select a correction. No staged substitute,shortening or cap bump.
+
+Outputs remain actual three-peer raw logs,current actor/visit/pad/heat/survey/
+file/reward/home operand receipts,failure-free completion and actual three OS0,
+zero diagnostics and owned input/process/display closure with private profiles,
+isolated Xvfb/x11 and Dummy audio. Implement any new full-survey/home terminal
+receipt in the existing caller;no new runnable command or passing baseline is
+inferred here. The original finite task order is arrival→survey→home→matching
+packages,with package/hardware scopes retained separately. Each future bounded
+implementation keeps≤90min all-in/stop/correction/checkpoint rules and the same
+parked prerequisites. SHARED-RIME-BASELINE and its six dependent cases stay OPEN.
+
 <a id="shared-ember-baseline-contract"></a>
 
 #### Shared Ember baseline — crew, survey, saved result and return
@@ -6629,14 +6774,14 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | SHARED-EMBER-CANCEL | Ember shared cancellation | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/CANCEL still needs actual cancellation caller, phase and protected progress/return endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/CANCEL: real cancellation retires visit/actors/claims and preserves protected progress on return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-EMBER-INTERRUPT | Ember shared actual OS interruption | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/INTERRUPT still needs committed durable kill cut, exact protected progress/payment and distinct-process recovery endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/INTERRUPT: owned kill/reap and distinct normal restart preserve the fixed durable state once. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-EMBER-REVISIT | Ember shared repeat visit | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/REVISIT still needs legitimate normal readmission trigger and first/second-visit endpoints/progress; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
-| SHARED-AURORA-BASELINE | Aurora shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | WAITING; original 47ffce740 bundle. BLOCKED definition (Codex): AURORA/BASELINE still needs ordinary craft/peer-role roster, full outward/surface result/save and home endpoints; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/BASELINE: ordinary outward/surface activity/durable result/save and full physical home/exit. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
+| SHARED-AURORA-BASELINE | Aurora shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | WAITING;original47ffce740 invocation/build/profile/participants/raw bundle and exact original aggregate remain unavailable at the completed bounded search. [Aurora baseline fields](#shared-aurora-baseline-contract) now bind full target Halyard hostpilot/client-surveyor/client_b,canonical travel,actual shared saved/payment result and all-crew home. Current two-peer components are narrower;ordinary three-peer caller/durable observers/home-egress integration remain missing. No reproduction or accepted baseline. | AURORA/BASELINE: ordinary outward/surface activity/durable result/save and full physical home/exit. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-LATE-JOIN | Aurora shared late join | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/LATE-JOIN still needs joining peer/role and exact live transit or surface join phase; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/LATE-JOIN: current actors/progress consumed without launch or reward replay. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-RECONNECT | Aurora shared disconnect/reconnect | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/RECONNECT still needs peer/role, actual transport-loss cut and rejoin phase/claim handback; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/RECONNECT: drop/rejoin restores the supported role or its settled handback without duplicate claims. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-PILOT-LOSS | Aurora shared pilot loss | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/PILOT-LOSS still needs pilot/committed phase and named successor or safe-recovery owner/return endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/PILOT-LOSS: pilot loss transfers or safely retires authority and completes the bound return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-CANCEL | Aurora shared cancellation | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/CANCEL still needs actual cancellation caller, phase and protected progress/return endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/CANCEL: real cancellation retires visit/actors/claims and preserves protected progress on return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-INTERRUPT | Aurora shared actual OS interruption | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/INTERRUPT still needs committed durable kill cut, exact protected progress/payment and distinct-process recovery endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/INTERRUPT: owned kill/reap and distinct normal restart preserve the fixed durable state once. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-REVISIT | Aurora shared repeat visit | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/REVISIT still needs legitimate normal readmission trigger and first/second-visit endpoints/progress; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
-| SHARED-RIME-BASELINE | Rime shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | PARKED/open. Original58.083simulation-seconds/120s wall failure retained. Full restored two-crew cost captured9a073c98 stillFAIL1624.422s at peer host.landed gate.105 usable sampled script frames, noEND/ACCUMULATED; Halyard/native attribution unresolved and controllerleg=-1 unavailable. No supported repair/retry or cap change. Source bundled, both owners terminal/19 identities absent/64 scratch entries archived verified removed. Original120s/2400s and full scope preserved. BLOCKED definition (Codex): RIME/BASELINE still needs ordinary craft/peer-role roster, full outward/surface result/save and home endpoints; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | RIME/BASELINE: ordinary outward/surface activity/durable result/save and full physical home/exit. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
+| SHARED-RIME-BASELINE | Rime shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | PARKED/open. Original58.083simulation-seconds/120s wall failure retained. Full restored two-crew cost captured9a073c98 stillFAIL1624.422s at peer host.landed gate.105 usable sampled script frames, noEND/ACCUMULATED; Halyard/native attribution unresolved and controllerleg=-1 unavailable. No supported repair/retry or cap change. Source bundled, both owners terminal/19 identities absent/64 scratch entries archived verified removed. Original120s/2400s and full scope preserved. [Original Rime baseline fields](#shared-rime-baseline-contract) now bind host Halyard pilot/client-surveyor/client_b,canonical travel,natural heat/hut,actual durable shared survey/payment and all-crew home under original120s/2400s. Ordinary three-peer caller/disk observers/home integration and truthful Rime arrival HUD remain missing;current two-peer staged component is narrower/stale. Parked landing cause/priority gate is unchanged;no retry or baseline PASS. | RIME/BASELINE: ordinary outward/surface activity/durable result/save and full physical home/exit. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-LATE-JOIN | Rime shared late join | 3,27 | Qualification | GATED; RIME genuine baseline and exact original case command. BLOCKED definition (Codex): RIME/LATE-JOIN still needs joining peer/role and exact live transit or surface join phase; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | RIME/LATE-JOIN: current actors/progress consumed without launch or reward replay. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-RECONNECT | Rime shared disconnect/reconnect | 3,27 | Qualification | GATED; RIME genuine baseline and exact original case command. BLOCKED definition (Codex): RIME/RECONNECT still needs peer/role, actual transport-loss cut and rejoin phase/claim handback; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | RIME/RECONNECT: drop/rejoin restores the supported role or its settled handback without duplicate claims. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-PILOT-LOSS | Rime shared pilot loss | 3,27 | Qualification | GATED; RIME genuine baseline and exact original case command. BLOCKED definition (Codex): RIME/PILOT-LOSS still needs pilot/committed phase and named successor or safe-recovery owner/return endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | RIME/PILOT-LOSS: pilot loss transfers or safely retires authority and completes the bound return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |

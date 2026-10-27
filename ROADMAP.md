@@ -131,6 +131,11 @@ handoff are named production gaps;their implementation remains open.
 now bind same-Main physical home,reboarding,paid progress and streamed-owner
 retirement. The repeat caller is missing;cycle count/elapsed and native resource
 inputs remain with their existing owners. No endurance run is claimed.
+[Shared Aurora](docs/ROADMAP_BACKLOG.md#shared-aurora-baseline-contract) and
+[Rime baselines](docs/ROADMAP_BACKLOG.md#shared-rime-baseline-contract) now name
+host pilot,two independent crew,surface survey,durable paid result and all-crew
+home endpoints. Missing ordinary callers and the original Aurora artifact/Rime
+landing-failure gates remain open;no existing two-peer component is broadened.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
