@@ -277,6 +277,25 @@ these two docs; no branch/worktree/scratch/runtime/CI/checkpoint created. Origin
 07:21:06 start/15minute estimate/07:41:06 hard deadline include commit/push/closure.
 Craft design approval remains pending; no implementation active.
 
+**Definition disposition complete — all ten phase predicates.**
+The [existing phase table](docs/ROADMAP_BACKLOG.md#original-phase-gates-and-completion)
+now links every phase to exact existing proof-owner IDs and literal missing fields.
+Three disjoint source reviews pass for phases1–5/6–8/9–10; original phase names/
+exit criteria, all337 canonical identities/order and declared13capture/21shared
+memberships are preserved. Full journeys remain explicit in phases4/5; shared
+predicate owners do not impose unrelated whole-container dependencies.
+This is not executable acceptance or phase completion. Exact ordinary/candidate/
+view/device/measurement bindings stay blocked where listed. Original production
+crash-log redaction, complete safe graphics/audio fallback and whole orbit↔surface
+repetition now have explicit missing fields under existing owners; no new task ID,
+tracker/validator or proof result was invented. FINAL-RECONCILE still needs the
+candidate defect inventory and actual required results, followed by authorized
+distribution. Original07:21:06 definition clock/direct-membership result/cost are
+retained; this phase interval starts07:26:53 and closes within the earlier07:41:06
+bound, including review/checks/commit/push. Only these two docs changed; no branch/
+worktree/scratch/engine/CI/checkpoint created. Craft approval remains pending;
+no production implementation is active.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
