@@ -52,15 +52,15 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Latest resolved fields — HUD-CARGO and HUD-CONVOY.** Their
+**Latest resolved fields — shared Ember baseline.** The
+[baseline contract](docs/ROADMAP_BACKLOG.md#shared-ember-baseline-contract) now
+fixes the Halyard host/two-client roles, mandatory survey/save/payment result and
+all-crew reboard/home/OFFLINE/exit endpoints. Existing readiness, one-passenger
+surface and host-only return checks remain separate; none proves the whole route.
+The full ordinary caller and aggregate limit remain Codex-owned gaps. No game
+ran, parked trial reopened or capacity decision inferred. Previously bound
 [cargo](docs/ROADMAP_BACKLOG.md#hud-cargo-contract) and
-[Convoy](docs/ROADMAP_BACKLOG.md#hud-convoy-contract) contracts now fix exact saved
-progress/reward fields, Reset/select/Start endpoints, HUD actions and cold-owner
-expectations. Existing source-fixture commands/original limits are bound; no game
-test ran for these definitions. Ordinary caller/whole-sequence limits and
-separate-process observations remain open. Accepted repairs stay closed and
-parked runs retain their original reopening conditions. Reuse these fields;
-definition completion does not complete either gameplay goal.
+[Convoy](docs/ROADMAP_BACKLOG.md#hud-convoy-contract) fields remain reusable.
 
 ## How we will work from this roadmap
 

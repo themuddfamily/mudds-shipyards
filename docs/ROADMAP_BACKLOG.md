@@ -1214,6 +1214,115 @@ Aurora47ffce740 runner/arguments/candidate/profile/participants/raw records befo
 reproduction. Shared Rime keeps its actual landed-boundary failure and causal
 reopening condition. No staged arrival, renamed selector or longer cap substitutes.
 
+<a id="shared-ember-baseline-contract"></a>
+
+#### Shared Ember baseline — crew, survey, saved result and return
+
+**SHARED-EMBER-BASELINE source binding9458ca442; qualification OPEN.**
+Definition allocation starts2026-10-27 12:43:49UTC, estimate20minutes/hard
+13:03:49UTC through source review, documentation checks, commit/push and cleanup.
+Root owns the roadmap edits and existing-command/limit binding; one read-only
+agent binds participant/activity/persistence owners. This is one baseline's
+contract, not a new survey of all21 shared-world cases. No engine, network
+session, planetary run, archived driver restore or parked retry is selected.
+
+**Fixed acceptance participants.** Reuse the existing Halyard shared two-client
+profile: one independent playing host as pilot/surveyor and two independently
+authenticated cabin clients, `client` and `client_b`, as surface companions.
+Each client must physically board, walk on the surface, reboard and remain usable
+through the home return/exit. The host's existing authored survey owner advances
+the mandatory checkpoints and grants its one durable reward; this does not invent
+remote ownership of the host's activity. The source default already uses this
+host/two-client craft profile for readiness/rebase; extending its actual surface/
+return caller is missing work, not a claim that those three participants have
+passed it. A late observer belongs to the existing rebase diagnostic, not an
+extra baseline participant or a substitute for either companion. This finite
+case does not decide supported final release capacity under SCOPE-LIMIT.
+
+**Start and actions.** Freeze one clean source/package across all three
+processes, fresh isolated profiles and physical Mudds Halyard berth. Use ordinary
+walking/hatch/seat inputs for admission, actual departure and canonical Ember
+travel; no placement into the9995m admission envelope or500m arrival envelope.
+Keep original body/source identities, authority epochs, origin rebases, physical
+landing, support and leases. The same crew/craft must continue without process
+replacement or staged arrival. Complete the following ordered results:
+
+| Boundary | Observable pass condition |
+| --- | --- |
+| Shared outbound and physical landing | Host pilots Halyard from Mudds through canonical cruise/typed approach into actual supported Ember landing. Both authenticated clients retain their authoritative same-ship bodies/physical roles. Shared surface context matches network identity/epoch, journey epoch, loaded scene/host generations, player/craft identity and real occupied berth token; duplicate admission retains one composition. |
+| Surface walk and mandatory survey | Host exits and physically walks the authored egress/staging route, then landing-local checkpoints(160,0,−30) and(540,30,−210) in order. `ember_beacon_survey` retains its actual Director generation and finishes COMPLETED/next_checkpoint_index2; runtime activity_reward.state=`completed`, pending_reward empty. Both companions perform supported exterior walking under their own authenticated body intents; no teleport or injected checkpoint/completion. |
+| Actual durable result | Independently open the actual host store with UserDataStore.load_read_only: source=`primary`, generation matches the live store, `ember_relay_survey_completion` equals the canonical persistence capture, authority_commit_count1/persistence_commit_count1, reward_counts.ember_beacon_data1. On this fresh reward profile total_receipts1; if a selected fixture legitimately has prior receipts, freeze its baseline and require exactly one matching increment instead of erasing them. |
+| All-crew surface return and host reboard | Each client physically reboards with its same body/generation and legitimate cabin berth; no new admission, duplicate body, pilot claim or extra reward. No same-ship exterior participant remains when the host's normal reboard/return admission proceeds. Host reboard restores its actual pilot anchor/boarding token; original command-source restoration and surface lease retirement occur at the later ascent/orbit-return handback. |
+| Canonical home and strict dock | Same host/clients/craft perform ascent and full canonical return. At ascent/orbit-return completion handback the original pilot command source/seat are restored and physical surface berth/token retires. Exactly one station-return intent/arrival receipt is consumed; strict_dock_acceptance/reservation_token_bound=true, actual home berth occupant is Halyard, token matches GameFlow and lease is valid, craft remains supported; network landing accepted/mutation_committed with status=`network_landing_committed`, planetary return reason=`planetary_return_consumed`, return_registered=true. |
+| OFFLINE, physical exits and continuation | Observe the actual engine OFFLINE after its existing neutral automatic shutdown; SHUT_DOWN phase alone is insufficient. Each participant physically exits through ordinary controls, reaches supported usable home walking and releases old ship-seat/cabin-input claims without stale helm authority while retaining usable exterior controls. Home lease remains valid. Actual completion record and reward ledger remain unchanged from the accepted survey; repeated publication cannot pay again. Retain actual runner shutdown/OS0, zero diagnostics and owned cleanup; do not replace physical exit/continuation with process termination. |
+
+Other source-content/optional errand clauses retain their existing SOLO/CONTENT
+owners; a mandatory two-checkpoint survey is not a claim that all Ember content
+or any other shared-world case has passed.
+
+**Exact saved completion.** The
+[completion capture](../scripts/persistence/ember_relay_survey_persistence_binding.gd#L357)
+requires world_id=`ember_moon`, activity_id=`ember_beacon_survey`,
+reward_id=`ember_beacon_data`, matching committed activity generation, accepted
+reward authority result, mandatory_route.complete=true/checkpoint_count2/
+next_checkpoint_index2, and presentation_state=`reward_confirmed` with
+reward_replay_allowed=false. The envelope retains schema_version/payload_kind/
+slot_id/receipt_sha256/completion. Preserve optional_checkpoint observations if
+present; do not manufacture an optional completion to pass the mandatory route.
+Use the whole canonical record and actual ledger, not only the reward label.
+[Existing independent disk check](../tests/network/halyard_network_passenger_route_test.gd#L2040).
+
+**Existing callers are components, not this baseline command.**
+
+| Existing owner/selector | Actual scope; preserved limits |
+| --- | --- |
+| `tests/network/halyard_network_shared_planetary_cruise_test.gd`, default | Halyard host plus client/client_b and later observer; readiness/cruise/rebase with staged9995m flight envelope. No mandatory Ember survey/save/full home route. Matrix registration is input-only/graphical, original default300s; do not transfer that subset cap to the complete baseline. |
+| `tests/network/halyard_network_passenger_route_test.gd -- --ember-surface` | Parent script's `_ember_surface_host/_ember_surface_client`: host pilot/surveyor and ONE independent passenger, staged yard approach/flight pose, then canonical outbound/physical landing/survey/disk receipt/passenger reboard. Passenger exits a second time and disconnects; host checks release/payment identity. There is no host reboard/ascent/home continuation. Internal total2400s includes setup; existing60s peer barriers/120s physical landing and all walk limits remain. Success marker `HALYARD_NETWORK_EMBER_PASSENGER_TERRAIN_OK checks=<count>`, actual OS0/zero diagnostics. The child script's default `_shared_cruise=true` changes orchestration; passing `--ember-surface` to that child is not this equivalent one-passenger command. |
+| `tests/world/shared_ember_surface_activity_test.gd`, `KETH_SHARED_SURFACE_SUCCESS=1` | Host-only local ENet fixture from staged500m-before-arrival; real survey/reboard/ascent/canonical return/strict home and supported pilot exit/walk. Explicitly excludes canonical outbound and remote crew. Preserves its beacon100s/walk-home140s/ascent240s/cruise720s/home-flight800s bounds. Success requires both `SHARED_EMBER_SURFACE_ACTIVITY_TEST_OK` and `SHARED_EMBER_SURFACE_ROUNDTRIP_TEST_OK`, OS0/zero diagnostics. It has no literal ENGINE_OFFLINE assertion and cannot prove remote clients' home exits. No aggregate full-baseline cap is inferred from these stage limits. |
+
+The source route dispatch and participant processes are in the
+[parent harness](../tests/network/halyard_network_passenger_route_test.gd#L171),
+with surface endpoints at
+[host](../tests/network/halyard_network_passenger_route_test.gd#L1891) and
+[client](../tests/network/halyard_network_passenger_route_test.gd#L2104).
+The existing host-only
+[home acceptance](../tests/world/shared_ember_surface_activity_test.gd#L315)
+and [physical exit](../tests/world/shared_ember_surface_activity_test.gd#L351)
+are reuse seams, not proof for the independently crewed whole route.
+
+**Missing executable capability—Codex.** Extend the existing independent-peer
+harness, with ordinary source/input observers, to replace initial staging with
+actual yard admission/departure, carry both clients through surface walking and
+reboard instead of the disconnect ending, connect host reboard/ascent/full home,
+then observe OFFLINE, all three home exits/usable walking and owned runner shutdown.
+Use the existing production owners, not a replacement world or direct completion:
+[surface admission](../scripts/game/planetary_journey_coordinator.gd#L1338),
+[current-context fence](../scripts/game/planetary_journey_coordinator.gd#L1383),
+[all-crew reboard gate](../scripts/game/planetary_journey_coordinator.gd#L1115)
+and [reward handoff](../scripts/game/planetary_journey_coordinator.gd#L1551).
+A live production failure becomes a bounded repair only after reproduction.
+
+**Remaining blocked fields.** No inspected caller implements this complete
+ordinary three-process baseline, so there is no existing full-baseline command,
+aggregate deadline or accepted package proof to cite. Codex owns implementing
+the ordered caller and freezing its original full-sequence limit/abort before a
+run; the completed lookup boundary is the three callers above and their inherited
+dispatch/limits, not an invitation to repeat the search. Do not borrow the300s
+rebase subset,2400s one-passenger component or a sum of host-only stage maxima as
+the missing whole-baseline limit. Retain the proposed observable endpoints above
+without claiming the unimplemented route passes. This definition supplies no
+Aurora/Rime retry, capacity decision or qualification for another shared case.
+SHARED-EMBER-BASELINE and PLAN-NEXT remain OPEN.
+
+Source-binding slice accepted12:48UTC after independent review corrected
+reboard-versus-ascent handback timing and removed an extra UI-Quit requirement.
+All337 identities/order, new source links, component dispatch/markers, original
+stage limits and `git diff --check` pass. Existing matrix `--list` exits0: parent/
+child graphical, local surface fixture headless; no engine or fixture ran.
+About4.8minutes through review/checks; commit/push stay on the same20minute
+clock. No branch/worktree/network process or retained scratch was created.
+The complete caller/aggregate limit and actual qualification remain unfinished.
+
 <a id="proof-network"></a>
 ### Multiplayer proof
 
@@ -3425,7 +3534,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-PROFILES-DEFINE | Original latency/loss/jitter/reorder/stall profile roster | 26 | Definition | DONE definition only; MOVING_INTERIOR_LATENCY finite contract names five stream profiles, narrow three-process command injection and two physical host-stall actions; impaired independent session/endurance remain open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-ENDURANCE-DEFINE | Executable original 30-minute independent two-client moving-interior route | 26 | Definition | BLOCKED input/implementation — bounded recovery confirms no existing complete command; original30min/server+two independentclients/100ms RTT/2%loss remain fixed. Exact unprovided profile/tolerances/stall schedule/forced-critical aggregate traffic/mapped tick drift/backlog drain/resource ceilings now have one [literal proposed contract](MOVING_INTERIOR_LATENCY.md#endurance-execution-handoff--proposed-limits-2026-10-25), awaiting adoption or replacements; no defaults represented as original values. Private user+network namespace and netem availability probe exits0, no game/traffic. Existing normal8/24,000-byte window is a coalescing threshold with counted critical bypass, not a hard aggregate ceiling. Existing ordinaryHalyard and process seams identified; actual shaping/1800s driver/continuous measurements still need implementation after values fixed. No engine/profile/fullrun or threshold relaxation. | Exact independent-process30-minute route/profile: original100msRTT/2%loss, explicit jitter/reorder/stall, queue/tick/bandwidth ceilings, equivalent-phase leak measurement and cleanup. |
 | NET-ENDURANCE | Original 30-minute moving-interior session | 26 | Qualification | GATED on SERVER-BASELINE and NET-ENDURANCE-DEFINE: adoption/replacement of the existing proposed impairment/metric table, then Codex delivery of the isolated-link independent-process1800s driver. The proposal remains unapproved; no executable endurance command currently exists. | On the bound candidate, one authority and two independent clients complete1800s ordinary moving-interior play at original100msRTT/2%loss and the adopted jitter/reorder/stall schedule. Every adopted bandwidth/tick-drift/backlog-drain/equivalent-phase resource ceiling and terminal ownership/cleanup predicate passes; retain all three actual process exits. Missing adopted value, driver, workload or metric binding keeps qualification GATED; short synthetic tests cannot close it. |
-| SHARED-EMBER-BASELINE | Ember shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | BLOCKED definition (Codex), one Ember baseline only: record craft, independent participants and physical roles, ordinary outward/relay-survey/reboard/home route, exact authored result/save/payment endpoints, existing caller/command and original limits. Reuse the existing seven-case world contract. Stop with that executable baseline or the exact unavailable caller/artifact/input and owner; no engine run or follow-on case is selected. | Actual ordinary crew outward flight, physical Ember survey and authored durable result/save, reboard and full strict home/OFFLINE/physical exit on the fixed participants/candidate. Record once-only payment/progress and supported continuation. Parents3/27 share this single baseline; defining the route does not qualify it. |
+| SHARED-EMBER-BASELINE | Ember shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | [Literal baseline contract](#shared-ember-baseline-contract) now binds Halyard host pilot/surveyor plus client/client_b companions, mandatory two-checkpoint Ember survey, exact disk completion/one ember_beacon_data receipt, all-crew reboard, strict canonical home/OFFLINE/physical exits. Source components/participant differences/original limits are explicit; no engine run or qualification PASS. BLOCKED caller/whole-limit binding—Codex: actual ordinary three-process yard→surface→home command/route/aggregate deadline and accepted candidate proof are missing. No inspected existing caller covers the whole sequence; reuse the three mapped seams, no repeated survey or borrowed subset cap. | [Literal baseline](#shared-ember-baseline-contract): the same ordinary host/two-client crew completes canonical outward travel, physical survey/durable payment, all-crew reboard and full strict home/OFFLINE/physical exits with usable continuation and once-only progress/reward. Parents3/27 share this single baseline; source definition does not qualify it. |
 | SHARED-EMBER-LATE-JOIN | Ember shared late join | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/LATE-JOIN still needs joining peer/role and exact live transit or surface join phase; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/LATE-JOIN: current actors/progress consumed without launch or reward replay. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-EMBER-RECONNECT | Ember shared disconnect/reconnect | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/RECONNECT still needs peer/role, actual transport-loss cut and rejoin phase/claim handback; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/RECONNECT: drop/rejoin restores the supported role or its settled handback without duplicate claims. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-EMBER-PILOT-LOSS | Ember shared pilot loss | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/PILOT-LOSS still needs pilot/committed phase and named successor or safe-recovery owner/return endpoint; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/PILOT-LOSS: pilot loss transfers or safely retires authority and completes the bound return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
