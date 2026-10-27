@@ -5011,8 +5011,10 @@ re-entry checks retain their own scope and are not rerun unchanged.
   sampler,60Hz/time_scale1/authored rates, >7800000m physical transit and >700
   committed origin shifts, continuity reconciled only with actual rebase receipts.
   Real actual matching caldera berth occupied by that Arrow, strict landing
-  completes, automatic OFFLINE, one actual E exits through original transition;
-  same awake unseated control-enabled Player on genuine surface support, no
+  completes, automatic OFFLINE, then the production coordinator's automatic
+  disembark request executes the actual host/Player transition. Driver stays
+  neutral and sends no competing E after landing. Same awake unseated
+  control-enabled Player on genuine surface support, no
   boarding/cabin/crew claim. Observe actual main/host/loaded world identities.
   No survey/errand reward or checkpoint completion is manufactured; this endpoint
   precedes the survey. Normal pause HUD Quit yields actual OS0 and existing clean
@@ -5048,6 +5050,14 @@ re-entry checks retain their own scope and are not rerun unchanged.
   No duplicate public gameplay build for read-only diagnostic/input-driver work;
   actual private export proves support. Full ordinary SOLO/return/save/repeat/
   installed/native GPU/physical-device/final gates remain open.
+
+**Definition corrected before any execution,03:41UTC.** Source/independent review
+establishes that coordinator LANDED+OFFLINE queues disembark automatically; host
+requires exact occupied landing/seated/hatch state then runs actual Player exit.
+The earlier one-E clause was a planning error, not an original gameplay promise.
+Accepted source waits for this automatic SURFACE_OUTBOUND transition. Only that
+clause is corrected; all other endpoints/controls/continuity/caps remain. No
+runtime policy change, extra input or failed-test acceptance relaxation.
 
 ### Ember first-relay cold recovery — bounded contract
 
