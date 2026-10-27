@@ -32610,3 +32610,71 @@ retain exact audited bytes. Only archive/closeout remain under
 files independently reread/hash-verified; SHA256
 `db07df718402411b803cdae6f443fe37506e69afd689df533dabf6c2c5d03a82`.
 No duplicate published game binaries are archived.
+
+
+## Ordinary escorted Courier withdrawal accepted 20261027
+
+Existing COMBAT-COURIER escorted member delivered on clean source
+`7f23a808cdf9744d50f119763cbcf3b0e27009f1`. Added selector
+`courier-escorted-withdrawal`, small hooks/subclass in the existing ordinary native
+input runner, read-only observer operands and explicit startup allowlist/privacy
+coverage. Existing combat authority/actors/tuning/default input/4.5s dispatch/
+82% distress/2.4s escort/1400m escape/700m7s withdrawal/150s backstop remain.
+No placement, direct damage, shortened cooldown or gameplay authority changes.
+
+First303-test Python driver suite passes14.252s; source diff review GO. Clean
+import20.637s/privacy3627 assertions6.606s pass actual0/marker1/diagnostics0.
+Fresh pinned Windows export27.604s/Linux25.782s. Three strict startups pass actual
+0/exactly one menu-ready marker/zero diagnostics: Windows payload under Linux Godot
+26.220s, Linux executable22.457s and actual TAR24.127s outer checks. Complete1529
+path/size/SHA entries match the Windows manifest frozen before Linux export;
+first normative paired-artifact audit8.067s passes all nine predicates and
+unchanged inputs/source/template/archive identities. These are package smokes,
+not native Windows acceptance.
+
+**First actual packaged ordinary-input route PASS59.024s under original300s;**
+root supervisor59.383s under original330s. Real OS XTest→private X11→Godot Input→
+default sampler, actual Boot/Begin Shift/Torrent walking/boarding/launch and four
+range kills. Original defender remains alive through dispatch and paired admission.
+Automatic Couriergeneration1/frame1599 follows the unchanged4.5s arming.
+Same player source288199019165→runner291118254922, seq13/frame1614: accepted+
+resolved actual34 damage78→44, alive below82%; distress same frame. Lead291084700488
+and Wing291101477705 are both present/active/registered/authorized at1758, after
+144physics frames/2.4s (actual escort clock2.416667), with defender17 alive.
+Same source/weapon seq14/frame1760 applies lethal17 to the original defender,
+normal RETURN_TO_YARD then WITHDRAWN1761. No activity reward/payment is asserted;
+completed_runs1/outcome_counts{withdrawn:1} are scenario outcomes.
+
+Every860 terminal-through-final raw sample retains exactly those three actors
+inactive/unregistered/unauthorized/pending0/no further shots, empty director
+roster/wing coordinator/target and same generation. Caller completes2617 after
+856post-terminal frames; raw log continues to2620. Full route retains same
+Main/Player/Torrent/default sampler/authored tuning, original strict occupied home
+lease/contract/exact dock/neutral automatic OFFLINE and physicalE exit(error.17),
+hull67. Maximum original-origin wait radius63.410442m excludes distance withdrawal.
+Result marker `NATIVE_COURIER_ESCORTED_WITHDRAWAL_OK` is the Python sortie result,
+not a standalone game-log sentinel. Zero diagnostics; input/helper/game/Xvfb
+cleanup flags true, actual PIDs2604724/2604734/2604719 absent. Binary and driver
+hashes match frozen/executed source. Independent full2162-observation review GO.
+
+Reviewer initially used an incidental raw-last-frame==caller-completion equality
+assertion; actual2620≠2617 because the unchanged stream has three later frames.
+That equality is not a frozen acceptance predicate. The same raw records prove
+retirement through completion and all later records. The failed read assumption
+and values are retained; no source, test, expectation, cap or engine run changed.
+All original product/validation predicates pass first attempt, zero product/source
+corrections; no replay/repair loop.
+
+Checkpoint EXE/ZIP/notes and matching Linux ELF/TAR/export-result/notes reside in
+repository builds/windows and builds/linux. Scope is ordinary synthetic OS input
+on private Xvfb/x11 with Dummy audio/input-only dummy rendering. Normal HUD Quit/
+gameOS0, post-exit supported walk, rendered/native GPU/physical device/audio,
+remaining Courier loss/reuse/re-admission/cold recovery/full encounter and final
+release gates remain open. Accepted other Courier scopes remain closed; no new
+escort×terminal matrix or unchanged driver replay. No hosted CI/audible test.
+
+Original binding start09:33:43UTC on4a48fdd3d,60minute estimate/11:03:43 hard stop/
+10:53:43 execution end and one allowed unexpected correction remain charged to
+this delivery through integration/cleanup; none consumed by product/source work.
+Canonical337 IDs/names/parents/kinds/order and original parent11 membership are
+retained. Exact cleanup/archive/push follows after verified preservation.

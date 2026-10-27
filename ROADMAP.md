@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[71f681d checkpoint](builds/windows/MuddsShipyards-71f681d-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-71f681d-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-71f681d-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-71f681d-linux-notes.txt)) is available.
+[7f23a80 checkpoint](builds/windows/MuddsShipyards-7f23a80-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-7f23a80-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-7f23a80-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-7f23a80-linux-notes.txt)) is available.
 The latest checkpoint retries refused recovery crash-log writes once per second;
 successful ordinary store saves cannot postpone publication. Retries stop after
 success or clean shutdown. Source checks and packaged startup/parity pass; actual
@@ -13,7 +13,7 @@ The recovery card also offers **Use Safe Audio** after repeated unfinished
 startups. It saves master50%/music0 through the existing adapter, preserves other
 preferences and retains the existing stable Restore/user-edit protections.
 Earlier journey results retain their original source/package scopes;
-they were not rerun for71f681d.
+they were not rerun for7f23a80.
 Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
 newer primary, temporary or backup generation instead of selecting older data
 or deleting the newer file. All three files and live preferences stay unchanged.
@@ -100,51 +100,24 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Delivered — crash-log publication retry; technical PASS, process exceptions retained.**
-Source52b7b6e3b is integrated. Main retries the exact cached recovery snapshot
-once per1.0physics second independently of ordinary ring saves, stops after
-success/clean shutdown, and creates no independent timer or duplicate crash event.
-Old production produces exactly four predeclared RED failures; fixed Main/record/
-lifecycle/sink suites pass213 assertions. Clean paired exports, three actual
-exit0/exactly-one menu-marker startups and all1529 payload entries/all nine
-paired-artifact predicates pass. Windows payload startup used Linux Godot;
-native Windows, actual OS-crash/device/audio/GPU/full-release gates remain open.
-[Production ownership and exact checks](docs/SESSION_DIAGNOSTIC_RECORD.md).
+**Delivered — COMBAT-COURIER ordinary escorted withdrawal/home member.**
+Source7f23a808c adds the existing runner's `courier-escorted-withdrawal` selector
+and read-only chronology/retirement observations. First packaged ordinary-input
+run passes59.024s under original300/330s limits: real34 damage leaves Courier44/78,
+both escorts admit after2.4physics seconds, same-player lethal17 defender hit
+causes WITHDRAWN, all three actors remain retired through strict occupied home/
+OFFLINE/physicalE exit. One withdrawal count; no payment claim. Both escorts
+are observed live/registered before the defender kill, not staged into the test.
 
-Root wrapper classification/preparation errors were resolved against unchanged
-raw logs/maps without engine reruns or changed acceptance. Independent review
-accepts the technical result but withholds literal process compliance. Root
-accepts the authorized runtime repair with those explicit procedural exceptions;
-this is neither a process PASS nor a blanket retry waiver. Original08:28:35UTC
-clock/30minute estimate/09:28:35 hard stop and all costs remain charged.
-[Exact results, exceptions and cleanup](docs/history/ROADMAP_DELIVERIES.md#crash-log-publication-retry-delivered-20261027).
-Source/checkpoint notes pushed; owned branch/worktree/scratch removed after
-verified preservation. Closure33.115minutes versus30estimated; final notes/push
-remain on the same clock.
-
-**Delivered — installed crew-recovery runner and current-checkpoint cut.**
-Source71f681dcb adds external read-only metadata support, preserving adjacent
-metadata defaults, and independent actual crew/context/data/payment observations.
-Oldad74f49cc runner on the same installation fails for missing adjacent metadata
-with zero game processes. The new runner passes the full installed cut64.792s:
-owned kill−9, distinct restart0, exact Halyard crew context/FAILED Convoy/settings,
-awake supported cabin,24-frame2.226m walk, realE helm retake/ONLINE throttle1,
-and one new Convoy credit1→2. Both clean markers, one crash event, unchanged
-installation/external metadata/source/cache and reaped children are verified.
-
-Nine focused tests pass after the sole retained test-harness correction; privacy
-3385 assertions, fresh paired exports, three strict startups and all1529 payload/
-nine archive-audit predicates pass. Checkpoint71f681d is linked at the top. Existing
-scripted setup, direct Resume/start_shift and escort-motion fixture remain
-explicit: this closes current installed support/cut, not a full ordinary sortie,
-final-candidate installation, physical input, rendered/native GPU or Windows gates.
-[Usage](docs/LINUX_BUILD.md#exported-game-interruption-check) ·
-[Proof, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#installed-crew-runner-current-cut-accepted-20261027).
-Original09:04:26UTC/45minute estimate/10:19:26 hard stop and one total correction
-remain charged through integration and owned cleanup.
-Source and notes are pushed; owned branch/worktree/private install/scratch are
-removed after verified preservation. Closure27.583minutes versus45estimated;
-final notes/push remain charged on the same clock.
+303 driver tests,3627 privacy assertions, fresh paired exports, three strict menu
+startups and full1529-entry/nine-predicate package audit pass. No product/source
+correction or repeated game run. Independent full raw-chronology review GO;
+860 terminal-through-end records retain retirement. Original09:33:43UTC clock,
+60minute estimate and11:03:43 hard stop stay charged through cleanup/push.
+[Exact result and scope](docs/history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027).
+Normal UI Quit/gameOS0, post-exit walking, rendered/native GPU/physical input and
+full encounter/loss/repeat/recovery/final qualification remain open. Existing
+accepted recovery/source results remain in delivery history; no unchanged rerun.
 
 **Next candidates name concrete capabilities.** These are existing
 owners and dependencies, not simultaneous assignments or parked-run approvals.
@@ -153,7 +126,6 @@ Select only one after its required inputs and acceptance values are fixed.
 | Existing goal | Concrete deliverable | Decisive proof / remaining prerequisite |
 | --- | --- | --- |
 | LINUX-LAUNCH-DIRECT / LINUX-LAUNCH-DESKTOP | Add rendered direct and genuine desktop-entry launch modes to the existing Guided runner, with verified installed process identity and owned cleanup. | [Full route, CAP300, normal UI OS0, both clean markers, unchanged installation](docs/ROADMAP_BACKLOG.md#rendered-installed-launch-capability). One complete rendered Guided journey per launch method; original GUIDED-FINAL3/3 remains separate. Source checks cannot close rendered/final qualification. |
-| COMBAT-COURIER: escorted encounter | Add an ordinary driver that wounds the runner below82%, observes both escorts, then destroys the defender and returns home. | [Both escorts after2.4s; WITHDRAWN; actors retired/no later fire; strict home/OFFLINE/physical exit; original300/330s](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes). Other Courier outcomes remain separate. |
 
 **PLAN-NEXT remains OPEN.** The source-resolvable gaps in the existing337 records
 are unfinished work. No new inventory, definition count or blocker list can close
@@ -164,7 +136,7 @@ seams visible; it does not declare every contract ready or any product gate pass
 
 Recent accepted and parked results, exact costs and cleanup records are retained
 in [delivery history](docs/history/ROADMAP_DELIVERIES.md#roadmap-status-notes-retained-from-2026-10-27).
-Completed work is not the active queue. Latest playable checkpoint is71f681d.
+Completed work is not the active queue. Latest playable checkpoint is7f23a80.
 
 ## Validation and final release
 

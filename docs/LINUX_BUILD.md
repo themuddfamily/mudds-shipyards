@@ -4,7 +4,26 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `71f681d` — 2026-10-27
+## Latest development checkpoint: `7f23a80` — 2026-10-27
+
+[Linux archive](../builds/linux/MuddsShipyards-7f23a80-linux-x86_64.tar.gz) ·
+[build notes](../builds/linux/MuddsShipyards-7f23a80-linux-notes.txt).
+Source `7f23a808cdf9744d50f119763cbcf3b0e27009f1` adds the existing native runner's
+ordinary escorted Courier withdrawal route and read-only dispatch/retirement
+observations. First real-input run passes59.024s under original300s: one34-damage
+hit leaves Courier44/78, both escorts admit after2.4s, same-player defender kill
+causes WITHDRAWN, then strict home/OFFLINE/physicalE exit. All three dispatched
+actors remain inactive/unregistered/unauthorized with no later fire through home.
+
+303 driver tests, startup privacy3627, three strict package menu checks and the
+complete1529-entry/nine-predicate paired audit pass. Private Xvfb/x11/XTest/Dummy
+with input-only dummy rendering; normal UI Quit/OS0, post-exit walking, full
+Courier loss/repeat/recovery and native GPU/device/full-release scopes remain
+open. [Exact chronology and cleanup](history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027).
+Earlier installed/recovery cases below retain their original source scopes.
+
+<a id="latest-development-checkpoint-71f681d--2026-10-27"></a>
+## Earlier development checkpoint: `71f681d` — 2026-10-27
 
 [Linux archive](../builds/linux/MuddsShipyards-71f681d-linux-x86_64.tar.gz) ·
 [build notes](../builds/linux/MuddsShipyards-71f681d-linux-notes.txt).
@@ -964,6 +983,24 @@ Halyard context, protected data, distinct PIDs, walk/retake/control operands and
 one distinct Convoy credit. Its staged setup/direct recovery handler/escort
 fixture does not qualify a full ordinary player journey. Native mode requires
 Linux x86_64 ELF and cannot combine with `--source` or standard script probes.
+
+## Ordinary escorted Courier route
+
+Use the current runner and checkpoint with a fresh owned output directory:
+
+```sh
+python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-7f23a80.x86_64 \
+  --output /absolute/path/fresh-courier-results --route courier-escorted-withdrawal
+```
+
+The runner owns private Xvfb/x11 and XTest input, uses Dummy audio/rendering, keeps
+the original300s route cap and releases/reaps its input helper, game and display.
+`result.json` must have `success=true`, completion marker
+`NATIVE_COURIER_ESCORTED_WITHDRAWAL_OK`, zero diagnostics and all cleanup flags.
+Actual hit/escort/defender-kill/retirement/home observations remain in `game.log`
+and the result. The endpoint is strict home/OFFLINE/physicalE exit followed by
+owned process cleanup; it does not establish normal HUD Quit/gameOS0 or physical
+hardware/rendered acceptance. Other existing Courier outcomes stay separate.
 
 ## Runtime platform audit
 

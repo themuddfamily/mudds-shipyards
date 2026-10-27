@@ -1,0 +1,25 @@
+Mudd's Shipyards checkpoint 7f23a80
+Source: 7f23a808cdf9744d50f119763cbcf3b0e27009f1
+
+Build capability
+Added ordinary-input route courier-escorted-withdrawal: real player fire wounds
+the Courier, waits for both escorts, kills the original defender, then checks
+actor retirement through strict home landing, automatic OFFLINE and physical exit.
+Read-only observations expose actual hit/dispatch/retirement chronology. The
+existing combat authority, actors, timers, input defaults and tuning are retained.
+
+Actual preflight validation
+303 existing/focused Python driver tests pass in14.252s; clean import and3627
+startup privacy assertions pass. Clean pinned Godot4.7.1 Windows/Linux exports
+and three silent isolated menu checks pass: Windows payload under Linux Godot,
+Linux ELF and actual TAR, each actual0/exactly one menu-ready marker/no diagnostics.
+All1529 complete payload path/size/hash entries match the approved Windows
+manifest frozen before Linux export. Existing paired-artifact audit checks full
+archives/source/template identity and unchanged inputs. Actual escorted flight
+results/first failures are separately scoped in docs/history/ROADMAP_DELIVERIES.md.
+
+Scope
+Private Xvfb/x11/Dummy audio with input-only dummy rendering is the route's
+supported automated environment. Full encounter/recovery/repeat, normal HUD Quit,
+physical-device, audible audio, native Windows/GPU and final release qualification
+remain separate. No hosted CI or audible test.
