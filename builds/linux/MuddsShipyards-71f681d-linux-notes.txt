@@ -1,0 +1,28 @@
+Mudd's Shipyards Linux checkpoint 71f681d
+Source: 71f681dcb57fff99ec9c1f9a01dc3457c538c282
+
+Build and recovery change
+The existing recovery runner can read export metadata from outside a managed
+installation while checking the exact installed executable. It independently
+checks crew context, preserved data, distinct processes and once-only payment.
+The shipped crew probe exposes read-only cold/walk/retake observations. Recovery
+policy, ordinary gameplay controls and the existing staged setup are unchanged.
+
+Actual validation
+Nine focused release-runner tests pass after one retained test-harness correction;
+invalid metadata is refused before launch and matching external/default records
+reach the exact original executable command. These tests use inert data/mocks.
+Clean Godot4.7.1 import and3385 startup privacy assertions pass.
+Clean Windows/Linux exports and three silent isolated startup checks pass: Windows
+payload under Linux Godot, Linux ELF and actual TAR; all actual exit0/exactly one
+menu-ready marker/zero diagnostics. Complete 1529 payload path/size/hash entries
+match the approved Windows manifest frozen before the Linux export. Existing
+paired-artifact audit checks source/template identity, full archives and unchanged
+inputs. See docs/history/ROADMAP_DELIVERIES.md for separately scoped interruption
+results and retained first failures.
+
+Scope
+This checkpoint does not imply final-candidate installation, a complete ordinary
+crew sortie, physical input, native Windows/GPU or audible-output qualification.
+No audible test or hosted CI run. Existing scripted Convoy setup, direct recovery
+choice/start_shift and escort continuation remain disclosed in the crew contract.

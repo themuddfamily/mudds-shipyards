@@ -32526,3 +32526,76 @@ explicitly selects one complete rendered Guided journey per method (two total),
 keeping the original per-journey CAP300 and separate GUIDED-FINAL3/3 intact. This
 is an engineering acceptance choice, not a historical count or runtime PASS.
 Other PLAN-NEXT contract fields remain open; no new driver or run is selected.
+
+
+## Installed crew runner current cut accepted 20261027
+
+Source `71f681dcb57fff99ec9c1f9a01dc3457c538c282`, existing
+CREW-RECOVERY-INSTALLED. The actual release runner now accepts optional external
+`PACKAGE_PROBE_EXPORT_METADATA` in both native modes, preserving adjacent default
+and exact schema/platform/compiled-source/ELF identity checks before game launch.
+No sidecar is added to the managed installation; metadata is read-only and checked
+unchanged after cleanup. The existing crew probe adds only observations: actual
+cold disk JSON before Resume/start_shift, safe cabin ownership,24-frame walk and
+realE/two-throttle-frame retake. Setup/order/timing/physics/authority/recovery policy/
+CLI privacy/schema are unchanged. No new validator or evidence family.
+
+The first new nine-test run has two metadata-test errors: test extraction selected
+the settings sidecar loop rather than the stage/Popen loop; root also confirmed
+its missing inert `scope` fixture. Seven tests pass; no engine was launched.
+Original raw output was recovered from the agent's own rollout and preserved,
+with the pre-correction tracked patch/untracked test. Root allocates the sole
+correction to that test harness. Corrected9/9 pass1.064s/actual0, shell syntax and
+diff check pass. Post-run hashes match the exact clean commit; no pre-run hash is
+claimed. No later code edit or identical unit rerun. Independent source GO.
+
+Clean import20.690s and existing startup privacy3385 assertions/one marker/zero
+diagnostics pass. Pinned clean Windows export26.618s/Linux25.640s; Windows payload
+under Linux Godot25.880s, Linux executable22.717s and actual TAR24.002s outer
+startup checks all pass actual game0/exactly one menu-ready marker/no diagnostics.
+Complete1529(path,size,SHA256) entries match the Windows manifest frozen before
+Linux export. First normative paired-artifact audit8.172s passes all nine
+predicates/source/template/archive identity/unchanged inputs. These are package
+smokes; native Windows remains NOT_RUN.
+
+The manager extracted from that actual TAR installs privately. Both owned runtime
+files, manifest/desktop entry and two unrelated protected fixtures are snapshotted
+(six files total). Installed ELF149097480bytes, SHA256
+`1c2480d07ebba1bbd7862bc045b84ac6befe9e8118577572da1a919f969087f3`.
+Originalad74f49cc runner on this exact installation and external record fails
+as predeclared: actual1/missing adjacent export metadata/zero game processes,
+5.316s. This is the negative regression control, not runtime acceptance.
+
+**Full new installed case PASS64.792s:** actual arm2597859 killed/reaped−9;
+distinct normal restart2598008 exits0. Cutgeneration26 and cold30 have exact
+`{location:mudds_home_berth,mode:crew,craft_id:halyard_new_design,
+berth_id:halyard_fleet_dock_berth}`, same FAILED Convoygeneration3/host/threat/
+progress, complete first-credit1 ledger and settings. Only the three declared
+lifecycle namespaces differ at cold. After actual safe recovery the Player is
+awake, unseated, controlled and supported in the registered home cabin, with real
+hatch/berth/containment and no old crew ledger/authority/tag.24physics-frame input
+walk moves2.22613525390625m; actualE retakes helm and releases cabin/moving owners;
+two throttle frames yield ONLINE/throttle1. Finalgeneration47 has distinct paid
+Convoygeneration5/credit1→2 exactly once despite two retry calls, one crash event
+and both clean markers. Six finite owner deltas account for the entire final
+payload; settings/tutorial/unknown namespaces remain protected.
+
+Actual installed file set/modes/bytes, source/cache and external metadata SHA
+`cc223ea6120527e8c8ab0f23fb80e6f44f0a5d486c35509bdfe8ce7d336d0bdb`
+remain unchanged; no installed sidecar, zero diagnostics, all owned children reaped
+and actual PIDs absent. Independent final source/raw/document/package review GO.
+No orchestration exception or further correction. Source/mock tests are distinct
+from this actual installed run.
+
+Checkpoint EXE/ZIP/notes and matching Linux ELF/TAR/export result/notes are in
+repository builds/windows and builds/linux. Existing scripted pilot/seat placement,
+direct Resume/start_shift and escort-motion continuation remain disclosed. This
+closes runner support and the current installed case, not final integrated
+installation, full ordinary crew sortie, rendering/native GPU/physical input/
+audible output/native Windows or whole-release qualification. No hosted CI run.
+
+Original start09:04:26UTC,45minute estimate/10:19:26 hard stop/execution end10:09:26
+and sole correction remain charged through source binding, missing-observation
+prerequisite, build, execution, integration and cleanup. No fresh clock or parked
+retry. Canonical337 identities/order are retained; original parent2/31/final gates
+remain open. Closure/archive/push identities follow after owned cleanup.

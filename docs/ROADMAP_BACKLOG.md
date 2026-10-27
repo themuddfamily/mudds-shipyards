@@ -3023,7 +3023,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; four-field safe-home pilot preference, fresh claims, preserved activity/debt; ca0 archive pilot/Convoy pass retained; final candidate and ordinary-controls qualification remain | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; four-field craft/home preference, fresh supported awake cabin/hatch, no saved flight/sleep pose. Earlier package passes retained; finite remaining cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; settled solo crew saves four-field home-cabin preference; Resume wakes unseated with fresh cabin/hatch, no prior role or seat claim. Earlier ca0 crew pass retained; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | Qualification | GATED on final installed candidate and the [fixed Halyard crew cut](#installed-halyard-crew-cut--fixed-scope-and-runner-gap). Craft/seat/durable cut/cold continuation are source-bound; do not resurvey the settled crew policy. BLOCKED implementation — Codex: existing native runner requires adjacent export metadata, but the managed install owns only ELF/icon. Supply external read-only metadata input and independent exact crew-context/protected-state checks before running installed ELF. Freeze actual package/installed bytes and private paths at selection; settings-only or archive execution cannot close this installed earned-credit cut. | [Recovery](#proof-recovery): exact installed candidate actual crew commit/OS kill/distinct restart→awake supported home cabin→ordinary controls/continuation, conserved debt/payment once. |
+| CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | Qualification | Runner support and current installed cut DONE71f681dcb/checkpoint71f681d: external metadata, exact cut/cold/final documents, owned SIGKILL−9/distinct restart0, supported2.226m/24-frame cabin walk, realE helm retake/throttle1, credit1→2 once, clean markers, one crash event; protected files/settings/metadata unchanged and children reaped. Full64.792s case and source/package checks independently reviewed. [Actual proof and retained sole test correction](history/ROADMAP_DELIVERIES.md#installed-crew-runner-current-cut-accepted-20261027). Final installed candidate remains GATED on PACKAGE-FINAL; original scripted setup/direct Resume/escort fixture and ordinary/full-release limits remain explicit. Reuse this accepted support/cut within its exact scope; no unchanged rerun or missing-runner survey. | [Recovery](#proof-recovery): exact installed candidate actual crew commit/OS kill/distinct restart→awake supported home cabin→ordinary controls/continuation, conserved debt/payment once. |
 | CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | Qualification | DONE one Jovian engineer checkpoint case378d99caf: ordinary hub/ramp/chair→actual4fieldcommit→owned kill/reap−9→distinct normalResume/awake supported cabin→2physicalgoals/realhelm/ONLINEcommand1→normalUIOS0/finalclean,79.277s under original300s. Protectedpayload exact across7actualdocuments; settingsonly/earnedactivity-rewardsabsent, no earned-debt qualification. Existing guardedJovian cockpit-priority repair, RED/GREEN7/Python260/pairedexports/three strictstartups/actual1529PCKaudit/rawreview pass. [Proof and retained failures](history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026). No unchanged rerun. Retained Heavy follow-on f5e6cacee PARKED: full actual route84.357s reaches normalOS0 but final protectednamespace check fails on unobserved new default race/tutorial; original settings/credit1/paidterminal exact. [Failure/reopening](history/ROADMAP_DELIVERIES.md#retained-heavy-crew-recovery-parked-20261026). Source/raw/private exports archived unmerged, no second run selected. Othercrew/installed/final/hardware stay open. | One actual ordinary crew admission/commit/kill/restart/continuation on the frozen craft/role/candidate. Pass requires awake unseated supported home cabin, fresh claims, usable controls, exact protected durable delta and once-only progress/payment. A definition or staged crew placement cannot close this ordinary journey. |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; active solo assist retains home pilot preference; busy boarding/exit attempts unavailable. Fresh ownership replaces leases/pose; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | Qualification | DONE packaged311df73; existing loader/probe/runner docking+Convoy selector, full source and archive ELF kill/restart pass at original caps with fresh home-pilot control and exact terminal/reward boundary | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -5919,7 +5919,9 @@ No automatic qualification or repair successor is selected.
 
 #### Installed Halyard crew cut — fixed scope and runner gap
 
-CREW-RECOVERY-INSTALLED source binding2026-10-27, not a new run or PASS.
+CREW-RECOVERY-INSTALLED source binding and current installed cut2026-10-27.
+Runner support/current checkpoint71f681d are accepted in the explicit scope below;
+final installed qualification remains open.
 This uses the settled safe-home policy and the existing Convoy/crew probe;
 it does not promise restoration of an airborne pose or a crew seat.
 
@@ -5939,32 +5941,46 @@ Source/check seams are the existing
 [package runner](../tools/release/run_package_probes.sh),
 [Halyard scene](../scenes/ships/halyard_crew_transport.tscn) and
 [managed installer](../tools/release/install_linux_desktop.py).
-The accepted ca0 archive case remains source-specific; this installed cut has
-not run. All setup placement and final escort fixture remain disclosed.
+The accepted ca0 archive case remains source-specific. The current71f681d
+installed cut below is separately accepted; all setup placement and final escort
+fixture remain disclosed.
 
-**Concrete runner capability still missing — Codex.** `--native-export` currently
-reads `<PACKAGE_PATH>.export-result.json` before launching. The manager installs
-only ELF/icon in its owned runtime generation; its manifest's finite file set
-contains no sidecar. Thus pointing `PACKAGE_PATH` at the real installed ELF does
-not yet make this an executable installed command. Do not copy an unowned
-sidecar into the managed installation or run an archive copy instead.
+**Runner capability and current installed cut delivered —71f681dcb.**
+`PACKAGE_PROBE_EXPORT_METADATA` selects an existing external Linux export result;
+empty/unset retains adjacent `<resolved PACKAGE_PATH>.export-result.json`.
+Both native runner modes validate schema1/Linux/exact40hex compiled source/
+actual ELF byte count/SHA before game launch and preserve the metadata hash.
+No metadata sidecar is installed. Actual cold disk JSON is captured before
+Resume/start_shift; read-only safe-cabin/walk/retake/control facts then expose the
+existing real sequence without changing setup, timing or recovery policy.
 
-Extend the existing runner with an optional explicit external metadata path
-(e.g. `PACKAGE_PROBE_EXPORT_METADATA`), retaining adjacent metadata as the default.
-Read/hash the supplied existing export result without writing it or the install;
-require its existing schema/platform/compiled-source/ELF-size/SHA checks and
-unchanged identity after cleanup. Add an explicit distinct arm/resume PID check for crew (currently asserted only
-for other selectors), independent crew four-field context, exact reward-ledger
-and protected-namespace checks using the actual cut/recovered documents, reusing the
-existing assertions rather than another validator. Before any game launch,
-missing/malformed/wrong-platform/wrong-size/wrong-hash metadata must fail; a
-matching external record must resolve to the unchanged actual installed ELF.
-That is one bounded release-runner implementation within this existing outcome;
-it needs its own frozen files, focused checks, estimate and stop before editing.
-The installed execution card then binds actual candidate/install/profile paths
-and uses existing `PACKAGE_PROBE_RECOVERY_CONTEXT=crew`, `--native-export`,
-`--in-world-interruption`, `--activity=convoy` and300s process limits. No exact
-final-candidate SHA or successful installed execution is claimed by this definition.
+Existing nine focused Python tests execute actual embedded gates using inert
+fixtures/mocked launch; invalid records cannot reach Popen, matching external and
+default records reach the exact original command, and changed/removed metadata,
+wrong crew context/boundary/protected data/ledger/PIDs are rejected. First run's
+settings-loop fixture error and its sole test-only correction are retained.
+Corrected9/9 plus clean import/startup privacy3385 pass; no further correction.
+
+The shipped manager installs the actual71f681d TAR privately. The oldad74f49cc
+runner fails on its missing adjacent metadata with0game processes; the new runner
+uses the external original record and completes the whole64.792s cut above.
+Arm2597859 is killed/reaped−9; distinct resume2598008 exits0. Cutgeneration26 and
+cold30 retain exact crew context/FAILED Convoygeneration3/credit1/settings;24frame
+walking moves2.226135m, realE helm retake releases cabin/moving owners, two throttle
+frames yield ONLINE/throttle1. Finalgeneration47 pays new Convoygeneration5 once,
+credit1→2; exact permitted owner deltas, both clean markers and one crash event.
+All six installed/protected files/modes, source/cache and external metadata remain
+unchanged; children are reaped, logs have zero diagnostics. Independent GO.
+
+[Usage](LINUX_BUILD.md#exported-game-interruption-check) and
+[proof/costs/first failure/cleanup](history/ROADMAP_DELIVERIES.md#installed-crew-runner-current-cut-accepted-20261027).
+Fresh paired export/three strict menu startups/1529-entry/nine-predicate archive
+audit pass. Source/mock checks are separate from this actual installed case.
+The existing pilot/seat setup, direct Resume/start_shift and escort continuation
+fixture remain disclosed. No full ordinary sortie or final-candidate/native GPU/
+physical input/audio/Windows qualification is inferred. Final PACKAGE-FINAL byte
+identity remains a prerequisite for that separate qualification; this delivered
+runner support must not be surveyed or implemented again unchanged.
 
 ### Busy exterior exit interruption — frozen 2026-10-27
 

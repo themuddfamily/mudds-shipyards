@@ -4,7 +4,28 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `ca149d6` — 2026-10-25
+## Latest development checkpoint: `71f681d` — 2026-10-27
+
+[Linux archive](../builds/linux/MuddsShipyards-71f681d-linux-x86_64.tar.gz) ·
+[build notes](../builds/linux/MuddsShipyards-71f681d-linux-notes.txt).
+Source `71f681dcb57fff99ec9c1f9a01dc3457c538c282` adds external export-metadata
+support for checking the actual managed installation and read-only crew recovery
+observations. Ordinary gameplay/recovery policy is unchanged.
+
+The current private installed Halyard crew cut passes in64.792s: owned SIGKILL−9,
+distinct restart0, exact failed Convoy/settings/crew context, awake supported cabin,
+24-frame2.226m walk, realE helm retake/throttle1, credit1→2 once and both clean
+markers. Installed/protected files and external metadata remain byte/mode exact;
+children are reaped and logs are clean. The existing pilot/seat positioning,
+direct Resume/start_shift and escort-motion fixture remain disclosed.
+Nine focused runner tests, startup privacy3385, clean paired exports, three strict
+menu startups and complete1529-entry/nine-predicate archive audit pass. Full
+ordinary sortie, final-candidate installation, rendering/GPU/physical-device/
+audio/native Windows gates remain separate.
+[Exact proof and first test-harness correction](history/ROADMAP_DELIVERIES.md#installed-crew-runner-current-cut-accepted-20261027).
+
+<a id="latest-development-checkpoint-ca149d6--2026-10-25"></a>
+## Earlier development checkpoint: `ca149d6` — 2026-10-25
 
 The [executable](../builds/linux/MuddsShipyards-ca149d6.x86_64),
 [archive](../builds/linux/MuddsShipyards-ca149d6-linux-x86_64.tar.gz) and
@@ -914,15 +935,35 @@ PACKAGE_PROBE_RUN_ID=pilot \
 tools/release/run_package_probes.sh --in-world-interruption --native-export
 ```
 
-Repeat separately with `cabin`, `rest` and `crew`, using a fresh result ID for
-each run. Keep the original `.x86_64.export-result.json` beside the binary:
-the check verifies its executable hash and records the compiled source commit
-separately from the probe driver's commit. It launches no external pack or
-script, uses headless/Dummy audio and private user directories, kills and reaps
-its exact native game process, then restarts against that same private save.
-The existing durable-boundary, one-payment, crash-event, clean-marker and
-source/cache/artifact-parity checks still apply. This mode requires a Linux
-x86_64 ELF and cannot be combined with `--source` or the standard script probes.
+Select `cabin`, `rest` or `crew` for the corresponding existing context, with
+its own fresh result ID. By default the original `.x86_64.export-result.json`
+stays beside the resolved binary. For a managed installation, leave its owned
+file set intact and supply the original export record externally:
+
+```sh
+PACKAGE_PATH=/absolute/path/managed-runtime/MuddsShipyards-71f681d.x86_64 \
+PACKAGE_PROBE_EXPORT_METADATA=/absolute/path/export/MuddsShipyards-71f681d.x86_64.export-result.json \
+PACKAGE_PROBE_RECOVERY_CONTEXT=crew \
+PACKAGE_PROBE_RESULTS_ROOT=/absolute/path/linux-recovery-results \
+PACKAGE_PROBE_RUN_ID=installed-crew \
+tools/release/run_package_probes.sh --in-world-interruption --native-export --activity=convoy
+```
+
+The external path is optional in both native runner modes, including settings
+restart. Before game launch, the runner checks schema1/Linux, exact compiled
+source identity and actual executable bytes/SHA; a record for another binary is
+refused. It reads and hashes that record without copying it into the installation,
+and verifies it unchanged after cleanup. The metadata's original build path does
+not replace `PACKAGE_PATH`: the actual installed ELF runs directly.
+
+No external pack/script/path override is launched. Headless/Dummy audio and
+private user directories isolate the selected kill/restart. Existing durable
+boundary, payment, crash-event, clean-marker and source/cache/artifact checks
+remain. Crew additionally compares actual cut/cold/final documents, four-field
+Halyard context, protected data, distinct PIDs, walk/retake/control operands and
+one distinct Convoy credit. Its staged setup/direct recovery handler/escort
+fixture does not qualify a full ordinary player journey. Native mode requires
+Linux x86_64 ELF and cannot combine with `--source` or standard script probes.
 
 ## Runtime platform audit
 

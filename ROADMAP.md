@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[52b7b6e checkpoint](builds/windows/MuddsShipyards-52b7b6e-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-52b7b6e-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-52b7b6e-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-52b7b6e-linux-notes.txt)) is available.
+[71f681d checkpoint](builds/windows/MuddsShipyards-71f681d-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-71f681d-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-71f681d-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-71f681d-linux-notes.txt)) is available.
 The latest checkpoint retries refused recovery crash-log writes once per second;
 successful ordinary store saves cannot postpone publication. Retries stop after
 success or clean shutdown. Source checks and packaged startup/parity pass; actual
@@ -13,7 +13,7 @@ The recovery card also offers **Use Safe Audio** after repeated unfinished
 startups. It saves master50%/music0 through the existing adapter, preserves other
 preferences and retains the existing stable Restore/user-edit protections.
 Earlier journey results retain their original source/package scopes;
-they were not rerun for52b7b6e.
+they were not rerun for71f681d.
 Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
 newer primary, temporary or backup generation instead of selecting older data
 or deleting the newer file. All three files and live preferences stay unchanged.
@@ -122,13 +122,33 @@ Source/checkpoint notes pushed; owned branch/worktree/scratch removed after
 verified preservation. Closure33.115minutes versus30estimated; final notes/push
 remain on the same clock.
 
+**Delivered — installed crew-recovery runner and current-checkpoint cut.**
+Source71f681dcb adds external read-only metadata support, preserving adjacent
+metadata defaults, and independent actual crew/context/data/payment observations.
+Oldad74f49cc runner on the same installation fails for missing adjacent metadata
+with zero game processes. The new runner passes the full installed cut64.792s:
+owned kill−9, distinct restart0, exact Halyard crew context/FAILED Convoy/settings,
+awake supported cabin,24-frame2.226m walk, realE helm retake/ONLINE throttle1,
+and one new Convoy credit1→2. Both clean markers, one crash event, unchanged
+installation/external metadata/source/cache and reaped children are verified.
+
+Nine focused tests pass after the sole retained test-harness correction; privacy
+3385 assertions, fresh paired exports, three strict startups and all1529 payload/
+nine archive-audit predicates pass. Checkpoint71f681d is linked at the top. Existing
+scripted setup, direct Resume/start_shift and escort-motion fixture remain
+explicit: this closes current installed support/cut, not a full ordinary sortie,
+final-candidate installation, physical input, rendered/native GPU or Windows gates.
+[Usage](docs/LINUX_BUILD.md#exported-game-interruption-check) ·
+[Proof, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#installed-crew-runner-current-cut-accepted-20261027).
+Original09:04:26UTC/45minute estimate/10:19:26 hard stop and one total correction
+remain charged through integration and owned cleanup.
+
 **Next candidates name concrete capabilities.** These are existing
 owners and dependencies, not simultaneous assignments or parked-run approvals.
 Select only one after its required inputs and acceptance values are fixed.
 
 | Existing goal | Concrete deliverable | Decisive proof / remaining prerequisite |
 | --- | --- | --- |
-| CREW-RECOVERY-INSTALLED | Let the package runner use external export metadata for the actual installed ELF; reject mismatched identity before launch. Add independent crew-context, protected-data and distinct-PID checks. | [Exact metadata failures, Convoy credit1→2 once, kill/restart, supported cabin walk and real helm retake](docs/ROADMAP_BACKLOG.md#installed-halyard-crew-cut--fixed-scope-and-runner-gap). Final installed candidate remains a prerequisite. |
 | LINUX-LAUNCH-DIRECT / LINUX-LAUNCH-DESKTOP | Add rendered direct and genuine desktop-entry launch modes to the existing Guided runner, with verified installed process identity and owned cleanup. | [Full route, CAP300, normal UI OS0, both clean markers, unchanged installation](docs/ROADMAP_BACKLOG.md#rendered-installed-launch-capability). One complete rendered Guided journey per launch method; original GUIDED-FINAL3/3 remains separate. Source checks cannot close rendered/final qualification. |
 | COMBAT-COURIER: escorted encounter | Add an ordinary driver that wounds the runner below82%, observes both escorts, then destroys the defender and returns home. | [Both escorts after2.4s; WITHDRAWN; actors retired/no later fire; strict home/OFFLINE/physical exit; original300/330s](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes). Other Courier outcomes remain separate. |
 
@@ -141,7 +161,7 @@ seams visible; it does not declare every contract ready or any product gate pass
 
 Recent accepted and parked results, exact costs and cleanup records are retained
 in [delivery history](docs/history/ROADMAP_DELIVERIES.md#roadmap-status-notes-retained-from-2026-10-27).
-Completed work is not the active queue. Latest playable checkpoint is52b7b6e.
+Completed work is not the active queue. Latest playable checkpoint is71f681d.
 
 ## Validation and final release
 
