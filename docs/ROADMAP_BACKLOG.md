@@ -740,6 +740,44 @@ The following are the remaining proof boundaries, not new gameplay passes.
 | INPUT-DEVICE / INPUT-REMAP | On actual KBM/controller's existing menu/gameplay/return journey observe selected palette and the same literal text/shape discriminators; preserve actual remap/apply/Reset/restart/control-return endpoints already required by that device contract. | External access: actual device/session identity. Separate Codex work: supported physical-device observations and ordinary colour assertions. Synthetic `controller_physical_sortie_test.gd` does not supply a real controller. No requirement to repeat all enum values on every device is inferred. |
 | Accepted cold/Reset endpoint | Retain1f2260f69 three-process Tritanopia Save→cold HUD/minimap→normal Reset/Save→third cold none, protected settings/data, usable controls and actual exits/clean markers. | Closed in its recorded source/headless/synthetic-input scope; current/final package qualification belongs to existing owners. No unchanged rerun or extra enum cold case selected. |
 
+**Selected ordinary Guided caller — 2026-10-27 06:51:29UTC.**
+Same COMFORT-COLOUR membership; no new tracker ID or repeated storage driver.
+Root's bounded source binding identifies `_guided_exit_observation` and
+`GuidedExitPilot` as the existing live/paused observation and full-route owners.
+Add guided-only `--colour-preset tritanopia`; default behavior stays unchanged.
+Before launch seed only the isolated profile's established settings.cfg with
+meta schema_version7/accessibility colorblind_palette="tritanopia" and
+high_contrast_hud=false. This is an explicit legacy input fixture, not ordinary
+Save/Reset/restart proof; production loading must supply selected enum3 and ID.
+No gameplay/UI owner, transform, health, palette or clock mutation is permitted.
+
+Freeze expected normal-contrast RGBA hex roles from the authored palette:
+nominal85f2f2ff/cautionf9e03eff/dangerff5226ff/muted8b8d9eff/
+primaryedfaffff/nominal_softc2f9f9ff. Actual selected settings/HUD IDs must equal
+tritanopia; high contrast false. Observe actual retained labels' text, visibility,
+registered semantic role, effective font colour/modulation and minimap applied
+role colours; preserve hostile diamond/friendly circle_cross shape discriminators.
+Mode ON FOOT uses nominal/PILOTING caution; ENGINE ONLINE nominal/STARTING caution/
+OFFLINE danger; THROTTLE FORWARD or NEUTRAL muted/REVERSE caution. Hull OK muted,
+DAMAGED caution, CRITICAL/DESTROYED danger. Existing component/lock presentation
+owners supply their current text/role; visible enemy percentage/ENGAGED above35%
+or BREAKING at/below35% and corresponding caution/danger must follow actual state.
+No expected values may be chosen after a run. Retain actual values on failure.
+
+Continuously check palette consistency, retaining observed endpoint receipts for
+on-foot/actual pilot admission, engine STARTING/ONLINE, non-neutral throttle,
+range combat, live interceptor health change and removal, strict home berth,
+automatic OFFLINE/physical exit and paused normal HUD Quit. Preserve every
+original Guided predicate and300s cap. Do not manufacture damage/repair/reverse/
+camera/Main-replacement episodes absent from the route. Any endpoint not observed
+fails this caller's frozen coverage; accepted prior colour scopes stay closed.
+Physical device/rendered readability/native GPU/other journeys remain NOT_RUN.
+Root owns docs/integration; one implementation agent owns observer/driver/existing
+tests, independent review checks the diff. Checks/export/strict startup and both
+opt-in/default full Guided runs must all pass before integration. Clock/budget/
+one-correction allowance are fixed in ROADMAP.md; no public Windows build for
+this release-diagnostic-only capability. First failure stops dependent launches.
+
 Existing source checks (later selection only):
 
 ```text

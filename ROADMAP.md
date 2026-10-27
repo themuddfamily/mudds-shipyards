@@ -219,6 +219,32 @@ The original05:38:34 start and45.076 prior minutes stay charged; the explicit
 scratch cleanup completes at70.748 cumulative wall minutes; final notes/push
 remain charged to the same clock. The public playable checkpoint is unchanged.
 
+**Active — COMFORT-COLOUR ordinary Guided caller capability.**
+Start2026-10-27 06:51:29UTC from b89717774. Existing source binding is complete;
+no missing design choice or gameplay defect is assumed. Add opt-in
+`--colour-preset tritanopia` to the existing full Guided native caller, seeding
+only a private legacy Settings fixture before launch. Normal production loading
+must select enum3/tritanopia and apply its existing palette throughout the real
+boarding/flight/combat/home/exit/UI journey. No direct gameplay or HUD writes.
+Owned source: native_sortie_observer.gd, run_native_sortie.py and its existing
+focused tests; root owns these two roadmap documents and integration.
+Proof: existing Python suite; silent headless import/observer parse/privacy;
+clean private Linux export and strict archive startup (OS0 + one ready marker);
+full `python3 tools/release/run_native_sortie.py ELF --output FRESH --route guided
+--colour-preset tritanopia` plus unchanged default Guided on the same frozen ELF.
+Both keep their original300s caps and private Xvfb/x11/Dummy/independent abort.
+PASS requires actual selected palette/role colours and text/shape observations,
+all original flight/home/Quit predicates, real OS0/clean markers and owned cleanup.
+Expected observation values/endpoints are frozen in the
+[colour contract](docs/ROADMAP_BACKLOG.md#colour-cues--remaining-proof-ownership).
+Estimate45minutes including checks/export/integration/cleanup; absolute deadline
+07:51:29UTC (60minute ceiling), last10minutes reserved for closure. Total correction
+allowance one; after its validation, any further failure is terminal PARK. No
+same-run deadline extension/reopening. Cost includes the source-binding interval.
+No Windows/public checkpoint required for this diagnostic-only release capability;
+existing runtime content and public playable checkpoint stay unchanged. No new
+storage/reset/device/rendered/full-COMFORT acceptance is implied.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
