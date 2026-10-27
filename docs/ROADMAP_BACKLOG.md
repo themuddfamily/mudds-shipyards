@@ -6558,7 +6558,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | Capability | DONE; 2c73494a4, consumer40/ship_command79, component-staged scope | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | Qualification | DONE;4c9c764e9 original route138.915s, failed331 arrival attempt retained | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | Qualification | DONE;4c9c764e9, original pilot/ship/ownership generations, all peers exit0 | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. BLOCKED definition/implementation (Codex): actual elapsed-progress observation, moving/return/refusal, active-work loss/handback, exterior route and whole caller/limit. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
+| ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. [Elapsed progress contract](#jovian-engineer-elapsed-progress) now binds actual host start/intermediate/commit and client received-view/HUD observations,with existing caller/caps;observer implementation remains OPEN. BLOCKED definition/implementation (Codex): moving/return/refusal,active-work loss/handback,exterior route and whole caller/limit. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged.  [Two active cuts](#halyard-engineer-active-cuts) now fix actual E stand and B browser disconnect while a host repair token remains active,transient interruption/stock/generation receipts and supported fresh reclaim. The .4s UI timing and all ordinary cut executions remain NOT_RUN;no old finished-work disconnect is relabelled. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. [Remote damage/loss fields](#halyard-gunner-remote-damage-loss) now bind three-peer ordinary chair/input,four actual52damage target endpoints,B browser disconnect/fresh claim,shared physical-egress dependency and900s/960s combined limits. BLOCKED implementation (Codex): combined ordinary caller,normal target acquisition/receipt observer and shared Halyard physical-egress repair remain absent;final candidate/proof OPEN. Existing remote fire binding is present;no weapon defect or parked retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
@@ -8928,12 +8928,89 @@ scope with retained Xvfb/llvmpipe V-Sync warning, strict diagnostics unqualified
 Halyard-only panel progress/completion, walking replica stock/nonmutation,
 detached panel6/6, cursor cleanup and sibling-isolation assertions do not run
 for Jovian. Therefore actual elapsed-progress observation remains missing even
-though the production elapsed-work owner exists. Codex must bind/implement
-that observer and the ordinary moving/return/in-flight refusal, active-work
+though the production elapsed-work owner exists. The [elapsed observer contract](#jovian-engineer-elapsed-progress)
+now fixes host token/progress/commit and actual received-view/HUD endpoints in
+this same staged caller;implementation remains OPEN. Codex must still bind/implement
+the ordinary moving/return/in-flight refusal, active-work
 interruption/loss/reclaim and voluntary exterior exit/reentry caller/endpoints
 with its whole-route limit. No cold restored/network/destruction or whole-role
 PASS follows from the berthed subset. Keep the shared [repair semantics](#halyard-engineer-contract)
 without inheriting Halyard-specific proof or roster ownership.
+
+<a id="jovian-engineer-elapsed-progress"></a>
+#### Jovian engineer: observe the existing elapsed repair
+
+Definition2026-10-27,22:11–22:31UTC including source review,document checks,
+commit/push and cleanup. Root owns the roadmap documents;one read-only agent
+binds this single field. No engine run,gameplay retry or extra journey selected.
+This is an extension of the existing **staged berthed two-peer fixture**,not
+ordinary acquisition of damage or the moving/return/loss/exterior role goal.
+The positive-FIRE-time host damage above remains disclosed staging.
+
+**One missing caller capability — Codex.** Extend the existing
+`tests/network/jovian_network_engineer_route_test.gd`,which also owns the shared
+Halyard caller. Keep Jovian's own roster/body/chair and existing selection/FIRE
+input. Before host publishes `host.repair_ready`,connect a passive observer to
+that actual Jovian's `engineer_repair_state_changed`;before client FIRE,install
+a frame observer of the actual received engineer view and HUD. Do not wait until
+after `_press` finishes its two-held/three-released ticks to start observing.
+Retain raw samples in the existing peer artifact directory,not a new validator
+or receipt-version family. No second repair,slow-motion work,timer extension,
+paused host,extra snapshot send or direct private physics call is needed.
+
+| Observation | Literal pass/fail predicate |
+| --- | --- |
+| Host reservation | Actual selected engine_bay/current model and protocol component generations,current peer/avatar/passenger_port_01 assignment/seat_generation/claim_sequence. One start sample status=repairing,active=true,progress0,token>0,resource_id=jovian_repair_tool,units6. Store actual authority/model identities and pre-FIRE integrity from this fixture. |
+| Host elapsed work | At least two later samples on distinct physics frames with the same active token/current selection and seat claim:0<p1<p2<1,units6,no commit receipt/debit yet. Read the actual ship-owned _engineer_repair_elapsed at the signal boundary;progress equals elapsed/.4 within1e-6. Elapsed grows through the ship's normal physics advance,not wall-time sleeping or manually advancing RepairAuthority. |
+| Host commit | One completed state with reason=repair_committed,active=false,progress1,units5;receipt.token equals the reserved token,receipt.operation.repaired_components=1 and actual engine integrity exceeds the stored pre-FIRE value. Exactly one matching authority repair_committed/debit;no second commit during the existing wait to client.repaired. Completed/berth_repair_completed or a healthy refusal does not pass. Passive berth healing is allowed and cannot substitute for that paid receipt. |
+| Client active work | At least one actual accepted current received replica with ship_id=jovian_provisional,current binding/migration/entity/seat/claim/component identities,a revision and server_tick newer than its pre-FIRE baseline,repair.active=true,status=repairing,0<progress<1 and units6. Retain the complete received envelope and actual HUD objective Label from that same view's consumption. Require REPAIRING,the rounded progress percentage roundi(progress×100),and KITS 6/6;the component-health percentage is a separate value. |
+| Client completed work | Within the existing8s FIRE-completion wait,the actual current replica and consumed HUD show completed/100% progress and KITS 5/6,with host reason=repair_committed and the one matching commit token. The client still has no role/repair authority;its local component model and local repair state remain unchanged by replica observation. No locally advanced work or copied host state supplies authority. |
+
+**Source owners and sampling.** Jovian `_advance_engineer_repair` accumulates
+normal ship physics delta up to `ENGINEER_REPAIR_DURATION_SECONDS=.4` and emits
+intermediate state;`get_engineer_repair_state` supplies active/token/resource
+and cooldown fields. `RepairAuthority.request_repair` reserves work without
+spending;`_finish_commit` debits once after a successful component mutation and
+sets the .75s cooldown. At the craft start signal,the newly prepared actual
+authority exists;attach its passive commit observer there before work completes.
+Do not assume an authority object already existed before the first request.
+`RepairAuthority.advance` advances cooldown,not this ship's work timer. Read
+`_engineer_repair_elapsed` only from the actual host object;there is no public
+elapsed-seconds field to invent in the replica. Capture the start signal directly;
+network snapshots need
+not include progress0 or the exact commit-frame cooldown value.
+
+`NetworkJovianEngineerBinding.advance` publishes the real gameplay repair view
+on its existing .2s cadence. GameFlow `_update_network_engineer_input` consumes
+that view and formats the engineer HUD objective;read
+`(_game.hud.get("_objective_label") as Label).text`,not just a newly formatted
+expected string. Require the status/progress fragment `REPAIRING // <rounded>%`
+and stock fragment `KITS 6/6`,not the separate local-console `KITS // 6/6`.
+One strictly intermediate client sample is required;two are not guaranteed by .4s work/.2s publication. If none
+arrives or it never reaches the HUD,this observation FAILS with actual sample
+values. Do not change publication cadence or repair duration to manufacture it.
+Observe after the normal consumer in the same frame,and associate its view
+revision/identity;do not compare an old HUD frame to a newer cached packet.
+Jovian's local repair console/effect does not currently consume this remote
+presentation:the physical repair-panel sync is Halyard-only. This field uses
+Jovian's existing remote HUD and does not invent a new cabin-panel requirement.
+
+**Existing command,outputs and limits.** Use the already-listed
+ROLE-JOVIAN-ENGINEER command and private profile/isolated Xvfb/x11/Dummy setup.
+The source caller is executable today **without these new assertions**;their
+implementation and execution are OPEN. Existing300s supervisor/outer bound,
+host-ready60s/clientdone120s/hostdone20s/each exit10s,host client.repaired35s
+and client FIRE-completion8s remain unchanged. Coordinator waits are sequential:
+host.ready→client.done→host.done→each exit;peer-stage waits may overlap and the
+300s outer bound still governs. Require
+`JOVIAN_NETWORK_ENGINEER_ROUTE` with zero failures,coordinator and both peer
+actual OS0,raw peer logs/done/exit and sample artifacts,diagnostic status and
+owned input/process/display closure. Existing accepted72-check warning scope
+is retained;neither source inspection nor the new observations turn that result
+into clean/native-Windows/full-role qualification. Implementation is one bounded
+existing-caller extension under the normal≤90min all-in/correction/checkpoint
+rules,not a new game mechanic or an unchanged rerun of the accepted fixture.
+Other moving/refusal/active-loss/physical-exit/whole-role fields remain OPEN.
 
 <a id="halyard-gunner-contract"></a>
 
