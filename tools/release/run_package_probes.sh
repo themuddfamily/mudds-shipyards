@@ -12,6 +12,8 @@ set -o pipefail
 # selects one real Bulwark assist cut, then cold home-pilot recovery and explicit
 # reset/distinct escort continuation; it does not restore an approach pose. Ember excludes canonical outbound and
 # standing-pose restore; each necessary visit discloses initial flight placement.
+# Context exit/exit_refused cuts an actual busy exterior exit after accepted or
+# refused unavailable publication, then proves station walking or fresh pilot control.
 # --activity=ember-abandon cuts after a genuine first-relay save is explicitly
 # declined while awaiting reboarding; cold recovery starts a new survey at zero.
 # It does not qualify the abandon return home or completed earned-debt recovery.
@@ -71,12 +73,12 @@ if (( IN_WORLD_INTERRUPTION == 0 )) && { (( ACTIVITY_FLAG_SEEN == 1 )) || [[ "$P
   echo "Activity selection requires --in-world-interruption" >&2
   exit 2
 fi
-if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer && "$RECOVERY_CONTEXT" != on_foot && "$RECOVERY_CONTEXT" != docking ]]; then
+if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer && "$RECOVERY_CONTEXT" != on_foot && "$RECOVERY_CONTEXT" != docking && "$RECOVERY_CONTEXT" != exit && "$RECOVERY_CONTEXT" != exit_refused ]]; then
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ "$RECOVERY_CONTEXT" == docking ]] && (( IN_WORLD_INTERRUPTION == 0 )); then
-  echo "Docking context requires --in-world-interruption" >&2
+if [[ "$RECOVERY_CONTEXT" == docking || "$RECOVERY_CONTEXT" == exit || "$RECOVERY_CONTEXT" == exit_refused ]] && (( IN_WORLD_INTERRUPTION == 0 )); then
+  echo "Docking/exterior exit context requires --in-world-interruption" >&2
   exit 2
 fi
 if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember || "$PROBE_ACTIVITY" == ember-abandon || "$PROBE_ACTIVITY" == breach ) && "$RECOVERY_CONTEXT" != pilot ]]; then
@@ -614,7 +616,38 @@ try:
     arm, arm_log, arm_entry = start("arm")
     deadline = time.monotonic() + timeout
     ready = None
+    exit_prepared = None
+    exit_primary_before = None
+    exit_backup_before = None
+    exit_gate = pathlib.Path(str(document) + ".exit-cut-authorized")
     while time.monotonic() < deadline:
+        if recovery_context in ("exit", "exit_refused") and exit_prepared is None:
+            prepared = token(arm_log, "IN_WORLD_EXIT_PREPARED")
+            if prepared is not None:
+                require(arm.poll() is None and prepared["recovery_context"] == recovery_context,
+                        "busy-exit prepared stage has no owned live process or exact selector")
+                exit_primary_before = document.read_bytes()
+                exit_backup_before = pathlib.Path(str(document) + ".bak").read_bytes()
+                pre_exit = json.loads(exit_primary_before)
+                pilot_context = {"location": "mudds_home_berth", "mode": "pilot",
+                                 "craft_id": "bulwark_heavy_gunship", "berth_id": "bulwark_fleet_dock_berth"}
+                require(pre_exit["generation"] == prepared["generation"]
+                        and pre_exit["payload"]["solo_safe_recovery"] == pilot_context,
+                        "busy-exit preimage lacks its actual generation and durable pilot preference")
+                observation = prepared["observation"]
+                require(observation["engine_offline"] is True and observation["landed"] is True
+                        and observation["craft_at_home"] is True and observation["berth_occupied_by_craft"] is True
+                        and observation["berth_lease_current"] is True and observation["player_at_pilot_seat"] is True
+                        and observation["hatch_reserved_by_player"] is True and observation["transition_busy"] is False
+                        and observation["convoy_terminal_reason"] == "returned_to_shipyard",
+                        "busy-exit preimage has no actual settled occupied home/OFFLINE pilot")
+                (run_dir / "pre-exit-document.json").write_bytes(exit_primary_before)
+                (run_dir / "pre-exit-backup.json").write_bytes(exit_backup_before)
+                result["pre_exit_primary_sha256"] = hashlib.sha256(exit_primary_before).hexdigest()
+                result["pre_exit_backup_sha256"] = hashlib.sha256(exit_backup_before).hexdigest()
+                exit_prepared = prepared
+                with exit_gate.open("xb") as authorization:
+                    authorization.write(b"owned-release-driver-cut\n")
         ready = token(arm_log, "IN_WORLD_INTERRUPTION_READY")
         if ready is not None:
             break
@@ -628,7 +661,32 @@ try:
     require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
+    if recovery_context in ("exit", "exit_refused"):
+        require(exit_prepared is not None and exit_primary_before is not None,
+                "busy-exit skipped the independently observed preimage handshake")
+        exit_backup_at_cut = pathlib.Path(str(document) + ".bak").read_bytes()
+        require(not exit_gate.exists() and not pathlib.Path(str(document) + ".tmp").exists(),
+                "busy-exit left its owned gate or refusal blocker at kill")
+        pre_exit = json.loads(exit_primary_before)
+        expected_exit = json.loads(exit_primary_before)
+        if recovery_context == "exit":
+            expected_exit["payload"]["solo_safe_recovery"] = {"mode": "unavailable"}
+            require(saved["generation"] == pre_exit["generation"] + 1
+                    and saved["commit"]["parent_generation"] == pre_exit["generation"]
+                    and saved["commit"]["parent_id"] == pre_exit["commit"]["id"]
+                    and saved["commit"]["id"] == "solo-safe-return-" + str(saved["generation"])
+                    and exit_backup_at_cut == exit_primary_before,
+                    "accepted exit is not one actual preference CAS with exact prior primary as backup")
+        else:
+            require(before == exit_primary_before and exit_backup_at_cut == exit_backup_before
+                    and saved["generation"] == pre_exit["generation"],
+                    "refused exit changed primary, backup or generation")
+        require(saved["payload"] == expected_exit["payload"],
+                "busy-exit publication changed data beyond its exact contracted preference")
+        result["exit_publication"] = "refused_transaction_directory" if recovery_context == "exit_refused" else "accepted_unavailable"
+        (run_dir / "interrupted-backup.json").write_bytes(exit_backup_at_cut)
     if activity in ("ember", "ember-abandon"):
+
         if activity == "ember":
             ready_document = ember_document(ready, "boundary_document_json")
             require(ready_document == saved, "Ember readiness document differs from the independently read save")
@@ -822,6 +880,27 @@ try:
     else:
         row = saved["payload"]["cinder_convoy_session"]["activities"][0]
         require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+        if recovery_context in ("exit", "exit_refused"):
+            observed = ready["exit_observation"]
+            require(saved["payload"]["solo_safe_recovery"] == ready["safe_context"]
+                    and saved["payload"]["cinder_convoy_session"] == ready["convoy_record"]
+                    and saved["payload"]["game_flow_reward_store"] == ready["reward_store"]
+                    and row["state"] == 3 and ready["receipts"] == 1
+                    and ready["boundary"]["escort_ship_id"] == "bulwark_heavy_gunship"
+                    and saved["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 1,
+                    "busy-exit cut changed its failed second convoy or actual first payment")
+            require(observed["transition_busy"] is True and observed["disembarking"] is True
+                    and observed["player_at_pilot_seat"] is True and observed["hatch_reserved_by_player"] is True
+                    and observed["engine_offline"] is True and observed["landed"] is True
+                    and observed["berth_occupied_by_craft"] is True and observed["berth_lease_current"] is True
+                    and observed["craft_at_home"] is True and observed["owed_rewards"] == []
+                    and observed["convoy_terminal_reason"] == "returned_to_shipyard",
+                    "busy-exit readiness is not the real handoff before its first canopy await")
+            if recovery_context == "exit_refused":
+                require(observed["retry_seconds"] > 0, "real refused publication did not schedule retry")
+            require(ready["initialization"] == exit_prepared["initialization"]
+                    == "existing_convoy_motion_fixture_then_home_approach_3m_real_landing_automatic_OFFLINE_synchronous_exterior_exit",
+                    "busy-exit omitted staged setup and actual OFFLINE/exit disclosure")
         if recovery_context == "docking":
             context = saved["payload"]["solo_safe_recovery"]
             observed = ready["docking_observation"]
@@ -907,13 +986,16 @@ try:
     arm_entry["signal"] = "SIGKILL"
     require(arm_entry["exit_code"] == -9, "owned kill did not reap as SIGKILL (-9)")
     require(document.read_bytes() == before, "kill ran an orderly repair/save")
+    if recovery_context in ("exit", "exit_refused"):
+        require(pathlib.Path(str(document) + ".bak").read_bytes() == exit_backup_at_cut,
+                "busy-exit kill changed the independently observed backup")
     if activity == "ember-abandon":
         require(pathlib.Path(str(document) + ".bak").read_bytes() == backup_bytes,
                 "kill changed the independently observed pre-decline backup")
     result["ready"] = ready
     resume, resume_log, resume_entry = start("resume")
-    if activity == "ember-abandon":
-        require(arm.pid != resume.pid, "Ember abandon requires distinct owned OS processes")
+    if activity == "ember-abandon" or recovery_context in ("exit", "exit_refused"):
+        require(arm.pid != resume.pid, "interruption requires distinct owned OS processes")
     resume_entry["exit_code"] = resume.wait(timeout=timeout)
     recovered = token(resume_log, "IN_WORLD_RECOVERY_OK")
     require(resume_entry["exit_code"] == 0 and recovered is not None, "restart did not exit 0 with IN_WORLD_RECOVERY_OK")
@@ -933,7 +1015,7 @@ try:
         require(recovered["boundary"] == ready["boundary"], "fresh process changed durable Ember journey progress")
     else:
         require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
-    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context == "engineer" or activity == "ember-abandon" else 1),
+    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context in ("engineer", "exit", "exit_refused") or activity == "ember-abandon" else 1),
             "restart lost or duplicated the activity receipt")
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
@@ -1147,6 +1229,104 @@ try:
                 "beacon retry changed its legitimate terminal generation or cursor")
         require(final["payload"]["game_flow_reward_store"]["reward_counts"]["debris_route_navigation_data"] == ready["receipts"] + 1,
                 "beacon retry lost or duplicated the actual saved navigation-data payment")
+
+    if recovery_context in ("exit", "exit_refused"):
+        safe = recovered["safe_recovery_observation"]
+        control = recovered["control_observation"]
+        require(recovered["safe_context"] == ready["safe_context"]
+                and recovered["convoy_record"] == ready["convoy_record"]
+                and recovered["reward_store"] == ready["reward_store"]
+                and final["payload"]["cinder_convoy_session"] == ready["convoy_record"]
+                and final["payload"]["game_flow_reward_store"] == ready["reward_store"]
+                and recovered["initialization"] == ready["initialization"]
+                and safe["owed_rewards"] == [],
+                "busy-exit cold continuation changed the exact failed activity, debt, reward or original cut")
+        require(safe["transition_busy"] is False and safe["disembarking"] is False
+                and safe["landing"]["active"] is False and safe["landing_request_active"] is False
+                and safe["active_landing_berth_id"] == "" and safe["player_sleeping"] is False
+                and safe["cabin_containment"] is False and safe["solo_crew_seated"] is False
+                and safe["solo_crew_assignment_empty"] is True and safe["moving_interior_occupant"] is False,
+                "busy-exit restart retained stale transition, landing, crew or cabin claims")
+        expected_context = {"location": "mudds_home_berth", "mode": "pilot",
+                            "craft_id": "bulwark_heavy_gunship", "berth_id": "bulwark_fleet_dock_berth"}
+        if recovery_context == "exit_refused":
+            require(safe["craft_id"] == expected_context["craft_id"] and safe["home_berth_id"] == expected_context["berth_id"]
+                    and safe["craft_piloted"] is True and safe["piloting"] is True and safe["player_seated"] is True
+                    and safe["player_at_pilot_seat"] is True and safe["hatch_reserved_by_player"] is True
+                    and safe["craft_at_home"] is True and safe["berth_occupied_by_craft"] is True
+                    and safe["berth_reserved_by_craft"] is True and safe["berth_lease_current"] is True
+                    and bool(safe["berth_reservation_token"])
+                    and safe["berth_reservation_token"] != ready["exit_observation"]["berth_reservation_token"]
+                    and control["engine_online"] is True and control["throttle"] > 0 and control["physics_ticks"] == 2
+                    and recovered["continuation_method"] == "ordinary_cold_home_pilot_two_tick_throttle",
+                    "refused exit did not acquire fresh actual home pilot/hatch/berth and ordinary two-tick throttle")
+        else:
+            require(safe["craft_id"] == "torrent_provisional" and safe["craft_piloted"] is False
+                    and safe["piloting"] is False and safe["player_seated"] is False
+                    and safe["player_on_floor"] is True and safe["player_control_enabled"] is True
+                    and safe["player_at_pilot_seat"] is False and safe["hatch_reserved_by_player"] is False
+                    and control["supported"] is True and control["distance_m"] > 0.1 and control["physics_ticks"] == 24
+                    and recovered["continuation_method"] == "ordinary_cold_station_twenty_four_tick_walk",
+                    "accepted exit did not fall back to actual supported claim-free station walking")
+            expected_context = {"location": "mudds_home_berth", "mode": "on_foot",
+                                "craft_id": "torrent_provisional", "berth_id": "central_berth"}
+        require(final["payload"]["solo_safe_recovery"] == expected_context,
+                "ordinary continuation did not publish exactly its actual settled preference")
+        # Enumerate the production lifecycle deltas rather than exempting their
+        # namespaces. Every other payload field remains exactly the cut payload.
+        old_crash = saved["payload"]["crash_recovery"]
+        new_crash = final["payload"]["crash_recovery"]
+        expected_crash = dict(old_crash, state="clean", session_id=old_crash["startup_generation"] + 1,
+                              startup_generation=old_crash["startup_generation"] + 1, unclean_start_count=0,
+                              last_physics_tick=new_crash["last_physics_tick"],
+                              last_elapsed_physics_seconds=new_crash["last_elapsed_physics_seconds"])
+        require(new_crash == expected_crash and new_crash["last_physics_tick"] >= 0
+                and new_crash["last_elapsed_physics_seconds"] >= 0,
+                "busy-exit changed crash marker beyond one fresh session and clean shutdown")
+        old_start = saved["payload"]["safe_start_recovery"]
+        new_start = final["payload"]["safe_start_recovery"]
+        expected_start = dict(old_start, state="clean_shutdown", startup_generation=old_start["startup_generation"] + 1,
+                              record_generation=new_start["record_generation"], consecutive_failure_count=0,
+                              safe_settings_recommended=False)
+        require(new_start == expected_start
+                and new_start["record_generation"] - old_start["record_generation"] in (2, 3),
+                "busy-exit changed safe-start policy beyond begin/optional stable/clean lifecycle")
+        old_ring = saved["payload"]["session_diagnostics"]
+        new_ring = final["payload"]["session_diagnostics"]
+        appended = [event for event in new_ring["events"] if event["sequence"] >= old_ring["next_sequence"]]
+        require(3 <= len(appended) <= 32, "busy-exit has no finite fresh startup/crash/clean diagnostic lifecycle")
+        codes = [event["event_code"] for event in appended]
+        require(codes.count("crash_detected") == codes.count("session_started") == codes.count("session_ended") == 1
+                and all(code in ("crash_detected", "session_started", "session_ended", "control_source_changed") for code in codes),
+                "busy-exit diagnostic delta is not exactly its startup/crash/control/clean vocabulary")
+        for index, event in enumerate(appended):
+            require(event["sequence"] == old_ring["next_sequence"] + index
+                    and event["session_id"] == new_crash["session_id"] and event["redacted_field_count"] == 0
+                    and event["physics_tick"] >= 0 and event["session_elapsed_physics_seconds"] >= 0,
+                    "busy-exit diagnostic event has wrong sequence, session or progress")
+            fields = event["fields"]
+            if event["event_code"] == "crash_detected":
+                require(fields == {"attempt_count": old_crash["unclean_start_count"] + 1, "recovered": True}
+                        and event["severity"] == "error", "busy-exit crash event is not the actual once-only interruption")
+            elif event["event_code"] == "session_started":
+                require(fields == {"recovered": False} and event["severity"] == "info", "busy-exit startup observation changed")
+            elif event["event_code"] == "session_ended":
+                require(fields == {"duration_physics_seconds": event["session_elapsed_physics_seconds"]}
+                        and event["severity"] == "info", "busy-exit clean observation changed")
+            else:
+                require(set(fields) == {"input_device_code"} and fields["input_device_code"] in (1, 2)
+                        and event["severity"] == "info", "busy-exit changed data beyond ordinary station/flight control handoff")
+        combined = old_ring["events"] + appended
+        dropped = max(0, len(combined) - old_ring["capacity"])
+        expected_ring = dict(old_ring, events=combined[dropped:],
+                             next_sequence=old_ring["next_sequence"] + len(appended),
+                             dropped_event_count=old_ring["dropped_event_count"] + dropped)
+        require(new_ring == expected_ring, "busy-exit lost or rewrote retained diagnostic history")
+        expected_final = dict(saved["payload"], solo_safe_recovery=expected_context,
+                              crash_recovery=expected_crash, safe_start_recovery=expected_start,
+                              session_diagnostics=expected_ring)
+        require(final["payload"] == expected_final,
+                "busy-exit cold continuation changed unrelated protected payload")
 
     if recovery_context == "docking":
         safe = recovered["safe_recovery_observation"]

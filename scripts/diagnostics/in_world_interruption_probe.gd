@@ -10,6 +10,7 @@ const SLOT: StringName = &"cinder_convoy_session"
 const ON_FOOT_CRAFT_ID: StringName = &"bulwark_heavy_gunship"
 const ON_FOOT_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
 const DOCKING_INITIALIZATION := "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_request_two_assist_physics_ticks"
+const EXIT_INITIALIZATION := "existing_convoy_motion_fixture_then_home_approach_3m_real_landing_automatic_OFFLINE_synchronous_exterior_exit"
 const ON_FOOT_INITIALIZATION := "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_and_exterior_exit"
 
 var stage := ""
@@ -72,6 +73,12 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		return
 	if recovery_context == "on_foot" and activity != "convoy":
 		_fail("settled exterior interruption supports only the existing convoy boundary")
+		return
+	if recovery_context in ["exit", "exit_refused"]:
+		if activity != "convoy":
+			_fail("busy exterior interruption supports only the existing convoy boundary")
+			return
+		await _run_busy_exit(game, store, entry)
 		return
 	if recovery_context == "docking":
 		if activity != "convoy":
@@ -528,6 +535,223 @@ func _run_docking(game: GameFlow, store: UserDataStore, entry: String) -> void:
 	else:
 		print("IN_WORLD_RECOVERY_FAILED")
 		get_tree().quit(1)
+
+
+
+## Observe the real exit coroutine before its first awaited canopy frame. The
+## runner independently reads both durable files before authorizing this cut.
+func _busy_exit_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var observed := _docking_observation(game, craft)
+	observed["convoy_terminal_reason"] = String(game.get("_convoy_terminal_reason"))
+	observed["transition_busy"] = bool(game.get("_transition_busy"))
+	observed["disembarking"] = game.phase == GameFlow.Phase.DISEMBARKING
+	observed["engine_offline"] = str(craft.get_telemetry().get("engine_state", "")).to_upper() == "OFFLINE"
+	observed["retry_seconds"] = float(game.get("_solo_safe_recovery_retry_remaining_seconds"))
+	observed["solo_crew_seated"] = bool(game.get_solo_crew_seat_status().get("seated", false))
+	observed["solo_crew_assignment_empty"] = (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).is_empty()
+	observed["moving_interior_occupant"] = craft.get_moving_interior_component().is_occupant_registered(game.player)
+	return observed
+
+
+func _run_busy_exit(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	var main_id := game.get_instance_id()
+	var craft := game.get_node("BulwarkHeavyGunship") as HeroShip
+	var refused := recovery_context == "exit_refused"
+	game.set_physics_process(false)
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft, 300), "busy exit setup acquires an actual Bulwark pilot")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+		await _position_escort_fixture(game, craft)
+		var first := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		var first_arrival := await finish_convoy(game, craft)
+		var reset := game.reset_active_activity()
+		craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+		var second := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		for _tick in 4:
+			craft.global_position = (game.cinder_convoy_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+			game.call("_physics_process", 0.25)
+		_check(selected.accepted and first.accepted and first_arrival and reset and second.accepted
+			and _convoy_receipts(game) == 1, "busy exit setup earns one real receipt before its distinct second convoy")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		game.set_physics_process(true)
+		Input.action_press(&"hover")
+		Input.action_press(&"move_forward")
+		await _settle_frames(6)
+		Input.action_release(&"move_forward")
+		Input.action_release(&"hover")
+		_check(not bool(craft.get_telemetry().get("landed", true)), "actual thrust clears the hull latch before disclosed home approach placement")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		craft.global_transform = berth.get_dock_transform().translated_local(Vector3(0.0, 3.0, 0.0))
+		craft.velocity = Vector3.ZERO
+		game.call("_try_request_landing")
+		for _frame in 300:
+			if bool(craft.get_telemetry().get("landed", false)) and game.phase == GameFlow.Phase.SHUT_DOWN:
+				break
+			await _settle_frames(1)
+		_check(bool(craft.get_telemetry().get("landed", false)) and game.phase == GameFlow.Phase.SHUT_DOWN,
+			"real landing completes at the registered home berth")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3)
+		game.set_physics_process(false)
+		game.call("_capture_solo_safe_recovery_context")
+		var saved := game.save_cinder_convoy_session()
+		# Normal orderly shutdown saves these existing independent owners too.
+		game.save_cinder_race_session()
+		game.save_cinder_patrol_session()
+		var before_payload := store.get_snapshot()
+		var convoy: Dictionary = before_payload.get(String(SLOT), {})
+		var rewards: Dictionary = before_payload.get("game_flow_reward_store", {})
+		var boundary := _stored_session_state(store)
+		var before_context: Dictionary = before_payload.get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		var before_observed := _busy_exit_observation(game, craft)
+		_check(saved.accepted and _docking_context_matches(before_context, craft)
+			and before_observed.engine_offline and before_observed.craft_at_home
+			and before_observed.berth_occupied_by_craft and before_observed.berth_lease_current
+			and before_observed.hatch_reserved_by_player and before_observed.player_at_pilot_seat
+			and not before_observed.transition_busy and before_observed.retry_seconds == 0.0
+			and _docking_boundary_matches(game, store, convoy, rewards)
+			and game.get("_convoy_terminal_reason") == &"returned_to_shipyard" and _convoy_receipts(game) == 1,
+			"actual occupied home and automatic OFFLINE retain the pilot preference and failed second convoy")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var path := ProjectSettings.globalize_path(str(store.get("_path")))
+		var gate := path + ".exit-cut-authorized"
+		var before_bytes := FileAccess.get_file_as_bytes(path)
+		var before_backup := FileAccess.get_file_as_bytes(path + ".bak")
+		var before_generation := store.get_generation()
+		get_tree().paused = true
+		print("IN_WORLD_EXIT_PREPARED: " + JSON.stringify({"generation": before_generation,
+			"recovery_context": recovery_context, "initialization": EXIT_INITIALIZATION,
+			"observation": before_observed, "boundary": boundary}))
+		# Tree-pause keeps gameplay frozen; this timer alone can observe the
+		# driver's gate inside its original arm deadline and independent abort.
+		while not FileAccess.file_exists(gate):
+			await get_tree().create_timer(0.01, true).timeout
+		_check(DirAccess.remove_absolute(gate) == OK, "the owned cut gate is consumed before exit publication")
+		if refused:
+			_check(DirAccess.make_dir_absolute(path + ".tmp") == OK, "a real owned directory refuses the store transaction path")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		get_tree().paused = false
+		game.call("_try_exit_ship")
+		get_tree().paused = true
+		var observed := _busy_exit_observation(game, craft)
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		var expected_payload := before_payload.duplicate(true)
+		expected_payload[GameFlow.SOLO_SAFE_RECOVERY_SLOT] = before_context if refused else {"mode": "unavailable"}
+		_check(observed.transition_busy and observed.disembarking and observed.player_at_pilot_seat
+			and observed.hatch_reserved_by_player and observed.engine_offline and observed.landed
+			and observed.berth_occupied_by_craft and observed.berth_lease_current
+			and store.get_snapshot() == expected_payload
+			and store.get_generation() == before_generation + (0 if refused else 1),
+			"synchronous busy exterior publication changes only its contracted preference and generation")
+		if refused:
+			_check(context == before_context and observed.retry_seconds > 0.0
+				and FileAccess.get_file_as_bytes(path) == before_bytes
+				and FileAccess.get_file_as_bytes(path + ".bak") == before_backup,
+				"refused actual publication preserves both exact durable files and schedules retry")
+			_check(DirAccess.remove_absolute(path + ".tmp") == OK, "the owned refusal blocker is removed while the exit stays paused")
+		else:
+			_check(context == {"mode": "unavailable"} and FileAccess.get_file_as_bytes(path + ".bak") == before_bytes,
+				"accepted unavailable publication rotates the exact prior primary to backup")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify({"boundary": boundary, "convoy_record": convoy,
+			"reward_store": rewards, "receipts": 1, "safe_context": context, "exit_observation": observed,
+			"runtime_observation": _interruption_runtime_observation(game), "initialization": EXIT_INITIALIZATION,
+			"activity": activity, "recovery_context": recovery_context, "entry": entry,
+			"loaded_main_instance_id": main_id}))
+		return
+	var convoy: Dictionary = store.get_snapshot().get(String(SLOT), {})
+	var rewards: Dictionary = store.get_snapshot().get("game_flow_reward_store", {})
+	var boundary := _stored_session_state(store)
+	var cold_context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(_docking_boundary_matches(game, store, convoy, rewards) and crash_events == 1
+		and not recovery.is_empty() and recovery.get("state") == "running"
+		and (cold_context == {"mode": "unavailable"} if not refused else _docking_context_matches(cold_context, craft))
+		and not bool(game.get("_transition_busy")) and not game.player.is_seated(),
+		"fresh Boot retains the actual interrupted preference and exact failed convoy without old seat or transition")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start",
+		int(recovery.session_id), int(recovery.startup_generation))
+	game.start_shift()
+	var control := {}
+	if refused:
+		_check(await _wait_for_real_pilot(game, craft, 300), "refused publication cold Resume acquires its fresh actual home pilot")
+	else:
+		await _settle_frames()
+	var safe := _busy_exit_observation(game, craft)
+	_check(resumed.get("accepted", false) and not safe.transition_busy and not safe.disembarking
+		and not safe.landing.active and not safe.landing_request_active and safe.active_landing_berth_id.is_empty()
+		and not safe.player_sleeping and not safe.cabin_containment and not safe.solo_crew_seated
+		and safe.solo_crew_assignment_empty and not safe.moving_interior_occupant,
+		"cold Resume has no stale exterior transition, landing, crew or cabin claims")
+	if refused:
+		_check(safe.craft_at_home and safe.berth_occupied_by_craft and safe.berth_lease_current
+			and safe.player_at_pilot_seat and safe.hatch_reserved_by_player and safe.craft_piloted,
+			"retained preference acquires a fresh home berth, pilot seat and hatch owner")
+	else:
+		_check(game.active_ship == game.ship and not safe.player_seated and not safe.craft_piloted
+			and safe.player_on_floor and safe.player_control_enabled and not safe.hatch_reserved_by_player
+			and not bool(game.get("_piloting")), "accepted unavailable record falls back to the supported controllable station Player")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	var start := game.player.global_position
+	Input.action_press(&"move_forward")
+	await _settle_frames(2 if refused else 24)
+	Input.action_release(&"move_forward")
+	if refused:
+		control = {"engine_online": str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE",
+			"throttle": craft.get_last_ship_command().throttle, "physics_ticks": 2}
+		_check(control.engine_online and control.throttle > 0.0, "ordinary two-tick throttle drives the freshly recovered real pilot")
+	else:
+		control = {"distance_m": game.player.global_position.distance_to(start), "physics_ticks": 24,
+			"supported": game.player.is_on_floor() and game.player.is_control_enabled() and not game.player.is_seated()}
+		_check(control.distance_m > 0.1 and control.supported, "ordinary twenty-four-tick station walking moves on the actual floor")
+		game.call("_capture_solo_safe_recovery_context")
+	_check(_docking_boundary_matches(game, store, convoy, rewards) and _convoy_receipts(game) == 1,
+		"ordinary recovered control preserves the exact failed second convoy, debt and first receipt")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false) and game.get_instance_id() == main_id,
+		"the recovered Boot owner closes both existing clean markers")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	print("IN_WORLD_RECOVERY_OK: " + JSON.stringify({"boundary": boundary, "convoy_record": convoy,
+		"reward_store": rewards, "receipts_before": 1, "receipts_after": _convoy_receipts(game),
+		"crash_events": crash_events, "safe_context": cold_context, "safe_recovery_observation": safe,
+		"control_observation": control, "runtime_observation": _interruption_runtime_observation(game),
+		"initialization": EXIT_INITIALIZATION, "continuation_method": "ordinary_cold_home_pilot_two_tick_throttle" if refused else "ordinary_cold_station_twenty_four_tick_walk",
+		"activity": activity, "recovery_context": recovery_context, "entry": entry,
+		"loaded_main_instance_id": main_id, "assertions": _assertions}))
+	get_tree().quit(0)
 
 
 ## Fault only the existing reward transaction; every checkpoint and recovery
@@ -1667,7 +1891,7 @@ func _run_stationdefense(game: GameFlow, store: UserDataStore, entry: String) ->
 
 
 func _restored_threat_boundary_matches(game: GameFlow, boundary: Dictionary) -> bool:
-	if recovery_context == "pilot":
+	if recovery_context == "pilot" or (stage == "arm" and recovery_context in ["exit", "exit_refused"]):
 		return _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state
 	# A failed terminal convoy has no running threat to arm. Main retains its
 	# saved threat boundary for the terminal owner rather than reviving combat.

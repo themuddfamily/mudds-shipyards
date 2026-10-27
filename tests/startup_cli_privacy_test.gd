@@ -180,7 +180,7 @@ func _run() -> void:
 	beacon_args.append("--in-world-interruption-activity=beacon")
 	_check(StartupLoaderType.in_world_probe_request(beacon_args, "headless", "Dummy").accepted,
 		"the beacon interruption selector admits the supported pilot context")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 		var unsupported := beacon_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -188,7 +188,7 @@ func _run() -> void:
 	var scan_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=scan"])
 	_check(StartupLoaderType.in_world_probe_request(scan_args, "headless", "Dummy").accepted,
 		"scan interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 		var unsupported := scan_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -199,7 +199,7 @@ func _run() -> void:
 	var mining_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=mining"])
 	_check(StartupLoaderType.in_world_probe_request(mining_args, "headless", "Dummy").accepted,
 		"the mining interruption selector admits the supported pilot context")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 		var unsupported := mining_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -210,7 +210,7 @@ func _run() -> void:
 	var hulk_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk"])
 	_check(StartupLoaderType.in_world_probe_request(hulk_args, "headless", "Dummy").accepted,
 		"hulk interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 		var unsupported := hulk_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -222,7 +222,7 @@ func _run() -> void:
 		var breach_args := PackedStringArray(["--in-world-interruption-stage=" + breach_stage, "--in-world-interruption-activity=breach"])
 		_check(StartupLoaderType.in_world_probe_request(breach_args, "headless", "Dummy").accepted,
 			"Heavy Breach admits its explicit silent terminal recovery stage: %s" % breach_stage)
-		for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+		for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 			var unsupported := breach_args.duplicate()
 			unsupported.append("--in-world-interruption-context=" + context)
 			_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -234,7 +234,7 @@ func _run() -> void:
 	var ember_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember"])
 	_check(StartupLoaderType.in_world_probe_request(ember_args, "headless", "Dummy").accepted,
 		"ember interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 		var unsupported := ember_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -257,7 +257,7 @@ func _run() -> void:
 			and abandon_request.get("stage") == abandon_stage
 			and abandon_request.get("recovery_context") == "pilot",
 			"ember-abandon %s admits only its exact silent pilot selector" % abandon_stage)
-		for abandon_context: String in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+		for abandon_context: String in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 			var wrong_context := abandon_args.duplicate()
 			wrong_context.append("--in-world-interruption-context=" + abandon_context)
 			_check(not StartupLoaderType.in_world_probe_request(wrong_context, "headless", "Dummy").accepted,
@@ -288,7 +288,7 @@ func _run() -> void:
 	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
 	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
 		"station-defense interruption admits only its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking", "exit", "exit_refused"]:
 		var unsupported := defense_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -332,6 +332,30 @@ func _run() -> void:
 			conflicting.append(conflict)
 			_check(not StartupLoaderType.in_world_probe_request(conflicting, "headless", "Dummy").accepted,
 				"docking refuses competing exit modes before Main loading")
+	for context in ["exit", "exit_refused"]:
+		for exit_stage in ["arm", "resume"]:
+			var exit_args := PackedStringArray(["--in-world-interruption-stage=" + exit_stage,
+				"--in-world-interruption-context=" + context, "--in-world-interruption-activity=convoy"])
+			var exit_request := StartupLoaderType.in_world_probe_request(exit_args, "headless", "Dummy")
+			_check(exit_request.accepted and exit_request.recovery_context == context,
+				"busy exterior cut preserves its exact silent selector")
+			for display in ["X11", "wayland"]:
+				_check(not StartupLoaderType.in_world_probe_request(exit_args, display, "Dummy").accepted,
+					"busy exterior cut rejects rendered displays")
+			for audio_driver in ["", "PulseAudio", "WASAPI"]:
+				_check(not StartupLoaderType.in_world_probe_request(exit_args, "headless", audio_driver).accepted,
+					"busy exterior cut requires actual Dummy audio")
+			_check(not StartupLoaderType.in_world_probe_request(exit_args, "headless", "Dummy", true).accepted,
+				"busy exterior cut cannot inherit engineer input admission")
+			for conflict in ["--startup-check", "--frame-capture", "--version", "--support-info", "--support-export",
+				"--in-world-interruption-context=" + context]:
+				var conflicting := exit_args.duplicate()
+				conflicting.append(conflict)
+				_check(not StartupLoaderType.in_world_probe_request(conflicting, "headless", "Dummy").accepted,
+					"busy exterior cut rejects conflicting or duplicate modes")
+		_check(not StartupLoaderType.in_world_probe_request(PackedStringArray([
+			"--in-world-interruption-context=" + context]), "headless", "Dummy").accepted,
+			"busy exterior selector requires an explicit stage")
 	var engineer_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=engineer"])
 	_check(StartupLoaderType.in_world_probe_request(engineer_args, "X11", "Dummy", true).accepted,
 		"engineer admits only the explicitly owned private X11 Dummy input path")
