@@ -4,7 +4,22 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `1d095ad` — 2026-10-27
+## Latest development checkpoint: `f0d6796` — 2026-10-27
+
+[Linux archive](../builds/linux/MuddsShipyards-f0d6796-linux-x86_64.tar.gz),
+[ELF](../builds/linux/MuddsShipyards-f0d6796.x86_64) and
+[notes](../builds/linux/MuddsShipyards-f0d6796-linux-notes.txt).
+Matching [Windows ZIP](../builds/windows/MuddsShipyards-f0d6796-checkpoint.zip).
+
+Credits now identify ambientCG Fabric069/Lennart Demes and the coating derivative
+from Poly Haven Blue Metal Plate/Rob Tuytel with recorded CC0 notices. Source
+regression28 checks, privacy, clean paired exports, all three strict menu startups,
+actual packed-catalogue read and complete paired-artifact audit pass. No gameplay,
+image or audio asset changed. Native Windows/GPU/device/audio/human and final
+release gates remain unqualified; project release terms remain an owner decision.
+Earlier journey results keep their original source/package scope.
+
+## Earlier development checkpoint: `1d095ad` — 2026-10-27
 
 [Linux archive](../builds/linux/MuddsShipyards-1d095ad-linux-x86_64.tar.gz) ·
 [build notes](../builds/linux/MuddsShipyards-1d095ad-linux-notes.txt) ·

@@ -4,12 +4,13 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **1d095ad** — [Windows ZIP](builds/windows/MuddsShipyards-1d095ad-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-1d095ad-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-1d095ad-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-1d095ad-linux-notes.txt)).
-Bulwark's empty magazine now refuses charging and shows AMMUNITION EMPTY.
-That repair is accepted; its full ordinary gunner journey is still parked.
+Latest playable checkpoint: **f0d6796** — [Windows ZIP](builds/windows/MuddsShipyards-f0d6796-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-f0d6796-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-f0d6796-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-f0d6796-linux-notes.txt)).
+Credits now name ambientCG Fabric069 and the Poly Haven coating source, with
+their recorded CC0 notices. The overall note acknowledges these external scans.
+Existing Bulwark feedback remains accepted; its ordinary gunner journey stays parked.
 
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
 337 records, their IDs, parents, kinds and accepted proof scopes. These include
@@ -52,14 +53,14 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Latest resolved fields — Torrent damage contacts.** The
-[contact contract](docs/ROADMAP_BACKLOG.md#torrent-damage-contact-contract) fixes
-physical target patches, collision/projectile attribution, nonfatal/fatal speed
-formulas and hull budgets. Collisions cannot qualify forward_hull; the existing
-11-damage weapon cannot fail all five components in one100-hull life. A real world
-encounter/input schedule and aggregate full-craft limit remain missing. No engine
-ran or parked loss/recovery attempt reopened. Previously bound cargo, Convoy and
-shared Ember contracts remain reusable in the backlog.
+**Latest delivery — bundled material attribution.** The
+[checkpoint rights binding](docs/ROADMAP_BACKLOG.md#bundled-rights-checkpoint-contract)
+now identifies actual shipped asset families and the two previously omitted
+external scan sources. In-game Credits and ASSETS.md are corrected; old production
+reproduces three attribution failures, corrected source passes28 checks, and the
+packed catalogue, paired exports, strict startups and full artifact audit pass.
+Project release terms and exact final-candidate notice qualification stay open.
+This is a player-visible correction, not blanket rights or project completion.
 
 ## How we will work from this roadmap
 

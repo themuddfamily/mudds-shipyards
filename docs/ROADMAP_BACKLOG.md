@@ -2697,7 +2697,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | CARGO-REPLENISH-JOVIAN | Legitimate conserved stock source for ten delivery cycles | 13 | Decision | WAITING product policy; six initial kits fund only three deliveries; reset is not a source | User-approved [cargo cycle policy](#blocking-decisions-and-resources) records legitimate source/sink/trigger, conservation, capacity/refusal and normal repeat route. Implement the accepted policy under PLAY-JOVIAN-KIT; ten real conserved cycles belong to REPEAT-JOVIAN-KIT, counted once. Policy approval alone delivers no transfers. |
 | CARGO-REPLENISH-CINDER | Legitimate shared-stock refill and destination turnover for ten cycles | 13 | Decision | WAITING product policy; no rebinding/reset to mint crates or free destination capacity | User-approved [cargo cycle policy](#blocking-decisions-and-resources) records legitimate source/sink/trigger, conservation, capacity/refusal and normal repeat route. Implement the accepted policy under PLAY-CINDER-SUPPLY; ten real conserved cycles belong to REPEAT-CINDER-SUPPLY, counted once. Policy approval alone delivers no transfers. |
 | RIGHTS-PROJECT-TERMS | Record project release terms and distribution disposition | 34 | Decision | WAITING owner-chosen terms; engine notices do not choose the project license | User records exact project release terms/license and allowed distribution; final package notices reflect that answer. |
-| RIGHTS-BUNDLED-ASSETS | Clear actual bundled asset/source families and final attribution | 34 | Resource | BLOCKED definition — Codex: reconcile the frozen package inventory against the six existing RIGHTS-DEFINE families; name each genuinely missing permission/attribution document and its holder, or record none. Project terms depend on RIGHTS-PROJECT-TERMS; historical media depends on RIGHTS-HISTORICAL-MEDIA. Settled creator permission is not a missing grant. | For each of the six [existing rights families](#rights-families-and-missing-documents--rights-define), record included/excluded, exact packaged paths and the existing authorship/license/attribution location. Every included external family needs its actual redistribution permission; missing documents have a named holder. Final Credits/notices match the frozen inventory. Do not invent an unspecified permission wait or repeat the completed source-family survey. |
+| RIGHTS-BUNDLED-ASSETS | Clear actual bundled asset/source families and final attribution | 34 | Resource | Current checkpoint family/input reconciliation DONE in the [exact bundled-rights contract](#bundled-rights-checkpoint-contract); sourcef0d67966d fixes two genuinely omitted CC0 scan/derivative credits and the wholly-original claim. Old source reproduces3 failures; corrected Credits28/privacy/packed-catalogue/fresh paired export/strict startup/full audit pass. Existing project-original/generated inputs and two external CC0 records are explicit; historical media remains excluded while JSON citations are included. GATED on RIGHTS-PROJECT-TERMS owner text and exact final candidate/notice qualification, not an unspecified permission request. | For each of the six [existing rights families](#rights-families-and-missing-documents--rights-define), record included/excluded, exact packaged paths and the existing authorship/license/attribution location. Every included external family needs its actual redistribution permission; missing documents have a named holder. Final Credits/notices match the frozen inventory. Do not invent an unspecified permission wait or repeat the completed source-family survey. |
 | RIGHTS-HISTORICAL-MEDIA | Record each historical-media redistribution disposition | 34,36 | Resource | WAITING where rights absent; research-only media stays unbundled unless explicitly cleared | Every historical-media family explicitly cleared for bundling or excluded; research-only permission is not inferred redistribution. |
 | NET-CAPACITY-FINAL | Qualify the chosen remote-guest/playing-host profile | 4,26 | Qualification | WAITING input (user): SCOPE-LIMIT guest count excluding host, playing-host choice, supported craft-role occupancy and capacity budgets. Then BLOCKED definition (Codex): literal reused SERVER-BASELINE/NET-ENDURANCE membership required for that chosen profile, unchanged durations/limits and concurrent participants; select seat/contention/join/reconnect/bunk cases only where the original capacity contract requires them. Default8/settings1–32 are not accepted support. | After SCOPE-LIMIT fixes guest count, host participation, craft/role occupancy and budgets, Codex names the exact reused SERVER-BASELINE and NET-ENDURANCE journeys required at that capacity. GATED until this finite list and original durations/limits are explicit; every listed journey must pass with the chosen participants concurrently present to close capacity. No default-setting capacity claim. |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | Decision | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred | Recorded exact supported desktop list and explicit conditional-target disposition; user decision. |
@@ -6494,7 +6494,7 @@ or new provenance chain is needed.
 | Current family | Existing source / player-facing notice | Remaining artifact or boundary |
 | --- | --- | --- |
 | Project code, gameplay definitions and standalone installer | README records project-original work and no project LICENSE; repository history identifies source. | Project release-terms text is absent. Engine MIT text does not select a licence for this project's own code. Record the owner's chosen terms before claiming this family cleared; no licence is inferred here. |
-| Authored geometry, vector/procedural graphics and Blender sources | ASSETS.md and CreditsCatalog attribute project-original models, markings, materials and generators. Actual package includes the registered project-original Zenith blend. | Retain registered authorship and exact distributed inputs. Offline tool credits describe creation tools; they do not supply the missing project release terms. New external source material requires its own recorded disposition. |
+| Authored geometry, vector/procedural graphics, Blender sources and named CC0 material inputs | ASSETS.md and CreditsCatalog attribute original models/markings/generators plus ambientCG Fabric069 and the Poly Haven Blue Metal Plate coating derivative. Existing provider/source records retain their CC0 terms. Actual package includes the registered original Zenith blend. | Retain exact bundled inputs and their own attribution: these two external scans must not be described as wholly project-original. Project release terms remain a separate owner decision; no new permission request is invented for recorded CC0 inputs. See the current checkpoint binding below. |
 | Procedurally synthesized sound and music | ASSETS.md, generator sources/manifests and in-game credits. Planetary air/cabin/water attribution now included on3d92b91; its three WAV and generator hashes match the existing manifest. | Authorship/attribution is recorded in the named scope. This does not establish listening, historical authenticity or all audio/runtime acceptance; project release terms remain separate. |
 | Generated raster artwork and registered derivatives | ASSETS.md records image-generation source, dates/prompts/metadata and derived-map recipes; credits preserve that authorship. | Preserve the actual registered source/derivative relationship and chosen project distribution terms. Do not promote generated concepts into historical evidence or infer a blanket grant for unrelated imagery. |
 | Godot engine, bundled components and default font | CreditsCatalog obtains Engine.get_license_text/get_copyright_info/get_license_info from the running binary; existing credits test checks the page and expanded notices. No additional project font is registered. | Keep those notices reachable on the final exact package. Existing source/package checks support their recorded candidate only; signatures, native execution and final release qualification retain separate gates. |
@@ -6510,6 +6510,76 @@ registered authored source and metadata still belong to their families above.
 The existing credits UI already carries Godot notices, so no duplicate external
 notice-packaging project is scheduled. Trusted signing and distribution remain
 SIGN-FINAL/DISTRIBUTE, not substitutes for resolving these document gaps.
+
+<a id="bundled-rights-checkpoint-contract"></a>
+
+#### Bundled rights — exact checkpoint families and visible notice repair
+
+RIGHTS-BUNDLED-ASSETS selection starts2026-10-27 12:54:32UTC, estimate20minutes/
+hard13:14:32UTC through inspection, focused correction, paired checkpoint,
+integration/push and owned cleanup. Root owns package inspection/docs/builds;
+one agent owns ASSETS.md, CreditsCatalog and the existing credits regression.
+No new rights family, validator, project licence or creator-permission question.
+
+Actual read-only inventory of checkpoint1d095ad: Windows184858472bytes/SHA256
+`237c6790004a84ef7188c1cffa675adf3a8cc54c3c78b4ae3330bbe6df7c678a`,
+Linux149100184bytes/SHA256
+`b006d86150900d7d75bbf6ed6871b15e54b31792dd39395ceface19576fe10b3`.
+Every one of1529 PCK path/size/SHA tuples matches across platforms. The six
+existing family bindings below apply to these actual entries; path selectors
+mean only the finite matching entries in that frozen inventory, not hypothetical
+files. Imported assets are their exact .import record plus its present imported
+payload destination; raw source files are not assumed to be shipped.
+
+| Existing family | Included/excluded exact paths or frozen path sets | Recorded source/notice; remaining boundary |
+| --- | --- | --- |
+| Project code/definitions/installer | PCK scripts/**, scenes/**, shaders/**, project.binary, assets/{activities,ships,weapons,world}/** and four addons/zenith_authored_export compiled/remap entries. Linux TAR root MuddsShipyards-1d095ad contains its ELF, install-desktop-entry.sh, install_linux_desktop.py, mudds-shipyards.desktop and mudds-shipyards.png; Windows ZIP contains exactly EXE and notes. | README.md records project code/authorship and settled creator contact; CreditsCatalog names Mudds Shipyards team. RIGHTS-PROJECT-TERMS still needs the owner's release-terms text. A checkpoint ZIP is not the final Windows installer. |
+| Authored geometry/vector/procedural graphics and named CC0 materials | art_source/zenith/zenith_authored_v1.blend; assets/models/** including four GLB import records and corresponding .godot/imported/*.scn; vector assets/ships/markings/*.svg.import and assets/signage/*.svg.import; registered manufactured-paint maps. External scans: assets/materials/cabin-textile/Fabric069_1K-PNG_{Color,NormalGL,Roughness}.png.import and assets/materials/coating-scuff-roughness.png.import plus each exact .ctex destination. | ASSETS.md / CreditsCatalog; [Fabric069 source record](../assets/materials/cabin-textile/README.md) and [Blue Metal Plate derivative recipe](../art_source/materials/COATING_SOURCE.md). Both existing provider records specify CC0. No extra missing permission document identified for these recorded inputs; attribution omission repaired below. Project terms remain separate. |
+| Synthesized sound/music | All32 assets/**/*.wav.import records and32 exact .godot/imported/*.wav-*.sample destinations, with assets/audio/** manifests. | ASSETS.md sound/music registers and CreditsCatalog record project synthesis, generator/manifests and no external recordings/samples. Source permission is not an audible mix/playback pass; device gates remain open. |
+| Generated raster artwork/derivatives | The registered PNG aliases/import destinations under assets/concepts/**, assets/materials/**, assets/models/torrent/textures/**, assets/effects/**, assets/keth-icon.png and assets/keth-nebula.png. Across raster AND vector families the inventory has36 PNG+25 SVG import records and61 corresponding .ctex payloads; these counts overlap family2 and must not be added as separate obligations. The four named CC0 scan/derivative maps above retain their external origin. | ASSETS.md and matching CreditsCatalog preserve generated sources/recipes and the distinction from the two named external scans. No blanket project-original or historical-media grant is inferred. |
+| Godot/components/default font | Native engine portions of these exact EXE/ELF files; PCK scripts/ui/credits_catalog.gdc with its .gd.remap, scripts/ui/hud.gdc and scenes/ui/hud.tscn.remap. Zero separate .ttf/.otf/.woff/.woff2 payload entries. | CreditsCatalog reads Engine.get_license_text/get_copyright_info/get_license_info; HUD offers startup/pause Credits and expandable engine notices. Actual earlier25-assertion source/package scope remains3d92b91; current/final binary notice reachability is not inferred from file presence alone. |
+| Historical source media/claims | INCLUDED: seven docs/research/*.json records (final_source_evidence_audit, fleet_roster_variants, ship_evidence_matrix, source_ledger, source_ledger.schema, station_floor_plan_variants, station_visual_hierarchy) and docs/handoff/bulwark/historical-evidence-manifest.json, all decoded as JSON metadata. EXCLUDED: the referenced B7 video/source frames, original Roblox models/scripts; no video files or extracted historical-image aliases are in the inspected resource set. | ASSETS.md/source_ledger mark B7 media do_not_bundle_or_commit; packaged citations/hashes/bounded claims are not the source media. Registered images were reconciled to project/generated assets and the named CC0 inputs. No historical redistribution grant is asserted for excluded bytes. RIGHTS-HISTORICAL-MEDIA retains future inclusion/disposition work; uploader Becker260 is a recorded contact, not an established legal rights holder. |
+
+**Concrete production discrepancy and correction.** The61-image import lookup
+found three Fabric069 scans and coating-scuff-roughness in the actual payload,
+with existing source/CC0 records outside the main asset register. ASSETS.md and
+the Credits page omitted them and the overall authorship note said all graphics
+were original. Sourcef0d67966d adds the two register/catalog entries, names Lennart
+Demes/ambientCG and Rob Tuytel/Poly Haven, retains provider/source/CC0 links and
+acknowledges the scans in the overall note. No image, material, audio or gameplay
+asset is changed. The providers' current licence pages were checked2026-10-27:
+[ambientCG](https://docs.ambientcg.com/license/) and
+[Poly Haven](https://polyhaven.com/license). This corrects attribution; it does
+not choose the project's own release terms.
+
+The existing Credits regression gains three actual displayed-text assertions.
+Old unchanged7b7ece2 production with only that test overlaid exits1 with exactly
+three attribution failures; corrected clean source passes28 assertions. A RED
+comparison helper initially omitted the literal FAIL: message prefix, despite
+capturing exactly those three expected failures. One allowed read-only correction
+at10.8minutes verifies the same raw log without rerunning the engine or changing
+predicates; original helper/error retained. Allowance0 and original deadline
+remain fixed through closure. Full final-candidate rights/notice qualification
+is separate from this checkpoint's source/packaged-input reconciliation.
+
+**Actual corrected checkpoint f0d6796.** Fresh import20.606s, Credits28/3.054s,
+privacy1.152s, Windows export26.373s, Linux export25.618s. Windows payload smoke
+28.388s, Linux binary22.638s and actual TAR23.967s all exit0/one menu-ready marker/
+zero diagnostics. Actual packed Credits constants pass0.818s/one marker/exit0;
+full1529-entry paired audit8.275s/all9predicates/inputs unchanged. All seven
+published artifacts match their audited size/SHA byte-for-byte. No native Windows,
+GPU, physical input/audio, full ordinary gameplay or final-release claim.
+Records retained under `/srv/mudds-work/credits-cc0-20261027/`; accepted source and
+checkpoint notes integrate into main. Original12:54:32 clock/13:14:32 hard stop,
+including push/owned cleanup, and exhausted correction allowance remain fixed.
+Archive225510bytes/28 verified regular members/SHA256
+`103bc6728000d50cfa97cdc5f2e0173f3039a4d2b87546d3887abc67eac423e5`
+retains complete raw logs, audit/approved inventory, both helpers and exact RED
+overlay/source identities. Every regular archive member was compared byte-for-byte
+with its original. Owned source/RED worktrees, profiles/caches, helper scratch
+and duplicate builds are removed; only records.tar.gz/closeout.json remain there.
+About16.8minutes through validated publication/cleanup versus20estimated; final
+main integration/push/branch deletion stay charged to this same clock.
 
 ### Activity recovery — progress, player state and uncovered capabilities
 

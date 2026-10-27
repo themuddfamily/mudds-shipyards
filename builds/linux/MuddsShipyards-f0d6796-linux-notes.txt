@@ -1,0 +1,10 @@
+Mudd's Shipyards checkpoint f0d6796
+Source: f0d67966df64341dc63458a0bcc8bcccfe3332de
+
+Credits now identify ambientCG Fabric069 by Lennart Demes and the coating roughness derived from Poly Haven Blue Metal Plate by Rob Tuytel, with their CC0 notices. The overall authorship note acknowledges these external scans. No gameplay, image or audio asset changed.
+
+Actual validation
+Fresh isolated source import; complete Credits page regression including both provider notices; startup CLI privacy; fresh clean-commit Windows/Linux exports; strict Windows-payload/Linux-binary/Linux-archive menu startups, each actual exit0/one STARTUP_MENU_READY_OK/zero diagnostics. All automated Godot uses Dummy audio. Paired-artifact audit result is retained separately after these notes and ZIP are frozen.
+
+Scope
+Windows payload smoke uses Linux Godot; native Windows/GPU/physical input/audio/human and final-release gates remain unqualified. Project release terms remain an owner decision; no blanket rights clearance is claimed. Earlier gameplay journeys were not rerun.
