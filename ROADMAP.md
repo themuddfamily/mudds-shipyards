@@ -162,7 +162,11 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Current selection: PLAN-NEXT — finish concrete acceptance definitions.**
+**Current implementation: PACKAGE-FINAL paired-artifact audit.**
+One bounded release-tool capability is selected in its [frozen card](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts),
+05:20:33–06:50:33UTC. Extend the existing inventory tool, retain its positional
+CLI, pass valid/tampered artifact checks and audit unchanged checkpoint7876ebc.
+No engine/gameplay/checkpoint change is selected. PLAN-NEXT remains unfinished.
 The breakdown is still OPEN. Reviewing all337 records did not supply every
 missing route, member list or expected value. Those gaps remain in the existing
 [finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
@@ -194,7 +198,7 @@ Preserve all337 IDs, their kinds/order,36 parent outcomes and ten phase exits.
 This is planning completion only. Runtime completion still needs the named
 player journeys and release gates.
 
-**Next implementation: unselected.** Choose one existing capability only after
+**One implementation active.** Choose another existing capability only after
 its literal acceptance card is complete. Freeze the result before editing;
 include checks, checkpoint, integration and cleanup in its estimate of at most
 90minutes. Full journeys and soaks retain their original durations. A failed

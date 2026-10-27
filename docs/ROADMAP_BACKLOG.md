@@ -1027,6 +1027,42 @@ Those artifact files were verified present05:14UTC; no audit or engine ran.
 Compare their complete hashes/modes before/after; do not create another playable
 build for this tool-only change or call the checkpoint a final release.
 
+**Selected implementation2026-10-27,05:20:33UTC — PACKAGE-FINAL audit member.**
+Tool source8b4d0db46d2c456325733ef31232d62554e85a22; one owned branch
+`roadmap/package-artifact-audit-20261027`, worktree
+`/srv/mudds-work/package-artifact-audit-20261027/worktree`. One implementation
+agent owns only package_inventory.py/test_package_inventory.py; root owns
+integration, independent review, actual commands/results and these two docs.
+Use the mode/complete PASS predicates above without scope changes. Existing
+positional inventory CLI remains compatible. No Godot or gameplay change.
+
+Inputs are frozen in
+`/srv/mudds-work/package-artifact-audit-20261027/inputs-before.json`: all six
+actual checkpoint artifacts, pinned Windows template and approved inventory
+SHA8e34e6b956de745ca586e63f8a0368d0acca263c4df27db33cefdcdfc6c740f5.
+Archive3b6566adedb4d509e178065361d4edfa6bea9378976972d4e534a542e745bc6b
+was verified before extracting only its exact approved inventory member.
+Audit result/logs stay under that owned root. Exact actual audit uses source
+7876ebc8da434987700f128483d4e67098cd7319 in repository `/srv/mudds-shipyards`,
+EXE/ZIP/notes and ELF/tar/export-result named7876ebc under `builds/`, the pinned
+`/tmp/mudds-tools/templates/templates/windows_release_x86_64.exe`, and owned
+`fixtures/expected-inventory.json`. Compare all frozen input hashes/modes after.
+
+Estimate60minutes implementation/review,15minutes focused/actual artifact checks,
+15minutes integration/push/cleanup. Source ready by06:20:33; checks/review end by
+06:35:33; absolute hard stop06:50:33UTC. Unit suite and actual audit each use an
+independent120s supervisor; no engine lane. Baseline existing suite runs once
+before editing. Root controls cancellation/reap and retains raw first failure;
+no automatic retry or predicate weakening. First unexpected failure stops work;
+a demonstrated cause and recorded same-cost continuation review are required
+before correction. Prior definition cost remains under PLAN-NEXT, this execution
+clock is a newly selected production capability rather than a reset of a failed
+trial. On PASS integrate/push, verify containment and remote/worktree tips, delete
+owned branch/worktree and consolidate owned scratch to one verified records
+archive/closeout. On failure preserve unique unaccepted source before cleanup.
+No public checkpoint is required for this tool-only capability; actual7876 inputs
+and all release/native/player gates remain unchanged.
+
 This is one bounded production release-tool assignment: owned files are the
 existing tool/test only, with root updating these two roadmap documents.
 Estimate≤60minutes implementation/review,15minutes focused/actual-artifact checks,
