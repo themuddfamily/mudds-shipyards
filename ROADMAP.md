@@ -140,6 +140,10 @@ landing-failure gates remain open;no existing two-peer component is broadened.
 now fix the late companion,checkpoint-one state and full continuation. Safe live
 late-berth admission is missing;Ember also lacks passive survey publication.
 Baseline/Aurora artifact/Rime parked gates remain intact;no late case has run.
+[Three surface reconnect cases](docs/ROADMAP_BACKLOG.md#shared-world-surface-reconnect)
+now fix the transport cut,recovery and fresh crew handback. Safe exterior-loss
+recovery and Rime's conserved-checkpoint resume are missing production work;
+restarting the survey from zero cannot qualify progress conservation.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
