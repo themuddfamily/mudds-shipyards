@@ -124,6 +124,37 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**Selected — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
+Start2026-10-27 01:15:53UTC, conservative60minutes including selection/source
+review, implementation/checks/build/review/push/cleanup; hard02:15:53UTC.
+
+- **Result:** the existing builder exports `<setup>.uninstall.exe` from the final
+  compiler-generated uninstaller, after optional signing, and records its exact
+  path/bytes/SHA256 in the existing schema1 result. The installer embeds those
+  same finalized bytes; no Windows executable is run.
+- **Start/ownership:** base5368a07d0. Codex owns builder, NSI, the two existing
+  installer/signing tests and docs; one high independent reviewer checks hook
+  ordering/final-byte semantics. One owned branch/worktree; no gameplay changes.
+- **Steps/proof:** extend the existing real-NSIS compile test for actual sidecar
+  PE/version/hash, first reproducing the old missing export. Check optional
+  sign-before-copy ordering, sidecar collision refusal and compiler/copy failure
+  without a successful record or published sidecar. Run the two existing suites.
+  Compile one fresh uniquely named unsigned setup from unchanged7876ebc under
+  the existing600s limit, preserving the previous accepted setup/EXE/ZIP. Inspect
+  the actual exported uninstaller and extract/compare the actual staged game.
+- **Pass/fail:** sidecar is nonempty PE with committed source version and actual
+  matching result size/hash; optional signed bytes are captured after signing;
+  later hooks cannot mutate the embedded input. Existing source/ZIP hashes stay
+  exact. Missing export/finalizer/copy/identity fails the build. Original unsigned
+  label, native/trust NOT_RUN and all final-candidate gates remain unchanged.
+- **Dependencies:** existing NSIS3.11 and accepted7876ebc; official finalizer and
+  compiler/runtime source establish complete-file embedding. Native Windows is
+  owner-excluded and is not a prerequisite. No new validator/schema version.
+- **Stop/closure:** first unexpected failure stops; the expected old missing
+  export is intentional RED. No automatic retry/budget reset. Accept only with
+  independent source/raw GO, merge/push and exact owned cleanup. Actual setup,
+  sidecar and concise validation notes stay in builds/windows; no Downloads.
+
 **Accepted — INSTALL-WIN-FINAL exported-source version prerequisite.**
 Builder770f5b522 reads the exported commit's version and rejects unknown/noncommit
 overrides before compilation/signing. Expected old-builder regressions reproduce;
