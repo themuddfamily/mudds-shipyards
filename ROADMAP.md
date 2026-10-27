@@ -116,6 +116,12 @@ Its ordinary earned-engine-damage prerequisite remains unresolved.
 [Bulwark remote gunner loss](docs/ROADMAP_BACKLOG.md#bulwark-remote-gunner-owner-loss)
 now binds moving damage,live-charge UI disconnect and fresh ownership. Its
 return controller,combined caller and physical-egress repair remain unimplemented.
+[Jovian active-work cuts](docs/ROADMAP_BACKLOG.md#jovian-engineer-active-cuts)
+now specify E interruption and normal browser loss,including the missing safe
+standing-berth admission after reconnect. [Cinder remote crew](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback)
+now bind movement,home,loss/ramp handback and one conserved supply outcome.
+Safe readmission,guest ramp eligibility and authenticated remote terminal
+handoff are named production gaps;their implementation remains open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
