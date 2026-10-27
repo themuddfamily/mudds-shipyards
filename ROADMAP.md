@@ -43,21 +43,34 @@ containers; their existing children live in the [canonical backlog](docs/ROADMAP
 A missing driver is an implementation task. An unanswered design choice or
 unavailable device names the exact input and owner. Neither counts as completion.
 
-Each selected task must state:
+Every executable goal uses this short contract in its existing backlog row or
+linked section. Broad parents retain their finite child lists and close only
+when those children pass; they are never selected as one coding task.
 
-1. **Result and scope:** player action → expected outcome; finite included cases.
-2. **Starting point:** source/package, profile, location, participants and owned files.
-3. **Proof:** exact command or ordered player steps; expected values, preserved
-   state and original limits. A repair must reproduce the old failure and pass
-   after the change. State whether proof is source, packaged, physical or native.
-4. **Dependencies:** existing prerequisite IDs and their exact required result;
-   unresolved inputs remain blocked and cannot be chosen after seeing results.
-5. **Budget:** estimate ≤90 minutes for implementation, checks, checkpoint,
-   integration and cleanup; absolute deadline, independent abort and fixed total
-   correction allowance (default one). Preserve full journey/soak durations.
-6. **Closure:** PASS with actual proof, or the first failed predicate and observed
-   operands. Merge/push accepted work, provide a playable checkpoint for runtime
-   changes, then clean owned branches/worktrees/processes/scratch.
+| Field | Required content |
+| --- | --- |
+| Goal | Existing ID and one observable player or build result |
+| Start | Exact source/package, saved state, location and participants |
+| Action | Literal command or ordered ordinary player steps |
+| Pass | Observed endpoint and expected value for every included case |
+| Proof | Actual log, screenshot, artifact or physical observation; identify its environment |
+| Prerequisites | Existing IDs and required results, or the exact missing answer/artifact and owner |
+| Budget and stop | Estimate, absolute deadline, original test limits, correction allowance and independent abort |
+| Close | PASS/FAIL/BLOCKED/PARKED; merge/push accepted work, checkpoint when required, owned cleanup |
+
+A missing command, endpoint or criterion makes the goal **BLOCKED definition**.
+An unavailable decision/device makes it **BLOCKED input**. Neither enters the
+implementation queue. A definition task supplies only that exact missing field
+in the same contract and stops; it cannot expand into a new roadmap audit.
+“Improve”, “polish”, “finish” or “usable” without a linked literal check is not a
+ready assignment. Existing full-journey and hardware gates keep their limits.
+
+Include owned files in the starting point and preserved state in the pass
+criteria. A repair must reproduce the old failure and pass after the change.
+Estimate implementation, checks, required checkpoint, integration and cleanup
+together at no more than90minutes; split larger production capabilities before
+starting. Default correction allowance is one. Full journeys and soaks retain
+their original durations even when implementation is split.
 
 Stop at the first unexpected failure. A correction needs a demonstrated cause,
 remaining frozen allowance and explicit cumulative-cost decision; a failed final
@@ -122,13 +135,25 @@ Source/notes are pushed; owned branch/worktree/route/profiles/scratch removed
 after verified preservation. Closure28.465minutes versus60estimated, with final
 notes/push charged to this same clock.
 
-**Next candidates name concrete capabilities.** These are existing
-owners and dependencies, not simultaneous assignments or parked-run approvals.
-Select only one after its required inputs and acceptance values are fixed.
+**PARKED — rendered installed direct/desktop launch.**
+Candidate121580670 is unmerged. The first candidate failed on the observer's
+viewport API call. Its sole correction passed compilation, exports, strict menu
+startups and package audit, but actual rendered direct launch then timed out
+before any gameplay observation:301.195s under CAP300 (302.562s outer under330).
+No post-exit walk, PNG, normal UI shutdown or clean markers were established;
+desktop launch is NOT_RUN. Root cause is unknown. All owned process cleanup flags
+pass and installation bytes remain unchanged. The latest playable build remains
+7f23a80. [Terminal result and preservation](docs/ROADMAP_BACKLOG.md#rendered-installed-launch-capability).
 
-| Existing goal | Concrete deliverable | Decisive proof / remaining prerequisite |
-| --- | --- | --- |
-| LINUX-LAUNCH-DIRECT / LINUX-LAUNCH-DESKTOP | Add rendered direct and genuine desktop-entry launch modes to the existing Guided runner, with verified installed process identity and owned cleanup. | [Full route, CAP300, normal UI OS0, both clean markers, unchanged installation](docs/ROADMAP_BACKLOG.md#rendered-installed-launch-capability). One complete rendered Guided journey per launch method; original GUIDED-FINAL3/3 remains separate. Source checks cannot close rendered/final qualification. |
+No gameplay implementation is selected by this roadmap-editing request.
+Reopening the parked launch work requires causal evidence about the startup
+stall in its original environment and an explicit cumulative-cost decision;
+its exhausted correction allowance cannot be reset by another card or branch.
+
+**Selection rule:** use the latest canonical State and linked terminal result.
+Reconcile contradictions before selecting work. An already-fixed source binding
+is reused; missing executable caller support becomes a production capability,
+not another survey of the same members.
 
 **PLAN-NEXT remains OPEN.** The source-resolvable gaps in the existing337 records
 are unfinished work. No new inventory, definition count or blocker list can close
