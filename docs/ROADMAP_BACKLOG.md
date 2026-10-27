@@ -4266,9 +4266,8 @@ generation to arm,then supported station/Aft/Fleet walking to Light's Dock06,
 actual canopy/pilot admission and normal departure/free own berth/FREE_FLIGHT.
 The [nine access-route binding](#fleet-nine-access-routes) supplies current home,
 approach and live marker fields; the final Light approach from Fleet trunk is
-(56,4.2,68.3)→(56,4.2,boarding.z)→live boarding. The route must bind the actual
-board→Aft→trunk connector before implementation selection; no unrelated Habitat/
-Freight tour or Hauler exit is a new prerequisite. Do not fake Sandbox's reusing
+(56,4.2,68.3)→(56,4.2,boarding.z)→live boarding. The [literal board→Aft→trunk connector](#light-board-to-dock06-walk) is defined
+below; no unrelated Habitat/Freight tour or Hauler exit is a new prerequisite. Do not fake Sandbox's reusing
 flag to omit its first-use prefix,restore a parked caller as accepted,or infer
 physical reach from a coordinate. No supported walkable cabin or engineer seat
 exists on Light. Source1108/current registered Light must be the active hull.
@@ -4279,6 +4278,46 @@ Reuse [the legal Heavy source contract](#zenith-heavy-breach-incoming-route--sou
 for real board/registration/hostile/phase/landing-withdrawal ownership,substituting
 this actual craft; do not reuse the parked Zenith caller. Fresh Guided defender
 activation rejects nonstarter craft,so it cannot supply a new Light encounter.
+
+<a id="light-board-to-dock06-walk"></a>
+**Board→Dock06 ordinary walking connector, defined2026-10-27.** This is a
+proposed supported route assembled from existing Heavy/LIFE-ARM/Fleet walking
+owners,not a measured clearance result or a restored parked caller. Use the
+existing HeavyBreachPilot initial three points(−8.5,.18,6)→(8,.18,6)→(8,.18,−24),
+face the actual board at(8,1,−26),require live candidate/distance≤2.55/facing≥.05/
+|yaw|<.08 and available Heavy posting,then one normalE press. Within90physics
+frames require the actual accepted arm receipt bound to this Player/current
+board generation; releaseE and do not re-arm while walking.
+
+Post-arm ordered route is **four explicit return points**,then the exact existing
+`LifeTowPilot.ARM_GOALS[:12]`,then **two trunk points**,then **three Light goals**:
+
+```text
+(8,.18,6) → (−8.5,.18,6) → (−8.5,.18,13.5) → (0,0,13.5)
+LifeTowPilot.ARM_GOALS[:12]  # central_aft_turn through fleet_trunk_forward
+(37,4.2,68.3) → (52,4.2,68.3)
+(56,4.2,68.3) → (56,4.2,b.z) → b
+```
+
+Here b is current Light's `get_boarding_position()`. These21post-arm goals stay
+ordered; they do not include Zenith's three terminal approach points,an early
+Bomber boarding,or a Hauler exit. The new west→central connecting edge uses the
+existing west-side deck atz13.5 before the authored central Aft route; its actual
+physical support/collision behavior must be observed,not assumed. Follow the
+existing LifeTow/Heavy continuous-motion/support/physical-step-up and default
+walking-tuning predicates at each frame; no pose,velocity,grounding or capsule
+setter. Preserve15s per walking goal. The12s boarding clock starts after the
+final walking goal and includes candidate approach AND boarding completion;E
+does not restart it. The member's300s overall clock runs concurrently and never
+resets at a point. BeforeE require
+current Light candidate,actual control/capsule/support,no transition/competing
+station candidate and settled motion. Require source1108/current Light pilot
+seat/actual home lease/current command source,then1.8s authored startup through
+normal demand. If any point lacks support/clearance or ownership/arm is lost,
+stop the same attempt; no teleport,skipped point or route fallback. Implementation
+belongs in the existing member caller/observer,not by changing Sandbox or its
+`reusing` flag. This fills the literal connector field; native walking remains
+NOT_RUN and the separate engine-facing/return controllers remain missing.
 
 **Exact collision target.** `scripts/ships/cinder_light_interceptor.gd` creates
 one root InterceptorHullCollision box:min(−2.4,−1.05,−4.4),max(2.4,1.25,4.4),
@@ -4321,8 +4360,9 @@ no actor/velocity/transform setter,target replacement,synthetic hit or timing
 change. Compute predicted first physical intersections and nearest anchors from
 actual current geometry; only the authoritative receipts above count. The moving
 opponent,fan and lead prevent a promise from a static heading alone. Exact
-ordinary station connector,engine-facing flight control/accepted return inputs
-and all-source receipt wiring remain implementation/definition prerequisites;
+engine-facing flight control/accepted return inputs and all-source receipt
+wiring remain implementation/definition prerequisites; the connector above
+needs ordinary caller/observer implementation,not another route survey;
 they are not an external artifact or owner policy choice.
 
 **Live consequence and repair pass.** At third accepted pellet,mobility multiplier
