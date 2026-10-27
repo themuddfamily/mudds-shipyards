@@ -162,109 +162,53 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**PARKED — Ember reaches its production surface-command handoff.**
-Corrected UI conversion passes actual menus/Arrow admission and one native8219
-flight:8,010,865m continuous travel,776 consecutive rebases, same pilot/seat,
-60Hz/time_scale1/authored controls. The driver then rejects its unconditional
-retained-default command-source check at Host orbit_approach. Source review shows
-the Host installs its owned approach source before exposing that phase; actual
-current-source identity was not separately logged. No gameplay defect inferred.
-Landing/surface exit/normal UI OS0 remain unproven; source stays unmerged.
-[Exact raw boundary, both prior stops and cleanup](docs/history/ROADMAP_DELIVERIES.md#ember-corrected-native-flight-parked-at-approach-command-handoff-20261027).
-Owned branch/worktree/process/profile/build cleanup complete71.160minutes from
-original03:30UTC, plus final notes/push. No further correction/run selected;
-original05:00 hard stop and all costs remain. Full SOLO remains unfinished.
+**Current selection: PLAN-NEXT — finish concrete acceptance definitions.**
+The breakdown is still OPEN. Reviewing all337 records did not supply every
+missing route, member list or expected value. Those gaps remain in the existing
+[finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
+Do not report that review as a completed executable roadmap.
 
-**Accepted — busy exterior-exit release interruption support.**
-Existing runner now tests accepted/refused publication during a real busy exit,
-owned kill and distinct cold recovery. Both source pairs and both embedded Linux
-pairs pass on24774c04; actual archive startup is exit0/exactone menu-ready marker.
-Accepted save yields supported station walking; refused save retains a fresh home
-pilot with working throttle. Exact files/generation/backups, paid1/activity/debt/
-settings, process cleanup and clean shutdown are checked independently.
-One66.108s source stop and its source-proven correction remain charged; total
-27.803minutes through archive/owned branch/worktree/process cleanup, plus final
-notes/push. [Actual proof and scope](docs/history/ROADMAP_DELIVERIES.md#busy-exterior-exit-release-interruption-support-accepted-20261027).
-This delivers executable release support; installed/full ordinary/native/final
-qualification remains open. Runtime policy and playable checkpoint7876ebc stay
-unchanged. No new task is selected by this closure.
+For each listed gap, supply the finite answer in its existing row/contract:
+the named members, action/trigger, expected endpoint, preserved state, proof
+and original limits. Reuse accepted results. If an answer needs a design decision
+or unavailable artifact, name the exact field, owner and required answer/artifact.
+Codex-owned source bindings remain unfinished until supplied; writing “Codex
+will define this” does not pass. Each definition pass ends after15–30minutes with
+the answer or the precise blocker; it cannot start a gameplay trial or a new
+research chain.
 
-**PARKED — full varied encounter capture times out with no images.**
-The one independently reviewed wrapper correction works: fresh import passes
-22.169s. One unchanged18-frame1600x900/Forward+/llvmpipe capture then exits124
-at the original300s limit (302.300s including teardown),0images/0DONE/no engine
-diagnostics. Source/imported resources remain unchanged; startup-only output
-establishes no shader/material/art/gameplay cause. No further correction/run.
-All six recorded processes are absent; owned checkout/profile/scratch removed,
-records verified archived. Cleanup18.422minutes from original02:40UTC start,
-plus final docs/push; original preparation failure remains charged and retained.
-[Both stops, precise scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027).
+**PASS for PLAN-NEXT:** every existing record has a finite result and proof or
+an exact external dependency, every container names its complete membership,
+and no unresolved Codex-owned action/endpoint/limit/proof field remains.
+Preserve all337 IDs, their kinds/order,36 parent outcomes and ten phase exits.
+This is planning completion only. Runtime completion still needs the named
+player journeys and release gates.
 
-**PARKED — Cinder codec continuation stops at a component regression.**
-One independently approved correction retains the raw acknowledgement and uses
-the exact production JSON canonical form for full-state comparison.314Python,
-import and privacy pass; the new Godot exact-float combined assertion fails.
-Other new raw-preservation/canonical-equality/wrong-field checks pass, but actual
-fixture float values were not logged, so the precise false comparison remains
-unproved. No production codec/engine defect is inferred.
-No export or second gameplay attempt ran. The first attempt's walking/boarding/
-90seat/12mlift observations remain; firing, full flight/home/reuse and normal UI
-OS0 are unqualified. [Both stops, source and cleanup](docs/history/ROADMAP_DELIVERIES.md#cinder-codec-continuation-parked-at-component-regression-20261027).
-Six candidate files stay unmerged in a verified archive. Owned branch/worktree/
-process/scratch cleanup completes60.395minutes from original01:33:55UTC, retaining
-original03:03:55 hard stop and both failures. No further correction/test/run is
-selected under this closed continuation; no fresh budget or third attempt.
+**Next implementation: unselected.** Choose one existing capability only after
+its literal acceptance card is complete. Freeze the result before editing;
+include checks, checkpoint, integration and cleanup in its estimate of at most
+90minutes. Full journeys and soaks retain their original durations. A failed
+attempt keeps its cumulative cost and reopening condition. No runtime retry is
+authorized by this wording change.
 
-**Accepted — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
-Builder17a11183a exports the finalized standalone uninstaller and records its
-actual size/hash in the existing result.33 tests pass/one PowerShell check is
-skipped. One unsigned [checkpoint setup](builds/windows/MuddsShipyards-7876ebc-installer-17a1118-setup.exe)
-([actual validation](builds/windows/MuddsShipyards-7876ebc-installer-17a1118-notes.txt))
-compiles81.969s under600s; exported117,593-byte PE/version/hash and extracted game
-match their recorded identities. All six earlier artifacts stay unchanged.
-This resolves standalone artifact identity for newly compiled setups; earlier
-setups keep their limits. Native Windows, trusted signing and final-candidate
-qualification stay unperformed/open. The previous source-version repair remains
-accepted. [Finite delivery and original clock](docs/history/ROADMAP_DELIVERIES.md#compiler-generated-windows-uninstaller-export-accepted-20261027).
-Accepted work is pushed and its owned branch/worktree/process/scratch are cleaned.
-The next implementation remains unselected until its literal acceptance is ready.
+Recent terminal results are retained in their existing contracts and
+[delivery history](docs/history/ROADMAP_DELIVERIES.md). They are not an active queue:
 
-**Completed this pass: inventory-wide acceptance review.** This is planning
-work, with no gameplay completion implied. All 337 rows were reviewed; 12 existing
-rows now have literal proof or exact missing-field/owner bindings. Independent
-review and the ID/order/parent/kind preservation check pass. Preserve all 337 IDs, their kinds,
-36 parent outcomes and ten phase exits. Each canonical row must retain either
-its finite result and proof in the
-row/linked contract, or its exact missing fields and responsible owner. The
-remaining source-resolvable definitions below are still open. Do not add another
-planning inventory or restart completed source surveys.
-The remaining definition gaps stay visible under
-[PLAN-NEXT](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
-A named blocker makes the situation explicit; it does not finish the blocked goal.
+| Existing outcome | Terminal result and remaining boundary |
+| --- | --- |
+| SOLO-EMBER outbound driver | PARKED8219:8,010,865m/776rebases; unconditional default-source assertion rejects the production approach handoff. Landing/surface exit/normal OS0 unproven. Candidate archived unmerged; no further run selected. [Exact stop](docs/history/ROADMAP_DELIVERIES.md#ember-corrected-native-flight-parked-at-approach-command-handoff-20261027). |
+| Busy exterior-exit interruption support | Accepted24774c04 source and embedded Linux accepted/refused-save pairs; installed/full ordinary/native/final qualification stays open. [Proof](docs/history/ROADMAP_DELIVERIES.md#busy-exterior-exit-release-interruption-support-accepted-20261027). |
+| Varied encounter capture | PARKED at original300s,0/18images; no demonstrated render/art cause and no retry selected. [Exact stop](docs/history/ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027). |
+| Cinder Light weapon/reuse driver | PARKED at component regression; firing/home/reuse/normal OS0 remain unqualified. Source archived unmerged. [Exact stop](docs/history/ROADMAP_DELIVERIES.md#cinder-codec-continuation-parked-at-component-regression-20261027). |
+| INSTALL-WIN-FINAL export capability | Accepted17a11183a finalized standalone uninstaller export; trusted signing/native execution/final-candidate qualification remain open. [Proof](docs/history/ROADMAP_DELIVERIES.md#compiler-generated-windows-uninstaller-export-accepted-20261027). |
+| WEAPON-JOVIAN | PARKED at per-tick displacement bound; motion cause unknown. No Fire/home/reuse acceptance or retry selected. [Exact stop](docs/history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). |
+| Linux archive executable mode | Accepted6b667235b private-umask ELF0755 export repair; final package qualification stays open. |
 
-For the next implementation, select **one** existing capability with a complete
-acceptance card. A broad parent, container, whole craft or “remaining tests” is
-not an assignment. Keep implementation goals within 90 minutes including checks,
-checkpoint, integration and cleanup; split production changes that exceed that
-estimate before starting. Preserve full-route and soak durations separately.
-Do not start a new gameplay attempt from this documentation edit.
-
-| Existing goal | Current terminal result | Proven boundary / exact next requirement |
-| --- | --- | --- |
-| WEAPON-JOVIAN / selected CRAFT-ACCEPT-JOVIAN member | PARKED after the one authorized departure correction | Physical Gantry admission,90 seated ticks and actual first departure pass. At frame2210 the root moves1.753796m against the unchanged1.603333m per-tick bound. No clearance waypoint, Fire, home, reuse or normal UI OS0 passes. The motion owner/cause is unknown; no correction or retry is selected. Failed source remains unmerged and is archived with raw results; owned worktree/branch/process/scratch cleanup completes01:01:30UTC. |
-| Linux archive executable mode | ACCEPTED,6b667235b | Private-umask exports retain ELF0755;23 exporter checks and actual corrected archive startup pass. This two-file packaging fix stays integrated. |
-| PLAN-NEXT | OPEN definition | Each missing route, member list, expected value, proof command or external input must be named in its existing row. Accepted child results stay closed in their recorded source/package scope. |
-
-The latest playable checkpoint remains7876ebc. The failed Jovian candidate does
-not change that build or qualify its cannon. Its original90minute budget starts
-2026-10-26 23:40UTC and ends2026-10-27 01:10UTC; the correction has no fresh budget.
-The corrected driver is c1488e70b, while its reused exact game package is from
-7afcedcb3; these are different source pins.
-
-[Prior execution notes and frozen contracts](docs/history/ROADMAP_DELIVERIES.md#roadmap-execution-notes-superseded-by-the-concrete-goal-review--2026-10-27)
-are retained as history. Use the canonical rows for current state and each
-historical result only within its recorded scope. Old “selected” statements in
-history never authorize a new run.
+Latest playable checkpoint remains7876ebc. Owned temporary branches/worktrees
+for these closed attempts were cleaned after preservation. Retained failures,
+original clocks, source/package pins and proof limits live in their linked
+contracts; none receives a fresh budget through a new label. Historical
+“selected” statements do not schedule work; this section controls selection.
 
 ## Validation and final release
 
