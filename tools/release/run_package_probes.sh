@@ -638,7 +638,8 @@ try:
                 require(observation["engine_offline"] is True and observation["landed"] is True
                         and observation["craft_at_home"] is True and observation["berth_occupied_by_craft"] is True
                         and observation["berth_lease_current"] is True and observation["player_at_pilot_seat"] is True
-                        and observation["hatch_reserved_by_player"] is True and observation["transition_busy"] is False,
+                        and observation["hatch_reserved_by_player"] is True and observation["transition_busy"] is False
+                        and observation["convoy_terminal_reason"] == "returned_to_shipyard",
                         "busy-exit preimage has no actual settled occupied home/OFFLINE pilot")
                 (run_dir / "pre-exit-document.json").write_bytes(exit_primary_before)
                 (run_dir / "pre-exit-backup.json").write_bytes(exit_backup_before)
@@ -892,7 +893,8 @@ try:
                     and observed["player_at_pilot_seat"] is True and observed["hatch_reserved_by_player"] is True
                     and observed["engine_offline"] is True and observed["landed"] is True
                     and observed["berth_occupied_by_craft"] is True and observed["berth_lease_current"] is True
-                    and observed["craft_at_home"] is True and observed["owed_rewards"] == [],
+                    and observed["craft_at_home"] is True and observed["owed_rewards"] == []
+                    and observed["convoy_terminal_reason"] == "returned_to_shipyard",
                     "busy-exit readiness is not the real handoff before its first canopy await")
             if recovery_context == "exit_refused":
                 require(observed["retry_seconds"] > 0, "real refused publication did not schedule retry")

@@ -542,6 +542,7 @@ func _run_docking(game: GameFlow, store: UserDataStore, entry: String) -> void:
 ## runner independently reads both durable files before authorizing this cut.
 func _busy_exit_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
 	var observed := _docking_observation(game, craft)
+	observed["convoy_terminal_reason"] = String(game.get("_convoy_terminal_reason"))
 	observed["transition_busy"] = bool(game.get("_transition_busy"))
 	observed["disembarking"] = game.phase == GameFlow.Phase.DISEMBARKING
 	observed["engine_offline"] = str(craft.get_telemetry().get("engine_state", "")).to_upper() == "OFFLINE"
@@ -622,7 +623,7 @@ func _run_busy_exit(game: GameFlow, store: UserDataStore, entry: String) -> void
 			and before_observed.hatch_reserved_by_player and before_observed.player_at_pilot_seat
 			and not before_observed.transition_busy and before_observed.retry_seconds == 0.0
 			and _docking_boundary_matches(game, store, convoy, rewards)
-			and game.get("_convoy_terminal_reason") == &"landing_requested" and _convoy_receipts(game) == 1,
+			and game.get("_convoy_terminal_reason") == &"returned_to_shipyard" and _convoy_receipts(game) == 1,
 			"actual occupied home and automatic OFFLINE retain the pilot preference and failed second convoy")
 		if not _failures.is_empty():
 			get_tree().quit(1)
@@ -1890,7 +1891,7 @@ func _run_stationdefense(game: GameFlow, store: UserDataStore, entry: String) ->
 
 
 func _restored_threat_boundary_matches(game: GameFlow, boundary: Dictionary) -> bool:
-	if recovery_context == "pilot":
+	if recovery_context == "pilot" or (stage == "arm" and recovery_context in ["exit", "exit_refused"]):
 		return _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state
 	# A failed terminal convoy has no running threat to arm. Main retains its
 	# saved threat boundary for the terminal owner rather than reviving combat.
