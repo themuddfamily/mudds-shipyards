@@ -2927,7 +2927,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | INSTALL-LINUX-ROLLBACK | Rollback on final Linux package | 32 | Qualification | Final execution GATED on final package identity/export. Checkpoint selected rollback499→b4→499 ACCEPTED on driver503dbf6f6: exact prior bytes/modes/launcher, actual b4-produced save loaded by499 in healthy session3, credit1/settings preserved, three supported walking goals/normal HUD Quit/OS0; six protected files unchanged after uninstall. [Actual proof and limits](history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026). No failed-update/power-loss/rendered/final acceptance or unchanged checkpoint rerun. | [Final Linux installation](#proof-release): failed/selected rollback restores specified prior installed bytes and protected data, then usable launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-RETAINED | Retained-data handling on final Linux package | 32 | Qualification | Final execution GATED on final Linux package identity/export; checkpoint [retained Heavy load](#installed-retained-heavy-load--selected-checkpoint-contract) ACCEPTED a716c4d8e: source251 Python checks/one actual installed b4 load33.683s, live ledger1/paid terminal/stored settings/healthy session2, 51.262m supported walk/next Torpedo posting unarmed/normal UI OS0/final clean no regrant. [Exact raw proof and retained failures](history/ROADMAP_DELIVERIES.md#installed-retained-heavy-load-accepted-20261026). Existing recipe supplies real fixture/protected fields/private profile/command; final package, full runtime-settings/rendered desktop/native-hardware facts remain open. Original16:11/90min clock includes checks/closure; archive27.680min. | [Final Linux installation](#proof-release): install/update with existing valid user data preserves required progress/settings and loads correctly; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-CORRUPT | Corrupt-data handling on final Linux package | 32 | Qualification | Final execution GATED on frozen final package/export. Executable checkpoint recovery caller source accepted26257272f: actual keyboard confirmation commits27→28/full payload and valid backup preserved/normal first OS0; cold session3/credit1/settings/live paid Torpedo acknowledgement and all3ordinary walking goals52.593m demonstrated. FULL QUALIFICATION FAIL/PARK: second shutdown emits rootWindow focus_entered/tree_exited disconnect errors; final OS0/clean file not independently captured. [Accepted implementation and remaining gate](history/ROADMAP_DELIVERIES.md#corrupt-repair-caller-accepted-shutdown-gate-open-20261026). No diagnostic suppression, new gameplay checkpoint or additional trial selected. Original two caller stops and source archive remain historical; original19:31:09/90min clock and300/330/360caps retained. Reopening needs production popup/connection-removal ownership and independent cumulative-priority decision, not another caller or policy survey. | [Final Linux installation](#proof-release): install/update with named corrupt data selects specified safe fallback while protecting valid recovery copies; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
-| INSTALL-LINUX-UNINSTALL | Uninstall on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the installed final package ownership manifest, protected saves/unowned-file fixtures and exact post-uninstall/reinstall results at original limits. Accepted named interruption cuts remain retained; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): uninstall removes only managed package/entry files, preserves saves/unowned files and permits correct reinstall; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
+| INSTALL-LINUX-UNINSTALL | Uninstall on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition DONE in the [literal uninstall/reinstall contract](#final-linux-uninstallreinstall--install-linux-uninstall): exact private prefix/XDG, shipped-manager commands, ownership/modes, four then five protected fixtures, byte/mode preservation, fresh-generation reinstall and unchanged full installed Guided usability with original10/120/300/330s limits. Actual fixture verified, no installation/engine run. Before execution bind frozen final archive/SHA/export identity and actual manifest payload bytes. Graphical desktop launch/retained-save gameplay reload retain their separate owners; accepted interruption cuts remain closed. Definition does not accept final qualification. | [Final Linux installation](#proof-release): uninstall removes only managed package/entry files, preserves saves/unowned files and permits correct reinstall; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | LINUX-LAUNCH-DESKTOP | Installed desktop entry ordinary graphical play | 32 | Qualification | WAITING; clean isolated graphical Linux session  BLOCKED definition — Codex: bind the exact existing ordinary graphical route/command, required run count, original cap and terminal gameplay/normal-exit state. GATED on PACKAGE-FINAL exact installed bytes; user supplies access to a clean isolated graphical Linux session if unavailable. No active-desktop authorization implied. | On PACKAGE-FINAL, launch the installed desktop entry in the named isolated graphical session and complete every bound ordinary route/run with its original cap and normal UI exit/OS0. Codex must record the actual route/command/count/endpoints here or in one exact linked contract before selection. Headless or disabled-render-loop checkpoint results cannot close this rendered final case; direct ELF uses no path/pack/script override. |
 | LINUX-LAUNCH-DIRECT | Direct installed ELF ordinary graphical play | 32 | Qualification | Normal-exit executable prerequisite DONE39157e8ca: actual shipped-manager clean private install; one complete ordinary Guided flight/home/OFFLINE/physical exit then focused OS-key HUD Exit/actual OS0 in55.826s underCAP300. Installed/archive bytes unchanged; both actual durable clean states verified. Private Xvfb/x11/Dummy/dummy renderer/disabled render loop only. Full rendered graphical Linux/final-candidate route remains WAITING; no 3/3 or desktop-entry claim. [Exact result](history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025).  BLOCKED definition — Codex: bind the exact existing ordinary graphical route/command, required run count, original cap and terminal gameplay/normal-exit state. GATED on PACKAGE-FINAL exact installed bytes; user supplies access to a clean isolated graphical Linux session if unavailable. No active-desktop authorization implied. | On PACKAGE-FINAL, launch the installed ELF directly in the named isolated graphical session and complete every bound ordinary route/run with its original cap and normal UI exit/OS0. Codex must record the actual route/command/count/endpoints here or in one exact linked contract before selection. Headless or disabled-render-loop checkpoint results cannot close this rendered final case; direct ELF uses no path/pack/script override. |
 | caption-presenter-forward-render | Registered capture set, 1 PNG | 12,33 | Qualification | Source capture and original-resolution agent inspection accepted on06d22013a: exact1 PNG1600x900, exit0/one marker/zero diagnostics, source/import/registry unchanged; caption/speaker/category readable with margins. Human NOT_RUN remains excluded, current/final-candidate qualification separate. Retain artifacts/caption-presenter-06d22013a; do not repeat this unchanged accepted view. | [Registered capture](#proof-quality): exact 1 PNG for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
@@ -5119,6 +5119,105 @@ hard17:27:43. Stop first unexpected failure and retain it before any causal revi
 no automatic correction/retry or renamed budget. Exact final-package,
 failed-update interruption, power-loss, rendered desktop and hardware facts
 remain in their existing open gates.
+
+### Final Linux uninstall/reinstall — INSTALL-LINUX-UNINSTALL
+
+**Definition complete2026-10-27; final execution GATED on PACKAGE-LINUX.**
+This fixes the existing transaction's remaining Codex-owned fields, not a new
+installer, interruption case or qualification PASS. Bind the actual frozen final
+archive/SHA/export result and audited package-root name before execution; resolve
+its ELF/icon and shipped manager from that archive. No final SHA is needed to
+finish this definition. The operator uses the shipped manager, not a newer repo
+copy. Reuse accepted managed-install/cut recipes; do not rerun parked gameplay.
+
+Reserve a fresh, absent `/srv/mudds-work/linux-uninstall-final/` as the exclusive
+owned root (`ROOT`). Set task variables `PREFIX="$ROOT/installed game"`,
+`APPS="$ROOT/applications"`, `PROFILE_ROOT="$ROOT/profile"`,
+`XDG_DATA_HOME="$PROFILE_ROOT/data"`, with config/cache/state/runtime/tmp siblings
+for their corresponding XDG/TMPDIR variables; private directories0700.
+Keep inherited HOME unchanged. `FINAL_TAR` is the frozen PACKAGE-LINUX archive;
+`MANAGER` is its extracted `install_linux_desktop.py`, under ROOT/package outside
+PREFIX. Archive trust/shape/payload checks precede extraction. Use absolute paths;
+no existing real installation or personal profile is an input. Snapshot protected
+bytes/modes before any managed mutation.
+
+Existing operations, in this order (all require actual exit0; stop on failure):
+
+```bash
+python3 "$MANAGER" install --archive "$FINAL_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+python3 "$MANAGER" uninstall --install-dir "$PREFIX" --applications-dir "$APPS"
+python3 "$MANAGER" uninstall --install-dir "$PREFIX" --applications-dir "$APPS"
+python3 "$MANAGER" install --archive "$FINAL_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+After each install, independently resolve generation/executable from
+`$PREFIX/.mudds-shipyards-install.json`0644. Its exact keys are owner/generation/
+executable/applications_dir/files; owner=`mudds-shipyards-linux-desktop`, APPS
+matches, generation matches `.mudds-shipyards-runtime-[0-9a-f]{32}`, executable
+matches `MuddsShipyards-[0-9a-f]{7}.x86_64`, files contains only that ELF and
+`mudds-shipyards.png` SHA256 values equal to the actual audited archive bytes.
+Generation0755, ELF0755, icon0644 and `$APPS/mudds-shipyards.desktop`0644.
+Desktop Exec is the manager's exact `/usr/bin/env --` escaped ELF command, Path
+is that generation and Icon its icon; compare complete generated bytes. Neither
+`.mudds-shipyards-update.json` nor `.mudds-shipyards-uninstall.json` remains after
+success. The manager locks the directory descriptor; there is no lockfile.
+
+Before the first uninstall, create these four protected fixtures:
+
+| Exact path | Bytes / mode |
+| --- | --- |
+| `$PREFIX/personal-notes.txt` | `root notes\n`,0640 |
+| `$PREFIX/<first generation>/personal-notes.txt` | `runtime notes\n`,0600 |
+| `$APPS/other-game.desktop` | `other game\n`,0600 |
+| `$XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/mudds_user_data.json` | Actual earned Heavy fixture below,0644 |
+
+Here `\n` denotes one actual newline. The real save fixture is member
+`ordinary-sortie/orderly-close.json` in
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/case-records.tar.gz`:
+8655bytes/SHA256`25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73`.
+Root independently read/hashed/parsed that actual member2026-10-27; it contains
+Heavy paid progress and runtime settings. This transaction proves preservation
+of that real save, not gameplay reload of it; INSTALL-LINUX-RETAINED owns reload.
+
+After uninstall and repeat, only the manifest-owned ELF/icon, desktop entry,
+manifest and journals are absent. All four protected byte/mode identities remain;
+the old generation and prefix remain because they contain unowned notes. Repeat
+uninstall exits0 without further mutation. Reinstall creates a different fresh
+generation with the same exact candidate payload/modes and correct manifest/
+launcher. All four old fixtures remain exact. Add a fifth protected fixture at
+`$PREFIX/<reinstalled generation>/personal-notes.txt`, exact bytes
+`reinstalled runtime notes\n`,0600, before final cleanup.
+
+Resolve `INSTALLED_ELF` from the second actual manifest; use existing commands:
+
+```bash
+tools/release/run_linux_startup_check.sh "$INSTALLED_ELF"
+python3 tools/release/run_native_sortie.py "$INSTALLED_ELF" --route guided --output "$ROOT/guided-results"
+python3 "$MANAGER" uninstall --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+Startup uses private results/profile, actual OS0/exactly one
+`STARTUP_MENU_READY_OK`/zero diagnostics. Guided retains its full original
+walking/boarding/weapons/combat/strict occupied home/OFFLINE/physical exit/normal
+HUD Quit route, actual OS0/zero diagnostics/released input/reaped game/helper/
+Xvfb, private x11/Dummy/dummy renderer. Its fresh gameplay profile must not mutate
+the protected saved-data fixture. This establishes installed direct-executable
+usability only; graphical desktop-entry launch stays with final installation/
+PACKAGE-FINAL, and retained-save reload stays with INSTALL-LINUX-RETAINED.
+Do not substitute headless startup for either of those unperformed facts.
+Final uninstall must preserve all five protected byte/mode identities while
+removing only current managed files. Retain raw results before owned cleanup.
+
+Preserve distinct limits: each installer CLI child10s; installer consumer outer
+120s, excluding gameplay checks; startup300s; Guided300s with independent330s
+supervisor. The separately bound final selection reserves checks/closure and an
+absolute deadline; no auto retry or cap increase. Existing accepted publication/
+uninstall-SIGKILL cuts remain closed in their recorded scopes; no new interruption
+or power-loss result is inferred. Existing manager ownership/modes/removal:
+[manager](../tools/release/install_linux_desktop.py), protected-fixture/idempotence
+recipe [tests](../tools/release/test_install_linux_desktop.py), original limits
+[accepted uninstall cut](history/ROADMAP_DELIVERIES.md#linux-uninstall-cut--done-bounded-reproduction).
+No engine, installer, export or hosted CI was run for this definition.
 
 ### Rights families and missing documents — RIGHTS-DEFINE
 

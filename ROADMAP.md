@@ -235,6 +235,21 @@ archive/branch/worktree/scratch cleanup completes at14.907 cumulative minutes.
 Final notes/push remain charged. Current public checkpoint and accepted colour
 component/storage scopes stay unchanged; full comfort/device/rendered gates open.
 
+**Definition complete — INSTALL-LINUX-UNINSTALL execution contract.**
+The [existing final uninstall/reinstall goal](docs/ROADMAP_BACKLOG.md#final-linux-uninstallreinstall--install-linux-uninstall)
+now fixes shipped-manager commands, private prefix/XDG, exact managed files/modes,
+four then five protected fixtures, repeat-uninstall/fresh-generation reinstall,
+full installed Guided usability and original separate limits. Actual earned-save
+fixture bytes/hash verified; no engine/installation was run or final gate closed.
+Final candidate identity, graphical desktop launch and retained-save gameplay
+reload remain with their existing owners. Root owns only these two docs; no
+branch/worktree/scratch created. Start07:08:13UTC,20minute definition estimate/
+07:28:13 deadline include checks/commit/push. Source review, fixture verification,
+all337 canonical identities/order and new anchors pass; roughly7minutes through
+review/checks, with final commit/push charged to the same clock. No implementation
+is active. The eight prepared craft SPEC proposals await the explicit owner
+interpretation/design answer requested this turn; no approval has been inferred.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
