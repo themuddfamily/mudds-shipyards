@@ -65,8 +65,10 @@ first native limits; Rime has a separate natural cold/restart member.
 [Ember surface/save/return](docs/ROADMAP_BACKLOG.md#solo-ember-surface-return-contract)
 now binds all three objectives and exact Host ownership. Its [Save Progress gap](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands)
 names the missing button availability/dispatch and paid-errand completion
-integration. Callers and qualification remain open; parked journeys keep their
-reopening conditions.
+integration. [Colour paint/view requirements](docs/ROADMAP_BACKLOG.md#colour-ordinary-paint-and-view-contract)
+now distinguish actual gameplay states from256 component cases and bind one
+ordinary rendered cell. Callers and qualification remain open; parked journeys
+keep their reopening conditions.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
