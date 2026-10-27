@@ -93,6 +93,9 @@ Accepted routes retain their original scope;new callers and assertions are open.
 now has explicit peer/flight/repair limits. Its ordinary exterior handback needs
 a concrete runtime repair:current cleanup recalls its passenger to spawn
 instead of using its hatch/airstair. Implementation and proof remain open.
+[Engineer active-work cuts](docs/ROADMAP_BACKLOG.md#halyard-engineer-active-cuts)
+now specify E stand and normal browser disconnect,host token/stock checks and
+fresh reclaim. Actual UI timing and gameplay proof remain unrun.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings

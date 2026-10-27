@@ -6554,7 +6554,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | Qualification | DONE;4c9c764e9, original pilot/ship/ownership generations, all peers exit0 | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. BLOCKED definition/implementation (Codex): actual elapsed-progress observation, moving/return/refusal, active-work loss/handback, exterior route and whole caller/limit. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
-| ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
+| ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged.  [Two active cuts](#halyard-engineer-active-cuts) now fix actual E stand and B browser disconnect while a host repair token remains active,transient interruption/stock/generation receipts and supported fresh reclaim. The .4s UI timing and all ordinary cut executions remain NOT_RUN;no old finished-work disconnect is relabelled. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. BLOCKED definition/implementation (Codex): moving remote gunner with actual target damage, exact loss/physical handback/exterior endpoint, whole caller/limit and selected candidate. Existing runtime remote binding is present; no defect or new retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. Local87c51558e is [PARKED unmerged](history/ROADMAP_DELIVERIES.md#halyard-local-readiness-parked-20261027) before the intended RED gate; one correction exhausted, no new checkpoint. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary producer payload is now fixed to vessel/chair-derived manifest and authored cabin-row identity below; normal input/remote implementation, action/moving/loss observer and whole-route limits remain open. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED definition/implementation (Codex): actual moving remote-role/return/exterior/loss caller, whole limit and final candidate, retaining all parked requirements/costs. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
@@ -9455,15 +9455,15 @@ of sibling Jovian proves replica isolation, not Halyard destruction/recovery.
 contract](#halyard-engineer-moving-return) below now fixes pilot/engineer identity,
 source motion and return stages,first full integration ceiling,actual repair
 availability/race observations and the missing Halyard physical-egress repair.
-Its runtime/controller continuation remains unimplemented. Active-work and
-active-owner/transport-loss cuts still require their separately named selection;
+Its runtime/controller continuation remains unimplemented. [Active-work and transport-loss cuts](#halyard-engineer-active-cuts) now have
+fixed E-stand/UI-disconnect triggers and host token/resource endpoints;
 no passenger/berthed subset is relabelled full engineer qualification.
 
 | Uncovered case in this existing role | Pass/fail endpoint to bind in its caller |
 | --- | --- |
 | Seated engineer during real movement and return | Same authenticated engineer body/claim remains supported without helm authority. In-flight repair is refused because Halyard repair requires landed and not landing-active; stock and component integrity do not change from refusal. Actual return/dock precedes a fresh successful repair. The linked moving/return contract now supplies source stages/limits and distinguishes client FIRE hold from actual host selection refusal;the engineer continuation remains missing implementation. |
-| Interrupt genuinely active repair | Observe active reserved work before one specified production cut, then no commit/debit and no surviving reservation. Production reasons are `ship_destroyed`, `left_berth`, `selection_lost`, `selection_changed`, `authority_detached`, `engineer_seat_lost`, `component_generation_changed`. Select the exact cut before execution; this list is not authorization for a seven-case matrix. Role release clears selection, interrupts then resets visible state to idle/empty and advances component generation. |
-| Lose active engineer owner/transport and hand back | Perform the bound loss while the current engineer claim/work exists, observe its retirement, supported body/control continuation and conserved remaining host stock, then a distinct authorized reclaim. The existing disconnect after migration-cleared ownership cannot pass this case. Exact trigger/handback caller remains absent. |
+| Interrupt genuinely active repair | Observe active reserved work before one specified production cut, then no commit/debit and no surviving reservation. Production reasons are `ship_destroyed`, `left_berth`, `selection_lost`, `selection_changed`, `authority_detached`, `engineer_seat_lost`, `component_generation_changed`. Select the exact cut before execution; this list is not authorization for a seven-case matrix. The [active-cut contract](#halyard-engineer-active-cuts) selects ordinary E stand,actual live token/role_released interruption and supported reseat. Selection-protocol generation advances;model ledger generation stays unchanged. Execution remains OPEN. |
+| Lose active engineer owner/transport and hand back | Perform the bound loss while the current engineer claim/work exists, observe its retirement, supported body/control continuation and conserved remaining host stock, then a distinct authorized reclaim. The existing disconnect after migration-cleared ownership cannot pass this case. The [active-cut contract](#halyard-engineer-active-cuts) fixes B's normal browser DISCONNECT,actual host live-token cleanup,conserved host stock and normal rejoin/reclaim;caller/UI timing remain unimplemented and NOT_RUN. |
 | Physical exterior exit/reentry after release | Ordinary supported cabin→hatch→exterior exit, then real reentry and new claim; no teleport substitutes for this endpoint. The linked physical-egress contract names the Jovian-only guards,wrong spawn fallback and required Halyard airstair/exit owner/limits;production repair and ordinary proof remain OPEN. |
 
 Ship destruction/reuse, reconnect and cold restored engineer admission have no
@@ -9496,8 +9496,8 @@ Definition2026-10-27,21:11–21:31UTC through review/checks/commit/push/cleanup.
 Root owns these roadmap documents;one read-only agent binds the existing
 motion/return/exit owners. No engine,package,parked retry or implementation is
 selected. This fills ROLE-HALYARD-ENGINEER's movement/return/exterior fields;
-active-work interruption and active-owner/transport-loss cuts above remain
-separate unresolved members,not silently passed by orderly teardown.
+[active-work and owner/transport-loss cuts](#halyard-engineer-active-cuts) have
+separate defined triggers below;their execution is not passed by orderly teardown.
 
 **Three actual peers.** Reuse `halyard_network_passenger_route_test.gd`'s
 accepted ordinary two-client prefix:host peer1 stays nonplaying INTRO;A is the
@@ -9640,6 +9640,78 @@ Each owned process has an independent watchdog/abort,releases synthetic input
 and cursor capture,and is reaped. Xvfb+x11/Dummy only;CI/native Windows/GPU/
 human qualification stay unrun. Accepted PASS_WITH_ENVIRONMENT_WARNING remains
 its original narrower scope;do not silently remove its recorded warning.
+
+<a id="halyard-engineer-active-cuts"></a>
+#### Engineer active work: two fixed release/loss cuts
+
+Source follow-up remains inside21:11–21:31UTC above. These are the two existing
+unresolved cut members,not a seven-reason matrix or new role. Each is separately
+selected from a legitimate earned-damage visit under the moving/return contract;
+do not force both into one landing's short passive-repair window. The old
+two-peer fixture's refreshed direct damage remains disclosed source coverage,
+not an ordinary earned wound or permission to refill/heal/re-damage for a retry.
+
+**Common exact entry.** Host,A pilot and B engineer retain current identities
+and a physically docked intact Halyard. B has a real admitted repair token,
+0<progress<1,elapsed<.4s,damaged component and actual reserved work. Capture the
+host RepairAuthority object,token/component/model ledger generation,selection
+protocol generation,actual remaining tools r∈[1,6],cooldown/token sequence and
+component integrity. Observe the live token at the **host's actual cut handler**,
+not just B's last replica frame. A completed or merely requested repair cannot
+pass either cut. Passive repair and host time keep advancing throughout.
+
+| Selected existing member | Ordinary trigger | Actual endpoint and usable handback |
+| --- | --- | --- |
+| Active repair interruption | B's fresh E stands from crew_port_01 while the token remains active. | Remote body simulation `_stand` releases the chair through the borrowed engineer binding and Halyard role release. Capture the synchronous `role_released` interruption receipt,then the visible IDLE/empty selection reset. Same authenticated body finishes supported cabin standing and walks>.6m;normal E reseats with a distinct chair claim/current input owner. |
+| Active engineer transport loss | After admitted work,B uses normal Pause→ServerBrowserButton→ServerBrowserDisconnectButton. HUD emits the actual network disconnect action;GameFlow calls `shutdown_network_session("ui_disconnect")`. | Host sees B's actual peer loss while work is active and releases only B's body/claim/request cursors. The role-release callback can also report `role_released`;do not substitute transport label `peer_disconnected` for the actual interruption reason. Host session,A's exact pilot/body/helm/home ownership and surviving world remain live. Same B Player recovers supported unseated/control-enabled in its solo cabin and walks>.6m. Use ordinary browser Manual Join/Back/Resume and actual current hatch/chair admission for a fresh engineer claim. Bind the new actual peer/avatar/entity/frame/claim tuple;no old peer-ID assumption or retired-body resurrection. |
+
+**Receipt and resource predicates.** `RepairAuthority._emit_interruption` copies
+the real token/component then clears its active reservation;tool debit happens
+only at successful commit. Require no commit receipt or engineer improvement
+from the interrupted token,no active reservation,and exactly r tools after cut,
+standing/disconnect and reclaim. Actual passive.62/s commits may improve the
+ledger;record their eligible ticks separately rather than demanding frozen
+integrity. Selection clearing first emits the interruption,then resets visible
+status/progress and advances `_engineer_component_generation`. The underlying
+ShipComponentDamage ledger generation must stay unchanged for this intact
+visit;do not confuse the two generations or use craft regeneration as reclaim.
+
+The same host repair-authority object must survive. Halyard
+`_prepare_engineer_repair_authority` reuses it when model generation matches;
+`rebind_actor` handles a new authenticated actor while preserving remaining
+stock,cooldown and token sequence. No new six-kit authority or restock call may
+hide a leak. Old token/request/claim must not commit,debit or regain selection
+after the new claim. This is distinct from the previously accepted orderly
+disconnect after repair and migration had already cleared ownership.
+
+**Finite timing and missing caller.** Both cuts must reach their actual host
+handler before the unchanged.4s completion. E may finish body standing after
+the reservation is interrupted;observe those phases separately. For UI
+disconnect,the independent host does not pause with B's menu. Its ability to
+beat commit is **NOT_RUN**:if the token already completed,fail this selected
+case;do not freeze host time,extend work duration,invoke hidden shutdown APIs
+or silently replace the UI with a transport kill. A source-matched regression
+may test the authority fence directly,but cannot pass the ordinary UI cut.
+
+After the cut,use the existing8s consumed transition and15s supported-walk
+guards. Reconnect keeps the existing20s normal Manual Join bound and actual
+10s process-exit receipts. Each separately selected ordinary cut has the same
+first engineering900s/outer960s whole-visit envelope,with every original
+300s/tighter member bound concurrent;this is no fresh allowance for a parked
+attempt. Select one cut per≤90min all-in implementation assignment with exact
+source/deadline/default one correction,independent abort and owned cleanup.
+
+Codex extends existing `halyard_network_engineer_route_test.gd`/inherited
+engineer fixture and the Halyard passenger ordinary coordinator,using passive
+host interruption/repair-state signals to capture the transient receipt before
+IDLE erases it. Current passenger reconnect uses a host-forced ENet cut;current
+authority-stop uses direct host shutdown. Neither is this B UI disconnect.
+Keep those accepted scopes and defaults unchanged;no cut selector/ordinary
+proof is implemented here. Save real input,host-handler token/elapsed,receipt,
+resource/object/generation,both surviving A and recovering B records,actual
+exit/diagnostic results and cleanup in the existing private peer artifact root.
+Full ROLE-HALYARD-ENGINEER remains OPEN until its defined ordinary and cut
+members actually pass;definition alone does not close gameplay or final gates.
 
 <a id="browser-controller-contract"></a>
 
