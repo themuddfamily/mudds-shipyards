@@ -2047,7 +2047,79 @@ IDs and whitespace checks pass. No engine invocation or gameplay PASS.
 
 <a id="server-command-proof-binding"></a>
 
-##### Invalid commands — existing proof and one missing RPC capability
+##### Invalid commands — existing proof and real-client RPC capability
+
+**Selected implementation2026-10-27 18:27:16UTC.** Existing five authenticated
+client-RPC cases below plus truthful child exit/diagnostic acceptance in the two
+existing authority harness files only. One high implementation agent owns those
+two test files; root owns four focused local suites,documentation/integration/
+archive/cleanup; an independent reviewer checks actual RPC routing,identity,
+refusal immutability,exit receipts and abort ownership before execution. No
+production adapter/protocol/physics/content change or new evidence family.
+The accepted ordinary Jovian path stays closed; these are its distinct original
+command-authority prerequisites,not another crew journey.
+
+Clean baseline91f28bc517b438354cd6fdb6bc00f7fff0686473; owned root
+`/srv/mudds-work/network-command-rpc-20261027`,isolated source worktree/branch,
+private0700 HOME/XDG/tmp and external raw matrix/peer logs. Engine is
+`/tmp/mudds-tools/godot-4.7.1/godot`,SHA256
+`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`;
+actual hash checked and UDP29140 observed unoccupied before selection. All
+engine/import/peer invocations use headless/Dummy; no desktop/input/audio output.
+Retain original24s coordinator/300s suite bounds. Reuse existing private import/
+source-freeze matrix workflow and its independent process supervisor; capture
+actual peer exits and teardown diagnostics rather than stopped PIDs alone.
+
+Estimate45min all-in,hard19:12:16UTC,execution cutoff19:02:16 with10min closure
+reserve. Includes source/review/import,existing component prerequisites and one
+actual three-process run,checks,integration/push and exact-tip branch/worktree/
+process/scratch cleanup. First unexpected failure stops; one correction total
+only after demonstrated cause/remaining-time/independent cumulative-priority
+review. Failed final correction/deadline parks this same attempt with source/raw
+preserved. No rerun of accepted scopes,cap increase or new filename/budget.
+No gameplay/graphics changed,so no equivalent game export is required for test-
+only source release-gate capability; final package/native/endurance facts remain
+open. PLAN-NEXT's other missing fields are unchanged.
+
+
+**First invocation stop; sole correction selected before engine launch.**
+Candidate5c5868645 is source-review GO. Root's four-suite command exits2 because
+two prerequisite paths omit `network/`; matrix selection refuses them before
+import or Godot. Exact failed scope/raw and source identity are preserved.
+Independent reviewer verifies the four actual paths are headless/network and
+selects only those two path corrections plus fresh run_id=corrected. Code is
+unchanged; original18:27:16/45min clock,24/300caps and closure reserve remain.
+Approximately7min spent with≥27min execution allowance remaining; correction
+allowance now0. Any corrected compile/engine/suite/result failure parks this
+same attempt; no further adjustment/rerun is selected.
+
+**Terminal: executable five-RPC capability ACCEPTED on5c5868645.** The sole
+invocation correction passes the actual four-suite local matrix: security17,
+ENet adapter106,remote body190 assertions; all4OS0/one terminal each/zero
+diagnostics,313assertions total. Three-process coordinator completes21.064s
+inside24s; all three actual engine wait exits0,complete teardown outputs clean,
+engine/wrapper ownership reaped. Suite phase265.603s plus fresh import20.429s
+passes independent300s outer; source manifests match and import cache is stable.
+The first invalid scope and its raw stop stay recorded,not hidden as a clean
+first attempt. No second source correction or repeated suite occurred.
+
+Independent raw review decodes all15request/sent/observed records: actual sorted
+pilot983329939 sends secure envelope sequences0/1/2/3; other1700646254 sends0.
+Exact client packet equals actual received RPC wire/sender each time. Payload50/
+tick50 accepts once; repeat50 and49 refuse stale_sequence; other owner refuses
+pilot_owner_mismatch; false payload peer refuses spoofed_peer. Last accepted
+sequence/tick50 and pending1 survive all four refusals,with captured command/
+pilot/entity/stream/seat/ship/frame/damage state unchanged. Guarded delivery
+then proves accepted50 consumed once,repeat tick already_consumed_tick,next tick
+no_intent. No direct server injection supplies any of these five results.
+
+Only the two existing test harness files change. Existing staged transfer/loss/
+cleanup phases retain their original proof limits; their old markers are not
+upgraded into ordinary lifecycle acceptance. This is actual source ENet/RPC
+and honest release-gate process acceptance,not the whole SERVER-BASELINE,
+ordinary Jovian rerun,impaired-link/endurance,packaged final or native qualification.
+No gameplay/graphics/game artifact changed; latest playable checkpointf0d6796
+stays unchanged. Current Main re-entry/other baseline callers stay OPEN.
 
 Definition selection for this and the Main re-entry member starts2026-10-27
 15:58:12UTC;20minutes through16:18:12UTC including two disjoint read-only source
@@ -2076,8 +2148,8 @@ headless/Dummy. Its current terminal text is `OK: three-process network authorit
 harness`; that text and `PEER_FINISHED` do not establish actual child exit0 or
 clean diagnostics. No new run/acceptance is claimed here.
 
-**Missing executable capability; Codex-owned, not an external dependency.** Own
-only those two existing authority harness files. Extend the existing stage after
+**Implemented capability; retained literal acceptance contract.** The accepted
+source above owns only those two existing authority harness files. Its stage is after
 late23 refusal and before pilot transfer. Sorted admitted peer_ids[0] is the
 actual pilot; peer_ids[1] is the other client, regardless of role filename.
 Set the existing authoritative clock to50. Through real client
@@ -3290,7 +3362,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; [Core-LOST/home/Heavy arm-cancel-rearm goal](#perimeter-core-loss-home-admission) now binds ordinary controls/observations, caller files and CAP300; implementation remains OPEN behind the original parked genuine-Hold-entry prerequisite. Do not survey membership again. |
 | COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. [Expiry and landing-withdrawal callers](#torpedo-expiry-withdraw-callers) now have pinned earned fixture, inputs/terminal/home/observer/file/cap contracts. [PLAY control-accounting repair](#torpedo-play-control-accounting) remains attached to the original parked evade/intercept/clear journey. Ten authority lifecycle cuts retain their existing field gaps; no repeat survey or live board-abort assumption. |
 | NET-SEATS-FINAL | [Five existing proof owners](#final-seat-ledger--fixed-case-ownership) bind transaction refusals, ENet swap/host occupancy, actual Halyard client promotion/hatch handback, helm-release handback and SERVER-BASELINE-SEAT-RACE. Source matrix plus the existing ordinary race command/caps are fixed; exact final candidate remains gated. Eight ROLE journeys retain their own movement/action/loss scope; no new role matrix. |
-| SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) and [one B Restart Shift/rejoin/physical-reboard journey](#server-main-reentry-binding) now have literal implementation goals; callers remain OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention) now has bounded implementation goals. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
+| SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) are ACCEPTED5c5868645: actual five packets/results/state invariants,all3childOS0/clean,4focused suites313assertions. [B Restart Shift/rejoin/physical-reboard](#server-main-reentry-binding) remains a literal implementation goal; its caller is OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention) now has bounded implementation goals. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex implements ordinary input and observer support for one named uncovered consumer in the existing native-sortie owners, comparing that consumer's already-listed OFF/ON effects and retained transition/cold/Reset endpoints. Candidate/profile/absolute execution deadline freeze at selection. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex implements one uncovered producer's normal input trigger and actual service/HUD observation through the existing native-sortie owners, comparing the already-listed effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Ordinary Guided caller7caea1fbb is PARKED unmerged after one typing correction: full flight/gameOS0/zero diagnostics but required STARTING endpoint absent (11/12); default regression NOT_RUN, no further correction/reopen selected. Source/private TAR/results verified archived and branch/worktree removed. Other ordinary assertions/selected rendered views remain Codex work; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
@@ -4888,7 +4960,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HALYARD-NETWORK-SEAT-REJECTION | Current remote occupied-chair refusal shows one accurate request-bound toast and permits fresh retry | 16,26 | Qualification | DONEbcd268c75/checkpointbcd268c. Actual host delegated seat_occupied verdict retains body/stream/request/seat/epoch and original binding lifetime; current requester-only passenger snapshot yields one accurate toast, supported controls, fresh refusal and release/retry. Full original host/client route107 checks/107.305s/bothactualOS0/cleanlogs, focused101/36/66/6/40/privacy PASS; expected RED/nullnumeric strictfailure/parser failure retained, exact source reuse verified. Fresh paired exports/three strict startups/1527-entry package audit/review pass; four commits merged/pushed, owned scratch/results cleanup complete. Full two-client moving seat race/transfer, other reasons/roles, native/fullbaseline remain open. [Delivery](history/ROADMAP_DELIVERIES.md#halyard-occupied-chair-feedback--accepted--2026-10-24). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 
 
-| SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | Container | NON-EXECUTABLE [finite baseline contract](#server-baseline-contract). Complete ordinary Jovian happy path already acceptedbc7f9f9c4; opt-in true-headless authority accepted e899cc9e0/7362checks/all3OS0/clean; Halyard board/moving/stop, pilot/passenger loss, sleep, chair race, late join, reconnect and destruction receipts retain exact scopes. No new happy-path caller or unchanged repeat is needed. [Invalid-command RPC](#server-command-proof-binding) and [fresh-Main re-entry](#server-main-reentry-binding) now have concrete implementation goals; neither caller is delivered. [Boarding/landing-loss goals](#server-disconnect-cuts) now bind exact cuts and usable continuations; callers remain OPEN. [Initial contention goals](#server-initial-contention) now bind literal actors/actions/results/caps; callers remain OPEN. [Impaired baseline capability](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) now binds one whole Jovian300/360s route, private topology/launch/endpoint and actual profile/budget observations. Missing callers remain Codex implementation; exact shared profile choices stay with the existing NET-ENDURANCE-DEFINE owner. | [Fixed baseline membership](#server-baseline-contract): original authority/two-client ordinary flight/dock/physical exit/reuse plus each explicitly named lifecycle/adverse terminal, accepted receipts reused once and final candidate qualified. Capacity/endurance are separate gates; source slices do not establish the whole parent. |
+| SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | Container | NON-EXECUTABLE [finite baseline contract](#server-baseline-contract). Complete ordinary Jovian happy path already acceptedbc7f9f9c4; opt-in true-headless authority accepted e899cc9e0/7362checks/all3OS0/clean; Halyard board/moving/stop, pilot/passenger loss, sleep, chair race, late join, reconnect and destruction receipts retain exact scopes. No new happy-path caller or unchanged repeat is needed. [Invalid-command RPC](#server-command-proof-binding) caller ACCEPTED5c5868645: actual five client RPC cases,exact refusal invariants,three actual OS0/clean and4focused suites313assertions. [Fresh-Main re-entry](#server-main-reentry-binding) caller remains OPEN. [Boarding/landing-loss goals](#server-disconnect-cuts) now bind exact cuts and usable continuations; callers remain OPEN. [Initial contention goals](#server-initial-contention) now bind literal actors/actions/results/caps; callers remain OPEN. [Impaired baseline capability](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) now binds one whole Jovian300/360s route, private topology/launch/endpoint and actual profile/budget observations. Missing callers remain Codex implementation; exact shared profile choices stay with the existing NET-ENDURANCE-DEFINE owner. | [Fixed baseline membership](#server-baseline-contract): original authority/two-client ordinary flight/dock/physical exit/reuse plus each explicitly named lifecycle/adverse terminal, accepted receipts reused once and final candidate qualified. Capacity/endurance are separate gates; source slices do not establish the whole parent. |
 | SERVER-BASELINE-SEAT-RACE | Original two moving occupants contend for one chair, transfer it, restore roles and fly again | 16,26 | Qualification | DONE99c9fc1af. Full original BOARD+seven MOVING; ordinary brake/accepted OFFLINE/helm release, supported contenders, same ready/go real Interact, one claimed winner/one seat_occupied loser and exact once-only toast. Ordinary winner stand/clear, original loser same-chair claim7→10/gen1, original pilot ownership1→3/claim2→5 and passengerclaim12, fresh consumed roles/renewed host>5m flight, complete handshake/all3actualOS0. Full451checks/170.190s/cleanlogs; independent source/raw review GO. Three caller failures retained; readiness/path/JSON corrections preserve all caps/goals/predicates. Four commits merged/pushed,66processidentities absent/811scratch entries verifiedremoved/resultsconsolidated; no taskbranch/worktree. Runtime unchanged/checkpointbcd268c retained; sourceLinux/privateXvfb only. Fullbaseline/endurance/exported/native/device/human and broader parents remain open. [Delivery](history/ROADMAP_DELIVERIES.md#server-baseline-seat-race--accepted--2026-10-24). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | SERVER-BASELINE-LATE-JOIN | Join after real departure, consume airborne state, board after actual docking and fly as crew | 26 | Qualification | DONE437fe903d. A ordinary authored pilotboarding/5.019m actualdeparture before Bprocess starts(+.158s); B HUDjoin/freshairborne craft/owner/pilotbody while unclaimed stationPlayer. Sole sampledlanding/strict actualhomeberth+lease+committeddock consumed byboth; originalpilotclaim2/gen1/bodyframe1/ownership1 preserved. B full17-waypoint authored walk/hatch/chair, fulltwo-seatBOARD+sevenMOVING/completehandshake/3actualOS0.303checks/225.667s/cleanlogs; independent source/rawGO. Two earlier callerfailures retained: soleowner noecho publication assumption and absentlandingtarget_id. Existingsolepilothelper beforeB/strictbroadcast after, realcanonicalentity/gen/landed/revision/tick/globalposition plusauthoredberth replace impossiblewirefield; no runtime/endpoint/capchange. Three commits merged/pushed;47ownedprocessidentitiesabsent/380scratch entriesverifiedremoved/resultsconsolidated; no taskbranch/worktree. SourceLinux/privateXvfb only, unchangedcheckpointbcd268c. Fullbaseline/endurance/othercontexts/exported/native/device/human remainopen. [Delivery](history/ROADMAP_DELIVERIES.md#server-baseline-late-join--accepted--2026-10-24). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | SERVER-BASELINE-PASSENGER-RECONNECT | Rejoined Halyard passenger physically obtains a fresh cabin berth/chair and flies again | 16,26 | Qualification | DONE109aca01f, Linux-source ordinary-input scope. Full original BOARD+7MOVING/actual native B loss/retirement/solo walk/same Player+adapter normal browser Manual Join/pilot actual return+strict original home dock/physical fresh berth+walk+separate chair/renewed real flight/3OS0 passes397 checks in171.746850s, zero diagnostics. Return7.29249s/dock6.23802s within original20/24; all original global/local caps unchanged. First171.149352s functional397 run rejected for3crew-role send errors; native-recipient guards repair exact engineer/gunner/passenger send paths,39real-ENet regression/fresh Windows checkpoint109aca0/strict startup1527inventory/review GO. Earlier compile failures and d2 unaccepted source remain archived; no clock reset. Package/native-device/endurance/capacity/final scope separate, no whole-parent closure. [Full result](history/ROADMAP_DELIVERIES.md#ordinary-passenger-reconnect-accepted-20261025). | Original BOARD+7MOVING→actual B transport loss/retirement/usable solo→same Player/adapter normal Manual Join→A actual input return/strict dock→physical standing-berth request/later chair→renewed flight/three OS0. No automatic old grant restore. |
