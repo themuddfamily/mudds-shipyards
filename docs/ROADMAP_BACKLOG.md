@@ -81,7 +81,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 17 | Complete remote engine and landing/dock presentation | `NET-POSE-DEFINE`, `NET-OPERATION-HUD`, `NET-THROTTLE-INSTRUMENTS`, `NET-FULL-SNAPSHOT` | Existing supported craft engine/throttle/hull/motion/landing consumers correct for current and late peers; preserve delivered330a39ce3 full-snapshot/power fixes; remaining explicit views/budgets/final-candidate proof only. [Network proof](#proof-network). |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | `HELM-EDGE-REPRO`, `HELM-EDGE-REPAIR`, `HELM-ACTIONS-DEFINE`, `CABIN-PASSENGER-ROLE`, `HELM-THROTTLE-REVERSE`, `HELM-YAW`, `HELM-PITCH`, `HELM-ROLL-RATE`, `HELM-BOOST`, `HELM-HOVER`, `INPUT-KBM`, `INPUT-CONTROLLER` | Each supported sampled HELM action has actual host effect, neutral release and required ordinary handback/usable controls; physical INPUT-KBM/CONTROLLER separate. Retain accepted reverse/pitch/roll/yaw/boost/hover and ordinary handbacks; physical-device/endurance/final-candidate scope remains open. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | `NET-STALL` | Retain accepted NET-STALL3d6b1b513 original600-step stalls/2s fresh actions/ownership/landing/reuse/cleanup. Relevant final-candidate/endurance profile verifies it through existing tests; no unchanged standalone rerun. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | `NET-JOVIAN-RETURN`, `NET-JOVIAN-ARRIVAL-CALLER`, `CABIN-PASSENGER-ROLE`, `NET-SECOND-LAND`, `NET-DOCK-DEFINE`, `NET-JOVIAN-PASSENGER-EXIT`, `NET-JOVIAN-DOCKED-PILOT-HOLD`, `NET-JOVIAN-PASSENGER-REBOARD`, `NET-JOVIAN-PILOT-EXIT`, `NET-JOVIAN-PILOT-RECLAIM`, `NET-JOVIAN-REDEPART` | Named supported craft/role actual strict landing, coherent dock, physical passenger/pilot exit/reboard/reclaim and renewed departure; distinct second landing only once demonstrated distinct. Retain accepted Jovian reuse; [network proof](#proof-network). |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | `NET-JOVIAN-RETURN`, `NET-JOVIAN-ARRIVAL-CALLER`, `CABIN-PASSENGER-ROLE`, `NET-SECOND-LAND`, `NET-DOCK-DEFINE`, `NET-JOVIAN-PASSENGER-EXIT`, `NET-JOVIAN-DOCKED-PILOT-HOLD`, `NET-JOVIAN-PASSENGER-REBOARD`, `NET-JOVIAN-PILOT-EXIT`, `NET-JOVIAN-PILOT-RECLAIM`, `NET-JOVIAN-REDEPART` | Named supported craft/role actual strict landing, coherent dock, physical passenger/pilot exit/reboard/reclaim and renewed departure; retain the distinct unresolved Halyard second-dock witness. Retain accepted Jovian reuse; [network proof](#proof-network). |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | `DAMAGE-DEFINE`, `NET-HULL-HUD`, `NET-HULL-INSTRUMENTS`, `HALYARD-PASSENGER-DESTRUCTION-RECOVERY`, `HALYARD-NETWORK-REPAIR-PANEL`, `HALYARD-NETWORK-ROSTER-PANEL` | All applicable actual hull/five-component damage/repair/destruction/regeneration and supported peer-role recovery; same owner as11, delivered Halyard/component/power cases retained. [Combat](#proof-combat)/[network](#proof-network). |
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | `CONVOY-ACTOR-DEFINE` | Existing Convoy tender/threat current/late/live/dead/reset/disconnect/solo-restoration cases use actual production actors, clean retirement and usable ordinary continuation; finite applicability first, [network proof](#proof-network). |
 | 23 | Qualify Torpedo Run authority and solo recovery | `COMBAT-TORPEDO`, `TORPEDO-AUTH-DEFINE` | Existing ten Torpedo authority/restoration cases, actual current/late airborne seeker adoption without launch replay, terminal retirement/no duplicate damage and usable solo recovery; PLAY-TORPEDO supplies ordinary clear/home once. |
@@ -3612,7 +3612,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HELM-BOOST | Sampled boost effect on authoritative flight and release | 18 | Qualification | DONE in isolated source70c8a65e5 scope: full ordinary three-process route147.183s including baseline/boost actual host14.65/19.45m/s² across equal30ticks, fresh release<0.36s, both actual replicas≤0.5m and full Interact handback/supported walk/owner0gen+1/source-capture retirement; all3OSexits0/zero runtime diagnostics. Synthetic sampled actions/loopback only; physical devices/native/endurance/final scope remains open. [Result](history/ROADMAP_DELIVERIES.md#sampled-remote-boost--full-handback-accepted--2026-10-25) | Sampled boost gives authored host flight effect; ordinary release/handback retires same confirmed source without stale demand. |
 | HELM-HOVER | Sampled hover correction on authoritative craft and release | 18 | Qualification | DONE isolated source524606903 scope: full ordinary three-process route157.438s, sampled pitch/forward creates tilt/climb; actual30tick hover tilt16.7403→6.1584deg/vertical13.5390→1.0482m/s matches authored damping/uprighting, fresh release313ms, both actual replicas≤0.5m and full Interact handback/supported walk/owner0gen+1/source-capture retirement; all3OSexits0/zero runtime diagnostics. Physical devices/native/planetary/endurance/final parent scope remains open. [Result](history/ROADMAP_DELIVERIES.md#sampled-remote-hover--full-handback-accepted--2026-10-25) | Sampled hover gives authored host correction; release/handback preserves honest controls and retires old demand. |
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | Qualification | DONE on3d6b1b513 current-source isolated Linux full original suite:160 terminal host assertions, both600-step stalls/original2s action checks, actual client/wrapper exit0 and zero diagnostics. [Result](history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted). No unchanged repeat; final-package/native/endurance and distinct ordinary moving-Halyard/other-action handback gates remain | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | Qualification | BLOCKED definition — Codex: identify the retained failed source/command, literal second-landing predicate and original route/cap; the old label “current return failure” is insufficient. Compare with failed331a9628b client-arrival and accepted4c9c764e9 strict Jovian return in [existing post-dock history](#supported-post-dock-exit-and-reuse-cases). No probe until distinctness is resolved. | One finite disposition: if the literal predicate is identical to an accepted case, cite that exact proof and close this duplicate within its scope; if distinct and original-required, record its exact source/command/second physical landing/lease/reuse endpoints and original cap before qualification. Missing retained artifact stays BLOCKED with its location/search boundary recorded. Post-dock stand/exit/reuse are not proved by4c9c764e9. |
+| NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | Qualification | [Distinct Halyard second-dock contract](#second-landing-witness-contract): source/predicate identified in a78c4d982/current remote-helm test; not the failed331a9628b/accepted4c9c764e9 Jovian first-return caller. BLOCKED retained-run binding — Codex: original failing commit, literal command/global cap and actual failure bundle remain unlocated. No fresh probe, duplicate closure or speculative clock repair selected. | Same unchanged Halyard first dock→physical exit/reboard→departure/lease retirement→second dock: exact berth occupant plus server landed within the retained source's6s bound, then generation greater than first landing, OFFLINE and usable second exit/reboard. Preserve historical failure as unexplained until its actual run/cause is established; first Jovian return cannot pass it. |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | Definition | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | Qualification | DONE on861c4d39b, merged2352d18c3: original full138.470s journey PASS clean, all seven physical route poses, same-player supported ground walk, legitimate passenger claim/body retirement, retained pilot and actual3peer exits0. Paired checkpoint861c4d3; exact-tip local/remote/tracking branch deletion and owned cleanup complete. Broader postdock reuse remains separate. [Acceptance](history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit-accepted-and-branch-closed--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-DOCKED-PILOT-HOLD | A still-owned remote pilot retains the committed authoritative dock pose/velocity | 16,20,26 | Qualification | DONE within accepted passenger-exit chain861c4d39b, merged2352d18c3. Pose322 regression PASS; final original138.470s three-peer journey retains exact committed home/pilot/source through supported passenger exit and actual3OS exits0, no diagnostics. Paired checkpoint861c4d3; branch/owned cleanup complete. Same integration and build as EXIT, not a separately counted delivery. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -4814,7 +4814,7 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | NET-POSE[one craft/operation] | ELIGIBLE; existing remote/craft-pose tests | Current and late peer see correct engine, station-frame pose and landing/dock presentation during one named operation. Use `network_remote_craft_pose_test.gd` / `network_craft_pose_station_frame_test.gd`; stop at operation. |
 | NET-HELM[one supported action] | ELIGIBLE; `network_remote_pilot_helm_test.gd` | Real sampled local input reaches supported remote helm action and handback without stale ownership. Stop at original action/recovery scenario; synthetic command-only checks cannot close input prerequisite. |
 | NET-STALL[existing host-stall route] | Current-source DONE3d6b1b513; final-package/native scope separate | Full original route passed both600-step stalls/original2s actions,160 terminal host assertions, actual peer/wrapper exits0 and no diagnostics. No unchanged repeat, clock/deadline relaxation or transfer to other ordinary/native/endurance gates. |
-| NET-LAND-DIAG[intermittent second landing] | DEFINE; original failure retained | One probe identifies the first failed boundary in second landing/reuse. Stop with owner/fix or blocker; no speculative clock rewrite. |
+| NET-LAND-DIAG[intermittent second landing] | [Halyard second-dock source/predicate bound](#second-landing-witness-contract); original failing run/command/global cap still unlocated | NET-SECOND-LAND owns this one historical case. Do not rerun the broad remote-helm suite or substitute Jovian first-return proof while the exact original failure input is missing; no speculative clock rewrite. |
 | NET-DOCK[one craft] | GATED on relevant fix if needed | Remote landing/dock, ordinary disembarkation, reboard and repeat departure succeed. Stop at one craft's existing route. |
 | NET-DAMAGE[one craft/role scenario] | ELIGIBLE; existing damage/respawn integration tests | Peer presents hull/component damage, repair, destruction and regeneration coherently, then returns to usable role/craft. Stop at one scenario; preserve authority and ownership. |
 | NET-ACTOR[one channel/lifecycle] | ELIGIBLE for implemented channel | Convoy, Torpedo Run, Picket or Emberline instance covers its named travelling actor/projectile live/dead/reset, late join, disconnect or solo-restoration boundary. Use existing authority/Emberline tests. Stop at one lifecycle case, then schedule uncovered cases separately. |
@@ -6150,12 +6150,82 @@ rows retain those requirements; no native/human gate is closed here.
 
 ### Supported post-dock exit and reuse cases
 
+<a id="second-landing-witness-contract"></a>
+
+**NET-SECOND-LAND is a distinct historical Halyard case.** Its owner is
+`tests/network_remote_pilot_helm_test.gd`, extending
+`in_flight_cabin_integration_test.gd`, with `SHIP_ID=halyard_new_design`.
+Commit `a78c4d982` retains `SECOND_DOCK_HOST_TRACE` around an existing
+second-generation predicate; `6092a52` subsequently narrows the occupied-berth
+departure fix. Neither commit identifies the original failing run by itself.
+The [retained source history](MOVING_INTERIOR_LATENCY.md#earlier-bounded-command-clock-recovery-checkpoint--2026-10-08)
+and its later seated-repeat-takeoff discussion explicitly leave the earlier
+second-landing cause unproven. Passing later instrumented checks do not explain
+an intermittent failure or authorize a clock/admission-limit change.
+
+| Fixed route boundary | Literal retained-source contract |
+| --- | --- |
+| Establish first life/return | Preserve first committed landing generation, exact hull, pilot, berth and lease through actual pilot exterior exit/reboard. |
+| Repeat departure | Real throttle departure retires the occupied berth and returns flight. Before the next approach, host consumes the exact neutral stream/sequence with throttle0 within2s. `_place_remote_approach(berth)` is an explicit approach-placement fixture, not ordinary uninterrupted travel. |
+| Second physical landing | Host publishes reuse_redock, peer publishes reuse_redock_pressed. Within6s, `berth.get_occupant() == _craft` AND `_server.get_landing_entity(SHIP_ID).state == landed`; then `entity_generation > first_landing_generation` on the same unchanged hull. Failure before generation commitment is the described historical witness. |
+| Second exit/reuse | Engine becomes OFFLINE within6s; second confirmed exterior exit releases only pilot while exact berth stays occupied; same peer reboards through actual cabin/cockpit inputs. These continuation predicates do not turn the staged approach into an ordinary whole journey. |
+
+**Why331/4c is not this witness.** The separate
+`tests/network/jovian_network_two_client_return_test.gd` frozen contract uses
+one landing pulse after its first departure/brake and explicitly excludes a
+second sortie. Failed source331a9628b physically docks at
+`jovian_freight_berth`, committed generation1/valid lease/zero dock error and
+speed, then fails the5s client arrival check. Source4c9c764e9 changes only the
+client ownership reader to its received ownership section and checks original
+ship/ownership generations; accepted full return138.915s follows. Its limits
+request8s/physical120s/client5s/total300s/outer360s do not replace this Halyard
+case's6s second-dock predicate or establish its missing global cap.
+
+Root inspected the retained331 failure and4c repair terminal/route summaries in
+`/srv/mudds-work/jovian-return-fixed-input-20261018/results/` and `repair/`:
+actual FINISHED/exit1 then FINISHED/exit0, respectively. These are existing
+artifacts, not new runs. Current Jovian post-dock redeparture ends flying/stopped
+after renewed departure; it does not add a second landing to that proof.
+
+**Exact missing input, owned by Codex:** recover the original failed source
+commit, executable command/environment, global/outer cap and original host/peer
+failure bundle tying an actual failing run to this Halyard second-generation
+assertion. Source ancestry and current positive assertions supply the owner and
+literal endpoint, not that failed-run identity. The documented
+`/root/.cache/mudds-shipyards/roadmap-validation/clock-recovery-witnesses/`
+directory refers to later stall failures and is not proven to be this bundle;
+it and the repo-relative equivalent are absent in this environment. No matching
+second-land/second-dock/clock-recovery/repeat-takeoff/6092a52/a78c4d9 immediate
+directory exists under `/srv/mudds-work/`. This is the recorded bounded search,
+not proof that all original evidence was destroyed or permission for a broad
+filesystem hunt. The expected `builds/windows/MuddsShipyards-6092a52-notes.txt` is absent.
+
+Do not call the row DONE, merge it into NET-JOVIAN-RETURN, rerun the broad
+remote-helm suite, create a relabelled reproduction or infer a clock defect.
+Once the exact original inputs are recovered, preserve its failure/costs and
+bind one bounded causal comparison before any execution. The older unknown
+witness, current-source qualification and native/ordinary journeys retain
+separate truth states. NET-DOCK-DEFINE and accepted Jovian reuse remain closed
+in their existing source-specific scopes; NET-SECOND-LAND stays open.
+
+Definition selection2026-10-27 began14:32:17UTC; estimate20minutes including
+read-only source/artifact review/docs/checks/commit/push/cleanup; hard stop
+14:52:17UTC. Root owns this document/Git and named artifact inspection; one
+read-only agent binds historical source predicates. No engine/probe/package/
+device/CI run, branch/worktree/scratch or new evidence family is selected.
+All337 identities/order and prior PLAN-NEXT costs/attempt limits are preserved.
+Independent source review passes with source-contract wording distinguished
+from the unlocated failed invocation. Canonical identities/order, anchor/links,
+whitespace and byte-identical a78/current second-dock/generation/OFFLINE
+assertion checks pass. This resolves distinctness and source ownership only;
+the exact original failed-run inputs remain unavailable, not waived.
+
 NET-DOCK-DEFINE is DONE as a source definition only; parent20 and full multiplayer
 qualification remain open. Accepted4c9c764e9 ordinary Jovian return took138.915s
 and proves strict physical home docking plus both clients consuming retained
 arrival, with original pilot/source/ownership and seated generations. It proves
 no post-dock stand, exterior exit or reuse. Keep failed331a9628b client-arrival
-history and NET-SECOND-LAND's distinctness gate; neither is a new docking task.
+history and the distinct Halyard NET-SECOND-LAND witness; neither is a new docking task.
 
 The finite pilot candidates are Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark,
 Cinder Light Interceptor, Cinder Cargo Hauler and Cinder Long-Range Bomber. For
