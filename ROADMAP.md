@@ -162,6 +162,13 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**Selected — busy exterior-exit interruption release support.**
+Extend the existing runner for accepted/refused save publication during an actual
+exit, owned kill and distinct safe restart with conserved progress. Scripted
+setup is disclosed; installed/full ordinary qualification stays open.
+[Finite production-tool contract](docs/ROADMAP_BACKLOG.md#busy-exterior-exit-interruption--frozen-2026-10-27).
+Original03:00→04:30UTC budget includes checks/export/integration/cleanup.
+
 **PARKED — full varied encounter capture times out with no images.**
 The one independently reviewed wrapper correction works: fresh import passes
 22.169s. One unchanged18-frame1600x900/Forward+/llvmpipe capture then exits124

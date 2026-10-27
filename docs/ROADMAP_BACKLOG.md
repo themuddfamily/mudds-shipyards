@@ -4682,6 +4682,66 @@ or missing owner decision was established. All original recovery promises,
 parked failures and native/device/human/final-release gates remain open.
 No automatic qualification or repair successor is selected.
 
+### Busy exterior exit interruption — frozen 2026-10-27
+
+Selected DOCK-EXIT-RECOVERY-CUT member: executable release-driver support for
+accepted and refused busy-exit publication. This does not close installed/final
+or complete ordinary journey acceptance. Production recovery policy is settled;
+no game authority or save schema change is selected.
+
+- Start: clean source after this card; owned branch/worktree under
+  `/srv/mudds-work/busy-exit-recovery-20261027/`; fresh independent private
+  HOME/XDG profiles per outcome; pinned standard4.7.1 engine
+  `/tmp/mudds-tools/godot-4.7.1/godot`. Headless/Dummy only.
+- Ownership: implementation only `scripts/game/startup_loader.gd`,
+  `scripts/diagnostics/in_world_interruption_probe.gd`,
+  `tools/release/run_package_probes.sh`, `tests/startup_cli_privacy_test.gd`.
+  Root owns this card, ROADMAP.md, delivery history and integration/cleanup.
+- Result: existing runner accepts `PACKAGE_PROBE_RECOVERY_CONTEXT=exit` and
+  `exit_refused` only with existing Convoy interruption/headless/Dummy safety.
+  Existing `docking` and ordinary startup remain unchanged.
+- Setup: reuse disclosed existing escort/approach fixture: actual Bulwark pilot,
+  first real Convoy payment1, second Convoy failed by real home landing; exact
+  occupied home/OFFLINE/pilot preference before exit. No injected recovery record.
+- Cut: invoke existing `_try_exit_ship`; synchronously observe actual busy
+  DISEMBARKING before its canopy await completes, then pause. Accepted store
+  changes only `solo_safe_recovery` to exactly `{mode:unavailable}` with one
+  generation advance, prior primary becomes backup. Refused sibling first creates
+  an owned empty actual `.tmp` directory; real commit refuses, exact primary/backup
+  bytes/generation/pilot preference remain, retry is scheduled. Remove the owned
+  blocker while paused before READY; no subsequent orderly save before kill.
+- Protect: exact pre-exit Convoy terminal record, reward ledger/credit1, debt,
+  settings and all unrelated payload fields remain unchanged at publication and
+  cold continuation. Runtime session diagnostics/crash markers use only their
+  existing lifecycle deltas; enumerate those in runner rather than exempt data.
+- Restart: runner reads real disk independently, kills/reaps its actual ready game
+  as-9, preserves paused file bytes, starts distinct normal Boot. Accepted case
+  Resume/Begin Shift yields supported controllable station fallback, no old seat/
+  hatch/transition; ordinary held forward24physics ticks moves>0.1m on real floor.
+  Refused case restores a fresh Bulwark home pilot/seat/hatch, accepts ordinary
+  forward throttle>0/ONLINE after two physics frames. Preserve paid1/failed second
+  run throughout; no new reward needed to prove preservation. Close both existing
+  clean markers and actual OS0 through existing release-driver shutdown path.
+- Proof: existing privacy suite admits only safe selectors and rejects conflicting
+  modes; smallest existing runner checks plus source accepted/refused cut pairs.
+  From clean candidate, one private Linux export; strict actual archive startup
+  exit0/exactone STARTUP_MENU_READY_OK, then both pairs using embedded executable
+  (`run_package_probes.sh --in-world-interruption --native-export`, activity Convoy,
+  exact PACKAGE_PATH and new context). No external-script override establishes
+  package support. Each pair uses fresh result/profile paths and actual-byte hashes.
+- Limits: existing300s independently for arm and restart; original landing/walk/
+  boarding frame limits retained, no rendered automation. Independent supervisor
+  kills/reaps owned children; release any held input on all terminal paths.
+- Budget: selection charged03:00UTC2026-10-27, estimate75minutes including checks,
+  export/review/integration/cleanup, hard04:30UTC; reserve final15minutes closure.
+  Source ready03:40/export launch by04:00. First unexpected failure ends the task;
+  no automatic correction/retry or cap increase. Any proposed continuation needs
+  demonstrated cause and independent cumulative-priority review on this same clock.
+- Closure: integrate/push only accepted capability; archive unique rejected source,
+  raw results and remove owned branch/worktree/process/scratch. No duplicate public
+  gameplay checkpoint for diagnostic-only release support; actual private export
+  proves executable support. Native/device/human/ordinary/installed/final gates open.
+
 ### Settled docking recovery contract
 
 RECOVERY-DOCK-DEFINE is DONE as a source definition on86d0e4593. No engine
