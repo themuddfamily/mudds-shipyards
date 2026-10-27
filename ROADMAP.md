@@ -76,6 +76,9 @@ is a specific runtime gap; the failed shared writer and overflow choice stay ope
 [Reduced-flash ordinary actions](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations)
 now bind all17 existing families to real triggers/readbacks and name missing
 callers, including the atmospheric Arrow HUD feed. Execution remains open.
+[Halyard/Hauler/Bomber contacts](docs/ROADMAP_BACKLOG.md#crew-cargo-bomber-contact-budget)
+now have explicit component/hull budgets and recovery predicates. Their actual
+obstacle/control routes and earned fatal-damage schedules remain unbound.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
