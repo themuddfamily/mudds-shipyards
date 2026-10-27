@@ -161,6 +161,10 @@ now bind two complete voyages in the same live three-peer session,ordinary
 home reboarding and fresh visit ownership. Ember earns a distinct repeat-survey
 reward;Aurora/Rime retain their one-time paid surveys. The ordinary two-visit
 caller and full qualification remain open.
+[Solo edge goals](docs/ROADMAP_BACKLOG.md#solo-world-edge-cases) now name
+the existing cancellation,refusal,cold-failure and repeat actions and their
+conserved outcomes. Native callers and safe lifecycle-rescue settlement remain
+production work;durable/repeat aggregate inputs stay with their existing owners.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
