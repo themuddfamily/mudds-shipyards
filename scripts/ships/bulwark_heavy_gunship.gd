@@ -2533,6 +2533,11 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 		return selection
 	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
 		return _crew_role_result(false, &"role_cooldown")
+	# An empty magazine cannot begin another charge or leave a completed old
+	# charge masking the existing AMMUNITION EMPTY console feedback.
+	if int(_gunner_role_ammunition.get(actor_key, 2)) <= 0:
+		_cancel_gunner_charge(actor_key, &"ammunition_depleted")
+		return _crew_role_result(false, &"ammunition_depleted")
 	if not _gunner_role_charges.has(actor_key):
 		var component_state := _get_gunner_component_operational_state()
 		if not bool(component_state.get("available", false)):
