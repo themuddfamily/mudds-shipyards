@@ -53,14 +53,14 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Latest delivery — bundled material attribution.** The
-[checkpoint rights binding](docs/ROADMAP_BACKLOG.md#bundled-rights-checkpoint-contract)
-now identifies actual shipped asset families and the two previously omitted
-external scan sources. In-game Credits and ASSETS.md are corrected; old production
-reproduces three attribution failures, corrected source passes28 checks, and the
-packed catalogue, paired exports, strict startups and full artifact audit pass.
-Project release terms and exact final-candidate notice qualification stay open.
-This is a player-visible correction, not blanket rights or project completion.
+**Latest resolved field — physical browser controls.** The
+[controller contract](docs/ROADMAP_BACKLOG.md#browser-controller-contract) now
+fixes the one-guest pad/focus route, tutorial dismissal, live Disconnect→enabled
+Retry result, exact retired-session fields and usable solo return. Existing
+synthetic fixtures cannot qualify a physical controller. The physical-guest
+caller and actual device/session/candidate binding remain open. No engine or
+physical input ran for this definition. The shipped material-credit correction
+and current checkpoint remain accepted in their recorded scope.
 
 ## How we will work from this roadmap
 

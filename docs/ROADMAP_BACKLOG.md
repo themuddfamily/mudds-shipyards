@@ -3629,7 +3629,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-STALE | Stale session ordinary browser route | 25 | Capability | DONEca149d6 scoped source InputEvent/LAN production behavior. Explicit30s engineering default from last valid reply, paused monotonic expiry, exact LAN row/endpoint retirement and stalejoinpreflight beforeintent/rolechanges. Natural actualexpiry30.003631s; zero staleintents/admissions; honestexpiredUI/Retryfocus, actualRetryrediscoverssamehost, originalPlayerfreshjoin and4supportedwalks/normalDisconnect+soloreturn. Whole314checks/116.907s, twoactualOS0/zero diagnostics; focusedLAN42/expiry8/default7/presenter83/HUD40 pass. FreshcleanWindowsEXE/ZIP/notes, strictpayloadmenu startup0/sentinel1/zero diagnostics,1527-entry inventory/stockPEtext/exactZIP, independentruntime+packageGO andownedcleanup. Existing abstract30ticks hasno seconds mapping; optionaldurationpreference isnotapproval. Originalcaps/90mininclprior10 preserved; no failures/retries. MatchingLinuxca149d6 is now separately startup-qualified with exact Windows payload parity; no packagedordinary/native/device/capacity/endurance/finalqualification claim. [Delivery](history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted--2026-10-25). Separately parked unreachable route is not replayed. | [Ordinary browser](#proof-network): Select a frozen expired session row → no admission → terminal stale/unavailable feedback → usable refresh/retry/back. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | BROWSER-FULL | Full session ordinary browser route | 25 | Qualification | DONE e39653cf in source InputEvent/LAN UI-refusal scope. Real one-slot host+authenticated occupant; third Main sees actual1/1 FULL row, ordinary pointer press/release reaches disabled UI and creates zero activation/join/admission. Real Refresh advances directory1→2; Back/Begin Shift retains same supported Player for1.002774m walk/12neutral ticks. Original occupant stable; host counts0→1→0, all3 actual OS exits0, coordinator209 checks/125.781s/zero diagnostics. First121.373s coordinate failure retained; one caller-only final-transform correction, no runtime/cap change. Independent source/raw GO, pushed main/local task branch+owned scratch cleaned. No transport-refusal or release-capacity claim; package/device/native/endurance/final gates remain separate. [Exact scope](history/ROADMAP_DELIVERIES.md#browser-full-ui-refusal-accepted-20261025) | [Ordinary browser](#proof-network): Select a genuinely full session → refused admission with accurate full feedback → usable alternative/retry/back. Admission fails this goal. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | BROWSER-UNREACHABLE | Unreachable endpoint ordinary browser route | 25 | Qualification | OPEN as a whole. Separate silent/no-answer source case DONE bd61da07: real bound non-answering UDP endpoint, paused native CONNECTING attempt naturally times out at 5,005 ms; visible timeout/current fenced Retry, complete retirement; actual Retry creates fresh native attempt, prompt Cancel closes it, same guest Main/Player then joins independently matched live Main host as 1079334082/gen1. Four supported 1.002774 m connected/solo walks, 12 neutral ticks/zero drift, 522 passive samples, host counts 0→1→0 and both actual OS exits 0. Whole source/InputEvent/Xvfb/Dummy route 335 checks/92.784 s/zero diagnostics; initial 1.280 s parse failure preserved, one reviewed explicit-bool correction; source/cache/pin guards and cleanup pass. No runtime change or identical export. SEPARATE reachable-ENet/non-admission packaged route e944f52 remains PARKED at timeout native-cache diagnostic, source under archive/withheld/browser-release-cache-20261020; no causal runtime fix or replay. Package/device/native/controller/capacity/endurance/final gates open. [Source-case result](history/ROADMAP_DELIVERIES.md#browser-no-answer-source-accepted-20261025). | [Ordinary browser](#proof-network): Attempt the frozen unavailable endpoint → existing bounded terminal failure/no admission → no surviving session owners → usable retry/back. Preserve parked failure and original deadlines. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
-| BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | Qualification | GATED; chosen candidate/scenario, delivered UI fixes retained. BLOCKED definition — Codex: bind existing controller buttons and expected focus/action for discovery, selection, admission, gameplay, Disconnect and browser return; name participants, endpoint, route/command, count, original deadlines and terminal exits. BLOCKED input — user only if unavailable: actual supported controller/backend and isolated-session access. Synthetic events do not satisfy the physical-device result. | [Ordinary browser](#proof-network): Actual physical controller discovers/selects a live session, joins usable gameplay, disconnects and returns to enabled browser/menu focus; freeze existing required buttons before execution. Synthetic input does not qualify. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
+| BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | Qualification | [Literal physical-browser contract](#browser-controller-contract) now fixes host/one guest, pad0/1/6 and stick actions, title/Refresh/discovered-row/Begin Shift/tutorial/pause/Disconnect/Retry/solo-return focus path, exact live retired-session fields, walks and original D3 limits. Source binding only; no engine/device run. BLOCKED executable caller—Codex: physical rendered-guest mode in the existing one-guest harness, using passive receipts without synthetic focus/input, plus actual candidate/endpoint/device/backend/session binding. Actual supported controller and dedicated session are input requirements; source inspection does not prove they are unavailable. Existing delivered fixes and synthetic/component scopes stay closed; physical result remains NOT_RUN. | [Literal physical-browser route](#browser-controller-contract): one actual supported physical controller discovers/selects the matching live host, joins usable gameplay, disconnects into enabled RETRY CONNECTION with exact retired ownership, then Refresh/Back/Resume and usable solo walk; keep original limits and actual device/candidate proof. |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | Qualification | DONE035fa2f scoped Linux-source InputEvent/LAN ordinary route: complete normal first join/walking/Disconnect/old transport+authority retirement/solo/fresh Refresh+authenticated rejoin/second connected walking/second retirement/final solo+hoststop. Both original Players retained; matched tuple659889361/1→514425711/2; hostcounts0→1→0→1→0, seven supported walks1.002774m with12neutral ticks each. Whole510checks/88.888s, actual2OS exits0/zero diagnostics. Both earlier caller failures retained; normalized identity fields and actual pre-assert observation, no runtime/cap change. Independent source/raw GO; integrated/pushed and owned cleanup. Original75min08:15:10Z clock includes intervening package task. Package/device/endurance/capacity/final gates remain open. [Accepted result](history/ROADMAP_DELIVERIES.md#browser-disconnect-rejoin-accepted--2026-10-25) | [Ordinary browser](#proof-network): Join an actual live session → ordinary Disconnect → old transport/authority retired → usable browser → fresh successful admission and usable gameplay. No stale session reuse. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | Qualification | DONE ed29733 in Linux-source InputEvent/Xvfb/Dummy scope. Two actual native CONNECTING attempts to the settled owned UDP non-answering endpoint are cancelled through ordinary UI; both peers closed, pending identities/deadlines and authority cleared. Same guest Main/Player then discovers and joins actual live Main host as matched 848552394/gen1 using a fresh native peer. Passive guard passes 270 samples; four supported 1.002774 m connected/solo walks, 12 neutral ticks and zero drift; host counts 0→1→0, both actual OS exits 0. Complete route 351 checks/86.223 s/zero diagnostics. First 82.671 s failure retained: obsolete disabled/Back assertion conflicts with current enabled Retry Connection contract; one reviewed caller-only correction passes original limits. Independent raw/source review GO, owned processes/scratch cleaned. Game code unchanged; no identical checkpoint export. Package/device/native/capacity/endurance/final gates remain open. [Delivery](history/ROADMAP_DELIVERIES.md#browser-cancel-reuse-accepted-20261025). | [Ordinary browser](#proof-network): Begin an actual pending connection → ordinary Cancel before admission → transport/owners retired → usable browser → fresh successful join. No later callback admits the cancelled request. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | Definition | Definition DONE; Halyard BOARD accepted4bc0e3b38, full original MOVING-CABIN accepted2e117e64f. AUTHORITY-STOP accepted082da79c9 with real host shutdown/client recovery after full moving prefix; complete server baseline remains open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -4824,6 +4824,140 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
+
+<a id="browser-controller-contract"></a>
+
+### Browser controller — one guest's complete menu and usable return
+
+**BROWSER-CONTROLLER source binding2982b73a8; physical qualification OPEN.**
+Definition allocation starts2026-10-27 13:13:31UTC, estimate20minutes/hard
+13:33:31UTC including source review/docs/checks/commit/push/cleanup. Root owns
+the roadmap documents; one read-only agent binds controls/focus and existing
+fixture scopes. No engine, physical device probe, rendered session, network run
+or parked retry is selected. This reuses the existing one-guest gameplay route,
+not a new browser/craft matrix or final capacity decision.
+
+**Participants and initial state.** One actual host and one independently
+authenticated guest, same frozen candidate/protocol, fresh guest profile, one
+compatible non-full advertised host on the isolated test LAN. For a manually prepared host,27101 is the existing UI default; the existing
+independent host fixture instead chooses26000+coordinatorPID%15000. Bind the
+actual advertised session_id/address/port before the guest selects its row;
+do not send a fixture guest to an assumed27101 endpoint. The physical controller belongs to the guest's dedicated test session;
+do not allow a second local GUI instance to consume the same physical pad.
+Host can use the existing isolated host fixture or a separate test machine.
+Bind actual host/guest PIDs or machine/session IDs, package SHA, controller model/
+GUID/backend/mapping and private profiles/results before execution. No additional
+completed craft journey is a prerequisite; the matched live host and physical
+device/session are required inputs. Current checkpointf0d6796 is available, not
+an automatically selected physical/final candidate.
+
+**Literal default controls.** Project ui_accept=pad button0 (south/A/Cross),
+ui_cancel=button1 (east/B/Circle), pause=button6 (Start/Options). Forward/backward
+are left-stick Y axis1 negative/positive. Accept/cancel deadzone.5;
+movement/pause.18. ui_up/down/left/right use the pinned engine's inherited menu
+actions; existing synthetic fixtures use D-pad Up11/Down12. The physical backend
+must actually map those actions; a synthetic event is no proof of that mapping.
+Use distinct physical press/release edges for menu taps and return the stick to
+neutral after walking; no arbitrary synthetic hold timing is substituted.
+[Explicit bindings](../project.godot#L36),
+[physical action identities](../tests/control_mapping_test.gd#L462).
+
+| Ordered action | Expected actual focus, state and result |
+| --- | --- |
+| Cold title: Down, Accept | Initial focus IntroBeginShiftButton; Down reaches IntroServerBrowserButton; Accept opens ServerBrowserPage with ServerBrowserRefreshButton focused. |
+| Accept Refresh; wait for discovered host | Actual refresh intent/response, current compatible host row becomes visible/enabled within existing10s discovery bound. Focus stays Refresh; receiving a result does not choose it automatically. |
+| Up from Refresh; Accept intended host row | Enabled session rows are spliced ClearSort→rows→Refresh, so Up reaches the last enabled row. This one-host profile has one eligible row. Identify its metadata session_id/advertised endpoint; row Buttons have no stable authored node name. Accept emits the real discovered-row join and reaches authenticated admission within20s. Full/disabled rows are outside navigation. |
+| From the retained one-host row: Down to Refresh, Right four times to Back; Accept, then Up; Accept Begin Shift | Joining alone does not start gameplay. The connected session action remains in the horizontal graph. Back closes the title browser and focuses IntroServerBrowserButton; Up reaches IntroBeginShiftButton. Accept exposes non-INTRO playable Main. If the fresh-profile first-sortie tutorial is visible, its initial focus is RuntimeStatusNextButton. Right twice traverses RuntimeStatusRepeatButton→RuntimeStatusDismissButton; Accept dismisses it. Do not replace those taps with signal emission. |
+| Guest connected walk and neutral | Real left-stick forward produces the existing≥1m supported walk within5s. Release/neutral for12 physics ticks: displacement≤.02m, no held menu input. Host observes this admitted guest's current identity and actual gameplay; no staged position or synthetic movement. |
+| Start, Down twice, Accept | Pause focuses ResumeButton; Down traverses SettingsOpenButton then ServerBrowserButton. Accept reopens browser. Confirm actual retained focus; use its linked D-pad graph to reach Refresh if necessary rather than grab_focus. |
+| From Refresh: Right three times, Accept | Horizontal actions are Refresh→Host→ManualJoin→Disconnect/Cancel/Retry→Back, excluding unavailable session action. In connected state the third Right focuses ServerBrowserDisconnectButton labelled DISCONNECT. Accept emits network/disconnect and invokes shutdown_network_session(ui_disconnect). |
+| Observe live disconnected browser | The browser stays open. Its same session-action node remains enabled/FOCUS_ALL, labelled RETRY CONNECTION, selected action retry. Session is disconnected/retryable without error, old accepted source tuple is retired, transport/offer/admissions empty. Generic disconnected-without-retry fixtures' disabled button/Back focus are not this pass condition. |
+| Refresh, Back, Resume via D-pad/Accept | From available Retry use Left three times to Refresh, Accept refresh, then traverse the finite horizontal actions to Back and Accept. Pause main focuses ServerBrowserButton; Up twice reaches ResumeButton, Accept resumes. The guest can now walk backward≥1m within5s and settle12 neutral ticks with≤.02m drift in usable solo state. No readmission or automatic Retry is part of this case. |
+
+In the table, Back is the actual `ServerBrowserBackButton`, and Resume is
+`ResumeButton`; these are widget identities, not newly invented actions.
+
+The complete vertical graph is Address→Port→PlayerName→CompatibleOnly→NotFull→
+NoPassword→Latency→ClearFilters→SortKey→SortDirection→ClearSort→enabled session
+rows→Refresh→Host→ManualJoin→available Disconnect/Cancel/Retry→Back; endpoints
+clamp. This case requires no controller text-entry method: use discovery, retain
+default valid player name and do not replace the row action with Manual Join.
+B or Start in the browser closes it to its owning title/pause page. B on pause
+main does not resume; Resume/Accept or Start supplies the actual continuation.
+[Browser build/focus/actions](../scripts/ui/hud.gd#L7167),
+[title return](../scripts/ui/hud.gd#L7376),
+[session action](../scripts/ui/hud.gd#L7429),
+[live Begin Shift](../tests/network/game_flow_server_browser_integration_test.gd#L1344) and
+[tutorial Next→Repeat→Dismiss focus](../tests/first_sortie_tutorial_hud_integration_test.gd#L93).
+
+**Walking observations retain the full existing check.** Before each connected/
+solo walk, allow≤5s for supported neutral input and velocity≤.05m/s. The walk is
+projected onto camera-yaw forward/back:≥1m within5s and peak planar speed>.1m/s.
+After release, allow≤5s to settle at velocity≤.05m/s, then observe12 consecutive
+physics ticks within5s, each velocity≤.05m/s and net drift≤.02m. Across every
+sample preserve the original Player PID/object_id/path, support/collider,
+control/camera/capsule/process state and current authentication/grants. Connected
+and post-disconnect authority snapshots are distinct and remain fixed within
+their own walk. Do not count a moved transform without these retained values.
+[Existing sampler](../tests/network/game_flow_server_browser_integration_test.gd#L1488).
+
+**Exact network terminal observation.** Reuse the existing
+[_live_browser_retry_observation/_ready](../tests/network/game_flow_server_browser_integration_test.gd#L1369)
+fields: source session ID equals GameFlow and retired session ID; source generation
+and sequence are positive and equal the retired tuple; GameFlow generation matches,
+retired=true, active source ID empty/generation−1/sequence−1. For explicit UI
+disconnect, GameFlow sequence=retired sequence+1. selected_action=retry,
+action_focusable=true, button_visible/enabled=true, button_text=`RETRY CONNECTION`,
+button_focus_mode=FOCUS_ALL, session_active=false, offer_empty/admissions_empty=true.
+Host must also retire guest admissions/body/seat/helm claims. Record operand values,
+not a compound boolean with missing observations.
+
+**Existing commands and scope.**
+`tests/network/game_flow_server_browser_integration_test.gd` with user argument
+`--live-menu-one-guest-gameplay` runs the corresponding independent-Main route.
+It stages text, calls grab_focus and injects InputEventAction acceptance/movement;
+it does not qualify physical pad traversal. The default script mode runs a
+different source fixture, not that selector. Its original D3 bounds are outer300s,
+coordinator230s, cold Main60s, UI availability/activation5s each, host responder10s,
+discovery10s, authenticated admission20s, host observation of join50s/departure20s,
+receipt handoffs20s, guest completion100s/host30s; exit/reap/display10s each. Keep
+these existing route/cleanup limits when supplying the physical caller; no longer
+whole-route cap is authorized by a controller label. Stop on first failure.
+Detached `server_browser_focus_navigation_test.gd` checks graph/rebuild/scroll;
+`controller_pause_navigation_prompt_test.gd` injects joypad events into a detached
+HUD. Their300s/default limits and source markers remain their own scope, not a
+physical-device result. None ran for this definition.
+
+**Missing executable capability—Codex.** Supply the existing one-guest harness
+with a rendered physical-guest mode that observes the above ordinary controller
+actions/current focus/network/walk results without grab_focus, Input.action_press,
+Input.parse_input_event or button.pressed.emit driving the guest. Reuse existing
+read-only receipts and host isolation; keep independent abort, release/reap all
+owned inputs/peers/displays, and actual OS0/zero diagnostics. No such physical-mode
+command exists in the inspected current selector/peer dispatch. One complete
+journey on a frozen actual device/candidate is the named case; it does not qualify
+all controllers or final release capacity. Further repetitions require their
+own original requirement, not an invented reliability count.
+
+Actual supported controller/backend and dedicated rendered-session access remain
+unbound physical inputs; record the owner/access if unavailable, without claiming
+that source inspection proved absence. Physical observations and the executable
+physical-mode caller remain NOT_RUN/missing. No automated run may take the user's
+active desktop or focus without explicit authorization. This binding resolves
+the source controls/endpoints; BROWSER-CONTROLLER and PLAN-NEXT remain OPEN on
+their remaining caller/device/candidate fields. Do not repeat this focus inventory.
+
+Source controls/endpoints accepted13:24UTC after independent review fixed the
+one-row Back path, complete settle/neutral walking criteria and dynamic fixture
+port distinction. The first source/document check found the literal Back widget
+name missing from the prose; one allowed correction supplies it, and the same
+checks now pass. All337 identities/order, source links/line targets, explicit
+controller mappings, live Retry tuple and existing route selector are verified;
+`git diff --check` passes. Matrix `--list` exits0/selects exactly the three
+existing headless source suites; no engine/fixture/device run. About10.7minutes
+through review/checks; push remains within original13:33:31 hard stop. No branch,
+worktree, game process or retained scratch created. Physical-mode implementation
+and actual hardware qualification remain missing; PLAN-NEXT is not complete.
 
 ### LAN discovery while paused — NET-BROWSER-PAUSE
 
