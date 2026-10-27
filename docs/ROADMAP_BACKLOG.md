@@ -3589,12 +3589,12 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | Capability | DONE; 2c73494a4, consumer40/ship_command79, component-staged scope | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | Qualification | DONE;4c9c764e9 original route138.915s, failed331 arrival attempt retained | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | Qualification | DONE;4c9c764e9, original pilot/ship/ownership generations, all peers exit0 | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual selected component repair with conserved kit and observed elapsed progress, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
+| ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. BLOCKED definition/implementation (Codex): actual elapsed-progress observation, moving/return/refusal, active-work loss/handback, exterior route and whole caller/limit. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
-| ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | Local source route and one actual52damage DONEc28f7ffa3; independent authenticated remote-role lifecycle remains GATED on supported candidate/ordinary route. Original fixtures and broader networking/native limits retained. BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual gunner target damage, release and physical reseat; retain local52damage proof, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
+| ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. BLOCKED definition/implementation (Codex): moving remote gunner with actual target damage, exact loss/physical handback/exterior endpoint, whole caller/limit and selected candidate. Existing runtime remote binding is present; no defect or new retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary Halyard manifest producer/payload, action/moving/loss observer and whole-route limits still require binding. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
-| ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): physical gunner aim/fire causing registered target damage and release/reseat, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
+| ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED definition/implementation (Codex): actual moving remote-role/return/exterior/loss caller, whole limit and final candidate, retaining all parked requirements/costs. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, remapped FIRE sensor hint, authenticated request feedback, clear/reseat/migration/disconnect and in-process recovery. Reuse accepted c2c72a223 refusal journey, not another unchanged run. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit. No additional role/craft combination. | [Literal Navigator endpoint](#cinder-crew-contract): current authenticated chair FIRE produces cinder_navigator_console sensor hint, requester-only feedback for every fresh authenticated rejection, clear on release and usable handback. Navigation hints confer no movement/cargo/combat authority; bind remaining ordinary moving/exit/recovery cases before execution. |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | Container | Membership/commands FIXED by [the five existing proof owners](#final-seat-ledger--fixed-case-ownership); GATED on exact final candidate and its original source-matrix/ordinary race results. Transaction fixtures are not physical crew journeys. Reuse SERVER-BASELINE-SEAT-RACE once and preserve its300s global/360s outer plus original transition/walk/exit bounds. Eight ROLE children retain their own exact physical-action/moving/loss bindings; no additional seat permutations, unchanged retry or standalone run selected. | Final candidate actual promotion/berth/handback/contention and stale/duplicate/foreign refusals preserve one occupant and supported controls; reuse delivered authority. |
@@ -4824,6 +4824,161 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
+
+### Remaining engineer and gunner roles — exact source boundaries
+
+These are the three existing ROLE records, not new role/craft combinations.
+Prerequisites are each named craft's actual physical chair, role authority,
+authenticated body/claim and production action owner. Reuse the accepted
+source/package results below; MATRIX-FINAL/FINAL-RECONCILE still own the exact
+final candidate. No unchanged run or parked retry is selected.
+
+For the existing source callers, choose exactly one literal Bash array below,
+then run the common isolated command only after freezing clean source, owned
+fresh profile/TMP/results directories and the selected qualification contract.
+This definition performs no Godot invocation.
+
+| Existing role | Literal source arguments | Successful caller output |
+| --- | --- | --- |
+| ROLE-JOVIAN-ENGINEER | `crew_route=(--script res://tests/network/jovian_network_engineer_route_test.gd)` | JOVIAN_NETWORK_ENGINEER_ROUTE reports zero failures; coordinator and both peers OS0. |
+| ROLE-HALYARD-GUNNER | `crew_route=(--script res://tests/network/halyard_network_passenger_route_test.gd -- --halyard-gunner)` | Exactly one HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK, failure-free peer receipts and both OS0. |
+| ROLE-BULWARK-GUNNER | `crew_route=(--script res://tests/network/bulwark_network_gunner_route_test.gd)` | BULWARK_NETWORK_GUNNER_ROUTE reports zero failures; coordinator and both peers OS0. |
+
+```sh
+env -u DISPLAY -u WAYLAND_DISPLAY \
+  XDG_CONFIG_HOME=/ABS/FRESH/profile/config XDG_DATA_HOME=/ABS/FRESH/profile/data \
+  XDG_CACHE_HOME=/ABS/FRESH/profile/cache TMPDIR=/ABS/FRESH/tmp \
+  python3 tools/release/suite_process.py --timeout 300 -- \
+  xvfb-run -a /tmp/mudds-tools/godot-4.7.1/godot \
+  --headless --audio-driver Dummy --path /srv/mudds-shipyards "${crew_route[@]}"
+```
+
+The coordinator is headless; graphical peers use isolated Xvfb/x11/Dummy audio,
+input-only rendering where declared. The engineer client inherits the outer
+owned Xvfb; the gunner peer wrappers create their own displays. Retain raw coordinator/peer logs, printed
+peer artifact path, failure-free `.done` and actual `.exit=0` receipts, diagnostic
+status and owned-process/display closure. Supervisor abort/reap is independent
+of game pause; release synthetic actions/cursor capture. The external matrix/
+supervisor keeps the existing300s suite/outer bound; sequential source waits
+do not supply an internal whole-route300s deadline or a complete moving/return
+journey limit. Engineer host-ready60s/clientdone120s/hostdone20s/each exit10s;
+Halyard gunner host Main60s+ready60s/clientdone120s/hostdone60s/exit10s; Bulwark
+host-ready60s/client Main60s/clientdone120s/hostdone60s/exit10s remain unchanged.
+The Halyard gunner modes have no additional internal whole-profile deadline.
+Existing external `--package-under-test PATH` support in the engineer/Bulwark
+callers does not turn pinned Linux Godot into native Windows execution.
+
+<a id="jovian-engineer-contract"></a>
+
+**ROLE-JOVIAN-ENGINEER.** Craft `jovian_provisional`, authored frame
+`jovian_walkable_interior`, chair `passenger_port_01`; its binding creates and
+registers the Jovian roster rather than borrowing Halyard passenger authority.
+Nonplaying host peer1 and one admitted client avatar from
+`GameFlow.network_client_boarding_avatar_id(peer)`, no pilot. Exterior placement
+is staged; hatch Interact, supported cabin walking and chair Interact are input.
+`camera_distance_out_action` selects `engine_bay`; remappable `fire_action`
+requests repair0.2. Actual host damage is staged at components1/4, then refreshed
+at the positive-FIRE boundary. Berth-only work takes0.4s, cooldown0.75s,
+resource `jovian_repair_tool`, capacity6; accepted commit repairs one component,
+improves engine integrity and leaves5 kits. Releasing FIRE does not cancel work.
+
+Standing releases current assignment/work and restores supported body/controls;
+reseat has a newer claim. Stale/forged/replayed work cannot spend another kit.
+Third sitting migration cancels the pending claim while retaining cabin support;
+orderly disconnect occurs after that cleared ownership. It does not prove
+active-work interruption or current-owner disconnect recovery. Reuse the
+[recorded engineer package result](COMPLETION_SCOPE.md#roles-supported-session-limits-and-desktop-targets): actual
+f676c5016 payload/43111884d external fixture,72 checks/77.118s/OS0, functional
+scope with retained Xvfb/llvmpipe V-Sync warning, strict diagnostics unqualified.
+
+Halyard-only panel progress/completion, walking replica stock/nonmutation,
+detached panel6/6, cursor cleanup and sibling-isolation assertions do not run
+for Jovian. Therefore actual elapsed-progress observation remains missing even
+though the production elapsed-work owner exists. Codex must bind/implement
+that observer and the ordinary moving/return/in-flight refusal, active-work
+interruption/loss/reclaim and voluntary exterior exit/reentry caller/endpoints
+with its whole-route limit. No cold restored/network/destruction or whole-role
+PASS follows from the berthed subset. Keep the shared [repair semantics](#halyard-engineer-contract)
+without inheriting Halyard-specific proof or roster ownership.
+
+<a id="halyard-gunner-contract"></a>
+
+**ROLE-HALYARD-GUNNER.** Physical Halyard `co_pilot_station`, role `gunner`.
+`--halyard-gunner` first uses the host-local chair, then one admitted remote
+client avatar/body occupies it while host controls are disabled. Exterior
+placement is staged; client hatch/cabin/chair input is real automated input.
+Remapped FIRE produces host-owned lance projectiles: host shot count>1 and
+last selection avatar matches the admitted actor; client emits no projectile
+and gets no helm/ledger authority. This caller has no target/damage assertion.
+Replay and altered entity/seat/claim/binding/migration/target generations cannot
+emit another projectile. Ordinary stand/aisle walk/reseat changes claim; migration
+retains body/entity1, opens peer/stream2 and reclaims the chair; actual disconnect
+removes body/role and leaves awake controls. FIRE is invoked after reseat and
+migration, but no separate post-boundary shot/damage assertion establishes it.
+
+The separate `--host-gunner-flight` mode has a host gunner beside a remote
+pilot: actual movement>5m/speed>.1, moving FIRE/stand/walk/reseat, explicit
+revocation/unseated refusal/reclaim and pilot-disconnect source handback. It is
+not a moving remote-gunner test and still has no target-damage assertion.
+Production remote body/chair/claim/epoch/tick/target/finite-aim gates and
+host-reconstructed shot origin already exist in NetworkHalyardPassengerBinding;
+missing combined driver/acceptance is not a demonstrated runtime defect.
+
+Reuse [local52damage c28f7ffa3](history/ROADMAP_DELIVERIES.md#existing-halyard-gunner-damage-qualified-on-its-declared-input-display--2026-10-20):
+staged DRONE-01 at280m along gunner view, actual100→48 once and original
+stand/walk/helm/reseat/replacement cleanup; explicitly no remote qualification.
+Codex still binds the authenticated moving remote gunner's pilot/admission,
+actual target-hit/health result, current-owner-loss cut, usable physical
+handback/exterior route and whole caller/deadline. Do not substitute projectile
+count, host-local motion or the local52damage receipt for this combined outcome.
+
+<a id="bulwark-gunner-contract"></a>
+
+**ROLE-BULWARK-GUNNER.** Physical `gunner_station`, role `gunner`; nonplaying
+host initially observes one admitted client's actual supported registered cabin
+body and chair assignment. Exterior approach and range targets are staged;
+World target animation is paused and target placed at craft-local(2,3.5,-70).
+Cabin corridor walking/look/Interact and held FIRE are input. Actual host
+`picket_siege_lance` receipt damages a registered target without pilot FIRE.
+Stand empties claim/charge and stops only role-woken power; fresh reseat has
+a different claim. Stale body/chair/binding/target/request and nonfinite aim
+inputs cannot charge. Real migration releases chair and preserves supported cabin;
+ordinary reclaim then observed active ONLINE charge precedes actual client
+disconnect, which removes body/role/charge and role-demand power.
+
+The host's subsequent chair approach is staged. The same client's later fresh
+Main becomes pilot; this remains two OS peers, not two clients. A moving host
+gunner fires/stands/walks>.6m/reseats/reclaims after explicit lease revocation
+while the exact remote helm/source persists; actual pilot disconnect restores
+the retained local source and preserves the independent host gunner claim.
+Reuse [f676c5016/eea66d74f package scope](COMPLETION_SCOPE.md#roles-supported-session-limits-and-desktop-targets):120
+checks/133.997s/all OS0/zero runtime diagnostics; registered siege-lance hits
+100→78. Payload ran under pinned Linux Godot, not native Windows. Its staged
+targets, lease changes and host-local moving role do not prove ordinary remote
+moving/return/exterior/host-termination/hull-loss/full-baseline acceptance.
+
+The [full ordinary solo gunner contract and parked terminals](#bulwark-ordinary-gunner-fire-depletion-seat-handback-and-home)
+retain every route/depletion/handback/home requirement, six failed ordinary
+trials, the combined1b5649cc2 CLI-order failure and exhausted allowance.
+No reopening, archived-source merge or unchanged retry follows from this field
+binding. The independent accepted1d095ad93 empty-ammunition production fix
+does not accept that journey. Codex must bind the remaining remote moving
+pilot/role route, actual return/physical exit, exact owner-loss/recovery endpoint,
+whole caller/limit and final candidate without relaxing those parked boundaries.
+
+Definition selection2026-10-27 began14:26:23UTC; estimate20minutes including
+source review/docs/checks/commit/push/cleanup; hard stop14:46:23UTC. Root owns
+this document/Bulwark binding; two read-only agents bind disjoint Jovian and
+Halyard source fields. No engine/device/package/CI run, branch/worktree/scratch
+or new playable source is selected. All337 identities/order and prior PLAN-NEXT
+costs/attempt limits remain unchanged. All eight ROLE records now link explicit
+source boundaries; unresolved ordinary caller/endpoint/limit fields keep their
+goals and PLAN-NEXT open, rather than being renamed as external blockers.
+Definition checks pass: independent bounded source review, all337 unchanged
+identities/order, all eight ROLE links, three command/source selections and
+local link/anchor/shell/whitespace checks. Review corrected the supervised Xvfb
+command, external-versus-source deadline wording and Bulwark's exact negative
+test list before any engine run; no runtime qualification or parked reopening.
 
 <a id="cinder-crew-contract"></a>
 
