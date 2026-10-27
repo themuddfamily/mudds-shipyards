@@ -73,6 +73,9 @@ keep their reopening conditions.
 now bind normal producer actions,queue/expiry and actual single-service output.
 The [Cinder receipt repair](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract)
 is a specific runtime gap; the failed shared writer and overflow choice stay open.
+[Reduced-flash ordinary actions](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations)
+now bind all17 existing families to real triggers/readbacks and name missing
+callers, including the atmospheric Arrow HUD feed. Execution remains open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
