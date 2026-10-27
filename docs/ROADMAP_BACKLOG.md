@@ -1625,7 +1625,7 @@ All values below are required outputs, not new PASS results.
 | Windows payload startup | `"$GODOT_BIN" --headless --audio-driver Dummy --path "$CLEAN" --main-pack "$EXE" --startup-check`, existing private-profile supervisor120s | 1/1, actual exit0/exactly one `STARTUP_MENU_READY_OK`/zero diagnostics/owned cleanup. Linux engine executes Windows payload; no native Windows claim. |
 | Linux direct startup | `tools/release/run_linux_startup_check.sh "$ELF"`, private results/profile | 1/1, original default300s, actual exit0/exactly one menu-ready marker/zero diagnostics; retain actual JSON/log and binary hash. |
 | Linux archive startup | `tools/release/run_linux_startup_check.sh "$TAR"` | 1/1 under300s, extracted ELF identical to accepted direct binary; same strict exit/marker/diagnostic checks. |
-| Complete payloads/archive identity | `python3 tools/release/package_inventory.py "$EXE" -o "$WIN_INVENTORY"` and corresponding ELF invocation; retained complete archive/PE audit | Two full inventories; compare every `(path,size,sha256)` tuple and source-bound expected manifest. No missing/extra/forbidden/raw-source paths; valid PCK bounds/digests/PE/ELF metadata. Final expected count binds to actual frozen source;1529 belongs only to checkpoint7876ebc. Complete maps/parity never become a sample or old fixed count. |
+| Complete payloads/archive identity | `python3 tools/release/package_inventory.py "$EXE" -o "$WIN_INVENTORY"` and corresponding ELF invocation; run the delivered [paired-artifact command](#package-paired-artifact-audit) with the frozen candidate's approved complete inventory, pinned template and exact artifacts | Two full inventories; compare every `(path,size,sha256)` tuple and source-bound expected manifest. Audit exits0 with JSON `status=PASS`, `inputs_unchanged=true`, no `first_failed_predicate`, and all nine `completed_predicates` listed below. No missing/extra/forbidden/raw-source paths; valid PCK bounds/digests/PE/ELF metadata. Final expected count binds to actual frozen source;1529 belongs only to checkpoint7876ebc. Complete maps/parity never become a sample or old fixed count. |
 | Default package probes | Existing `run_package_probes.sh` command below | Exactly4/4 original suites,300s each, every exit0/exactly one expected terminal sentinel/zero diagnostics; preserve `results.tsv`, `run-manifest.txt` and hashed raw logs. |
 | GUIDED-FINAL | `python3 tools/release/run_native_sortie.py "$ELF" --output "$FRESH_OUTPUT" --route guided` | Original3/3, fresh process/profile/output each time, full starter combat/strict home/neutral shutdown/physical exit/supported walk/normal HUD OS0/clean markers, whole-route300s each. |
 | SANDBOX-RECOVERY | Same existing driver, `--route sandbox` | Original1/1 all-nine/54-waypoint/eight-excursion route, actual crash/same-player recall/occupied-berth regeneration/recovery walk/reuse under300s. PARKED gate retained; smaller sandbox-walk cannot replace it. |
@@ -1651,6 +1651,7 @@ Before execution the selected card binds actual frozen commit, pinned engine/
 templates, clean checkout, files/profile/results and independent abort. Startups
 require actual completion, not fixed-frame quits. No command ran for this edit.
 
+<a id="package-paired-artifact-audit"></a>
 **Paired-artifact audit capability — delivered2026-10-27.**
 The retained helpers are in
 `/srv/mudds-work/legacy-future-cfg-20261026/records.tar.gz`, members
@@ -1673,6 +1674,16 @@ The delivered command is:
 ```text
 python3 tools/release/package_inventory.py EXE --compare-linux ELF --linux-archive TAR --linux-export-result EXPORT_RESULT --windows-template TEMPLATE --windows-template-sha256 TEMPLATE_SHA --source-repository REPOSITORY --source-commit SOURCE --expected-inventory EXPECTED_INVENTORY --windows-zip ZIP --windows-notes NOTES -o AUDIT_RESULT
 ```
+
+The command's literal success record is exit0, `status=PASS`,
+`inputs_unchanged=true`, no `first_failed_predicate`, and
+`completed_predicates` equal, in order, to `input_identity`, `compiled_source`,
+`windows_template_pin`, `executable_headers_and_code`,
+`approved_complete_inventories`, `linux_export_result`, `linux_archive`,
+`windows_zip`, `inputs_unchanged`. These are the implemented output fields in
+`package_inventory.py::audit_pair`, not another release evidence format.
+Actual candidate paths/source/template pin/approved inventory remain frozen
+selection inputs; the delivered tool does not make a final candidate ready.
 
 **Accepted capability scope.** Corrected existing suite28/28/exit0 in10.845894s;
 one actual immutable7876 audit exits0 in10.338517s under120s. All nine named
@@ -1946,6 +1957,13 @@ Additional work needs an uncovered original promise and a concrete production
 result; definitions, smaller cards and tests are not new gameplay deliverables.
 
 ### Remaining contract gaps — PLAN-NEXT
+
+The three dated definition selections below are historical records of their
+own source-binding slices. Their then-missing package audit capability is now
+delivered in the [PACKAGE-FINAL contract](#package-paired-artifact-audit);
+use the current container table below for remaining fields, not those earlier
+next-action statements. Station/caption source definitions likewise retain
+their stated scope without becoming ordinary-play or rendered acceptance.
 
 Completed definition selection2026-10-27,05:07–05:27UTC: resolve PACKAGE-FINAL's
 archived audit seam into one finite release-tool capability; fill only missing

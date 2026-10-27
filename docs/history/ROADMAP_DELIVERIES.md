@@ -32688,3 +32688,156 @@ Only records.tar.gz/closeout.json remain under `/srv/mudds-work/courier-escorted
 Archive8584971bytes/196members/81regular files independently reread/hash-verified;
 SHA256 `f29436a2eb1725fb9bcc538d7b4f72b529e11ca0a9b938d494944ca328b72ad3`.
 No duplicate published game binaries are archived.
+
+
+## Roadmap front-page status snapshot archived 2026-10-27
+
+Historical statements below describe their own task/candidate at the time.
+The current checkpoint and execution priority are in [ROADMAP.md](../../ROADMAP.md).
+A historical “latest” or “not selected” statement does not override that page.
+
+**Delivered — COMBAT-COURIER ordinary escorted withdrawal/home member.**
+Source7f23a808c adds the existing runner's `courier-escorted-withdrawal` selector
+and read-only chronology/retirement observations. First packaged ordinary-input
+run passes59.024s under original300/330s limits: real34 damage leaves Courier44/78,
+both escorts admit after2.4physics seconds, same-player lethal17 defender hit
+causes WITHDRAWN, all three actors remain retired through strict occupied home/
+OFFLINE/physicalE exit. One withdrawal count; no payment claim. Both escorts
+are observed live/registered before the defender kill, not staged into the test.
+
+303 driver tests,3627 privacy assertions, fresh paired exports, three strict menu
+startups and full1529-entry/nine-predicate package audit pass. No product/source
+correction or repeated game run. Independent full raw-chronology review GO;
+860 terminal-through-end records retain retirement. Original09:33:43UTC clock,
+60minute estimate and11:03:43 hard stop stay charged through cleanup/push.
+[Exact result and scope](../history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027).
+Normal UI Quit/gameOS0, post-exit walking, rendered/native GPU/physical input and
+full encounter/loss/repeat/recovery/final qualification remain open. Existing
+accepted recovery/source results remain in delivery history; no unchanged rerun.
+Source/notes are pushed; owned branch/worktree/route/profiles/scratch removed
+after verified preservation. Closure28.465minutes versus60estimated, with final
+notes/push charged to this same clock.
+
+**PARKED — rendered installed direct/desktop launch.**
+Candidate121580670 is unmerged. The first candidate failed on the observer's
+viewport API call. Its sole correction passed compilation, exports, strict menu
+startups and package audit, but actual rendered direct launch then timed out
+before any gameplay observation:301.195s under CAP300 (302.562s outer under330).
+No post-exit walk, PNG, normal UI shutdown or clean markers were established;
+desktop launch is NOT_RUN. Root cause is unknown. All owned process cleanup flags
+pass and installation bytes remain unchanged. The latest playable build remains
+7f23a80. [Terminal result and preservation](../ROADMAP_BACKLOG.md#rendered-installed-launch-capability).
+
+**PARKED — COURIER-RECOVERY cold pilot recovery capability.**
+Unmerged candidate229bfa6c9 passes source review,313 Python tests,3880 privacy/
+observer-compilation assertions, paired exports, three strict menu startups and
+full1529-entry/nine-predicate package audit. The actual once-only route fails
+42.371s into leg1: four targets destroyed/first Courier running78, but defender85
+and no confirmed wounds instead of required17/two wounds. Acknowledged fire
+caused no observed damage; why is unproven. No committed interruption/cold Resume
+was reached. Sole correction had already fixed the focused Resume-input failure;
+allowance0 means PARK with no further repair/retry. Cleanup flags pass; private
+candidate/source/results are verified archived, owned branch/worktree/profiles/
+scratch removed. No failed code merged or public checkpoint replaced.
+[Exact result and reopening boundary](../ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes).
+That attempt is closed; latest playable build7f23a80 remains unchanged.
+
+Reopening the parked launch work requires causal evidence about the startup
+stall in its original environment and an explicit cumulative-cost decision;
+its exhausted correction allowance cannot be reset by another card or branch.
+
+**Delivered — INSTALL-LINUX-UNINSTALL executable lifecycle command.**
+Source62810ebf5 adds the existing full transaction as one repeatable release
+command. Its once-only checkpoint7f23a80 run passes101.196s: shipped-manager
+install/uninstall/repeat/fresh-generation reinstall, strict startup, full ordinary
+Guided55.388s/normal HUD OS0/both clean markers, then final uninstall. All five
+protected files remain byte/mode exact, including the real8655byte earned Heavy
+save; inputs stay unchanged and owned processes are reaped. Installer work22.249s
+under120; original game/child limits retained.25 tests and independent full raw
+review pass after the one retained initial correction. No gameplay or graphics
+change/new public build; latest playable checkpoint remains7f23a80.
+[Command, actual proof and retained limits](../ROADMAP_BACKLOG.md#final-linux-uninstallreinstall--install-linux-uninstall).
+Final-candidate, graphical desktop launch, retained-save gameplay reload and
+native/human gates remain open. Original11:12:09UTC/60minute estimate/12:12:09
+hard stop include integration/push/owned cleanup. Source is pushed; branch/
+worktree/install/profile/scratch cleaned after verified preservation. Closure
+18.007minutes through cleanup; final notes/push remain on that clock. No new
+implementation selected.
+
+**Defined — HUD-PATROL durable fields and ordinary callers.**
+Frozen source0e3b58a25; original11:35:01UTC/20minute estimate/hard11:55:01UTC.
+Bound exact saved state/reward fields, reset→branch choice→start/cold-Main values,
+button rules and existing source/fixture commands. One read-only source agent;
+root owns review/docs/commit/push. No engine, parked trial, new UI or gameplay
+repair selected. Existing physical home reboarding already resets terminal Patrol;
+branch selection before departure and normal free-flight Start are production
+callers. [Literal contract](../ROADMAP_BACKLOG.md#hud-patrol-contract). Ordinary automation/
+whole-sequence limit/cold observations remain open. No branch/worktree/process/
+scratch created; 7.606minutes through source review/checks, with final
+commit/push charged to the same20minute clock.
+The separate Titan design question is pending; no missing-craft build is authorized
+by elapsed time or this definition work.
+
+**Delivered — Bulwark empty-magazine charge/readout repair.**
+Source1d095ad93 contains only the runtime guard, focused test and import UID.
+Zero ammo now clears/refuses a charge and displays the authored AMMUNITION EMPTY
+warning; positive-ammo timing and authority gates remain unchanged.13 regression
+checks,303 existing driver tests,3627 privacy assertions, fresh Windows/Linux
+exports, three strict menu startups and full1529-entry/nine-predicate artifact
+audit pass. Independent source/raw/artifact review GO. New playable checkpoint
+1d095ad is available above; native Windows/GPU/audio/human gates remain open.
+
+The combined ordinary driver1b5649cc2 is PARKED at its CLI-order test failure,
+without an export/native run; no failing test was changed or waived. Its five
+private driver/observer/startup/privacy files are excluded and verified archived;
+owned branch/worktree/scratch removed. Publishing the independently tested runtime
+repair does not accept the full ordinary gunner journey or craft. [Proof and
+source separation](../ROADMAP_BACKLOG.md#bulwark-ordinary-gunner-member).
+Both scopes keep the original11:43UTC/90minute clock/hard13:13/execution end13:03
+and exhausted correction allowance through integration/push/cleanup. Both task
+branches/worktrees/private caches/build duplicates are removed after verified
+preservation. Shared cleanup42.885minutes versus90estimate; final notes/push
+stay on that original clock.
+
+
+### Earlier front-page summary retained
+
+**Playable alpha; full original scope remains unfinished.** Latest Windows build:
+[1d095ad checkpoint](../../builds/windows/MuddsShipyards-1d095ad-checkpoint.zip)
+([changes and validation](../../builds/windows/MuddsShipyards-1d095ad-notes.txt)).
+Matching [Linux checkpoint](../../builds/linux/MuddsShipyards-1d095ad-linux-x86_64.tar.gz)
+([Linux validation](../../builds/linux/MuddsShipyards-1d095ad-linux-notes.txt)) is available.
+Bulwark now rejects empty siege-lance ammunition before starting a charge and
+clears any stale charge; its console shows AMMUNITION EMPTY instead of a stuck
+CHARGING100%. The isolated fix passes13 regression checks,303 existing Python
+checks,3627 privacy assertions and fresh paired export/startup/archive checks.
+The full ordinary pilot/gunner/home driver remains parked and unqualified.
+Recovery crash-log writes still retry once per second;
+successful ordinary store saves cannot postpone publication. Retries stop after
+success or clean shutdown. Source checks and packaged startup/parity pass; actual
+OS-crash recovery remains unqualified.
+The recovery card also offers **Use Safe Audio** after repeated unfinished
+startups. It saves master50%/music0 through the existing adapter, preserves other
+preferences and retains the existing stable Restore/user-edit protections.
+Earlier journey results retain their original source/package scopes;
+they were not rerun for1d095ad.
+Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
+newer primary, temporary or backup generation instead of selecting older data
+or deleting the newer file. All three files and live preferences stay unchanged.
+Confirmed settings backup repair now explains when to quit and reopen the game
+to finish recovery; the existing startup owners supply that condition.
+Jovian cabin Interact now takes the aimed-at helm instead of its co-pilot chair.
+The complete ordinary engineer-save/SIGKILL/normal-recovery/cabin-walk/helm/throttle/
+normal-Quit journey passes on the exported Linux checkpoint.
+Forward projectile hits now reach the actual forward-hull ledger and local cue;
+collision routing remains unchanged. The full Zenith→Torrent Guided→same Zenith handback now passes ordinary synthetic
+keyboard input, strict home/exit/reclaim and normal HUD Quit. The lower Aft stair has a visible, collision-backed shoulder onto the landing;
+the captured lateral walk retains real floor contact. Reduced flash still updates the current/new HUD damage cue through normal Settings.
+Actual save/reset/refusal results also control the HUD unsaved state. The native
+Linux synthetic-keyboard save/three-process/Reset sequence passes. Prior cargo,
+torpedo and ordinary Ember Quit repairs remain accepted. Full cargo/comfort/world
+journeys, remaining producer episodes, physical input and native hardware gates
+remain open.
+Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
+exit gates remain open; completed child results are retained, not counted as whole
+features. There is no evidence-backed project percentage or completion date.
