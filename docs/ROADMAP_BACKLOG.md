@@ -258,7 +258,7 @@ separate and must not be marked done by the decision.
 | CARGO-REPLENISH-CINDER | Legitimate shared-stock refill AND destination turnover; source/sink/trigger/conservation/capacity; normal ten-transfer route | Same. Existing two crates/destination capacity8 cannot prove ten; rebinding/reset cannot mint stock |
 | PERF-MINIMUM / PERF-TARGET / PERF-ROUTES-DEFINE / PERF-CELLS-DEFINE | Actual included machine/OS/CPU/RAM/GPU/driver/isolated-session access; per-profile GPU p95/max-ms and dedicated-process VRAM-byte ceilings; per-world loaded/resident-byte ceilings; minimum completed canonical-cycle count and elapsed interval | User supplies these exact missing resources/values in the [fixed performance contract](#performance-machine-cells). Workloads/commands/existing limits are source-bound; network values reuse NET-ENDURANCE-DEFINE. Codex owns native collection and three journey repeat implementations, not another benchmark framework. No run or source result is inferred from a resource answer. |
 | ACCESS-CAPTIONS[overflow policy] | Select current-caption pagination, scrolling or wider/recomposed HUD when valid text exceeds the fixed safe area; settle timing/input/full-text/reservation behavior before implementation | User chooses presentation policy. Actual1280×720/request1.6 case measures650px intrinsic vs411.130435px safe; originalfonts/fulltext/width/reservation cannot all fit simultaneously. [Source and exact failed measurement](CAPTION_VISUAL_PRESENTER.md#open-maximum-payload-overflow-policy). No silent shrinking/truncation/transcript substitution; no runtime fix yet |
-| INPUT-KBM / INPUT-CONTROLLER / AUDIO-MIX | Actual device/backend/session and frozen complete route; audio needs explicit audible authorization and chosen listening episodes/measurement ceilings | Resource/authorization recorded; synthetic input/Dummy remain insufficient for physical/output acceptance |
+| INPUT-KBM / INPUT-CONTROLLER / AUDIO-MIX | Actual device/backend/dedicated session; physical-input four-member contract is fixed. Audio additionally needs selected existing case/playing recipient, explicit audible authorization, six-bus default/low mix, capture point and numeric peak/clipping/balance/latency/repetition/tail targets | Exact fields are bound in [physical input](#physical-input-device-contract) and [native audio](#audio-native-output-contract); user supplies unavailable resources/unspecified values/authorization. Codex supplies missing passive/capture/caller code. Synthetic input/Dummy remain insufficient; no new human sign-off or device matrix. |
 | RIGHTS-PROJECT-TERMS | Chosen project release license/terms and distribution disposition | User's explicit terms recorded; engine notices do not choose them |
 | RIGHTS-BUNDLED-ASSETS / RIGHTS-HISTORICAL-MEDIA | Each actually bundled source/asset/media family has permission/license, attribution and redistribution disposition | User supplies missing permissions; Codex prepares final notices. Research-only media stays unbundled unless separately cleared |
 | SIGN-FINAL / DISTRIBUTE | Trusted certificate/credentials and expected publisher; exact authorized destination | User supplies these; actual signatures/downloaded-byte proof closes the runtime release goals |
@@ -4970,6 +4970,130 @@ order. Root verified default bindings, unused R3, look/tractor/Navigator source
 constants, all337 identities/order, source links and proposed shell syntax.
 No device availability, physical run or hardware acceptance is claimed.
 
+<a id="audio-native-output-contract"></a>
+
+### AUDIO-MIX — native output, fixed episodes and measurement goals
+
+Sourceaa1057b5e. Definition17:11:12UTC2026-10-27,20minutes through17:31:12UTC
+includes one bounded route-binding review, root output/metric/command binding,
+docs/checks/commit/push/cleanup. No engine, recorder/device probe, playback,
+physical session or audible output is launched. AUDIO-MIX-DEFINE's existing
+28 selectors remain11 shared+8 normalized activity+9 current craft; no new
+sound bank/theme/device matrix or playback-source survey.
+
+**Finite route binding.** Each existing [roster row now names its ordinary route
+owner and current caller or exact missing coverage](COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define).
+Current native-sortie aliases are silent/Dummy only. A partial handling/home
+route cannot supply omitted weapon/damage/repair/crew transitions. Required
+ordinary access that is PARKED/GATED stays with that exact owner and original
+limits/cumulative reopening condition. Do not create an audio copy to bypass it.
+A missing joined episode/observer remains Codex implementation, not a request
+for external evidence. The 28 rows remain the complete listening membership.
+
+**One selected case/output process.** Freeze exact clean source/package/hash,
+case, actor/playing-recipient/source lifetime, existing normal entry/actions/
+terminal/exit, source/gameplay caps and owned output directory before launch.
+For network/crew cases, only the chosen playing recipient uses the real backend;
+other peers stay Dummy. An authority/second-client music duplicate must not be
+measured as the intended player's mix. Continuous bed/engine state, one fresh
+cue edge and real stop/retirement are separate observations. A missing roster-
+required transition keeps that row open rather than becoming another selector.
+
+**Required owner inputs, literal and separate from code:**
+
+| Input | Exact value needed before audible selection |
+| --- | --- |
+| Device/session | Actual device/endpoint/model, backend/version, host/isolated session, sample rate/format/channel layout/buffer settings, OS output gain/enhancement/spatial processing and declared capture point. Source inspection does not establish hardware absence. |
+| Audible authorization | Explicit authorization for this case/device/playing process, maximum output setting and duration. AGENTS Dummy rule applies until that authorization; no new mandatory human-review/approval stage is added. |
+| Mix vectors | Master/Ambience/Engines/Weapons/UI/Music values for the selected case; default/low comparison and reduced-range ON/OFF only where its existing roster requires them, plus intended distances/perspectives. Bind actual saved settings, not source gains. |
+| Quantitative targets | Adopt explicit peak/clipping limit and permitted clipped-sample count, acceptable balance/critical-cue separation, trigger-to-output latency ceiling and clock/capture uncertainty, repeat/start cadence where not already source-defined, and noise/tail threshold at the declared capture point. Record exact numeric values and units; no guessed industry target is represented as original approval. |
+
+Original scope names no compulsory headphones/speakers categories. One declared
+configuration is sufficient for a selected case; owner changes to device/mix
+must be recorded before a new selection. Genuinely unspecified values remain
+input-gated. Source cue identity/count, stale replay, single transition and
+existing voice/resource ceilings do not need a new preference decision.
+
+**Concrete PASS/FAIL per selected existing row:**
+
+1. Record normal input and actual producer transition/cue ID/source generation/
+   stream/bus/playing recipient with monotonic frame/time. The required cue must
+   correspond to actual output, not only cue_requested/caption/player flags.
+   No wrong/missing critical cue, stale-source replay or duplicate transition.
+2. Capture the selected real backend/output stream and the named steady/loudest
+   actual overlap at that row's recorded mix/distances; compare default/low only
+   where its roster requires it. Native peak/clipping/balance measurements meet
+   frozen targets; no nonfinite/missing capture data. For MIX-SETTINGS, category
+   sliders and reduced range affect the intended category while
+   preserving critical cues/captions at the agreed non-muted levels.
+3. Correlate actual accepted trigger→first output onset on calibrated clocks and
+   meet the frozen latency/uncertainty bound. AudioServer configured latency and
+   WAV/resource samples are not measured delivery. Backend render-loopback proves
+   that capture point only; acoustic/end-device latency needs the corresponding
+   actual loopback measurement if claimed. No extra device category is inferred.
+4. Where the row has a held/continuous source, it must not create per-frame fresh starts;
+   a distinct fresh edge produces exactly the source-defined new cue. Actual
+   activity/combat/landing/view suppression/fade/resumption follows the selected
+   roster episode; missing terminal/reset coverage leaves it open.
+5. Stop/release/unload under the real route, then normal Pause→Restart Shift→
+   fresh Boot/Main/Begin Shift for the selected cleanup episode. Old source/
+   voices/loops must retire; the same named producer may have a fresh instance/
+   generation. No old alert/tail/duplicate loop or unbounded voice/resource growth.
+   Observe authored stream/fade end plus the frozen output-latency/noise bound;
+   other valid ambience is not required to become globally silent. Preserve the
+   [existing audio budgets](PERFORMANCE_BUDGET_AUDIO_VOICES.md).
+6. MIX-SETTINGS retains real Save/restart/Reset/file values and current
+   consumer; no in-memory/Dummy substitute. Finish the chosen ordinary return/
+   normal UI exit with actual OS0/zero diagnostics, released inputs/cursor,
+   reaped owned game/capture/helpers and restored owned device/session settings.
+   Any wrong cue, target exceedance, missing measurement/transition, diagnostic,
+   nonzero exit or cleanup/deadline failure fails this row; preserve raw results.
+
+A numeric output/capture pass can establish its declared scope. Owner-excluded
+human review is not reinstated as a separate required sign-off. A subjective
+listening comment without the required physical capture/targets cannot make a
+numeric claim; Dummy/semantic/caption/source playback evidence cannot claim
+listening. All28 actual output selectors remain NOT_RUN.
+
+**Missing executable capability — Codex.** Extend existing
+`tools/release/run_native_sortie.py`/`tools/release/test_native_sortie.py`,
+read-only `scripts/diagnostics/native_sortie_observer.gd`, exact private admission
+in `scripts/game/startup_loader.gd` and `tests/startup_cli_privacy_test.gd`.
+Current launcher/admission force Dummy; add one explicit authorized audio-review
+mode that binds the selected backend/recipient and capture session. Default and
+all unselected peers remain Dummy. Add only the chosen case's ordinary observer/
+route gaps through its existing gameplay owner, never direct sound requests as
+an ordinary entry. Backend recorder integration must record actual device/mix/
+clock/output data, not add a parallel validator/provenance family.
+
+**Proposed interface, not executable today:**
+
+```sh
+python3 tools/release/run_native_sortie.py /ABS/FROZEN/CANDIDATE.x86_64 --route EXISTING_READY_ROUTE --audio-review-case MIX-SELECTED --audio-review-session /ABS/BOUND/audio-session.json --output /ABS/EXCLUSIVE/results
+```
+
+The future mode refuses missing authorization/device/targets, ambiguous recipient
+or an unsupported backend before playback. Its native capture tool/arguments
+are fixed from the declared backend before execution; no inherited arbitrary
+shell hook. Retain raw native capture plus producer/phase/mix/timestamp records
+in that one existing case result, alongside source/package/device facts. No
+schema bump, per-cue validator chain or new listening selectors are justified.
+
+Select one row at a time. Estimate preparation/code/focused checks/private clean
+package/one case/capture review/cleanup≤90min, freeze absolute deadline and retain
+that ordinary route's original caps. If multiple existing episode legs are
+needed, name them and their aggregate bound before selection; no clock reset at
+phase/cue/restart or automatic parked replay. Default one correction and first-
+unexpected-failure stop. Future coordinator `AUDIO_MIX_CASE_OK` requires the
+bound case/recipient and every frozen gate plus actual OS0/cleanup; it is proposed,
+not an existing result. Missing tool/route/readback is implementation; missing
+external device/targets/authorization is the named owner input. AUDIO-MIX closes
+only when all28 required rows actually pass their preserved scope.
+Route review GO with settings/low-mix comparison restricted to applicable rows.
+All337 canonical identities/order, original28 episode IDs/order/expectations,
+current executable aliases, cross-links and proposed shell syntax check correctly.
+No runtime output, device/recorder access, implementation or listening PASS.
+
 ### Hardware, accessibility and audio children
 
 Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-frame measurement, 1080p High p95≤16.7ms/p99≤33.3ms/no post-warm frame>100ms/working set≤4GiB and original GPU/VRAM/streaming budgets. Each missing benchmark route, measured hotspot, remap case, readability cell, cue and mix scenario becomes a named child only when the corresponding finite list is resolved. Software/VM/Dummy tests do not qualify actual hardware or audible mix.
@@ -5012,7 +5136,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | AUDIO-SURFACE-MUSIC | Aurora/Rime surface visit selects existing surface bed | 30 | Capability | DONE packaged4ff7a08; actual visit-state projection, controlled phase150/activity26/retained bed checks and strict paired checkpoint pass; ordinary journeys/listening remain open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-EMBER-FEED-DEFINE | Actual intended Ember environment and observation owner | 30 | Definition | Definition DONE on17f92907c: [airless contract/production owners/exact missing intent](COMPLETION_SCOPE.md#ember-environment-feed--source-definition). Active audio forbids atmospheric wind; dormant generic path uses Aurora assets/no ordinary callers. Additional world-specific sound/listener intent is unspecified; no integration selected or new playback qualified. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-MIX-DEFINE | Finite real-output scenario/device mix list | 30 | Definition | Definition DONE on9ef81a348: [finite mix roster](COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define), nine current craft/eight normalized activity kinds and named shared episodes. All listening NOT_RUN; actual device/backend/configuration and explicit audible authorization missing. The identified repair cue playback gap is now DONE9b7b46a; no listening acceptance is claimed. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| AUDIO-MIX | Actual output levels/cues/transitions in named scenario | 30 | Qualification | BLOCKED definition/input — Codex binds the existing AUDIO-MIX-DEFINE roster to exact package/routes and balance/clipping/latency/repetition/cue/cleanup limits; user supplies actual device/backend/access, genuinely unspecified listening targets and audible authorization. WAITING on selected roster case, exact package/ordinary route, actual device/backend/configuration and explicit audible authorization. Finite roster defined; all actual listening remains NOT_RUN. | [Quality](#proof-quality): selected existing craft/activity/shared episodes on actual authorized device/backend meet frozen balance/clipping/latency/repetition/cue/cleanup criteria; no Dummy listening claim. A selected case closes only its assignment; AUDIO-MIX closes after every required case in the existing AUDIO-MIX-DEFINE roster passes. |
+| AUDIO-MIX | Actual output levels/cues/transitions in named scenario | 30 | Qualification | [Native-output contract](#audio-native-output-contract) and all28 ordinary-owner/caller bindings are source-defined. Actual case/package, device/backend/configuration, numeric targets and audible authorization remain input/selection-gated; authorized real-backend launcher/recorder/observer and missing ordinary episode coverage remain Codex implementation. Default/unselected actors stay Dummy; parked routes retain cause/cost. All listening NOT_RUN; no new human sign-off or device matrix. | [Quality](#proof-quality): selected existing craft/activity/shared episodes on actual authorized device/backend meet frozen balance/clipping/latency/repetition/cue/cleanup criteria; no Dummy listening claim. A selected case closes only its assignment; AUDIO-MIX closes after every required case in the existing AUDIO-MIX-DEFINE roster passes. |
 | AUDIO-CREW-REPAIR-PLAYBACK | Actual accepted Halyard repair edges reach normalized presentation and resident playback | 30 | Capability | DONE packaged9b7b46a. Raw-state normalization, independent elapsed repair observation, missing router labels and resident dispatch repaired. Seven focused/paired package gates PASS; real source/kit/role, once captions, historical-terminal/source reset proved under Dummy. [Full result/first failure](history/ROADMAP_DELIVERIES.md#audio-crew-repair-playback--actual-accepted-repair-edges-delivered). Actual listening/physical crew/native qualification remains separate. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-NAVIGATOR-PLAYBACK | Actual navigator result/recipient cue playback boundary | 30 | Capability | Accepted/clear DONE packaged4bbb341 across standalone/host-local/bridge/client; actual client stand/reseat/revocation/replay/migration/disconnect and shared crew epoch correction pass original route. Requester rejection DONEc2c72a223/checkpointc2c72a2: all fresh authenticated current refusals including missing consumer; two actual peers/four real rejected presses, replay/foreign silence and full original accepted-clear/migration/disconnect pass252 checks. [New result](history/ROADMAP_DELIVERIES.md#navigator-requester-rejection-feedback-completed--2026-10-21). All real listening/native/full travel gates stay open. [Result](history/ROADMAP_DELIVERIES.md#audio-navigator-client-feedback-and-crew-epoch--delivered). | Retain delivered accepted/clear/current-requester rejection playback and silent stale/foreign/replay scopes; remaining real listening only through AUDIO-MIX. |
 
@@ -7847,7 +7971,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ACCESS-VIEW[one view/scale/aspect] | GATED on one named required view and literal inspection criteria; relevant hardware separately | Bind existing view/route, source, pixel dimensions, requested/effective scale, renderer and visible text/focus/clipping criteria before capture. Select one required cell from existing minimum/default/maximum and aspect coverage; preserve accepted cells. Use existing accessibility tests. Stop at that view/cell's pass or first finding; no blanket readiness or full-view-family closure. |
 | ACCESS-COMFORT[one route/option] | BLOCKED definition (Codex) for remaining episodes; canonical COMFORT-MOTION/FLASH/COLOUR/CAPTIONS rows govern | In the existing option's row, name the remaining original-required consumer/episode and literal ON/OFF, Reset and distinct-restart outcomes, route/command and limits. Previously accepted damage/toast episodes stay closed. Missing intended behavior is a named user decision; an existing option alone does not make a scenario ready. Stop at the frozen episode's pass or first failure; a correction requires the retained causal/budget review.  Reduced flash uses the fixed17-family contract below; its producer/policy definition stays closed and only the named production/trigger/caller/ordinary-proof gates remain. |
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
-| AUDIO-MIX[one real-output scenario] | WAITING on explicit audible-test authorization and output device | Check actual mix/levels/transitions for selected scenario, fix concrete issue and repeat it. Stop at scenario result; automated Dummy output does not qualify real audio. Owner-excluded human review does not become a mandatory approval gate. |
+| AUDIO-MIX[one real-output scenario] | [Fixed28-case output/route contract](#audio-native-output-contract); explicit audible authorization/device/targets UNBOUND | Select one existing row/recipient, exact ordinary entry/exit and native capture/metric bounds; default/other peers stay Dummy. Missing real-backend caller/recorder/readback is Codex work, parked gameplay keeps its gate. Stop first finding; no Dummy listening or new human-approval gate. |
 
 ### Benchmark workload definition — retained coverage and missing decision
 
