@@ -6558,12 +6558,12 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | Capability | DONE; 2c73494a4, consumer40/ship_command79, component-staged scope | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | Qualification | DONE;4c9c764e9 original route138.915s, failed331 arrival attempt retained | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | Qualification | DONE;4c9c764e9, original pilot/ship/ownership generations, all peers exit0 | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. [Elapsed progress contract](#jovian-engineer-elapsed-progress) now binds actual host start/intermediate/commit and client received-view/HUD observations,with existing caller/caps;observer implementation remains OPEN. BLOCKED definition/implementation (Codex): moving/return/refusal,active-work loss/handback,exterior route and whole caller/limit. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
+| ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. [Elapsed progress contract](#jovian-engineer-elapsed-progress) now binds actual host start/intermediate/commit and client received-view/HUD observations,with existing caller/caps;observer implementation remains OPEN. [Moving/home/handback contract](#jovian-engineer-moving-handback) now binds actual three-peer engineer admission,Jovian navigation/dock,physical exit/reentry/redepart and900s/960s limits;combined caller remains unimplemented. BLOCKED definition (Codex): ordinary earned engine_bay damage for host refusal/paid repair,and active-work interruption/current-owner loss;final candidate/proof OPEN. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged.  [Two active cuts](#halyard-engineer-active-cuts) now fix actual E stand and B browser disconnect while a host repair token remains active,transient interruption/stock/generation receipts and supported fresh reclaim. The .4s UI timing and all ordinary cut executions remain NOT_RUN;no old finished-work disconnect is relabelled. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. [Remote damage/loss fields](#halyard-gunner-remote-damage-loss) now bind three-peer ordinary chair/input,four actual52damage target endpoints,B browser disconnect/fresh claim,shared physical-egress dependency and900s/960s combined limits. BLOCKED implementation (Codex): combined ordinary caller,normal target acquisition/receipt observer and shared Halyard physical-egress repair remain absent;final candidate/proof OPEN. Existing remote fire binding is present;no weapon defect or parked retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. Local87c51558e is [PARKED unmerged](history/ROADMAP_DELIVERIES.md#halyard-local-readiness-parked-20261027) before the intended RED gate; one correction exhausted, no new checkpoint. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary producer payload is now fixed to vessel/chair-derived manifest and authored cabin-row identity below; normal input/remote implementation, action/moving/loss observers remain unimplemented;remote full-route limits are now bound below. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred.  [Remote moving/loss fields](#halyard-loadmaster-remote-actions) fix both dispatch entrypoints,three-peer readiness/clear/moving/return,B actual browser disconnect/fresh join and shared physical-egress dependency,with explicit900s/960s scope and old local/member gates intact. Source definition only;no new implementation or parked retry. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
-| ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED definition/implementation (Codex): actual moving remote-role/return/exterior/loss caller, whole limit and final candidate, retaining all parked requirements/costs. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
+| ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED implementation (Codex): combined ordinary remote-role/moving-damage/return/loss caller and supported Bulwark exterior route;final candidate/actual proof remain OPEN,retaining all parked requirements/costs.  [Remote owner-loss fields](#bulwark-remote-gunner-owner-loss) now bind actual moving22damage,current charge/ordinary browser disconnect,per-actor stock retirement,same-Player reclaim and900s/960s limits. Combined caller and Bulwark physical-egress repair are missing implementation;normal home-return/capture fields are now fixed to the actual Bulwark berth with unrun engineering limits. Final proof remains OPEN;no parked retry or full-role qualification. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, remapped FIRE sensor hint, authenticated request feedback, clear/reseat/migration/disconnect and in-process recovery. Reuse accepted c2c72a223 refusal journey, not another unchanged run. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit. No additional role/craft combination. | [Literal Navigator endpoint](#cinder-crew-contract): current authenticated chair FIRE produces cinder_navigator_console sensor hint, requester-only feedback for every fresh authenticated rejection, clear on release and usable handback. Navigation hints confer no movement/cargo/combat authority; bind remaining ordinary moving/exit/recovery cases before execution. |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | Container | Membership/commands FIXED by [the five existing proof owners](#final-seat-ledger--fixed-case-ownership); GATED on exact final candidate and its original source-matrix/ordinary race results. Transaction fixtures are not physical crew journeys. Reuse SERVER-BASELINE-SEAT-RACE once and preserve its300s global/360s outer plus original transition/walk/exit bounds. Eight ROLE children retain their own exact physical-action/moving/loss bindings; no additional seat permutations, unchanged retry or standalone run selected. | Final candidate actual promotion/berth/handback/contention and stale/duplicate/foreign refusals preserve one occupant and supported controls; reuse delivered authority. |
@@ -8931,11 +8931,80 @@ for Jovian. Therefore actual elapsed-progress observation remains missing even
 though the production elapsed-work owner exists. The [elapsed observer contract](#jovian-engineer-elapsed-progress)
 now fixes host token/progress/commit and actual received-view/HUD endpoints in
 this same staged caller;implementation remains OPEN. Codex must still bind/implement
-the ordinary moving/return/in-flight refusal, active-work
-interruption/loss/reclaim and voluntary exterior exit/reentry caller/endpoints
-with its whole-route limit. No cold restored/network/destruction or whole-role
+the remaining earned-damage and active-work loss fields. The
+[moving/home/physical-handback contract](#jovian-engineer-moving-handback) now
+binds ordinary three-peer admission,seven chair stages,Jovian return and fresh
+engineer reuse with900s/960s limits;its integrated caller remains missing. No cold restored/network/destruction or whole-role
 PASS follows from the berthed subset. Keep the shared [repair semantics](#halyard-engineer-contract)
 without inheriting Halyard-specific proof or roster ownership.
+
+<a id="jovian-engineer-moving-handback"></a>
+#### Jovian engineer: moving chair, home return and physical handback
+
+Definition selection:2026-10-27,22:14–22:39UTC,including source review,
+document checks,commit/push and cleanup. Root owns these documents;one read-only
+source agent binds Jovian fields. No engine run or parked trial is selected.
+Literal prerequisites are NET-JOVIAN-BOARD,NET-JOVIAN-DEPART,NET-JOVIAN-RETURN,
+NET-JOVIAN-PASSENGER-EXIT,NET-JOVIAN-PASSENGER-REBOARD and NET-JOVIAN-REDEPART,
+reused only in their accepted co-pilot scope. Their engineer substitution needs
+new proof;the accepted source is not automatically rerun or broadened.
+
+**One missing ordinary caller — Codex.** Adapt the existing Jovian two-client
+boarding/flight/return caller chain,not the staged two-peer repair fixture:
+`tests/network/jovian_network_two_client_boarding_test.gd`,
+`jovian_network_two_client_flight_test.gd` and
+`jovian_network_two_client_return_test.gd`. Host1 stays nonplaying;A is the real
+pilot and B the independently authenticated engineer. Preserve each original
+Player and actual session/body/frame/claim generations. Normal browser,Begin
+Shift,station and hatch input must obtain the actual body,then B walks to the
+Jovian engineer approach local(-1.35,.60,-5.25),yaw PI/2,and uses E at the actual
+anchor to claim passenger_port_01. `NetworkJovianEngineerBinding.attach` owns
+Jovian's independent roster;do not borrow Halyard's passenger authority.
+
+| Finite member | Ordinary action and literal endpoint |
+| --- | --- |
+| Moving chair | Adapt the seven existing stages stand,walk,approach,sit,stand_again,approach_again,reseat from the Halyard moving helper to Jovian bodies/frame/engineer authority. A's .35 forward demand must produce >5m departure within8s. Each stage has advancing host/replica ticks,≥2 samples,displacement>.01m and minimum/start/end speed>.1. Both walks exceed .6m;seated claims are newer and both clients ACK the final stage before throttle release. |
+| Jovian walking goal | Use the actual engineer entry above for chair approaches. The moving aisle goal is Jovian-local(0,.60,-5.25),with live capsule-path and floor-support queries required before walking. This is an unrun proposed waypoint,not a qualified floor/path. Keep the existing ≤.30m horizontal arrival,15supported settled ticks,speed<.1 and vertical error<.8 guards;fail if clearance/support fails. Do not copy Halyard cabin coordinates or move the body to the waypoint. |
+| Airborne FIRE hold | Observe actual current remapped FIRE consumption while airborne/not landing. No positive .2 repair request,start/token,kit debit or engineer repair may result. This is the production client hold,not a host-positive-refusal receipt. Actual request counters and values distinguish it from a dropped command. |
+| Return from sustained movement | Implement normal thrust/reverse/brake/turn navigation to the exact home berth's get_assist_staging_transform(),not a pose write. Jovian capture is dock-transform-local centre(0,12,-26),half extents(36,20,52),maximum speed24. New engineering approach goal≤30s,position error≤.5m,attitude≤.5°,speed≤.5m/s,actual full-hull path/end clearance and live capture validity. Fail if unavailable;no alternative pose or enlarged capture volume. |
+| Strict home dock | Normal landing edge must advance A's actual request. Reuse host request acceptance≤8s,physical dock≤120s,and both client consumption≤5s. Require strict DOCKED,position error≤.05m/angle≤.5°/speed≤.05,same original jovian_freight_berth occupant/reservation/token/lease and committed landed generation. The accepted short >5m/brake route starts inside capture;it supplies no long-flight return controller. |
+| Physical engineer exit | After actual OFFLINE,B stands from the engineer chair;use current return caller's _client_postdock_exit route with Jovian port clearance(-1.10,.52,-6.70),hatch approach(-1.75,.52,-6.30),outside pilot-promotion radius,then normal hatch Interact. Require all authored exit poses and actual motion,same Player at supported authored exterior endpoint,retired B cabin/hatch/body/role grants and ≥1m supported ground walk. A's exact helm/source/stream/ownership remains current. |
+| Fresh admission and repeat departure | Reuse _client_postdock_reboard's actual corridor(-42,.38,boarding.z),then corridor−Z×(BOARDING_FALLBACK_REACH+1.5);prove >7m lockout cleared. Walk back,normal hatch admission,new consumed body/stream,then actual engineer chair with fresh claim. _host_redepart and both consumed stops require >5m renewed departure,actual berth release and current supported engineer ownership through the stop. Empty authority may legitimately detach;do not require its object to remain attached. |
+
+The exit/reuse source is acceptedbc7f9f9c4 in its exact co-pilot scope
+(JOVIAN_NETWORK_TWO_CLIENT_REDEPART_OK,168.850s,three OS0,clean).
+That supersedes the old co-pilot physical-exit stop;it does not accept an
+engineer substitution or reopen the separately parked solo engineer stand
+aggregate or WEAPON-JOVIAN motion failure. Preserve those exact causes/costs.
+
+**Earned repair remains a separate unresolved prerequisite.** Codex must bind
+an ordinary production action that earns engine_bay damage and leaves enough
+integrity deficit through real return/selection/.4s work for a paid commit.
+CRAFT-ACCEPT-JOVIAN owns that missing damage route;the current FIRE-time
+apply_damage fixture supplies no ordinary wound. No source-bound wound/action
+has been supplied here,so this field remains OPEN rather than an external input.
+When it exists,automatic0 selection while airborne must actually reach the
+host and return repair_requires_berthed_ship before selection;require actual
+request/error identity,not a cached error. After landing use a fresh normal
+selector edge,then paid work must meet the [elapsed-progress contract](#jovian-engineer-elapsed-progress):
+actual token/progress/repair_committed/one kit6→5 and integrity improvement.
+Passive berth healing stays active;berth_repair_completed is not the paid result.
+The movement/handback capability can be implemented independently,without
+claiming this still-gated damage/refusal/paid-repair member passed.
+
+**Limits and outputs.** New engineer-only integrated first-engineering mode:
+900s internal/960s supervisor,from profile/process launch through all three OS
+exits and cleanup. Existing boarding/flight/return defaults300s/outer360s and
+every original local approach,walking,chair,request,dock,consumption and exit
+limit remain unchanged;the new30s navigation cap does not replace one. Use
+private profiles,isolated Xvfb/x11 and Dummy audio;retain raw three-peer logs,
+per-stage operand values,done/exit receipts and actual three OS0/diagnostics/
+owned-process closure. The combined engineer selector and named terminal
+success receipt do not exist;implement them in the existing chain before
+invocation. Old co-pilot success cannot pass the new engineer mode. Final
+candidate,earned repair and active-work interruption/current-owner loss remain
+OPEN. Each implementation selection retains the≤90min all-in stop/correction/
+checkpoint rules;no same-run reopening of either parked Jovian trial.
 
 <a id="jovian-engineer-elapsed-progress"></a>
 #### Jovian engineer: observe the existing elapsed repair
@@ -9196,9 +9265,12 @@ retain every route/depletion/handback/home requirement, six failed ordinary
 trials, the combined1b5649cc2 CLI-order failure and exhausted allowance.
 No reopening, archived-source merge or unchanged retry follows from this field
 binding. The independent accepted1d095ad93 empty-ammunition production fix
-does not accept that journey. Codex must bind the remaining remote moving
-pilot/role route, actual return/physical exit, exact owner-loss/recovery endpoint,
-whole caller/limit and final candidate without relaxing those parked boundaries.
+does not accept that journey. The [remote owner-loss contract](#bulwark-remote-gunner-owner-loss)
+now fixes moving actual-damage,current charge/browser disconnect,host retirement
+and same-Player fresh reclaim with900s/960s combined limits. Its caller and
+physical-egress production repair remain missing;Bulwark's actual capture and
+unrun return/dock limits are now fixed below. Final candidate remains OPEN
+without relaxing parked bounds.
 
 Definition selection2026-10-27 began14:26:23UTC; estimate20minutes including
 source review/docs/checks/commit/push/cleanup; hard stop14:46:23UTC. Root owns
@@ -9213,6 +9285,115 @@ identities/order, all eight ROLE links, three command/source selections and
 local link/anchor/shell/whitespace checks. Review corrected the supervised Xvfb
 command, external-versus-source deadline wording and Bulwark's exact negative
 test list before any engine run; no runtime qualification or parked reopening.
+
+<a id="bulwark-remote-gunner-owner-loss"></a>
+#### Bulwark remote gunner: moving damage, live charge and browser handback
+
+Definition selection:2026-10-27,22:14–22:39UTC including review,checks,push and
+cleanup. Root owns these documents;one read-only agent binds Bulwark fields.
+This supplies remote-role acceptance fields,not permission to retry any of the
+six parked ordinary solo trials or combined1b5649cc2. Their original depletion,
+empty-refusal,handback/home scope,costs and exhausted allowance remain attached.
+No new engine,package,device or gameplay run is selected. Literal prerequisite
+IDs:none newly required beyond the existing Bulwark runtime/roster below;
+the missing egress/return capability is work inside this role,not a requirement
+to close its parent CRAFT container first.
+
+**Missing three-peer caller — Codex.** Extend the existing
+`tests/network/bulwark_network_gunner_route_test.gd` and its owned peer runner:
+one nonplaying host1,A actual pilot and independent B actual gunner. The current
+caller has only two peers and later makes the host gunner beside a fresh client
+pilot. Neither half is this combined mode. Normal browser/Begin Shift/station/
+hatch/cabin input must acquire current bodies and gunner_station/its actual
+anchor/frame. Preserve A's exact pilot command-source object,stream,delivery
+generation,progressing sequence and ownership;B never gains helm or pilot FIRE.
+Bind actual dynamic peer/avatar/entity/seat/claim/binding/migration/target
+identities,not assumed peer numbers or a synthetic grant. Inside this actual
+cabin,use supported local corridor(-.4,1.30,1.65)→(1.45,1.30,1.65)→
+(1.45,1.30,.60),then normal look at the actual anchor+UP1.2 and E. These are
+the existing caller's real cabin walk points;actual role entry/stand is
+(1.25,1.33,.65),yaw−PI/2,from get_gunner_station_role_contract(). Its staged
+hatch/target prefix is not reused as ordinary admission.
+
+| Finite member | Ordinary action and literal endpoint |
+| --- | --- |
+| Moving remote damage | A's actual forward input produces >5m displacement within the existing5s motion bound. B remains physically seated/current while host and both replicas show advancing ticks,≥2 position samples/displacement>.01m and speed>.1 bracketing the shot. Normal look and FIRE must damage actual registered DRONE-01 once:source1107,weapon picket_siege_lance,accepted/resolved/hit/damaged,health100→78,applied_damage22,not destroyed. Require the real matching ShotRequest,resolver result and adapter mutation;projectile/charge counters alone fail. A does not FIRE. |
+| Finite acquisition | The ordinary input controller must acquire a full-hull-clear flight pose with a clear actual muzzle ray to that authored animated drone at live range≤560m. Proposed first-engineering goal is station-local root(0,8,-78),identity basis,position error≤.5m/attitude≤.5°/speed≤.5m/s before the moving stimulus. Full live-hull path/end and actual ray queries must pass;goal≤15s,otherwise FAIL without target relocation,animation pause,pose write or a silently substituted goal. This pose/controller is UNRUN and unimplemented,not an accepted clearance solution. |
+| Moving release/reseat | Release FIRE,E stand,supported same-body cabin walk>.6m,normal physical approach/E/newer gunner claim. A's current helm/stream and actual motion survive. Keep the existing8s chair/stand/reseat,walking240ticks+15settled ticks and current collision/support guards. Use actual Bulwark entry and walk to(1.45,1.30,1.65),then approach(1.45,1.30,.60);retain live capsule clearance/support rather than Halyard coordinates. |
+| Current-owner charge | From the fresh current claim,one ordinary FIRE demand starts a host charge;release FIRE after the observed charge starts. Record actual actor key,target/component generations,charge identity,ammunition and cooldown. Do not make a shot merely to arm the cut. The owner and target remain current and A remains piloted/ONLINE. |
+| Actual browser disconnect | B uses Pause→Server Browser→enabled DISCONNECT. At actual host peer-loss cleanup require B still owns that charge and chair. The ordinary HUD intent must cause shutdown_network_session(ui_disconnect),one client session_stopped(ui_disconnect),not a server_disconnected transport event. Within20s of charge admission require actual UI cut or FAIL with operands;do not call shutdown directly or kill the client. |
+| Host retirement | Retire only B's assignment,body/frame ownership,charge,request/error cursors and per-actor ammunition/cooldown. No stale shot/damage may emerge from the retired charge. A's exact pilot/source/stream/epochs/claim and fresh command consumption remain live and ONLINE;role cleanup must not stop a genuinely piloted ship. |
+| Same-player handback/rejoin | B retains the exact Player,restored current local input authority/profile,unseated supported solo-cabin control and walk>.6m. After that cut,A performs the normal strict home/OFFLINE return below before B starts rejoin/hatch admission;A is ONLINE at the cut,not required to stay ONLINE after landing. Only then normal Manual Join≤20s and Back/Resume≤8s then actual hatch/body/physical chair admission obtain a current fresh gunner claim,consumed≤8s. No fresh Main,manual lease grant,old grant resurrection or moving-craft teleport qualifies. |
+
+**Actual charge/ammunition semantics.** Bulwark's existing consumer owns
+560m/22damage,base charge.45s,cooldown4.8s and initial2/cap8 per actor,with real
+component scaling/disablement. Accepted resolver submission consumes one unit
+even on a miss. The first real hit can prove2→1. Role release clears that
+actor's charge,cooldown and ammunition;fresh demand defaults missing actor stock
+to2. Do not assert that the retired actor's1 must carry across stand/rejoin or
+add a refill mechanism to force that result. Preserve the separate parked
+solo two-round depletion/empty-refusal requirements;this remote member cannot
+waive them or qualify them through a fresh claim's reset.
+
+`_advance_gunner_role_charges` clamps elapsed at charge_time but does not fire
+or expire the charge. A later trigger=true intent submits it;trigger=false does
+not cancel it. Pause/browser suppresses further normal gunner sampling,so the
+host charge can remain active during ordinary browser input. Do not require
+age<.45s at disconnect or extend/freeze the charge timer. Actual current charge
+at the host cut remains required and NOT_RUN. Use the existing physical browser
+guest driver input seam;do not treat the old API-disconnect result as this UI proof.
+
+**Return and physical exit are still production/caller work.** A must return
+normally to bulwark_fleet_dock_berth,commit strict DOCKED/current home occupant/
+lease/landed generation and actual OFFLINE before B's normal stand/hatch exit.
+Use the existing [Bulwark access/launch contract](#bulwark-access-launch-definition)
+where supported;it supplies no accepted remote home-return driver. Implement
+normal thrust/reverse/brake/turn navigation to this berth's actual
+get_assist_staging_transform():dock-transform-local centre(0,10,-18),half extents
+(20,14,30),maximum capture speed26. New approach≤30s must reach≤.5m position
+error/≤.5° attitude/≤.5m/s with live full-hull path/end clearance and actual
+capture validity. Normal landing edge must advance A's current request;new
+combined-mode engineering caps are8s acceptance/120s physical dock/5s both
+client consumption. Strict home position error≤.05m,angle≤.5°,speed≤.05,
+exact DOCKED/occupant/lease/landed generation and OFFLINE must all hold. These
+are unrun Bulwark requirements,not borrowed Jovian/Halyard qualification or
+changes to old fixture limits. Missing normal-input return and strict-home
+observer remain code work in this same caller. The shared
+[full craft journey](#proof-craft) home requirements still apply.
+
+GameFlow's confirmed passenger departure and downstream exterior transition are
+both Jovian-only;Bulwark currently falls back to station-spawn teleport. After
+the post-cut return and B's fresh physical reclaim above,B performs the normal
+stand/exterior/reentry member here;no airborne hatch re-admission is assumed. Fix
+both guards and author the actual Bulwark supported reverse gunner aisle/hatch/
+exterior path. Current inherited exterior marker is local(-7.6,-1,.75);there is
+no Bulwark exterior waypoint override to claim as a passing route. Required
+production endpoint:same Player continuously reaches that actual authored exit
+through the hatch,retains floor/capsule support for15settled ticks and walks
+20ordinary input ticks with .25m<displacement<5m;A's pilot/home ownership remains
+current. Exit≤12s and walk≤15s are new engineering caps,not proven clearance.
+Normal input must walk beyond7m from the actual current boarding position
+until _reboard_blocked_ship clears,then walk back through the authored corridor,
+hatch admission and physical fresh gunner claim before final normal stand and
+all process exits. Record actual supported path/guard clearance,not just a timer. Missing authored waypoints/return
+controller remain explicit Codex work;Jovian coordinates or a station recall
+cannot pass. Reuse the shared Halyard/Jovian guard repair only with distinct
+Bulwark geometry and regression protection.
+
+**Limits/output.** New combined first-engineering mode900s internal/960s outer,
+from profile/process start through all three actual OS exits and cleanup.
+Keep old caller300s and existing host-ready60s/clientMain60s/clientdone120s/
+hostdone60s/each exit10s plus all tighter walking/seat/shot-focus+charge8s guards.
+Those coordinator waits are sequential;the new whole bound governs the new
+mode only. The three-peer selector/named success receipt do not exist yet.
+Implement them here before invocation;old BULWARK_NETWORK_GUNNER_ROUTE only
+runs the accepted narrower scope. Require raw three-peer logs,current cut/shot/
+claim operand values,done/exit receipts,actual three OS0,diagnostic status and
+owned input/process/display cleanup with private profiles,isolated Xvfb/x11 and
+Dummy audio. All new ordinary execution is NOT_RUN. Split moving-role caller,
+UI owner-loss/reclaim and shared physical-egress repair into independently
+bounded production/caller capabilities;each keeps≤90min all-in/correction/
+checkpoint rules. Final candidate/full-role acceptance remains OPEN.
 
 <a id="cinder-crew-contract"></a>
 

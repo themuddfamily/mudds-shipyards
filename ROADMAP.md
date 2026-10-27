@@ -110,6 +110,12 @@ ordinary caller and shared physical-egress repair remain unimplemented.
 now has exact host token/progress/commit and remote HUD observations in its
 existing staged fixture. Those assertions remain unimplemented;the broader
 ordinary moving-role journey remains open.
+[Jovian moving engineer](docs/ROADMAP_BACKLOG.md#jovian-engineer-moving-handback)
+now has three-peer chair,movement,strict home and physical reuse requirements.
+Its ordinary earned-engine-damage prerequisite remains unresolved.
+[Bulwark remote gunner loss](docs/ROADMAP_BACKLOG.md#bulwark-remote-gunner-owner-loss)
+now binds moving damage,live-charge UI disconnect and fresh ownership. Its
+return controller,combined caller and physical-egress repair remain unimplemented.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
