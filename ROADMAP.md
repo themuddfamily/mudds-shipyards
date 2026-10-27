@@ -334,6 +334,39 @@ Verified archive12814902bytes/271members, SHA256
 Cleanup08:25:14UTC is48.011 cumulative minutes, exceeding the45minute estimate
 by3.011; final notes/push remain charged within the unchanged09:07:14 deadline.
 
+**Active — Phase9/FINAL-RECONCILE crash-log publication retry.**
+Original binding start2026-10-27 08:28:35UTC atbc0faf415 stays charged. Source
+proves Main already composes private crash diagnostics, but a failed recovery
+snapshot publication leaves the bridge pending and Main never calls its retry API.
+Deliver normal Main physics retry at the existing1.0s cadence while the diagnostic
+session is active, no per-frame hammering; success clears pending and stops retries,
+retaining the exact captured recovery snapshot and one CRASH_DETECTED event.
+Repeated failures retain data and retry only once per interval. Clean/teardown
+must not gain dirty-marker writes or independent timers; preserve record/store
+persistence, foreign data, redaction and original clean-shutdown semantics.
+One agent owns GameFlow, existing lifecycle bridge only if a cheap readiness
+query is needed, and existing Main diagnostics integration test. Root owns docs,
+validation, paired export/checkpoint/integration/cleanup. Do not wire optional
+network/threshold APIs or invent uploader/stack-capture requirements.
+Proof: commit a test-only RED on old production first: injected sink-stage failures
+leave publication pending/file absent across normal physics. Only the named new
+retry assertions may fail; source parser/other existing predicates must pass.
+Then implement consumer and run existing Main/record/lifecycle/sink suites at
+unchanged300s per-suite caps, verifying1s boundaries, repeated refusal, one event/
+one publication, no post-success or post-clean retry and preserved payload.
+RED is expected failure, not acceptance. One correction allowance applies only to
+unexpected production/test/build failures; any failed corrective validation parks.
+Read-only bookkeeping regeneration may fix lost preparation output with identical
+frozen inputs before an acceptance comparison; record it, never claim a failed
+predicate passed, never alter source/expectations/caps to hide a failure.
+Fresh paired checkpoint/three strict menu startups/full payload/archive audit
+required before accepted integration. All Godot Dummy/headless or isolated x11.
+Estimate30minutes including RED/GREEN/build/cleanup; absolute hard stop09:28:35UTC
+(60minutes from binding), final10minutes for closure. Before launch full current
+cap plus closure must fit; source/review/failed costs remain charged. Native/
+real-OS crash/device/audio/full release remain open. Push accepted work and remove
+owned branch/worktree/process/scratch after verified preservation. No parked retry.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
