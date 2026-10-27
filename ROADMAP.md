@@ -124,6 +124,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**One causal Cinder continuation selected within the original remaining clock.**
+Independent cumulative-priority review explicitly supersedes the prior PARK and
+one-attempt restriction for ONE codec-boundary correction and ONE second native
+attempt. Prior43.01minutes/failure stay charged to original01:33:55UTC start;
+hard closure03:03:55UTC/90minutes is unchanged. This correction's readiness/launch
+cutoffs are02:30/02:35UTC, replacing the initial preparation gates that were met.
+Observer emits exactly production `JSON.parse_string(JSON.stringify(raw_ack))`
+while retaining raw ack; caller compares every canonical state field with all
+existing writer/receipt/identity checks. No epsilon/approximation/field omission,
+authority/tuning/route/cap/namespace change. Original two18hits and full two-flight/
+home/reuse/normal UI OS0 remain required. Restore five archived files into one
+owned worktree; add exact float-pair/raw-preservation/wrong-field regressions in
+existing tests. Changed observer requires fresh compile/export/strict startup.
+Next unexpected failure, missed cutoff or closure risk returnsPARK/no third run.
+[Original failure/full contract](docs/ROADMAP_BACKLOG.md#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27).
+
 **PARKED — Cinder Light route stops at caller save comparison.**
 The one ordinary attempt passes15 supported walking goals, real boarding,
 90 seated ticks and the actual12m departure lift. The first active race tick

@@ -1396,6 +1396,25 @@ identical export. Owned scratch cleaned; original failed archive retained.
 
 ### Cinder Light two-pulse weapon and return/reuse — frozen2026-10-27
 
+**Explicit causal reopening2026-10-27 02:19UTC, before restoration/correction.**
+Independent high review authorizes one production-canonical acknowledgement
+observation/comparison correction and one second full native attempt. This
+supersedes the previous PARK/one-attempt restriction only for this cause; all
+previous failure/raw/source and43.01minutes stay charged to01:33:55UTC. Original
+90minute hard03:03:55 remains; correction readiness02:30/native launch02:35.
+No epsilon, Python approximation or field omission: raw acknowledgement remains
+unchanged and the observer separately publishes the exact production JSON
+round-trip. Actual persisted state must equal that full canonical acknowledgement
+with the same writer/receipt/identity guards. Existing tests prove the actual
+float pair, raw immutability and wrong-field refusal; changed observer gets fresh
+compile/private export/strict startup. No other behavior, route, two18hits, both
+flights/home/reuse/UIOS0, namespaces or original300/360/15/25/landing limits change.
+One medium implementer owns the restored five files plus existing
+cinder_timed_race_session_test.gd; root owns integration/checks/build/cleanup, one
+high independent reviewer source/results. No third attempt; next unexpected
+failure/missed cutoff/insufficient closure time PARKS. Original record below stays
+historical and is not erased.
+
 **PARKED/NOT_ACCEPTED after the one full attempt.** All15 walk goals, actual
 boarding/90 seated frames and powered12m lift pass. First A arrival/Fire/home/reuse/
 UIOS0 do not. First failure is caller equality between canonical saved elapsed
