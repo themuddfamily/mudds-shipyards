@@ -3629,7 +3629,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-STALE | Stale session ordinary browser route | 25 | Capability | DONEca149d6 scoped source InputEvent/LAN production behavior. Explicit30s engineering default from last valid reply, paused monotonic expiry, exact LAN row/endpoint retirement and stalejoinpreflight beforeintent/rolechanges. Natural actualexpiry30.003631s; zero staleintents/admissions; honestexpiredUI/Retryfocus, actualRetryrediscoverssamehost, originalPlayerfreshjoin and4supportedwalks/normalDisconnect+soloreturn. Whole314checks/116.907s, twoactualOS0/zero diagnostics; focusedLAN42/expiry8/default7/presenter83/HUD40 pass. FreshcleanWindowsEXE/ZIP/notes, strictpayloadmenu startup0/sentinel1/zero diagnostics,1527-entry inventory/stockPEtext/exactZIP, independentruntime+packageGO andownedcleanup. Existing abstract30ticks hasno seconds mapping; optionaldurationpreference isnotapproval. Originalcaps/90mininclprior10 preserved; no failures/retries. MatchingLinuxca149d6 is now separately startup-qualified with exact Windows payload parity; no packagedordinary/native/device/capacity/endurance/finalqualification claim. [Delivery](history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted--2026-10-25). Separately parked unreachable route is not replayed. | [Ordinary browser](#proof-network): Select a frozen expired session row → no admission → terminal stale/unavailable feedback → usable refresh/retry/back. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | BROWSER-FULL | Full session ordinary browser route | 25 | Qualification | DONE e39653cf in source InputEvent/LAN UI-refusal scope. Real one-slot host+authenticated occupant; third Main sees actual1/1 FULL row, ordinary pointer press/release reaches disabled UI and creates zero activation/join/admission. Real Refresh advances directory1→2; Back/Begin Shift retains same supported Player for1.002774m walk/12neutral ticks. Original occupant stable; host counts0→1→0, all3 actual OS exits0, coordinator209 checks/125.781s/zero diagnostics. First121.373s coordinate failure retained; one caller-only final-transform correction, no runtime/cap change. Independent source/raw GO, pushed main/local task branch+owned scratch cleaned. No transport-refusal or release-capacity claim; package/device/native/endurance/final gates remain separate. [Exact scope](history/ROADMAP_DELIVERIES.md#browser-full-ui-refusal-accepted-20261025) | [Ordinary browser](#proof-network): Select a genuinely full session → refused admission with accurate full feedback → usable alternative/retry/back. Admission fails this goal. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | BROWSER-UNREACHABLE | Unreachable endpoint ordinary browser route | 25 | Qualification | OPEN as a whole. Separate silent/no-answer source case DONE bd61da07: real bound non-answering UDP endpoint, paused native CONNECTING attempt naturally times out at 5,005 ms; visible timeout/current fenced Retry, complete retirement; actual Retry creates fresh native attempt, prompt Cancel closes it, same guest Main/Player then joins independently matched live Main host as 1079334082/gen1. Four supported 1.002774 m connected/solo walks, 12 neutral ticks/zero drift, 522 passive samples, host counts 0→1→0 and both actual OS exits 0. Whole source/InputEvent/Xvfb/Dummy route 335 checks/92.784 s/zero diagnostics; initial 1.280 s parse failure preserved, one reviewed explicit-bool correction; source/cache/pin guards and cleanup pass. No runtime change or identical export. SEPARATE reachable-ENet/non-admission packaged route e944f52 remains PARKED at timeout native-cache diagnostic, source under archive/withheld/browser-release-cache-20261020; no causal runtime fix or replay. Package/device/native/controller/capacity/endurance/final gates open. [Source-case result](history/ROADMAP_DELIVERIES.md#browser-no-answer-source-accepted-20261025). | [Ordinary browser](#proof-network): Attempt the frozen unavailable endpoint → existing bounded terminal failure/no admission → no surviving session owners → usable retry/back. Preserve parked failure and original deadlines. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
-| BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | Qualification | [Literal physical-browser contract](#browser-controller-contract) now fixes host/one guest, pad0/1/6 and stick actions, title/Refresh/discovered-row/Begin Shift/tutorial/pause/Disconnect/Retry/solo-return focus path, exact live retired-session fields, walks and original D3 limits. Source binding only; no engine/device run. BLOCKED executable caller—Codex: physical rendered-guest mode in the existing one-guest harness, using passive receipts without synthetic focus/input, plus actual candidate/endpoint/device/backend/session binding. Actual supported controller and dedicated session are input requirements; source inspection does not prove they are unavailable. Existing delivered fixes and synthetic/component scopes stay closed; physical result remains NOT_RUN. | [Literal physical-browser route](#browser-controller-contract): one actual supported physical controller discovers/selects the matching live host, joins usable gameplay, disconnects into enabled RETRY CONNECTION with exact retired ownership, then Refresh/Back/Resume and usable solo walk; keep original limits and actual device/candidate proof. |
+| BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | Qualification | Source controls contract and executable physical-guest caller DONE4886fee, integrated after independent safety review. [Literal source command/binding](#browser-controller-contract) preserves full one-guest route, passive guest pad/focus/walk observations, prelaunch display/device/candidate guards, isolated host and original D3caps. Corrected syntax/config10, fresh semantic import, actual prelaunch rejection and original synthetic gameplay294/86.192s/bothOS0/clean logs pass; one prompt-order correction consumed, source attempt allowance0. Execution GATED on actual supported controller/backend/dedicated session/candidate binding and full physical observations; hardware NOT_RUN. Native packaged physical-mode support/final scope is not established by source-only validation. No hardware absence or physical PASS inferred from synthetic results. | [Literal physical-browser route](#browser-controller-contract): one actual supported physical controller discovers/selects the matching live host, joins usable gameplay, disconnects into enabled RETRY CONNECTION with exact retired ownership, then Refresh/Back/Resume and usable solo walk; keep original limits and actual device/candidate proof. |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | Qualification | DONE035fa2f scoped Linux-source InputEvent/LAN ordinary route: complete normal first join/walking/Disconnect/old transport+authority retirement/solo/fresh Refresh+authenticated rejoin/second connected walking/second retirement/final solo+hoststop. Both original Players retained; matched tuple659889361/1→514425711/2; hostcounts0→1→0→1→0, seven supported walks1.002774m with12neutral ticks each. Whole510checks/88.888s, actual2OS exits0/zero diagnostics. Both earlier caller failures retained; normalized identity fields and actual pre-assert observation, no runtime/cap change. Independent source/raw GO; integrated/pushed and owned cleanup. Original75min08:15:10Z clock includes intervening package task. Package/device/endurance/capacity/final gates remain open. [Accepted result](history/ROADMAP_DELIVERIES.md#browser-disconnect-rejoin-accepted--2026-10-25) | [Ordinary browser](#proof-network): Join an actual live session → ordinary Disconnect → old transport/authority retired → usable browser → fresh successful admission and usable gameplay. No stale session reuse. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | Qualification | DONE ed29733 in Linux-source InputEvent/Xvfb/Dummy scope. Two actual native CONNECTING attempts to the settled owned UDP non-answering endpoint are cancelled through ordinary UI; both peers closed, pending identities/deadlines and authority cleared. Same guest Main/Player then discovers and joins actual live Main host as matched 848552394/gen1 using a fresh native peer. Passive guard passes 270 samples; four supported 1.002774 m connected/solo walks, 12 neutral ticks and zero drift; host counts 0→1→0, both actual OS exits 0. Complete route 351 checks/86.223 s/zero diagnostics. First 82.671 s failure retained: obsolete disabled/Back assertion conflicts with current enabled Retry Connection contract; one reviewed caller-only correction passes original limits. Independent raw/source review GO, owned processes/scratch cleaned. Game code unchanged; no identical checkpoint export. Package/device/native/capacity/endurance/final gates remain open. [Delivery](history/ROADMAP_DELIVERIES.md#browser-cancel-reuse-accepted-20261025). | [Ordinary browser](#proof-network): Begin an actual pending connection → ordinary Cancel before admission → transport/owners retired → usable browser → fresh successful join. No later callback admits the cancelled request. Freeze exact candidate, endpoint/participants, existing command and original limits; no unchanged parked rerun. |
 | SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | Definition | Definition DONE; Halyard BOARD accepted4bc0e3b38, full original MOVING-CABIN accepted2e117e64f. AUTHORITY-STOP accepted082da79c9 with real host shutdown/client recovery after full moving prefix; complete server baseline remains open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -4887,7 +4887,7 @@ main does not resume; Resume/Accept or Start supplies the actual continuation.
 [Browser build/focus/actions](../scripts/ui/hud.gd#L7167),
 [title return](../scripts/ui/hud.gd#L7376),
 [session action](../scripts/ui/hud.gd#L7429),
-[live Begin Shift](../tests/network/game_flow_server_browser_integration_test.gd#L1344) and
+[live Begin Shift](../tests/network/game_flow_server_browser_integration_test.gd#L1439) and
 [tutorial Next→Repeat→Dismiss focus](../tests/first_sortie_tutorial_hud_integration_test.gd#L93).
 
 **Walking observations retain the full existing check.** Before each connected/
@@ -4899,10 +4899,10 @@ sample preserve the original Player PID/object_id/path, support/collider,
 control/camera/capsule/process state and current authentication/grants. Connected
 and post-disconnect authority snapshots are distinct and remain fixed within
 their own walk. Do not count a moved transform without these retained values.
-[Existing sampler](../tests/network/game_flow_server_browser_integration_test.gd#L1488).
+[Existing sampler](../tests/network/game_flow_server_browser_integration_test.gd#L1585).
 
 **Exact network terminal observation.** Reuse the existing
-[_live_browser_retry_observation/_ready](../tests/network/game_flow_server_browser_integration_test.gd#L1369)
+[_live_browser_retry_observation/_ready](../tests/network/game_flow_server_browser_integration_test.gd#L1465)
 fields: source session ID equals GameFlow and retired session ID; source generation
 and sequence are positive and equal the retired tuple; GameFlow generation matches,
 retired=true, active source ID empty/generation−1/sequence−1. For explicit UI
@@ -4954,24 +4954,109 @@ Merge/push accepted source and remove its exact-tip owned branch/worktree/proces
 at closure. Actual physical-device/candidate qualification remains a separate
 unperformed requirement. This selection does not close BROWSER-CONTROLLER.
 
-**Missing executable capability—Codex.** Supply the existing one-guest harness
-with a rendered physical-guest mode that observes the above ordinary controller
-actions/current focus/network/walk results without grab_focus, Input.action_press,
-Input.parse_input_event or button.pressed.emit driving the guest. Reuse existing
-read-only receipts and host isolation; keep independent abort, release/reap all
-owned inputs/peers/displays, and actual OS0/zero diagnostics. No such physical-mode
-command exists in the inspected current selector/peer dispatch. One complete
-journey on a frozen actual device/candidate is the named case; it does not qualify
-all controllers or final release capacity. Further repetitions require their
-own original requirement, not an invented reliability count.
+**Executable source capability—delivered4886fee58793cb354f50dd38665de8347d76b9da.**
+The existing one-guest harness now accepts `--live-menu-physical-controller` with
+`--physical-binding /ABS/actual-binding.json`. The helper
+[physical_browser_guest_driver.gd](../tests/network/physical_browser_guest_driver.gd)
+observes real guest button/focus/intent and analog walk results; it does not drive
+guest focus, injected actions or button signals. A visible test overlay prompts
+the operator; neutral readiness precedes the movement prompt. Normal source UI
+still owns its own focus and callbacks. Host remains private Xvfb; the physical
+guest uses only the explicitly bound dedicated loopback-TCP X11 session with
+normal OpenGL3 rendering and Dummy audio. A host VID/PID filter plus zero-pad/
+hotplug guards prevents consuming the guest's controller. Guest evdev identity,
+actual GUID/raw-name/vendor/product/mapping and process event-device FD must
+match; Steam/foreign-pad/keyboard/mouse-button drive fails closed. Cursor capture
+and owned peers are released/reaped; the supplied operator-owned display is not
+killed. Existing route and stage limits are unchanged.
 
-Actual supported controller/backend and dedicated rendered-session access remain
-unbound physical inputs; record the owner/access if unavailable, without claiming
-that source inspection proved absence. Physical observations and the executable
-physical-mode caller remain NOT_RUN/missing. No automated run may take the user's
-active desktop or focus without explicit authorization. This binding resolves
-the source controls/endpoints; BROWSER-CONTROLLER and PLAN-NEXT remain OPEN on
-their remaining caller/device/candidate fields. Do not repeat this focus inventory.
+Binding fields are finite and checked before **any** peer/display spawn:
+
+| Fields | Actual required value/source |
+| --- | --- |
+| display, xauthority | Dedicated `127.0.0.1:N` X11 target, matching own0600 authority file in0700 directory; explicit existing MIT cookie, not an inherited active desktop |
+| display_pid, display_start_ticks | Actual dedicated Xorg/Xvnc/Xtigervnc process and its current /proc start identity; no stale PID or Xwayland/WSLg bridge substitution |
+| device_node, device_sysfs | The actual `/dev/input/eventN` character device and matching physical sysfs path, not a virtual input fixture |
+| device_guid, device_name, vendor_id, product_id, backend | Actual selected controller GUID/raw name and positive integer VID/PID; backend exactly `SDL3/linux-evdev`, actual mapping handled; not a self-labelled synthetic event |
+| source_commit, executable_sha256 | Exact HEAD of the chosen clean source tree and SHA256 of the pinned Godot engine actually launching it. These describe the source-mode candidate, not a native game export |
+
+After the actual device/session has been bound and authorized, the source command
+is the following; **it was not launched in physical mode for this task**:
+
+```bash
+install -d -m700 "$COORDINATOR_PROFILE"/{data,config,cache,state,runtime,data-dirs,config-dirs,tmp}
+env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u XAUTHORITY \
+  GODOT_SILENCE_ROOT_WARNING=1 XDG_DATA_HOME="$COORDINATOR_PROFILE/data" \
+  XDG_CONFIG_HOME="$COORDINATOR_PROFILE/config" XDG_CACHE_HOME="$COORDINATOR_PROFILE/cache" \
+  XDG_STATE_HOME="$COORDINATOR_PROFILE/state" XDG_RUNTIME_DIR="$COORDINATOR_PROFILE/runtime" \
+  XDG_DATA_DIRS="$COORDINATOR_PROFILE/data-dirs" XDG_CONFIG_DIRS="$COORDINATOR_PROFILE/config-dirs" \
+  TMPDIR="$COORDINATOR_PROFILE/tmp" \
+  python3 "$FROZEN_CLEAN_SOURCE/tools/release/suite_process.py" --timeout 300 -- \
+  /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy \
+  --path "$FROZEN_CLEAN_SOURCE" \
+  --script res://tests/network/game_flow_server_browser_integration_test.gd -- \
+  --live-menu-one-guest-gameplay --live-menu-physical-controller \
+  --physical-binding "$ACTUAL_BINDING_JSON" --live-results "$FRESH_RESULTS"
+```
+
+Coordinator profile/config/results stay outside the clean source tree; result
+path must not exist. Bind the existing ordered network/display locks and dedicated
+session before this command, rather than selecting the user's active desktop.
+Successful physical execution requires every original route/identity/walk/Retry
+predicate, actual host/guest OS0, zero diagnostics and full cleanup, with exactly
+one `GAME_FLOW_LIVE_MENU_PHYSICAL_CONTROLLER_TEST_OK` and coordinator
+`PHYSICAL_CONTROLLER_QUALIFICATION: PASS`. Source/mock/default regression cannot
+produce that physical result. Results/abort or termination of the owning
+suite_process is the independent abort path; no pause-menu dependency.
+
+**Actual source validation.** Initial source syntax and10 focused config/source
+checks pass. Independent review found one real prompt-order defect: a movement
+prompt appeared before supported-neutral readiness. At13.16 executable minutes
+plus11 prior definition minutes, root authorized the one correction with no cap
+or predicate change. Initial candidate bytes remain verified in
+initial-candidate.tar.gz/SHA256
+`64528dcf3c9350c7b23ab79df5e13a8ce27ba2c8ece149b60ece401826f6518c`.
+Corrected syntax/10 focused checks and independent exact-delta review pass;
+allowance0 remains on this source-caller attempt.
+
+Fresh Godot semantic import passes20.585s/actual0/zero diagnostics. An actual
+headless missing-binding probe exits1 in15.671s with exactly the expected config
+rejection, NOT_RUN/no PASS, no peer launch and no result directory. The unchanged
+original one-guest-gameplay contract then passes86.192s/294 coordinator assertions/
+zero failures/one terminal marker. Host and guest both actualOS0, no raw diagnostics,
+PIDs2660457/2660581 reaped. Their four connected/solo walk receipts each contain
+15 moving samples,9 settle samples and12 neutral samples, retaining physical=false;
+no actual physical_controller receipt or hardware claim. Final independent raw
+source/result/cleanup review GO. This is an executable source-qualification
+capability, not a physical-device or native-package pass.
+
+**Remaining qualification.** Actual controller/backend/dedicated-session access,
+chosen candidate/endpoint and physical press/route observations remain unbound/
+NOT_RUN; source inspection does not prove that hardware is unavailable. No native
+packaged physical-mode adapter/result is established by this source-only command;
+final PACKAGE-FINAL/MATRIX-FINAL scope stays open. No new mandatory human-review
+gate is invented. Later physical work preserves these costs, source limits and
+accepted scopes; it does not silently reset this attempt's exhausted allowance.
+BROWSER-CONTROLLER and PLAN-NEXT remain OPEN. Reuse the delivered source caller
+and controls contract rather than survey the same focus graph again.
+
+**Integration and preservation.** Source4886fee is contained in pushed main merge
+e2936b98f429986a1a772beef4d79683f21a87b6. Verified archive
+`/srv/mudds-work/browser-physical-caller-20261027/records.tar.gz`
+contains47 regular members/115480bytes/SHA256
+`0457c65a27f4f1aab9e4aaa9605929f4e6cd99f5a329bb5c4011d40ac12e29ee`:
+initial/corrected checks, original rejected prompt candidate, raw engine/peer/
+walk receipts, source identities and exact accepted source. Every regular member
+was compared with its original before cleanup. Owned worktree, profiles/caches,
+helper scratch and duplicate run files are removed; the exact4886fee task branch
+was deleted only after current pushed-main containment/worktree-owner checks.
+No remote task branch was created; only records.tar.gz/closeout.json remain there.
+All337 identities/order, command syntax and source links are preserved.
+At14:03UTC, executable phase~37.1minutes versus60estimated, plus~11 carried source-
+definition minutes (~48.1 known cumulative). Final notes/push remain charged to
+the same14:26:06 hard stop; no allowance reset or new gameplay build. Physical
+hardware/native-package qualification stays NOT_RUN and the playable checkpoint
+remainsf0d6796.
 
 Source controls/endpoints accepted13:24UTC after independent review fixed the
 one-row Back path, complete settle/neutral walking criteria and dynamic fixture
@@ -4982,8 +5067,9 @@ controller mappings, live Retry tuple and existing route selector are verified;
 `git diff --check` passes. Matrix `--list` exits0/selects exactly the three
 existing headless source suites; no engine/fixture/device run. About10.7minutes
 through review/checks; push remains within original13:33:31 hard stop. No branch,
-worktree, game process or retained scratch created. Physical-mode implementation
-and actual hardware qualification remain missing; PLAN-NEXT is not complete.
+worktree, game process or retained scratch created. At that definition close, physical-mode implementation
+and hardware qualification were still missing. The source caller is now delivered
+above; actual hardware qualification and PLAN-NEXT remain open.
 
 ### LAN discovery while paused — NET-BROWSER-PAUSE
 

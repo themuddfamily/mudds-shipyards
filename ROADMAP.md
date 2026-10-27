@@ -53,15 +53,14 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Selected capability — physical browser guest caller.** Implement the
-[existing controller contract](docs/ROADMAP_BACKLOG.md#browser-controller-contract)
-as an opt-in rendered physical guest with passive input/focus/network/walk
-observations. Keep the host isolated and preserve existing route/cleanup limits.
-Source guards, compile checks and the original synthetic regression validate
-implementation; actual controller qualification remains NOT_RUN until an authorized
-dedicated session/device is available. Original13:26:06UTC clock,60minute estimate,
-14:26:06 hard stop and one shared correction include integration/push/cleanup.
-The current f0d6796 playable checkpoint and earlier accepted fixes stay closed.
+**Delivered source capability — physical browser guest caller.** The
+[controller command](docs/ROADMAP_BACKLOG.md#browser-controller-contract) now
+supports a bound rendered guest that observes actual pad/focus/network/walk
+results while its host stays isolated. Source/config checks, real semantic import,
+prelaunch missing-binding rejection and the original private-display synthetic
+journey pass (294 assertions,86.192s,both peersOS0,clean logs). One prompt-order
+correction was accepted within the frozen budget. Actual hardware and native
+package physical qualification remain NOT_RUN; f0d6796 stays the playable build.
 
 ## How we will work from this roadmap
 
