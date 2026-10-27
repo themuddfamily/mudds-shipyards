@@ -125,6 +125,10 @@ standing-berth admission after reconnect. [Cinder remote crew](docs/ROADMAP_BACK
 now bind movement,home,loss/ramp handback and one conserved supply outcome.
 Safe readmission,guest ramp eligibility and authenticated remote terminal
 handoff are named production gaps;their implementation remains open.
+[Canonical repeat rest/resource fields](docs/ROADMAP_BACKLOG.md#canonical-repeat-rest-resource)
+now bind same-Main physical home,reboarding,paid progress and streamed-owner
+retirement. The repeat caller is missing;cycle count/elapsed and native resource
+inputs remain with their existing owners. No endurance run is claimed.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
