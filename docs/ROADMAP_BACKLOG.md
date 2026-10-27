@@ -3590,7 +3590,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | Qualification | DONE;4c9c764e9 original route138.915s, failed331 arrival attempt retained | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | Qualification | DONE;4c9c764e9, original pilot/ship/ownership generations, all peers exit0 | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual selected component repair with conserved kit and observed elapsed progress, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
-| ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): physical passenger sit/stand and supported moving-cabin carry, without helm authority, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
+| ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | Local source route and one actual52damage DONEc28f7ffa3; independent authenticated remote-role lifecycle remains GATED on supported candidate/ordinary route. Original fixtures and broader networking/native limits retained. BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual gunner target damage, release and physical reseat; retain local52damage proof, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual cargo/manifest action and truthful conserved load/readiness, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
@@ -4824,6 +4824,103 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
+
+<a id="halyard-passenger-contract"></a>
+
+### Halyard passenger — accepted moving/loss cases and missing ordinary exit
+
+Existing ROLE-HALYARD-PASSENGER has four reused proof owners:
+HALYARD-BOARD, HALYARD-MOVING-CABIN, HALYARD-AUTHORITY-STOP and
+HALYARD-PASSENGER-DESTRUCTION-RECOVERY. These are prerequisites/results, not
+four new assignments. Source owner is
+`tests/network/halyard_network_passenger_route_test.gd`; final integrated
+candidate scope remains with MATRIX-FINAL/FINAL-RECONCILE.
+
+**Start and admission.** One nonplaying Main authority, independent `client`
+pilot and independent `client_b` passenger. Each starts real Main at Intro with
+its original Player and isolated settings store. Actual HUD Manual Join,
+Back/Begin Shift and the fixed `ORDINARY_HALYARD_APPROACH` station waypoints
+precede the live `get_boarding_position()` hatch approach. Ordinary look/Interact
+discovers ShipBoardingArea and admits supported cabin walking. Pilot sits first;
+passenger physically claims `crew_port_00`. Preserve authenticated peer/avatar,
+peer generation, body/frame/source, role/seat/claim and ownership generations;
+the passenger has no helm authority. The host manifest binds
+`pilot_peer`/`passenger_peer` and their peer generations; ownership's
+`ship_id,ship_generation,owner_peer_id,ownership_generation`; boarding/seat
+`peer_id` or `occupant_peer_id`, avatar, ship/vessel, role, seat, seat generation
+and claim sequence; body entity/generation, parent frame/generation and occupancy.
+Both clients compare their current consumed values to that exact host manifest.
+No actor/craft placement or forced claim
+substitutes for this ordinary prefix.
+
+**Executable source command.** Freeze an exact clean source and owned fresh
+profile/TMP/results directories before any future selected run. The following
+literal moving selector is an existing executable, not a request to rerun it:
+
+```sh
+env -u DISPLAY -u WAYLAND_DISPLAY \
+  XDG_CONFIG_HOME=/ABS/FRESH/profile/config \
+  XDG_DATA_HOME=/ABS/FRESH/profile/data \
+  XDG_CACHE_HOME=/ABS/FRESH/profile/cache TMPDIR=/ABS/FRESH/tmp \
+  python3 tools/release/suite_process.py --timeout 360 -- \
+  /tmp/mudds-tools/godot-4.7.1/godot \
+  --headless --audio-driver Dummy --path /srv/mudds-shipyards \
+  --script res://tests/network/halyard_network_passenger_route_test.gd \
+  -- --ordinary-two-client-moving
+```
+
+The headless coordinator owns peers on private Xvfb displays with explicit
+x11/Dummy audio and input-only dummy rendering. Keep the original internal300s,
+outer360s, walk15s, consumed transition8s and actual peer exit10s bounds; those
+are not a new combined return/exit journey allowance. The supervisor is an
+independent abort/reap path; the caller releases held actions/cursor capture.
+Retain raw coordinator output, its printed peer artifact directory, each
+`.done.complete=true`/empty failures, all three actual `.exit=0` receipts, exact
+single selected success marker and diagnostic result. Source syntax checking
+uses the same Godot path/audio/script with `--check-only`; syntax is not journey
+acceptance. Selected source, template and native environment scope are distinct.
+
+| Existing selector / proof owner | Exact pass boundary and retained accepted result |
+| --- | --- |
+| `--ordinary-two-client-board` / HALYARD-BOARD | Full ordinary prefix, exact host and both consumed client identities/ownership/seats, controls and PILOT/PASSENGER HUD, terminal handshake. Source4bc0e3b38,130.472s, all three actual OS0; marker `HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK`. |
+| `--ordinary-two-client-moving` / HALYARD-MOVING-CABIN | Full BOARD then sampled pilot move_forward demand0.35; host departs>5m within8s. Seven stages: stand, walk, approach, sit, stand_again, approach_again, reseat. Every stage retains current body/frame/role, both peers consume current facts, hull displacement>.01m with at least2 samples/minimum sampled speed>.1 and fresh delivered helm commands. Host and passenger walk each>.6m; reseats have newer claims. Source2e117e64f,270 checks/141.298s, observed departure5.175m/walk1.181m/claims1→3→5, all three OS0/clean; marker `HALYARD_ORDINARY_TWO_CLIENT_MOVING_OK`. |
+| `--ordinary-two-client-authority-stop` / HALYARD-AUTHORITY-STOP | Full BOARD/MOVING then actual host `shutdown_network_session`, not client leave or process kill. Both original clients receive server_disconnected/session_stopped; original host bodies/claims/helm, client grants/prediction/presentation retire. Same passenger becomes supported unseated control-enabled solo cabin Player and walks>.6m within15s; former pilot's ordinary throttle reaches real solo consumer. Both Pause/Resume work and old grants stay retired. Source082da79c9,307 checks/142.082s, observed passenger walk.616m, all three OS0/clean; marker `HALYARD_ORDINARY_TWO_CLIENT_AUTHORITY_STOP_OK`. |
+| `--ordinary-two-client-destruction-recovery` / HALYARD-PASSENGER-DESTRUCTION-RECOVERY | Full BOARD/all seven MOVING stages, direct host damage causes actual hull loss. Old bodies/claims retire; same Players recover supported at strict station spawn with usable Pause/Resume. Actual host regeneration then both ordinary station/hatch returns establish fresh physical bodies/confirmed source streams/claims and renewed flight>5m. Logical avatar generation remains1 by contract. Sourcef5b71e06e,382 checks/197.131s, all three OS0/clean. Marker `HALYARD_ORDINARY_TWO_CLIENT_DESTRUCTION_RECOVERY_OK`. Direct host damage is the disclosed fixture; station recall is production recovery, not ordinary combat or hatch exit. |
+
+Moving cabin waypoints require both local and host-consumed horizontal distance
+≤.30m,15 consecutive supported settled ticks with horizontal speed<.1, vertical
+error<.8m and the same Player/source identity. These existing guards must not be
+relaxed to make a new route pass. The accepted
+[boarding](history/ROADMAP_DELIVERIES.md#halyard-ordinary-boarding-branch-finished--2026-10-20),
+[movement](history/ROADMAP_DELIVERIES.md#halyard-ordinary-moving-cabin--accepted--2026-10-20),
+[authority-stop](history/ROADMAP_DELIVERIES.md#halyard-real-authority-stop--accepted--2026-10-20)
+and [destruction/reuse](history/ROADMAP_DELIVERIES.md#halyard-passenger-destruction-recovery-and-reuse--accepted--2026-10-24)
+records retain their original failed attempts, corrections and environment limits.
+They do not require a fresh run just because this role row now references them.
+
+**Remaining Codex-owned field:** bind actual ordinary landed return/hatch exit,
+supported exterior movement, reentry and distinct passenger reclaim to an
+executable caller and original whole-route deadline before selecting that work.
+Moving chair release/reseat is not hatch exit; destruction recall is not hatch
+exit; regenerated entry is not an ordinary exit/reentry pair. Existing subset
+caps cannot supply the missing aggregate limit. No new craft/role, reconnect,
+migration, endurance or physical-device matrix is inferred here; those retain
+their existing separate owners/results. Current-source receipts and package
+startup checks do not establish final-package/native-GPU qualification.
+
+Definition selection2026-10-27 began14:15:24UTC, estimate20minutes including
+read-only source review, docs/checks/commit/push/cleanup; hard stop14:35:24UTC.
+Root owns this document; one bounded read-only agent binds disjoint caller
+fields. No engine/device/package/CI run, branch/worktree or scratch is selected.
+Prior PLAN-NEXT costs,337 canonical identities and parked-attempt limits remain
+unchanged. The absent ordinary-exit caller keeps this role and PLAN-NEXT open.
+
+Definition result14:18UTC: independent source review passes after correcting
+one wording error (station recall is production recovery; direct damage is the
+fixture). Canonical337-record identity/order, exact source selectors/markers,
+four history links, shell syntax and whitespace checks pass. No gameplay was
+rerun or newly qualified; no task-owned branch/worktree/scratch was created.
+Commit/push closure is inside the original14:35:24 deadline.
 
 <a id="halyard-engineer-contract"></a>
 
