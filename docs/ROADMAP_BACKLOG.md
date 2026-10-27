@@ -3593,7 +3593,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | Local source route and one actual52damage DONEc28f7ffa3; independent authenticated remote-role lifecycle remains GATED on supported candidate/ordinary route. Original fixtures and broader networking/native limits retained. BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual gunner target damage, release and physical reseat; retain local52damage proof, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
-| ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual cargo/manifest action and truthful conserved load/readiness, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
+| ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary Halyard manifest producer/payload, action/moving/loss observer and whole-route limits still require binding. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): physical gunner aim/fire causing registered target damage and release/reseat, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual conserved cargo action through the current Loadmaster owner, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual admitted navigation action/handback and current requester refusal feedback, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
@@ -4825,6 +4825,96 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
 
+<a id="halyard-loadmaster-contract"></a>
+
+### Halyard Loadmaster — missing player action, existing manifest authority
+
+ROLE-HALYARD-LOADMASTER is an existing passenger-backed role at `crew_port_00`,
+not an additional seat. Prerequisites: existing Halyard role authority and
+HALYARD-BOARD physical admission. Reuse HALYARD-MOVING-CABIN and
+HALYARD-AUTHORITY-STOP only for their [passenger endpoints](#halyard-passenger-contract).
+They never submit a Halyard manifest and cannot prove this role's action or its
+receipt retirement. Exact final source/package remains a MATRIX-FINAL input.
+
+**Implemented contract.** `HalyardCrewTransport.submit_crew_intent` admits
+`passenger_cargo_manifest` from the current `crew_port_00` passenger assignment.
+The exact payload is `{manifest_id,route_id,ready}` with no other keys;
+manifest/route IDs normalize to StringName and must be1–64 ASCII letters,
+digits, underscore or hyphen, and ready must be bool. Normalization belongs to
+`CrewRoleGameplayProfile`, seat/source/request admission to
+`CrewSeatRoleAuthority`, and receipt/display to the Halyard owner. The consumer
+also requires its actual authored station anchor and a live ship. A receipt
+copies `occupant_peer_id,avatar_id,seat_id,seat_generation,request_sequence,
+manifest_generation,manifest_id,route_id,ready`. `cargo_transfer_authority`,
+`inventory_mutation_authority`, `reward_authority` and `helm_authority` are all
+false. This is a readiness proposal, not stock movement or a delivery receipt.
+
+On the server, GameFlow's `_on_halyard_loadmaster_manifest_accepted` projects a
+ready receipt into the existing cargo-manifest presentation: state `route_ready`,
+source `halyard_loadmaster_manifest`, destination `halyard_freight_berth`, berth
+`crew_port_00`, terminal_generation1 and quantity1. Those hardcoded values do
+not establish actual cargo quantity, a current freight transaction or payment.
+The proposed manifest/route IDs come from the caller; focused test strings
+`manifest_alpha`/`dock_04_cargo` are fixtures, not real production defaults.
+
+**Exact missing runtime capability, owned by Codex.** This is not merely an
+unwritten test. Current GameFlow `_solo_gunner_input_is_available` excludes
+Halyard passenger actions; `_present_network_engineer_seat` returns after a
+stand-only passenger prompt before input binding; `_update_network_engineer_input`
+returns for non-Cinder passengers. `NetworkHalyardPassengerBinding.submit_readiness`
+explicitly rejects non-Cinder ships. Existing Cinder FIRE/send code cannot
+be counted as Halyard support. Implementation must connect normal remappable
+FIRE at this exact Halyard chair to the existing manifest consumer, in local
+and authenticated remote play, with truthful prompt/display and current-claim
+retirement. Other passenger seats must retain their ordinary behavior.
+
+| Existing role boundary | Literal observation required from implementation/caller |
+| --- | --- |
+| Bind real manifest producer | Before implementation selection, name the production source of both manifest_id and route_id and freeze their exact expected values for the selected real route. No fabricated transfer or test ID may substitute. This Codex-owned field remains unresolved. |
+| Normal seated action | Same physical chair/body/claim submits the proposal through sampled remappable FIRE. Host receipt matches actor, current seat/manifest generations and chosen manifest/route IDs; ready=true is observed at the chair and intended requester. Underlying inventory, rewards and helm ownership remain unchanged. No accepted ordinary Halyard caller exists yet. |
+| Authenticate remote action | Extend the existing transport/dispatch rather than add a parallel channel. Keep admitted peer, body entity/generation, actual seated chair and assignment, seat/claim, binding/migration, bounded server tick and increasing request-sequence guards. Current Cinder-only dispatch is a seam, not a passing Halyard result. |
+| Replay/wrong chair/release | Replayed authority sequence returns stale_request_sequence and cannot consume again. Other passenger chair cannot publish the Loadmaster proposal. Matching actor release/handoff empties receipt, clears display and advances manifest_generation; retired actor cannot restore it. Bind observed normal stand/reseat and one exact loss cut before running. |
+| Detach/reuse | Authority/role detach, interior unavailable and ship detach clear the matching receipt; clear generation saturates at1000000. Reuse starts empty at manifest_generation1. These source endpoints are not ordinary disconnect, destruction or cold-recovery qualification. |
+
+Existing `tests/halyard_loadmaster_role_gameplay_test.gd` directly claims an
+authority fixture and submits the API: receipt, replay/wrong-seat rejection,
+handoff/release/detach and reuse assertions. `halyard_loadmaster_presentation_test.gd`
+directly claims authority and submits manifest API proposals, then checks the
+real sign's STANDBY/READY/route/manifest and presentation-only authority.
+Neither walks a Player into the chair or
+qualifies ordinary network input. Source selection, without running Godot:
+
+```sh
+bash tools/release/run_test_matrix.sh --list --mode all \
+  --scope tests/halyard_loadmaster_role_gameplay_test.gd,tests/halyard_loadmaster_presentation_test.gd \
+  --audio-driver Dummy --display-driver x11 --timeout 300
+```
+
+The focused default300s cap does not define a complete ordinary moving-role
+journey. Missing caller/output receipts, exact moving/return/exterior path and
+active-owner-loss handback limits remain Codex-owned definitions. Implement
+one bounded production slice at a time under this existing ID: first bind the
+real producer, then local action, then authenticated remote action and its
+ordinary lifecycle observer. Each implementation selection must freeze owned
+files, pass/fail input/result, ≤90minute total estimate, absolute deadline,
+correction allowance, relevant checks/checkpoint and closure before editing.
+No new role/cargo policy, extra evidence family or parked retry is selected.
+
+Definition selection2026-10-27 began14:18:38UTC, estimate20minutes including
+read-only source review/docs/checks/commit/push/cleanup; hard stop14:38:38UTC.
+Root owns this document; one bounded read-only agent maps runtime admission.
+No gameplay, engine, package, hardware or CI run is selected. All337 canonical
+identities/order and prior PLAN-NEXT costs/attempt limits remain unchanged.
+The newly explicit runtime gap keeps ROLE-HALYARD-LOADMASTER and PLAN-NEXT open.
+
+Definition result14:21UTC: independent source review passes after correcting
+the presentation-test description (authority/API proposals, not injected sign
+receipts). No-engine dispatch selects the two existing headless suites;337
+canonical identities/order, source-function ownership, anchor/links, shell
+syntax and whitespace checks pass. No runtime PASS or new playable source is
+claimed. No task-owned branch/worktree/scratch was created; commit/push closes
+inside the original14:38:38 deadline, without resetting prior PLAN-NEXT work.
+
 <a id="halyard-passenger-contract"></a>
 
 ### Halyard passenger — accepted moving/loss cases and missing ordinary exit
@@ -5803,7 +5893,7 @@ acceptance. Pilot release/reclaim is its separate instance above.
 | --- | --- |
 | Jovian passenger at `co_pilot_station` | `jovian_network_two_client_return_test.gd` → flight → boarding → `halyard_network_passenger_route_test.gd`; accepted original two-client arrival is the immediate prerequisite. |
 | Jovian engineer at `passenger_port_01` | `jovian_network_engineer_route_test.gd`; role-specific standing/reseat is an anchor, ordinary home docking/exit/reuse remains unqualified. |
-| Halyard passenger; engineer; gunner; loadmaster (four instances) | `halyard_network_passenger_route_test.gd`, `halyard_network_engineer_route_test.gd`; authored passenger/loadmaster station, `crew_port_01` engineer and `co_pilot_station` gunner contracts. Loadmaster is a physical passenger assignment with its own action; layout-only navigator/sensor/co-pilot labels add no supported role. |
+| Halyard passenger; engineer; gunner; loadmaster (four instances) | `halyard_network_passenger_route_test.gd`, `halyard_network_engineer_route_test.gd`; authored passenger/loadmaster station, `crew_port_01` engineer and `co_pilot_station` gunner contracts. Loadmaster has a passenger-backed manifest API; [normal Halyard action/remote support is still missing](#halyard-loadmaster-contract). Layout-only navigator/sensor/co-pilot labels add no supported role. |
 | Bulwark gunner at `gunner_station` | `bulwark_network_gunner_route_test.gd`; supported authored pilot-to-gunner cabin corridor has focused capsule/skin coverage; ordinary full moving-cabin/dock-exit/reuse and a physical engineer instance remain unaccepted. Unanchored engineer policy is not a chair. |
 | Cinder Cargo Hauler loadmaster; navigator (two instances) | `halyard_network_passenger_route_test.gd --cinder-loadmaster` / `--cinder-navigator`; `cinder_loadmaster_station` / `cinder_navigator_station` are physical passenger assignments. Navigation ping API actors do not establish physical navigator route acceptance. No extension to other Cinder hulls is implied. |
 
