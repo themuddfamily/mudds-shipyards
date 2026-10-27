@@ -57,8 +57,10 @@ Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
 Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller)
 binds ordinary Save/cold/Reset stages,animation/camera observations and retained
-limits. Their missing callers and actual qualification remain open; parked
-journeys retain their original reopening conditions.
+limits. [Rest,remote and planetary motion](docs/ROADMAP_BACKLOG.md#motion-rest-remote-world-callers)
+now has finite actions/seams/pass observations; three planetary executions still
+need the named SOLO route/limit/handoff prerequisites. Missing callers and actual
+qualification remain open; parked journeys retain their reopening conditions.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
