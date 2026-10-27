@@ -53,14 +53,15 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Latest resolved field — physical browser controls.** The
-[controller contract](docs/ROADMAP_BACKLOG.md#browser-controller-contract) now
-fixes the one-guest pad/focus route, tutorial dismissal, live Disconnect→enabled
-Retry result, exact retired-session fields and usable solo return. Existing
-synthetic fixtures cannot qualify a physical controller. The physical-guest
-caller and actual device/session/candidate binding remain open. No engine or
-physical input ran for this definition. The shipped material-credit correction
-and current checkpoint remain accepted in their recorded scope.
+**Selected capability — physical browser guest caller.** Implement the
+[existing controller contract](docs/ROADMAP_BACKLOG.md#browser-controller-contract)
+as an opt-in rendered physical guest with passive input/focus/network/walk
+observations. Keep the host isolated and preserve existing route/cleanup limits.
+Source guards, compile checks and the original synthetic regression validate
+implementation; actual controller qualification remains NOT_RUN until an authorized
+dedicated session/device is available. Original13:26:06UTC clock,60minute estimate,
+14:26:06 hard stop and one shared correction include integration/push/cleanup.
+The current f0d6796 playable checkpoint and earlier accepted fixes stay closed.
 
 ## How we will work from this roadmap
 

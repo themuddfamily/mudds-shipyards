@@ -4928,6 +4928,32 @@ Detached `server_browser_focus_navigation_test.gd` checks graph/rebuild/scroll;
 HUD. Their300s/default limits and source markers remain their own scope, not a
 physical-device result. None ran for this definition.
 
+**Implementation selected2026-10-27 13:26:06UTC.** Source3761c205e, estimate60minutes,
+hard14:26:06UTC/execution end14:16:06UTC reserving closure; one total correction
+with cumulative-cost review before use. One implementation agent owns the existing
+network browser fixture, one optional physical-guest helper/UID and smallest
+focused guard/state checks in tests/network; root owns integration/docs/checks,
+with one independent input/process-safety reviewer. No recursive agents.
+Deliver a runnable opt-in physical guest on explicitly bound dedicated X11/
+XAUTHORITY/controller inputs, reusing the complete one-guest gameplay route and
+read-only receipts. Guest inputs/focus stay physical; host stays isolated. Reject
+missing/mismatched bindings before any peer/display spawn; preserve all existing
+D3 limits, independent abort and owned cleanup. No actual hardware mode or active
+desktop is authorized for this implementation/check pass. Source/synthetic checks
+cannot claim physical qualification. No new human-review gate is added.
+
+Acceptance for the executable source capability: focused guards/state checks,
+fresh silent isolated import/compile, bounded independent safety review, and the
+original synthetic one-guest-gameplay regression through private Xvfb because
+shared spawn/dispatch/cleanup code changes. That regression keeps original300s/
+230s and every stage predicate; it is not physical proof. Normal game content and
+published checkpointf0d6796 remain unchanged; this is release-qualification caller
+support, not a new shipped gameplay/graphics checkpoint. Stop first unexpected
+failure; after final allowed correction fails or hard deadline, preserve/park.
+Merge/push accepted source and remove its exact-tip owned branch/worktree/processes
+at closure. Actual physical-device/candidate qualification remains a separate
+unperformed requirement. This selection does not close BROWSER-CONTROLLER.
+
 **Missing executable capability—Codex.** Supply the existing one-guest harness
 with a rendered physical-guest mode that observes the above ordinary controller
 actions/current focus/network/walk results without grab_focus, Input.action_press,
