@@ -1015,6 +1015,85 @@ class BuildScript(unittest.TestCase):
             self.assertEqual(source.read_bytes(), b"payload")
             self.assertEqual(list(Path(tmp).iterdir()), [source])
 
+    def _version_fixture(self, root):
+        # Use a real independent history so neither the project's current version
+        # nor a developer's dirty worktree can make this regression pass.
+        repo = root / "repo"
+        installer_dir = repo / "tools/release/installer"
+        installer_dir.mkdir(parents=True)
+        script = installer_dir.parent / BUILD_SCRIPT.name
+        shutil.copy2(BUILD_SCRIPT, script)
+        shutil.copy2(NSI, installer_dir / NSI.name)
+        project = repo / "project.godot"
+        project.write_text('config/version="1.2.3"\n')
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Installer Test",
+                        "-c", "user.email=installer-test@example.invalid", "commit",
+                        "-qm", "exported source version"], check=True)
+        commit = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                                         text=True).strip()
+        project.write_text('config/version="9.8.7"\n')
+        return repo, script, commit
+
+    @unittest.skipUnless(HAVE_MAKENSIS, "makensis not installed")
+    def test_exported_commit_version_survives_dirty_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, script, commit = self._version_fixture(root)
+            source = root / f"MuddsShipyards-{commit[:7]}.exe"
+            source.write_bytes(b"exported payload")
+            for override in (False, True):
+                with self.subTest(full_commit_override=override):
+                    output = root / f"MuddsShipyards-{commit[:7]}-{override}-setup.exe"
+                    env = dict(os.environ)
+                    env.pop("MUDDS_INSTALLER_SIGN", None)
+                    env.pop("MUDDS_INSTALLER_FULL_COMMIT", None)
+                    if override:
+                        env["MUDDS_INSTALLER_FULL_COMMIT"] = commit
+                    proc = subprocess.run([str(script), str(source), str(output)],
+                                          capture_output=True, text=True, env=env,
+                                          timeout=30)
+                    self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                    record = json.loads(Path(str(output) + ".installer-result.json").read_text())
+                    self.assertEqual(record["source_commit"], commit)
+                    self.assertEqual(record["product_version"], "1.2.3")
+                    self.assertEqual(record["build_label"], f"1.2.3+{commit[:7]}")
+                    # NSIS emits this actual FileVersion in the PE string table.
+                    self.assertIn("1.2.3.0".encode("utf-16le"), output.read_bytes())
+                    self.assertNotIn("9.8.7.0".encode("utf-16le"), output.read_bytes())
+                    self.assertEqual(source.read_bytes(), b"exported payload")
+            self.assertEqual((repo / "project.godot").read_text(), 'config/version="9.8.7"\n')
+
+    def test_unknown_or_noncommit_override_fails_before_compiler(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, script, commit = self._version_fixture(root)
+            blob = subprocess.check_output(["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+                                           input=b"not a commit").decode().strip()
+            compiler_dir = root / "bin"
+            compiler_dir.mkdir()
+            marker = root / "compiler-called"
+            compiler = compiler_dir / "makensis"
+            compiler.write_text('#!/bin/sh\nprintf called > "' + str(marker) + '"\nexit 99\n')
+            compiler.chmod(0o755)
+            for revision in (commit[:7] + "f" * 33, blob):
+                with self.subTest(revision=revision):
+                    source = root / f"MuddsShipyards-{revision[:7]}.exe"
+                    source.write_bytes(b"payload")
+                    output = root / f"MuddsShipyards-{revision[:7]}-setup.exe"
+                    env = dict(os.environ, PATH=str(compiler_dir) + os.pathsep + os.environ["PATH"],
+                               MUDDS_INSTALLER_FULL_COMMIT=revision)
+                    env.pop("MUDDS_INSTALLER_SIGN", None)
+                    proc = subprocess.run([str(script), str(source), str(output)],
+                                          capture_output=True, text=True, env=env, timeout=10)
+                    self.assertNotEqual(proc.returncode, 0)
+                    self.assertIn("is not a commit", proc.stderr)
+                    self.assertFalse(marker.exists())
+                    self.assertFalse(output.exists())
+                    self.assertFalse(Path(str(output) + ".makensis.log").exists())
+                    self.assertEqual(source.read_bytes(), b"payload")
+
     @unittest.skipUnless(HAVE_MAKENSIS, "makensis not installed")
     def test_compiles_installer_and_records_provenance(self):
         full = _head_commit()

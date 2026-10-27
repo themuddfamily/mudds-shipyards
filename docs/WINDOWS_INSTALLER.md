@@ -803,9 +803,13 @@ Requirements: `makensis` (NSIS 3; `apt-get install nsis` on the WSL side), a
 source executable named by `export_windows_candidate.sh`, and a repository
 whose history contains the seven-character revision in that name (the full
 commit is resolved from it; `MUDDS_INSTALLER_FULL_COMMIT` overrides the lookup
-for installers built outside the source worktree). The product version comes
-from `project.godot` `config/version`. The build does not need a clean
-worktree because it only consumes an already exported artifact.
+for installers built outside the source worktree). Both lookup modes require
+an actual commit in that repository history with the filename prefix. The
+product version comes from **that exported commit's** `project.godot`
+`config/version`, even when the current checkout is newer or dirty. Missing
+source history/project configuration or an invalid version fails before compiler
+or signing. The build does not need a clean worktree; it consumes the already
+exported artifact and immutable source-version configuration.
 
 Outputs beside the source executable (or at the optional second argument):
 
@@ -819,6 +823,55 @@ Outputs beside the source executable (or at the optional second argument):
 `makensis` runs with `-WX`, so its insecure-filename warning is fatal: a bare
 `setup.exe` output name is refused because Windows loads compatibility shims
 into processes with that name.
+
+## Final installer identity — INSTALL-WIN-FINAL
+
+This gate compares one frozen Windows export with its NSIS package. It does
+not require owner-excluded native Windows execution. Codex owns the candidate
+and tool bindings below; `PACKAGE-FINAL` supplies the actual accepted game bytes.
+`SIGN-FINAL` separately owns trusted signing and the final signed-byte hashes.
+A checkpoint build may prove the builder operation without closing final release.
+
+Before a run, record full exported source commit, its seven-character filename
+prefix, commit `project.godot` version, exact EXE path/hash/size, builder and NSI
+commit, NSIS version, fresh installer/output directory and isolated extraction
+directory. Output installer/log/result/checksum paths must not exist. Use the
+existing600s compilation limit; record actual exit and unfiltered compiler log.
+No game invocation is required for artifact extraction.
+
+From the recorded builder checkout, with `GAME_EXE`, `INSTALLER` and `EXTRACT`
+bound to those absolute paths:
+
+```bash
+env -u MUDDS_INSTALLER_SIGN -u MUDDS_INSTALLER_FULL_COMMIT \
+  timeout 600 tools/release/build_windows_installer.sh "$GAME_EXE" "$INSTALLER"
+7z x -y "-o$EXTRACT" "$INSTALLER"
+sha256sum "$GAME_EXE" "$EXTRACT/MuddsShipyards.exe" "$INSTALLER"
+```
+
+Pass requires compilation exit0/no warnings; `.installer-result.json` has
+`installer_kind=nsis-per-user`, exact source commit, that commit's product
+version and `<version>+<sha7>` build label, actual source/installer SHA256 and
+sizes. `.sha256` must identify the actual installer. Extracted
+`MuddsShipyards.exe` must be byte-for-byte equal to the exported source; source
+EXE and existing checkpoint ZIP remain unchanged. Inspect actual installer PE
+version strings against the committed product version, not just the result JSON.
+The installed runtime paths authored by the NSI are `MuddsShipyards.exe`,
+`source-commit.txt` and `uninstall.exe`; version/build/source fields and registry
+metadata use those same defines. Script source alone does not prove native
+installation or uninstaller execution.
+
+**Standalone uninstaller identity remains an explicit limitation.** Existing
+7-Zip extraction exposes the game but not the standalone uninstaller and reports
+`BadCmd=13` on the historical candidate. Record the actual current extraction
+output/membership; never claim its uninstaller hash from the parent installer
+hash. Codex must supply a supported extraction method and exact standalone
+uninstaller bytes/hash, or retain that predicate as NOT_RUN. Do not restore
+native execution as a prerequisite to bypass the owner's exclusion. Trusted
+publisher/certificate verification and all resulting signed-byte identity remain
+under SIGN-FINAL. Missing final candidate or standalone artifact prevents full
+INSTALL-WIN-FINAL closure; compilation/game extraction alone proves its named
+packaging subpredicate only.
 
 ## What the installer does
 

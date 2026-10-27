@@ -6,7 +6,7 @@
 # The source executable must be a file produced by export_windows_candidate.sh
 # (its name carries the seven-character source revision). The full commit is
 # resolved from the repository this script lives in; the product version is
-# read from project.godot. Writes <output>, <output>.sha256 and
+# read from that commit's project.godot. Writes <output>, <output>.sha256 and
 # <output>.installer-result.json (schema_version 1). Compiling never needs a
 # clean worktree because it only consumes an already exported artifact.
 #
@@ -55,7 +55,14 @@ fi
 [[ "$full_commit" =~ ^[0-9a-f]{40}$ ]] || die "full commit must be forty hex characters"
 [[ "$full_commit" == "$short_commit"* ]] || die "full commit does not start with $short_commit"
 
-product_version="$(sed -n 's/^config\/version="\([0-9][0-9.]*\)"$/\1/p' "$REPO_ROOT/project.godot" | head -n 1)"
+# A historical payload may be built from a newer or dirty checkout. Resolve
+# its version from the same immutable commit as its recorded source identity.
+# The override disambiguates history; it cannot invent a missing source commit.
+[[ "$(git -C "$REPO_ROOT" cat-file -t "$full_commit" 2>/dev/null)" == commit ]] \
+	|| die "source revision $full_commit is not a commit in $REPO_ROOT"
+source_project="$(git -C "$REPO_ROOT" show "$full_commit:project.godot" 2>/dev/null)" \
+	|| die "source revision $full_commit has no readable project.godot"
+product_version="$(sed -n 's/^config\/version="\([0-9][0-9.]*\)"$/\1/p' <<< "$source_project" | head -n 1)"
 [[ "$product_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
 	|| die "project.godot config/version is not a three-part version (got '${product_version}')"
 
