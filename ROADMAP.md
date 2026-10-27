@@ -124,6 +124,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**Selected — WEAPON-CINDER-LIGHT two-pulse hit and full return/reuse.**
+One existing Cinder Light member, not the whole craft. Normal Begin Shift and
+15-point supported Dock06 admission; actual12m lift; frozen raised flight lane;
+exactly two native F/registered18damage hits100→82→64 with real cooldown/heat;
+strict home/OFFLINE/physical clear/reboard and second full flight/home/exit;
+normal HUD Quit/actual OS0/clean real file. Default actors/tuning/data stay bound.
+[Self-contained actors, route points, data, commands and pass/fail](docs/ROADMAP_BACKLOG.md#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27).
+Original90minute clock2026-10-27 01:33:55→03:03:55UTC includes source binding,
+implementation/checks/export/one trial/review/push/cleanup; readiness before02:10,
+native launch before02:15. First unexpected failure or missed cutoff PARKS;
+no automatic retry or clock reset. Transit clearance is unproven until the run.
+No runtime gameplay/graphics change is assumed; one private Linux observer export
+is required, with strict archive startup. Device/native/final scopes stay open.
+
 **Accepted — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
 Builder17a11183a exports the finalized standalone uninstaller and records its
 actual size/hash in the existing result.33 tests pass/one PowerShell check is

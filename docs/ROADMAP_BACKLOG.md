@@ -1075,7 +1075,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | Container | OPEN container; [finite11member binding](#zenith-finite-acceptance-binding). Retain DONE ordinary pilot/real28hit/two strict homes/fresh reuse/normalOS0 Game4bf5e889/Driver4870595fa in the [accepted scope](history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026). Settled retained-Main DONEa70f9397a in its [staged scope](history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Full physical cross-craft handback DONE Game499e681/Driver8ba86d98e:162.917s/42walkinggoals/mandatoryactualGuided/strictTorrenthome/OFFLINE/exit/sameZenithfresh90neutral/normalHUDOS0/bothrealcleanmarkers/diag0. Stream5→retired7→reclaim9; later10afterreceipt. [Exact proof/fourfailedtrials/limits](history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026). Focused physical stair repair1f7dccb remains accepted in its [recorded scope](history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026). Remaining original component consequences/passive repair, loss/regeneration and current art/device/final bindings stay OPEN/BLOCKED definition as listed above; no missing handback or Main selector and no unchanged replay. Full craft is not DONE. | All members of the [finite binding](#zenith-finite-acceptance-binding) satisfy the [complete craft journey](#proof-craft) on the bound candidate, with original limits and retained failures. No extra crew, invented historical handling, craft×case matrix or unchanged parked replay. |
 | CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | Container | Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot plus physical passenger/gunner/engineer/Loadmaster claim/action/stand/reseat; retain the accepted52damage gunner case. |
 | CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | Source acceptance binding recorded below; full journey BLOCKED definition (Codex) on the listed exact inputs/routes/candidate/limits: ordinary Dock03 access/pilot flight, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](../ROADMAP.md#execution-now) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
-| CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | Container | Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot specialist handling, actual repeater cadence/cooldown and component consequences. |
+| CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | Container | WEAPON-CINDER-LIGHT two-pulse/home/reuse member selected under its [frozen contract](#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27), no acceptance yet. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot specialist handling, actual repeater cadence/cooldown and component consequences. |
 | CRAFT-ACCEPT-CINDER-HAULER | Cinder Cargo Hauler full solo craft loop | 7,10,11 | Container | Conserved cargo delivery DONE99f2717ee; full craft remains GATED on remaining actual weapon/role/damage/recovery/reuse/cross-craft/Main/art and final-source acceptance. One delivery does not close this journey. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot/ramp, conserved shared-stock delivery, travelling mass-driver impact and physical Loadmaster/Navigator actions. |
 | CRAFT-ACCEPT-CINDER-BOMBER | Cinder Long-Range Bomber full solo craft loop | 7,10,11 | Container | Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot four-round payload hit/miss/depletion, refusal while empty and refill4 on physical pilot retake; extra crew waits on BOMBER-ROLE-DECISION. |
 | SPEC-TITAN | Titan evidence-bounded identity/capability specification | 10,36 | Definition | BLOCKED input — user accepts/amends the linked explicit interpretation/design proposal and its fixed specification fields; no research or runtime execution pending that answer. PREPARED/unapproved [modern pilot/two-passenger/four-inert-parcel utility transport proposal](design/TITAN_IMPLEMENTATION_PROPOSAL.md); numeric geometry/16fields/functions/custody-recovery fixed, owner interpretation/design choice pending. No runtime or craft delivered. | Titan: all fixed [specification fields](#proof-craft), honest evidence label and explicit interpretation/design decision; no ship-completion claim. |
@@ -1362,7 +1362,7 @@ their recorded scopes; none was rerun by this definition.
 | WEAPON-HALYARD | Both pilot and admitted gunner use the same lance/heat/cooldown; real damage beyond a request receipt | Halyard crew consumer and HeroShip; existing gunner gameplay test stops at emitted request; attempted actual-hit extension is parked at ordinary seat admission |
 | WEAPON-BULWARK-PILOT | Actual pilot sustained-pulse binding through the common chain | Bulwark pulse resource, HeroShip, GameFlow |
 | WEAPON-BULWARK-GUNNER | Charged limited-ammo hitscan, component gates/revalidation and accepted-submission debit | Bulwark crew consumer; bulwark_crew_gunner_gameplay_test.gd; not Picket opponent travel |
-| WEAPON-CINDER-LIGHT | Runtime repeater definition and inherited live heat/cadence | cinder_light_interceptor_combat_production_test.gd |
+| WEAPON-CINDER-LIGHT | Selected two separate actual18 hits/heat/cooldown plus full two-flight strict home/exit/reuse/UIOS0; not yet accepted. | [Frozen ordinary route/actors/data/caps/clock](#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27); current1108/320m/.28 source binding. |
 | WEAPON-CINDER-CARGO | Inherited heat plus actual moving bolt and terminal damage; no instantaneous replacement | cinder_cargo_mass_driver_bolt_test.gd, MassDriverBoltPool and GameFlow |
 | WEAPON-CINDER-BOMBER | Fire edge/pulse suppression, four-round cooldown/wing refusal, real terminal or harmless expiry and generation cleanup | cinder_bomber_payload_integration_test.gd, payload authority/projectile/adapter |
 
@@ -1393,6 +1393,130 @@ selected new stages120.306s include compile and successful52.341s, not new featu
 counts. Caller-only source merged/pushed; current3767687 runtime unchanged, no
 identical export. Owned scratch cleaned; original failed archive retained.
 [Exact scope and cleanup](history/ROADMAP_DELIVERIES.md#existing-halyard-gunner-damage-qualified-on-its-declared-input-display--2026-10-20).
+
+### Cinder Light two-pulse weapon and return/reuse — frozen2026-10-27
+
+**Existing selector WEAPON-CINDER-LIGHT, one member of CRAFT-ACCEPT-CINDER-LIGHT.**
+This new ordinary qualification has no earlier selected/parked instance in the
+focused record. It does not replace the full eleven-boundary craft journey,
+component damage/repair/destruction, cross-craft, art or final-source/device gates.
+Original task clock starts2026-10-27 01:33:55UTC, including the completed source
+binding; total90minutes/hard03:03:55UTC. Readiness must finish before02:10UTC and
+the one full native attempt must launch before02:15UTC. A missed cutoff or first
+unexpected failure stops/PARKS; no automatic correction, retry or fresh clock.
+
+**Result/owner/start.** Codex delivers one executable ordinary OS-input caller in
+the existing release runner and qualifies the two actual pilot hits plus full
+two-flight usable return. One high implementer owns only run_native_sortie.py,
+test_native_sortie.py, native_sortie_observer.gd, startup_loader.gd and
+startup_cli_privacy_test.gd; root owns this card, exact candidate/build/process
+management/integration/cleanup. One independent high reviewer checks source/raw.
+Base59b66e32f; clean implementation commit and exact package/hash bind before any
+engine. Fresh private profile/default settings, normal Boot title/Begin Shift,
+Main/World/Player; no saved cargo/activity/reward fixture, injected poses or states.
+
+**Actual actors/defaults.** Read the live nested
+`World/FleetExpansionProductionBinding/cinder_light_interceptor`, canonical
+`cinder_light_interceptor`, home `dock_06_interceptor`. Source-derived nominal
+parked root[64,5.26,85.3]/yaw+90°; capture[94,13.26,85.3]; live boarding/exit
+[64,4.18,88.15]. Assert actual markers/transform/current berth, never assign them.
+Actual source1108/repeater `cinder_light_repeater`:320m/18damage/.28s cooldown,
+24m origin tolerance; initial LeftMuzzle[-2.82,.42,-3.42], then RightMuzzle
+[2.82,.42,-3.42]. Target is actual moving
+`World/ExteriorTargetRange/TargetDrone01`/DRONE-01 with registered adapter, initial
+100HP/base[-13,7,-95]. Default hull110, maximum speed102/boost120, thrust32,
+brake40, drag3, throttle response9, startup1.8s, yaw85/roll120, flight assist6.4,
+mouse turn22°, landing maximum speed18. No damage/tuning/physics/time changes.
+
+**Finite ordinary route.** Normal supported Player walk through these existing
+LIFE-ARM/Fleet points, in order (y values remain authored deck elevations):
+[0,0,15.5], [0,0,39], [0,0,46.3], [0,0,51], [-5.7,0,51], [-5.7,4.2,61.2],
+[-3.5,4.2,61.5], [-3.5,4.2,64.2], [-3.5,4.2,68.3], [6,4.2,68.3],
+[13,4.2,68.3], [22,4.2,68.3], [56,4.2,68.3], [56,4.2,live_boarding.z],
+then live boarding. Ordinary E/current reservation/pilot admission,90 seated
+neutral frames at the exact occupied OFFLINE berth. Do not reuse Zenith identity.
+
+For EACH flight, ordinary W must first exercise actual Dock06 departure lift:
+observe `_departure_lift_active`, its live origin/up/height12, actual positive
+consumed thrust/ONLINE/free lease/non-landed motion; wait for lift inactive AND
+actual rise>=11.99m (Hero's source completion tolerance.01). An inactive blocked
+lift below that height fails. Only then steer through the finite route below.
+These transit points are new engineering selections, not previously proven safe.
+Default handling, collision and clearance must actually pass on the one attempt.
+
+| Ordered flight point | World position / required operation |
+| --- | --- |
+| A: lifted forward departure | dock*(0,12,-20), nominal[44,17.26,85.3] |
+| B: raised departure lane | [44,50,85.3] |
+| C: raised range lane | [22,50,-24.7] |
+| D: weapon lane | [22,25.28,-24.7]; brake to<=.35m/s. Flight1 performs exactly two shots; flight2 never fires |
+| Return C, then B | Same fixed raised points, in that order; both arrivals required |
+| E: raised capture approach | [94,50,85.3] |
+| H: live home capture | live capture, nominal[94,13.26,85.3]; brake, then exactly one ordinary L |
+
+Waypoint arrival/braking uses the existing Arrow/Zenith navigation predicate and
+original tolerances; each new navigation stage has a frozen15s executor bound.
+Original walking15s/goal, boarding12s, exterior exit10s, weapon total25s, native
+CAP300/outer360 stay binding. Landing uses its actual captured Hero timeout
+(min24s, source-derived travel allowance), unchanged4s stall and strict end
+.16m/.5m/s/1.5° then exact berth transform/current occupied lease. No assist retry.
+Automatic OFFLINE with>=90 neutral physics ticks, ordinary E/exterior exit,
+supported walk to live boarding+[-8,0,0], actual>7m/reboard-block clear. Reapproach
+live marker and ordinary E/new pilot stream,90 seated neutral ticks, second full
+flight/home/OFFLINE/exit/clear walk. Require first<retired<second stream, current
+Main/World/Player/capsule/shape/craft/berth/camera/target/adapter throughout.
+Finish ordinary pause/Tab/Return on actual HUD Exit, actual OS0 and independent
+final primary-file crash-clean/safe-start clean_shutdown/current session_ended.
+
+**Two-pulse weapon proof.** Aim through actual camera1000m convergence and
+next-muzzle320m first-contact queries, both DRONE-01/current registered target.
+Require correct alternating actual marker/origin, fresh native F press AND its
+consumed current-source command, actual requests0 then1/source1108/weapon/profile/
+receipt/adapter context, exact health100→82→64 and exactly two18damage commits.
+Each separate F pulse uses existing minimum6physics ticks, then observed native
+release AND consumed command fire=false; second press waits for actual ready and
+>=17physics ticks after first. No held-fire burst/early-shot probe/third Fire.
+Positive actual heat/cooldown after each shot; ordinary neutral recovery follows
+Hero timer=max(0,timer-delta), heat decreases at.50/s; each intact shot adds.28
+heat and sets.28s timer. No overheat/1s lock is expected. Observe final ready,
+restore controlled attitude within the same25s weapon window. Preserve target64
+and zero further requests through both homes/flight2; no destruction/score/reward.
+
+**Literal data contract.** Actual independent primary captures: baseline, each
+completed home and orderly close; bind real profile/store/file identity and
+monotonic document/commit generations, not a fictional fixed interleaving.
+Allowed payload siblings are ONLY baseline runtime_settings plus
+solo_safe_recovery, crash_recovery, safe_start_recovery, session_diagnostics,
+cinder_timed_race_session and tutorial_prompts_seen. Require each actual live
+writer/payload/receipt. Fresh race starts idle0/no saved race/tutorial; first
+departure starts1, first home fails1, physical reboard resets terminal1→idle2,
+second departure starts3, second home fails3. Home reason returned_to_shipyard;
+if genuine timeout already occurred at elapsed>=120, preserve that same timed_out
+terminal without a new generation. No new120s per-flight limit is introduced.
+Tutorial schema1 adds only cinder_reach_checkpoint_route once. No checkpoint/lap/
+best/penalty/reward; no cargo selection/transfer/inventory change or other namespace.
+Initial default Torrent exterior preference is allowed until actual Cinder Light
+boarding. Settled Cinder pilot/home exterior contexts must use
+{location:mudds_home_berth, mode:pilot/on_foot, craft_id:cinder_light_interceptor,
+berth_id:dock_06_interceptor}; unavailable is permitted only during actual transition.
+Other settings/bindings/preferences/progress/debt stay baseline-identical.
+
+**Proof/build/closure.** One full existing Python native-runner suite, source
+import/compile, startup CLI privacy and existing Cinder combat source check; all
+actual Godot calls use pinned4.7.1/Dummy and fresh private profiles. Observer only
+reads detached current values/receipts; paused states reuse completed gameplay
+and refresh UI, with no paused physics queries. No action-provider or gameplay
+mutation. One clean private Linux export embeds the opt-in observer; require
+actual archive `--startup-check` exit0/exactly one STARTUP_MENU_READY_OK and zero
+unexpected diagnostics, then
+`python3 -B tools/release/run_native_sortie.py EXACT_BINARY --output FRESH_DIR --route cinder-light-return-reuse`
+with existing independent360s supervisor and actual source/profile/cache/process
+guards. No normal gameplay/graphics change is intended, so no identical public
+Windows rebuild is claimed; a demonstrated runtime repair would need its own
+supported continuation and fresh paired playable checkpoint before acceptance.
+Source/raw review GO precedes accepted integration/push; full craft and native
+GPU/device/human/final-candidate gates stay open/NOT_RUN. At closure preserve
+unique unaccepted source before exact owned branch/worktree/process/scratch cleanup.
 
 ### Activities and solo-world children
 
