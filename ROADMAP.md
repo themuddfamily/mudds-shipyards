@@ -124,36 +124,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**One causal Cinder continuation selected within the original remaining clock.**
-Independent cumulative-priority review explicitly supersedes the prior PARK and
-one-attempt restriction for ONE codec-boundary correction and ONE second native
-attempt. Prior43.01minutes/failure stay charged to original01:33:55UTC start;
-hard closure03:03:55UTC/90minutes is unchanged. This correction's readiness/launch
-cutoffs are02:30/02:35UTC, replacing the initial preparation gates that were met.
-Observer emits exactly production `JSON.parse_string(JSON.stringify(raw_ack))`
-while retaining raw ack; caller compares every canonical state field with all
-existing writer/receipt/identity checks. No epsilon/approximation/field omission,
-authority/tuning/route/cap/namespace change. Original two18hits and full two-flight/
-home/reuse/normal UI OS0 remain required. Restore five archived files into one
-owned worktree; add exact float-pair/raw-preservation/wrong-field regressions in
-existing tests. Changed observer requires fresh compile/export/strict startup.
-Next unexpected failure, missed cutoff or closure risk returnsPARK/no third run.
-[Original failure/full contract](docs/ROADMAP_BACKLOG.md#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27).
-
-**PARKED — Cinder Light route stops at caller save comparison.**
-The one ordinary attempt passes15 supported walking goals, real boarding,
-90 seated ticks and the actual12m departure lift. The first active race tick
-then exposes a caller representation mismatch: canonical saved elapsed
-0.0166666666666667 versus full-precision live acknowledgement0.016666666666666666.
-The production writer accepted the save; no gameplay/save-write defect is shown.
-No shot, first lane arrival, home/reuse or normal UI OS0 passes. [Exact first
-predicate, source cause and full retained goal](docs/history/ROADMAP_DELIVERIES.md#cinder-light-weapon-route-parked-at-canonical-race-comparison-20261027).
-313 Python tests/source checks/export/strict startup pass but do not close the
-ordinary qualification. Five candidate files stay unmerged in a verified
-archive; owned branch/worktree/process/display/scratch cleanup completes.
-No retry or numeric tolerance is selected. A future correction needs the actual
-production canonical-codec boundary and independent cumulative-priority review,
-retaining the full original route/caps and cumulative clock.
+**PARKED — Cinder codec continuation stops at a component regression.**
+One independently approved correction retains the raw acknowledgement and uses
+the exact production JSON canonical form for full-state comparison.314Python,
+import and privacy pass; the new Godot exact-float combined assertion fails.
+Other new raw-preservation/canonical-equality/wrong-field checks pass, but actual
+fixture float values were not logged, so the precise false comparison remains
+unproved. No production codec/engine defect is inferred.
+No export or second gameplay attempt ran. The first attempt's walking/boarding/
+90seat/12mlift observations remain; firing, full flight/home/reuse and normal UI
+OS0 are unqualified. [Both stops, source and cleanup](docs/history/ROADMAP_DELIVERIES.md#cinder-codec-continuation-parked-at-component-regression-20261027).
+Six candidate files stay unmerged in a verified archive. Owned branch/worktree/
+process/scratch cleanup completes60.395minutes from original01:33:55UTC, retaining
+original03:03:55 hard stop and both failures. No further correction/test/run is
+selected under this closed continuation; no fresh budget or third attempt.
 
 **Accepted — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
 Builder17a11183a exports the finalized standalone uninstaller and records its

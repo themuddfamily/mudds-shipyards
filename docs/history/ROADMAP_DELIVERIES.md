@@ -4,6 +4,68 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Cinder codec continuation parked at component regression 20261027
+
+**Authorized correction preparation FAIL/PARK; no second native attempt.**
+Independent cumulative-priority review explicitly superseded the first PARK/
+one-attempt restriction for one demonstrated codec-boundary correction and one
+second full route. It retained all prior43.01minutes/failure and original
+01:33:55→03:03:55UTC90minute clock, with correction readiness02:30/native02:35.
+The decision was recorded/pushed in a1d9e30fc before restoring any archived source.
+No unchanged replay, epsilon, omitted state field, route/cap/tuning change or
+fresh budget was authorized. The next failure required PARK; that stop applies.
+
+**Actual candidate/checks.** Only the five verified97d9 files were restored into
+one owned worktree; medium implementer added the exact canonical acknowledgement
+observer/caller change plus regressions in existing Python and Godot tests.
+Clean candidate639b606b6c0c59959db1436cb150b9106a6d4530 retains raw acknowledgement
+and emits its separate exact `JSON.parse_string(JSON.stringify(raw_ack))` value.
+The driver compares the entire persisted state to that canonical value, keeping
+all writer/reward/generation/identity/receipt predicates. Independent source
+review GO covered the narrow delta against97d9; no production authority changed.
+
+Full existing Python suite314PASS14.270s/guard14.894256; fresh source import
+PASS20.763274 and CLI privacyPASS1.279662/one marker, all zero diagnostics.
+Existing focused Cinder combat result was reused only after production-input
+byte equality; it does not qualify the ordinary route.
+
+**First unmet predicate.** Existing CinderTimedRaceSession component suite exits1
+in1.012523s. New test line266's combined exact-float assertion fails:
+raw elapsed==0.016666666666666666 AND canonical elapsed==0.0166666666666667 AND
+raw elapsed!=canonical elapsed. One actual ERROR is duplicated in stdout/profile
+logs; no success marker is emitted. Fixture attachment, countdown/physics advance,
+wrong-generation refusal, unchanged raw capture, complete canonical acknowledgement
+equality and wrong-clock refusal all print PASS. Actual fixture float values
+were not logged, so neither source nor these outputs isolates which of the three
+comparisons is false. Exact-pair reproduction remains unproved. No production
+codec/engine defect or verified correction is inferred from this component failure.
+
+Independent terminal review upholdsPARK/no further correction/test/export/native
+under this authorization. No export, package startup or second native stage was
+launched; no new game artifact/checkpoint is claimed. First attempt's15goal walk/
+boarding/90seat/12mlift observations stay within their original scope; weapon
+hits, completed flight/home/reuse/normal UI OS0 remain unqualified. A future
+priority decision must account for both stops and this missing exact fixture
+value/representation proof; no successor run or research chain is selected.
+
+**Preservation/cleanup.** Resumption archive
+`/srv/mudds-work/cinder-light-weapon-return-20261027/resumption/records.tar.gz`,
+11,439,856bytes/142members/SHA256
+`1f3659af63059141d1e74b05ad247805c4d2815e21274efc8ccfeebfcd96e58d`.
+Every member byte/mode/link target verified; named-ref source.bundle verifies
+against reachable a1d9e30fc and retains all six unmerged source files/full and
+correction patches/commit/check/raw/guard/profile records. Original first archive
+SHA d850…af23 is rechecked unchanged; no package duplicate is added.
+
+Fresh remote/registered-owner checks prove no task remote ref and exact clean
+owned639 tip. All observed PID/start identities are absent/reused; no live owned
+cwd/cmdline holder. Worktree removed and local ref CAS-deleted only after verified
+source preservation. Loose source/cache/profile/helper copies removed; resumption
+retains only records.tar.gz+closeout.json. Cleanup completes02:34:18.706138UTC,
+60.395102minutes cumulatively from original01:33:55, before03:03:55. Final notes/
+push stay charged to the same clock. Main receives only truthful terminal docs,
+not any of the six failed/unqualified source changes. No third attempt selected.
+
 ## Cinder Light weapon route parked at canonical race comparison 20261027
 
 **WEAPON-CINDER-LIGHT / selected CRAFT-ACCEPT-CINDER-LIGHT member FAIL/PARK.**
