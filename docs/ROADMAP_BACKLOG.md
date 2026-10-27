@@ -945,6 +945,21 @@ the verified delivery under existing authorization while retaining the deviation
 original failure/cost and rule; this is not permission for future production retries.
 Original07:37:14 start/45minute estimate/09:07:14 deadline include closure.
 
+Source50102032a is contained in pushed main d89e3edcb; reviewed source hashes
+match canonical files. Fresh remote tips/worktree ownership and no live owned
+cwd holders precede exact-tip local branch deletion; no remote task branch existed.
+Worktree/scratch/process cleanup completes08:25:14UTC,48.011 cumulative minutes
+from07:37:14,3.011 above the45minute estimate; final notes/push remain charged to
+the same original deadline. Only records.tar.gz/closeout.json remain under
+`/srv/mudds-work/safe-audio-action-20261027/`. Archive12814902bytes/271members,
+SHA256`aef2f81b6f21320ab3af61f79920be2d081d804577a8dc5eeea24dfb2c375c4a`;
+every member's bytes/mode/link target verified before originals removed. It
+preserves both source commits/nine full files/patch/bundle, initial failure,
+one diagnostic copy/correction, all actual logs/results/profiles, manifest trust,
+packaging error/deviation/review and exact published artifact identities. It
+contains no duplicate game binary/archive; all seven published build/provenance/
+notes files are verified unchanged in the repository build folders.
+
 New EXE/checkpointZIP/build notes are in builds/windows; matching Linux files in
 builds/linux, with exact copied identities retained. No Downloads/hosted CI run.
 Actual native Windows/GPU, audible/device/real-OS-crash/final-candidate recovery

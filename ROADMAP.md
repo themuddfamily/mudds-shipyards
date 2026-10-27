@@ -8,6 +8,8 @@ Matching [Linux checkpoint](builds/linux/MuddsShipyards-5010203-linux-x86_64.tar
 The recovery card now offers **Use Safe Audio** after repeated unfinished
 startups. It saves master50%/music0 through the existing adapter, preserves other
 preferences and retains the existing stable Restore/user-edit protections.
+Earlier journey results below retain their original source/package scopes;
+they were not rerun for5010203.
 Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
 newer primary, temporary or backup generation instead of selecting older data
 or deleting the newer file. All three files and live preferences stay unchanged.
@@ -324,7 +326,13 @@ existing task authorization, not as process-contract compliance or a blanket
 future retry exception. Original07:37:14 clock/45minute estimate/09:07:14 hard
 stop and all failed records stay charged. No further production repair occurred.
 [Exact source/proof boundary](docs/ROADMAP_BACKLOG.md#safe-start-graphicsaudio--production-action-and-proof-scope).
-Owned archive/branch/worktree closure is required before this delivery closes.
+Owned closure is complete: source50102032a is contained in pushed main;
+fresh remote/worktree ownership checked before exact-tip branch deletion (remote
+branch absent), worktree/scratch removed and only archive/closeout retained.
+Verified archive12814902bytes/271members, SHA256
+`aef2f81b6f21320ab3af61f79920be2d081d804577a8dc5eeea24dfb2c375c4a`.
+Cleanup08:25:14UTC is48.011 cumulative minutes, exceeding the45minute estimate
+by3.011; final notes/push remain charged within the unchanged09:07:14 deadline.
 
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
