@@ -66,6 +66,11 @@ OS launch arguments are verified. [Accepted scope and preserved failed run](docs
 Playable checkpointf0d6796 is unchanged; complete baseline, endurance and final
 release qualification remain open.
 
+The [real-client command gate](docs/ROADMAP_BACKLOG.md#server-command-proof-binding)
+is delivered on5c5868645: five authenticated RPC cases,refusal-state preservation
+and exactly-once consumption,with all three actual peer exits0/clean diagnostics.
+Four focused local suites pass313assertions; this qualifies that source capability.
+
 ## How we will work from this roadmap
 
 A coding assignment delivers **one observable game or build result** and has a

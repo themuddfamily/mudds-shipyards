@@ -2121,6 +2121,19 @@ ordinary Jovian rerun,impaired-link/endurance,packaged final or native qualifica
 No gameplay/graphics/game artifact changed; latest playable checkpointf0d6796
 stays unchanged. Current Main re-entry/other baseline callers stay OPEN.
 
+Verified accepted-source/raw archive
+`/srv/mudds-work/network-command-rpc-20261027/records.tar.gz`:
+4415572bytes/49regular members/SHA256
+`11e0ef0b5c85b41eb1d1df7e531e58d717c33de00f24b8f6a03e0c453113c338`.
+Every member matches its manifest; source bundle verifies accepted source5c5868645
+and integrationdbe761f3e against retained base91f28bc51. Fresh remote main is
+verified atdbe761f3e; no remote task ref exists. Registered ownership/clean tree/
+exact tip checked before local branch/worktree deletion; all owned game/wrapper/
+matrix processes are gone. Only archive/closeout remain after private profiles,
+peer/matrix scratch and reproducible import cache cleanup. Approximately17.717min
+through cleanup versus45min estimate; final documentation/push remains charged
+to original18:27:16 start. No accepted work is left on a task branch.
+
 Definition selection for this and the Main re-entry member starts2026-10-27
 15:58:12UTC;20minutes through16:18:12UTC including two disjoint read-only source
 reviews, documentation/identity/link checks, commit/push and cleanup. Root owns
