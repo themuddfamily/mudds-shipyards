@@ -142,6 +142,9 @@ final-candidate installation, physical input, rendered/native GPU or Windows gat
 [Proof, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#installed-crew-runner-current-cut-accepted-20261027).
 Original09:04:26UTC/45minute estimate/10:19:26 hard stop and one total correction
 remain charged through integration and owned cleanup.
+Source and notes are pushed; owned branch/worktree/private install/scratch are
+removed after verified preservation. Closure27.583minutes versus45estimated;
+final notes/push remain charged on the same clock.
 
 **Next candidates name concrete capabilities.** These are existing
 owners and dependencies, not simultaneous assignments or parked-run approvals.
