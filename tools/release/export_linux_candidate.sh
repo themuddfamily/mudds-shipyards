@@ -270,6 +270,7 @@ chmod 755 -- "$staged_binary"
 package_root="$work_dir/package/$package_dir_name"
 mkdir -p -- "$package_root"
 cp -- "$staged_binary" "$package_root/$output_basename"
+chmod 755 -- "$package_root/$output_basename"
 cp -- "$icon_source" "$package_root/$icon_basename"
 chmod 644 -- "$package_root/$icon_basename"
 cat >"$package_root/$desktop_basename" <<DESKTOP

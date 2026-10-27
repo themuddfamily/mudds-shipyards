@@ -27,10 +27,10 @@ STARTUP_SCRIPT = TOOLS_DIR / "run_linux_startup_check.sh"
 PRESETS = REPO_ROOT / "export_presets.cfg"
 
 
-def _run(args, env=None, cwd=None):
+def _run(args, env=None, cwd=None, umask=-1):
     return subprocess.run(
         args, cwd=cwd or REPO_ROOT, env=env, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60, umask=umask,
     )
 
 
@@ -188,8 +188,8 @@ class ReleaseTemplatePin(unittest.TestCase):
         self.preset.write_text('[preset.0]\nname="Linux"\n[preset.0.options]\n'
                                'custom_template/release=' + override + '\n')
 
-    def _export(self):
-        return _run([str(self.script)], env=self.env, cwd=self.repo)
+    def _export(self, umask=-1):
+        return _run([str(self.script)], env=self.env, cwd=self.repo, umask=umask)
 
     def test_private_release_only_template_selected_and_pinned(self):
         self.assertFalse((self.templates / "linux_debug.x86_64").exists())
@@ -203,7 +203,7 @@ class ReleaseTemplatePin(unittest.TestCase):
         self.assertEqual(record["release_template"]["expected_sha256"], self.digest)
 
     def test_bundle_ships_exact_manager_and_supports_checkout_free_lifecycle(self):
-        result = self._export()
+        result = self._export(umask=0o077)
         self.assertEqual(result.returncode, 0, result.stderr)
         archive_path = self.repo / "builds/linux/MuddsShipyards-0123456-linux-x86_64.tar.gz"
         root = "MuddsShipyards-0123456"
