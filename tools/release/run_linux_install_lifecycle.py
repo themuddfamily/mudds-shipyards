@@ -8,6 +8,7 @@ This checkpoint capability does not qualify a final candidate or native GPU.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -19,7 +20,10 @@ import subprocess
 import sys
 import time
 
-import install_linux_desktop as manager
+if __package__:
+    from . import install_linux_desktop as manager
+else:
+    import install_linux_desktop as manager
 
 HERE = Path(__file__).resolve().parent
 SAVE_SHA = '25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73'
@@ -41,6 +45,39 @@ class Abort(BaseException):
 def require(condition, message):
     if not condition:
         raise Refusal(message)
+
+
+class InstallerBudget:
+    """Independent wall abort for all installer work, paused only for game checks."""
+    def __init__(self, seconds=120):
+        self.seconds = seconds
+        self.paused = False
+
+    @staticmethod
+    def expired(_signum, _frame):
+        raise Refusal('installer consumer exceeded120s excluding games')
+
+    def __enter__(self):
+        require(signal.getitimer(signal.ITIMER_REAL) == (0.0, 0.0), 'installer requires its own independent wall timer')
+        self.previous = signal.signal(signal.SIGALRM, self.expired)
+        signal.setitimer(signal.ITIMER_REAL, self.seconds)
+        return self
+
+    def __exit__(self, *_error):
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, self.previous)
+
+    @contextlib.contextmanager
+    def gameplay(self):
+        require(not self.paused, 'installer timer cannot be paused recursively')
+        remaining, _interval = signal.setitimer(signal.ITIMER_REAL, 0)
+        require(remaining > 0, 'installer budget exhausted before gameplay')
+        self.paused = True
+        try:
+            yield
+        finally:
+            self.paused = False
+            signal.setitimer(signal.ITIMER_REAL, remaining)
 
 
 def absolute_path(value):
@@ -222,11 +259,16 @@ def startup_result(directory, binary, expected_sha):
     base = directory / (binary.name + '.startup-check')
     record = json.loads(base.with_suffix(base.suffix + '.json').read_text())
     raw = base.with_suffix(base.suffix + '.log').read_bytes()
+    markers = [line for line in raw.splitlines() if line.startswith(b'STARTUP_MENU_READY_OK')]
+    require(len(markers) == 1, 'startup requires exactly one readiness marker')
+    marker = markers[0]
+    require(marker == b'STARTUP_MENU_READY_OK' or (marker.startswith(b'STARTUP_MENU_READY_OK: ')
+            and isinstance(json.loads(marker.split(b': ', 1)[1]), dict)), 'invalid startup readiness marker')
     require(record.get('status') == 'PASS' and record.get('check') == 'linux_startup_menu_ready'
             and record.get('exit_code') == 0 and record.get('sentinel_count') == 1
             and record.get('binary_sha256') == expected_sha and record.get('input') == str(binary)
             and record.get('launch_mode') == 'headless' and record.get('wall_ms', 300001) <= 300000
-            and record.get('reasons') == [] and raw.splitlines().count(b'STARTUP_MENU_READY_OK') == 1
+            and record.get('reasons') == []
             and b'STARTUP_MENU_READY_FAILED' not in raw and not DIAGNOSTIC.search(raw), 'strict startup result/log contract failed')
     return record
 
@@ -263,6 +305,11 @@ def guided_result(directory, binary, expected_sha):
 
 
 def execute(args):
+    with InstallerBudget() as budget:
+        return _execute(args, budget)
+
+
+def _execute(args, budget):
     consumer_started = time.monotonic()
     root, paths, inputs, export, payload = preflight(args)
     tooling = {path: identity(path) for path in (Path(__file__).resolve(), HERE / 'install_linux_desktop.py',
@@ -348,12 +395,13 @@ def execute(args):
         results.mkdir(mode=0o700)
         startup_env = dict(env, STARTUP_CHECK_RESULT_DIR=str(results), STARTUP_CHECK_TIMEOUT_SECONDS='300')
         started = time.monotonic()
-        run_child(['bash', str(HERE / 'run_linux_startup_check.sh'), str(binary)], 310, startup_env,
-                  root / 'startup.log', result['steps'])
-        result['startup'] = startup_result(results, binary, payload[executable]['sha256'])
-        run_child([sys.executable, str(HERE / 'run_native_sortie.py'), str(binary), '--route', 'guided',
-                   '--output', str(root / 'guided-results')], 330, env, root / 'guided.log', result['steps'])
-        result['guided'] = guided_result(root / 'guided-results', binary, payload[executable]['sha256'])
+        with budget.gameplay():
+            run_child(['bash', str(HERE / 'run_linux_startup_check.sh'), str(binary)], 310, startup_env,
+                      root / 'startup.log', result['steps'])
+            result['startup'] = startup_result(results, binary, payload[executable]['sha256'])
+            run_child([sys.executable, str(HERE / 'run_native_sortie.py'), str(binary), '--route', 'guided',
+                       '--output', str(root / 'guided-results')], 330, env, root / 'guided.log', result['steps'])
+            result['guided'] = guided_result(root / 'guided-results', binary, payload[executable]['sha256'])
         game_time += time.monotonic() - started
         invariants()
         require(snapshot((prefix, apps)) == before_games, 'gameplay changed installed namespace')

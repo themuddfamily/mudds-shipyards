@@ -10,10 +10,14 @@ import signal
 import subprocess
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest.mock import Mock, patch
 
-import run_linux_install_lifecycle as lifecycle
+if __package__:
+    from . import run_linux_install_lifecycle as lifecycle
+else:
+    import run_linux_install_lifecycle as lifecycle
 
 
 def digest(raw):
@@ -145,9 +149,38 @@ class LifecycleTests(unittest.TestCase):
         result_path.write_text(json.dumps(record))
         log.write_bytes(b'STARTUP_MENU_READY_OK\n')
         lifecycle.startup_result(self.base, binary, digest(self.elf))
-        for raw in (b'STARTUP_MENU_READY_OK\nSTARTUP_MENU_READY_OK\n', b'STARTUP_MENU_READY_OK\nERROR: bad\n'):
+        actual_marker = b'STARTUP_MENU_READY_OK: {"mouse_free_during_load":true,"stages":[],"time_to_interactive_ms":20429.85}\n'
+        log.write_bytes(actual_marker)
+        lifecycle.startup_result(self.base, binary, digest(self.elf))
+        for raw in (b'STARTUP_MENU_READY_OK\nSTARTUP_MENU_READY_OK\n', b'STARTUP_MENU_READY_OK\nERROR: bad\n',
+                    actual_marker + actual_marker, b'STARTUP_MENU_READY_OKnot-a-token\n'):
             log.write_bytes(raw)
             with self.assertRaises(lifecycle.Refusal): lifecycle.startup_result(self.base, binary, digest(self.elf))
+
+    def test_independent_timer_aborts_in_process_work_and_pauses_only_gamechecks(self):
+        started = time.monotonic()
+        with self.assertRaisesRegex(lifecycle.Refusal, 'exceeded120s'):
+            with lifecycle.InstallerBudget(0.08) as budget:
+                with budget.gameplay():
+                    time.sleep(0.12)  # Longer than the whole budget; explicitly suspended.
+                self.assertFalse(budget.paused)
+                remaining, _interval = signal.getitimer(signal.ITIMER_REAL)
+                self.assertGreater(remaining, 0)
+                self.assertLessEqual(remaining, 0.08)
+                time.sleep(0.3)  # No elapsed-time polling or child process needed to abort.
+        self.assertGreaterEqual(time.monotonic() - started, 0.12)
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0.0, 0.0))
+
+    def test_execution_arms_independent_budget_before_preflight(self):
+        def preflight(_args):
+            self.assertGreater(signal.getitimer(signal.ITIMER_REAL)[0], 0)
+            self.assertLessEqual(signal.getitimer(signal.ITIMER_REAL)[0], 120)
+            raise lifecycle.Refusal('inert preflight stop')
+        with patch.object(lifecycle, 'preflight', side_effect=preflight):
+            with self.assertRaisesRegex(lifecycle.Refusal, 'inert preflight stop'):
+                lifecycle.execute(self.args)
+        self.assertFalse(self.root.exists())
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0.0, 0.0))
 
     def guided(self):
         binary = self.base / self.binary
