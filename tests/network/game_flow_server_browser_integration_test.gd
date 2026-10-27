@@ -98,8 +98,29 @@ extends SceneTree
 ## Success: GAME_FLOW_LIVE_MENU_NO_ANSWER_TEST_OK.
 
 
+## Optional physical guest (SOURCE CAPABILITY; physical qualification NOT_RUN):
+## Use the same private coordinator environment, ordered network/display locks,
+## suite_process.py ownership and outer300s as D3. Explicit operator authorization
+## for the dedicated session is required before this command may be run:
+## godot --headless --audio-driver Dummy --path /ABS/CLEAN/SOURCE --script \
+## res://tests/network/game_flow_server_browser_integration_test.gd -- \
+## --live-menu-one-guest-gameplay --live-menu-physical-controller \
+## --physical-binding /ABS/physical-binding.json --live-results /ABS/FRESH/RESULTS
+## Required binding keys are listed in PhysicalGuestDriver.PREFLIGHT. Bind the
+## actual dedicated loopback TCP X11 display, matching private XAUTHORITY, X server
+## PID/start ticks, physical event node/sysfs identity, GUID/name/VID/PID/backend,
+## exact clean source commit and engine SHA256. The guest alone uses this display;
+## the host remains private Xvfb with the selected VID/PID blacklisted and zero
+## connected controllers required. The supplied display is never killed by us.
+## Guest input/focus is passive; a visible overlay requests physical pad taps and
+## stick movement. Touching keyboard/mouse buttons or another pad aborts the route.
+## Independent abort: create RESULTS/abort or terminate the suite_process owner;
+## cleanup releases owned host inputs/mouse capture and reaps both OS children.
+## New physical prompts do not reset any D3 work/route/stage/cleanup deadline.
+
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const SessionType := preload("res://scripts/network/network_enet_session_adapter.gd")
+const PhysicalGuestDriver := preload("res://tests/network/physical_browser_guest_driver.gd")
 
 class HudProbe extends CanvasLayer:
 	var browser_results: Array[Dictionary] = []
@@ -131,7 +152,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args() or "--live-menu-stale" in OS.get_cmdline_user_args() or "--live-menu-cancel-rejoin" in OS.get_cmdline_user_args() or "--live-menu-no-answer" in OS.get_cmdline_user_args():
+	if "--live-menu-physical-controller" in OS.get_cmdline_user_args() or "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args() or "--live-menu-stale" in OS.get_cmdline_user_args() or "--live-menu-cancel-rejoin" in OS.get_cmdline_user_args() or "--live-menu-no-answer" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -226,6 +247,10 @@ var _live_rejoined := false
 var _live_original_native_peer: ENetMultiplayerPeer
 var _live_walks: Dictionary = {}
 var _live_pending_endpoint: PacketPeerUDP
+var _live_physical := false
+var _live_physical_path := ""
+var _live_physical_binding: Dictionary = {}
+var _live_physical_driver: Node
 
 
 func _live_run() -> void:
@@ -238,6 +263,17 @@ func _live_run() -> void:
 	_live_stale = "--live-menu-stale" in args
 	_live_rejoin = "--live-menu-disconnect-rejoin" in args
 	_live_gameplay = "--live-menu-one-guest-gameplay" in args or _live_rejoin or _live_stale or _live_cancel_rejoin
+	_live_physical = "--live-menu-physical-controller" in args
+	if _live_physical:
+		_check("--live-peer" in args or DisplayServer.get_name().to_lower() == "headless", "physical coordinator must be headless before any display launch")
+		var binding_index := args.find("--physical-binding")
+		_live_physical_path = args[binding_index + 1] if binding_index >= 0 and binding_index + 1 < args.size() else ""
+		_check("--live-menu-one-guest-gameplay" in args and not (_live_two_guests or _live_cancel or _live_full or _live_rejoin or _live_stale or _live_cancel_rejoin), "physical mode only extends the original one-guest gameplay route")
+		_live_physical_binding = PhysicalGuestDriver.preflight(_live_physical_path, ProjectSettings.globalize_path("res://"), OS.get_executable_path(), OS.get_process_id() if "--live-peer" in args and args[args.find("--live-peer") + 1] == "guest" else 0)
+		_check(not _live_physical_binding.has("error"), "physical session/candidate configuration: " + str(_live_physical_binding.get("error", "bound")))
+		if not _failures.is_empty():
+			_live_finish()
+			return
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -350,6 +386,14 @@ func _live_run() -> void:
 			_check(_live_browser_retry_ready(terminal, 0) and bool(terminal.get("copy_visible", false)) and str(terminal.get("copy", "")).begins_with("The session host did not admit the connection in time."), "no-answer result retains the actual timeout copy and natural-stop current Retry fence")
 	if _live_pending_endpoint != null:
 		_live_pending_endpoint.close()
+	if _live_physical:
+		var physical: Dictionary = _live_read("guest.done").get("physical_controller", {})
+		_check(physical.get("binding", {}) == _live_physical_binding and int(physical.get("device", -1)) >= 0 and str(physical.get("fault", "missing")).is_empty() and not (physical.get("events", []) as Array).is_empty(), "physical guest retains bound actual controller/backend and complete input observations")
+		_check(_live_read("guest.retired").get("player", {}) == _live_read("guest.admitted").get("player", {}), "physical guest retirement retains the admitted Player")
+		for role: String in ["host", "guest"]:
+			var log := FileAccess.get_file_as_string(_live_directory.path_join(role + ".log"))
+			_check(not log.is_empty() and not log.contains("ERROR:") and not log.contains("WARNING:") and not log.contains("SCRIPT ERROR:"), role + " physical route has zero engine diagnostics")
+		_live_write("physical-controller.result", {"qualification": "PASS" if _failures.is_empty() else "NOT_RUN", "binding": _live_physical_binding, "host": _live_read("host.ready"), "guest": physical})
 	_live_finish()
 
 
@@ -808,6 +852,8 @@ func _live_check_two_guest_receipts(host: Dictionary, guest: Dictionary, counts:
 
 func _live_spawn(role: String) -> int:
 	var profile := _live_directory.path_join(role + "-profile")
+	if _live_physical and role == "guest":
+		return _live_spawn_physical_guest(profile)
 	for folder in ["data", "config", "cache", "state", "runtime", "tmp", "data-dirs", "config-dirs"]:
 		DirAccess.make_dir_recursive_absolute(profile.path_join(folder))
 		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private profile directory permissions: " + folder)
@@ -833,13 +879,51 @@ func _live_spawn(role: String) -> int:
 	for key in ["HOME", "CODEX_HOME", "GODOT_SILENCE_ROOT_WARNING"]:
 		if OS.has_environment(key):
 			wrapper.append(key + "=" + OS.get_environment(key))
+	if _live_physical:
+		# SDL3 filters this VID/PID in Linux evdev and HIDAPI discovery. The
+		# host also requires zero actual connected pads, including hotplug.
+		wrapper.append("SDL_JOYSTICK_BLACKLIST_DEVICES=0x%04x/0x%04x" % [int(_live_physical_binding.vendor_id), int(_live_physical_binding.product_id)])
+		args.append("--physical-host-isolation")
 	wrapper.append(OS.get_executable_path())
 	wrapper.append_array(args)
 	print("LIVE_MENU_PEER_LAUNCH: ", role, " ", args)
 	return OS.create_process("xvfb-run", wrapper)
 
 
+func _live_spawn_physical_guest(profile: String) -> int:
+	var checked := PhysicalGuestDriver.preflight(_live_physical_path, ProjectSettings.globalize_path("res://"), OS.get_executable_path())
+	_check(checked == _live_physical_binding and not checked.has("error"), "physical binding still matches before opening dedicated display")
+	if not _failures.is_empty():
+		return -1
+	for folder in ["data", "config", "cache", "state", "runtime", "tmp", "data-dirs", "config-dirs"]:
+		DirAccess.make_dir_recursive_absolute(profile.path_join(folder))
+		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private physical profile: " + folder)
+	_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private physical profile root")
+	# The dedicated display is operator-owned; this wrapper owns only the guest,
+	# waits/reaps it and never kills or reconnects the supplied display server.
+	var command := 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
+	var args := PackedStringArray(["-c", command, _live_directory.path_join("guest"), "/usr/bin/env", "-i", "PATH=/usr/local/bin:/usr/bin:/bin", "DISPLAY=" + str(_live_physical_binding.display), "XAUTHORITY=" + str(_live_physical_binding.xauthority), "SDL_JOYSTICK_HIDAPI=0", "SDL_JOYSTICK_LINUX_CLASSIC=0"])
+	var folders := {"XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config", "XDG_CACHE_HOME": "cache", "XDG_STATE_HOME": "state", "XDG_RUNTIME_DIR": "runtime", "XDG_DATA_DIRS": "data-dirs", "XDG_CONFIG_DIRS": "config-dirs", "TMPDIR": "tmp"}
+	for entry in folders:
+		args.append(entry + "=" + profile.path_join(folders[entry]))
+	for key in ["HOME", "CODEX_HOME", "GODOT_SILENCE_ROOT_WARNING"]:
+		if OS.has_environment(key):
+			args.append(key + "=" + OS.get_environment(key))
+	args.append_array(PackedStringArray([OS.get_executable_path(), "--display-driver", "x11", "--rendering-method", "gl_compatibility", "--rendering-driver", "opengl3", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-one-guest-gameplay", "--live-menu-physical-controller", "--physical-binding", _live_physical_path, "--live-peer", "guest", _live_directory, str(_live_port)]))
+	return OS.create_process("/bin/sh", args)
+
+
 func _live_actor() -> void:
+	if "--physical-host-isolation" in OS.get_cmdline_user_args():
+		_check(Input.get_connected_joypads().is_empty(), "isolated synthetic host sees no physical controllers")
+		Input.joy_connection_changed.connect(func(_device: int, connected: bool):
+			if connected:
+				_check(false, "physical controller appeared in isolated synthetic host")
+				_live_write("abort", {"reason": "host_controller_isolation_failed"}))
+		if not _failures.is_empty():
+			_live_write("host.done", {"failures": Array(_failures), "pid": OS.get_process_id()})
+			_live_finish()
+			return
 	_live_write(_live_role + ".script_ready", {"pid": OS.get_process_id(), "display": OS.get_environment("DISPLAY"), "xdg_data": OS.get_environment("XDG_DATA_HOME"), "xdg_config": OS.get_environment("XDG_CONFIG_HOME"), "xdg_cache": OS.get_environment("XDG_CACHE_HOME"), "xdg_runtime": OS.get_environment("XDG_RUNTIME_DIR"), "xdg_state": OS.get_environment("XDG_STATE_HOME"), "xdg_data_dirs": OS.get_environment("XDG_DATA_DIRS"), "xdg_config_dirs": OS.get_environment("XDG_CONFIG_DIRS"), "tmpdir": OS.get_environment("TMPDIR"), "wayland_display": OS.get_environment("WAYLAND_DISPLAY"), "wayland_socket": OS.get_environment("WAYLAND_SOCKET")})
 	var main: PackedScene = load("res://scenes/main.tscn")
 	_live_game = main.instantiate() as GameFlow
@@ -855,6 +939,11 @@ func _live_actor() -> void:
 			await _live_full_candidate()
 		elif _live_role == "host":
 			await _live_host()
+		elif _live_physical:
+			_live_physical_driver = PhysicalGuestDriver.new()
+			root.add_child(_live_physical_driver)
+			if _live_physical_driver.start(self, _live_physical_binding, _live_physical_path):
+				await _live_physical_driver.run()
 		else:
 			if _live_no_answer:
 				await _live_no_answer_then_join()
@@ -865,7 +954,7 @@ func _live_actor() -> void:
 	if (_live_two_guests or _live_cancel or _live_gameplay or _live_full) and not _failures.is_empty():
 		_live_write("abort", {"reason": "first_failed_boundary", "role": _live_role})
 	# Cleanup is independent of menu success, focus, pause state or input capture.
-	if _live_gameplay or _live_full:
+	if (_live_gameplay or _live_full) and not _live_is_physical_guest():
 		_live_release_movement()
 	if _live_full or _live_rejoin or _live_stale or _live_cancel_rejoin:
 		_live_stop_full_guard()
@@ -874,11 +963,15 @@ func _live_actor() -> void:
 		pointer_release.button_index = MOUSE_BUTTON_LEFT
 		pointer_release.pressed = false
 		Input.parse_input_event(pointer_release)
-	var release := InputEventAction.new()
-	release.action = &"ui_accept"
-	release.pressed = false
-	Input.parse_input_event(release)
-	Input.action_release(&"ui_accept")
+	if not _live_is_physical_guest():
+		var release := InputEventAction.new()
+		release.action = &"ui_accept"
+		release.pressed = false
+		Input.parse_input_event(release)
+		Input.action_release(&"ui_accept")
+	if _live_is_physical_guest() and _live_physical_driver != null:
+		_live_physical_driver.set_process_input(false)
+		_live_physical_driver.set_process(false)
 	_live_game.shutdown_network_session(&"live_menu_cleanup")
 	_live_game.release_mouse_capture()
 	_live_game.queue_free()
@@ -896,6 +989,8 @@ func _live_actor() -> void:
 		done["stale"] = _live_stale_observation
 	if _live_cancel_rejoin and _live_role == "guest":
 		done["no_answer" if _live_no_answer else "cancel_rejoin"] = _live_cancel_observation
+	if _live_is_physical_guest() and _live_physical_driver != null:
+		done["physical_controller"] = _live_physical_driver.receipt()
 	if _live_role == "host":
 		done["guest_counts"] = _live_counts
 	_live_write(_live_role + ".done", done)
@@ -1422,6 +1517,8 @@ func _live_browser_retry_ready(observation: Dictionary, terminal_updates_after_r
 
 
 func _live_release_movement() -> void:
+	if _live_is_physical_guest():
+		return # Physical inputs are observed, never altered by the harness.
 	for action: StringName in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump", &"pause", &"ui_accept"]:
 		var release := InputEventAction.new()
 		release.action = action
@@ -1497,6 +1594,10 @@ func _live_walk_sample_valid(sample: Dictionary, identity: Dictionary, authority
 	)
 
 
+func _live_is_physical_guest() -> bool:
+	return _live_physical and _live_role == "guest"
+
+
 func _live_walk(name: String, action: StringName, connected: bool, expected_identity: Dictionary = {}) -> bool:
 	# Only input changes here. The same Main/player/session keep their production
 	# physics, controls, collision, authority and authored spawn throughout.
@@ -1512,6 +1613,8 @@ func _live_walk(name: String, action: StringName, connected: bool, expected_iden
 		return _live_walk_sample_valid(sample, identity, sample.authority) and _live_walk_network_ready(connected) and player.velocity.length() <= 0.05 and Input.get_vector("move_left", "move_right", "move_forward", "move_back").is_zero_approx(), 5.0, name + " walking starts supported with neutral local controls"):
 		_live_release_movement()
 		return false
+	if _live_is_physical_guest():
+		_live_physical_driver.prompt("Left stick " + ("forward" if connected else "backward") + "; hold until RELEASE, then neutral")
 	var start: Dictionary = _live_walk_snapshot(player)
 	var authority: Dictionary = start.authority
 	var origin := player.global_position
@@ -1519,9 +1622,9 @@ func _live_walk(name: String, action: StringName, connected: bool, expected_iden
 	var direction: Vector3 = -camera_yaw.global_basis.z if action == &"move_forward" else camera_yaw.global_basis.z
 	direction = direction.slide(player.up_direction).normalized()
 	var receipt := {"action": str(action), "connected": connected, "start": start,
-		"samples": [], "settle": [], "neutral": [], "direction": _live_walk_vector(direction)}
+		"samples": [], "settle": [], "neutral": [], "direction": _live_walk_vector(direction), "physical": _live_is_physical_guest()}
 	_live_walks[name] = receipt
-	var state := {"phase": "walk", "done": false, "valid": true, "receipt": receipt,
+	var state := {"phase": "wait_input" if _live_is_physical_guest() else "walk", "done": false, "valid": true, "receipt": receipt,
 		"identity": identity, "authority": authority, "origin": origin, "direction": direction,
 		"action": action, "connected": connected, "last_frame": int(start.frame),
 		"started": Time.get_ticks_msec(), "deadline": Time.get_ticks_msec() + 5_000}
@@ -1530,13 +1633,14 @@ func _live_walk(name: String, action: StringName, connected: bool, expected_iden
 	sampler.process_physics_priority = 1_000_000
 	sampler.observe = _live_walk_step.bind(state, player)
 	root.add_child(sampler)
-	var press := InputEventAction.new()
-	press.action = action
-	press.pressed = true
-	Input.parse_input_event(press)
+	if not _live_is_physical_guest():
+		var press := InputEventAction.new()
+		press.action = action
+		press.pressed = true
+		Input.parse_input_event(press)
 	while not bool(state.done):
 		# This clock/abort path is independent of physics and the pause menu.
-		if Time.get_ticks_msec() >= int(state.deadline) or FileAccess.file_exists(_live_directory.path_join("abort")):
+		if Time.get_ticks_msec() >= int(state.deadline) or FileAccess.file_exists(_live_directory.path_join("abort")) or (_live_is_physical_guest() and not _live_physical_driver._healthy()):
 			_live_walk_stop(state, false)
 			break
 		await process_frame
@@ -1562,6 +1666,32 @@ func _live_walk_step(state: Dictionary, player: PlayerController) -> void:
 	var sample: Dictionary = _live_walk_snapshot(player)
 	var receipt: Dictionary = state.receipt
 	var phase: String = state.phase
+	if _live_is_physical_guest():
+		var input: Array = sample.input
+		if phase == "wait_input":
+			if not _live_walk_sample_valid(sample, state.identity, state.authority) or not _live_walk_network_ready(bool(state.connected)) or int(sample.frame) != int(state.last_frame) + 1:
+				_live_walk_stop(state, false)
+				return
+			if input == [0.0, 0.0]:
+				receipt["start"] = sample
+				state["origin"] = player.global_position
+				state["last_frame"] = int(sample.frame)
+				return
+			state["phase"] = "walk"
+			state["started"] = Time.get_ticks_msec()
+			state["deadline"] = Time.get_ticks_msec() + 5_000
+			phase = "walk"
+		if phase == "walk" and input == [0.0, 0.0]:
+			if float(receipt.get("distance_m", 0.0)) < 1.0 or float(receipt.get("peak_speed_mps", 0.0)) <= 0.1:
+				_live_walk_stop(state, false)
+				return
+			state["phase"] = "settle"
+			state["settle_started"] = Time.get_ticks_msec()
+			state["deadline"] = Time.get_ticks_msec() + 5_000
+			phase = "settle"
+		elif phase == "walk" and not _live_walk_input_valid(input, bool(state.connected), true):
+			_live_walk_stop(state, false)
+			return
 	var samples: Array = receipt["samples" if phase == "walk" else phase]
 	samples.append(sample)
 	var consecutive := int(sample.frame) == int(state.last_frame) + 1
@@ -1588,6 +1718,9 @@ func _live_walk_step(state: Dictionary, player: PlayerController) -> void:
 		if not Input.is_action_pressed(action):
 			_live_walk_stop(state, false)
 		elif distance >= 1.0:
+			if _live_is_physical_guest():
+				_live_physical_driver.prompt("RELEASE stick to neutral now")
+				return
 			_live_release_movement()
 			if peak_speed <= 0.1:
 				_live_walk_stop(state, false)
@@ -1616,6 +1749,12 @@ func _live_walk_step(state: Dictionary, player: PlayerController) -> void:
 		_live_walk_stop(state, false)
 	elif samples.size() == 12:
 		_live_walk_stop(state, true)
+
+
+func _live_walk_input_valid(value: Array, connected: bool, physical: bool) -> bool:
+	if not physical:
+		return value == [0.0, -1.0 if connected else 1.0]
+	return value.size() == 2 and is_zero_approx(float(value[0])) and float(value[1]) * (-1.0 if connected else 1.0) > 0.0 and absf(float(value[1])) <= 1.0
 
 
 func _live_check_gameplay_receipts() -> void:
@@ -1666,7 +1805,7 @@ func _live_check_walk_receipt(role: String, name: String, admitted: Dictionary, 
 	var previous_frame := int(start.get("frame", -1))
 	var observed_peak := 0.0
 	for sample: Dictionary in samples:
-		_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, -1.0 if connected else 1.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " movement preserves every physics step's actual support/player/control/auth/grants")
+		_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and _live_walk_input_valid(sample.get("input", []), connected, bool(walk.get("physical", false))) and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " movement preserves every physics step's actual support/player/control/auth/grants")
 		observed_peak = maxf(observed_peak, _live_walk_vector_from(sample.get("velocity", [])).length())
 		previous_frame = int(sample.get("frame", -1))
 	_check(observed_peak > 0.1, role + " " + name + " has measured movement velocity")
@@ -1817,6 +1956,8 @@ func _live_boundary(predicate: Callable, seconds: float, description: String) ->
 func _live_until(predicate: Callable, seconds: float, abortable: bool = true) -> bool:
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 	while Time.get_ticks_msec() < deadline:
+		if abortable and _live_is_physical_guest() and _live_physical_driver != null and not str(_live_physical_driver.fault).is_empty():
+			return false
 		if bool(predicate.call()):
 			return true
 		if abortable and FileAccess.file_exists(_live_directory.path_join("abort")):
@@ -1891,6 +2032,9 @@ func _live_finish() -> void:
 		label = "GAME_FLOW_LIVE_MENU_CANCEL_REJOIN"
 	if _live_no_answer:
 		label = "GAME_FLOW_LIVE_MENU_NO_ANSWER"
+	if _live_physical:
+		label = "GAME_FLOW_LIVE_MENU_PHYSICAL_CONTROLLER"
+		print("PHYSICAL_CONTROLLER_QUALIFICATION: ", "PASS" if _failures.is_empty() and _live_role == "coordinator" else "NOT_RUN")
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
 		print(label + "_TEST_OK")
