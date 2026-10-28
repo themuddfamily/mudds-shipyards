@@ -236,6 +236,11 @@ now fixes the separate page/Board authorities,literal saved state/debt,
 enabled actions,confirmation and fresh-Main readbacks. No discrepancy or
 owner-unification repair is inferred;the ordinary caller remains missing.
 
+[Final signing](docs/WINDOWS_CODE_SIGNING.md#sign-final-finite-artifacts-trust-context-and-acceptance)
+now binds game/setup/uninstaller members,signing order,expected identity and
+applicable trust verification. Credential/context inputs and signed-package
+reader/repackaging support remain open;native Windows stays excluded/NOT_RUN.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
