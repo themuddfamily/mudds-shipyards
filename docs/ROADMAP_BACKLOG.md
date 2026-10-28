@@ -7301,7 +7301,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | DEFENSE-PHYSICAL-INTERACTION | Physical board E Deploy/status/reward-retry/terminal Reset | 13 | Capability | DONE checkpointa59127c: actual Main15/full placement62, paired exports/three strict startups/actual PCK audit PASS. Existing owners, debt/refusal/separatepress/range/facing/armed gates and whole34s preserved. Original test parse16.381s + one explicit-int correction retained, cumulative334.765s. Staged pose/terminal/refusal fixtures disclosed; full ordinary combat/home separate. [Result](history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | Qualification | DONE scoped first full ordinary journey fb396ab13/checkpointfb396ab. Actual physical Heavy arm/Arrow takeoff/observed lance charge/player hits24+22 kill46-health Picket/CLEARED at3.05s, exactly one generation1 actual-file Heavy credit retained through orderly close, strict home/OFFLINE physical exit/physical usable Torpedo posting/normal UI actualOS0; full90.112s under150/300/360 and clean logs. Real late-authority damage adapter attached idempotently; staged live-ray/Picket/encounter/Heavy checks, fresh paired exports/3menus/1527-entry audit and independent source/raw review pass. Both earlier failures/caller-angle correction preserved, same cumulative clock; merged/pushed/owned cleanup/records consolidated, no taskbranch/worktree. Isolated Linux/default-input/Dummy scope; repeats/other lifecycle/craft/native/device/full parents remain open. [Delivery](history/ROADMAP_DELIVERIES.md#picket-damage-admission-and-full-heavy-breach--accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): on-foot posted Heavy/real picket/protected objective/payment/home/normal next posting; real durable result and strict home/OFFLINE physical exit/usable walking. |
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | Qualification | PARKED/NOT_ACCEPTED; [literal accounting repair and original route](#torpedo-play-control-accounting). Latest continuation: source review BLOCK at67.453min cumulative; unread queued neutral samples after OS release can erase later actual consumption. No tests/engine/export/whole trial. Candidate and original patch verified in case-records.tar.gz/closeout.json outside repo; main restored, owned helpers consolidated. Reopen only with accounting that survives queued release ambiguity, source GO and cumulative review; full journey/limits unchanged. [Review stop](history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025). PARKED after3fullordinaryFAILs, latestd8eece4/game2de. First121.849s run proves real evasion/interceptions/boat24damage but stops pooled-flight receipt bookkeeping; supported correction retry104.452s stopssecondboarding. Source/raw-proved sampledreadiness continuation133.075s reboards correctly (soleE4604/BOARDING4607), provespitchboostevasion/distinctseeker14kill, then3boatshotsmiss and2incomingseekers destroyArrow; boat70/70/noTorppayment/home/posting/UI0. FirstHeavyprefix/receipt remains actual. Both caller fixes/fixturefailure and all3runs retained on sameoriginalclock; no source merged merely for cleanup. Unique source/bundles/results archived, ownedprocess/profile/packagecleanup complete/mainrestored. Reopen only demonstrated source/raw-supported gameplay/control correction preserving full150each/shared300/outer360 goal; no unchanged retries/newqualifierlayers/point-aim-timer guesses. Publicfb396ab unchanged. [Closeout](history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): ordinary posting rotation/real evade/interception/boat destruction/distinct payment/home; real durable result and strict home/OFFLINE physical exit/usable walking. |
-| HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Qualification | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled. BLOCKED definition — Codex binds the literal saved activity/debt fields, expected enabled actions after each reset/select/start/fresh-Main step, existing command and original limits. No implementation is selected without a demonstrated runtime defect. | Race: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
+| HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Qualification | [Literal page/Board reset-and-reload contract](#race-hud-reset-contract) now binds both existing authorities,saved session/best/debt fields,generation/state/display/action endpoints,actual reset confirmation and300/360 ordinary-sequence target. Page3s summary-only owner differs from durable Board2s owner;Select is presenter-only and all three pagebuttons depend on binding availability,not state. Prior source diagnosis found no discrepancy and stays closed;no owner unification/repair selected. Codex ordinary page-input/real-file/distinct-Main observer caller remains missing;existing snapshot/memory suites do not qualify it. Accepted PLAY-RACE and parked full-session/REPEAT limits retained. | Race: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Qualification | Source field/action binding fixed0e3b58a25 through the [literal reset/branch/cold contract](#hud-patrol-contract): exact codec/reward fields, g→g+1→g+2, HUD labels/enable rules, physical home-reboard Reset and free-flight Start callers. No runtime discrepancy or qualification PASS claimed; no engines run. BLOCKED ordinary-driver/limit binding—Codex: actual normal sequence command/route/original whole-sequence cap and cold-Main UI/state observations remain missing. Existing component selector and original300s fixture limit are explicit; parked30-Main/platform journeys remain closed. Do not repeat source triage or invent new UI; runtime repair needs a demonstrated defect. | [Literal contract](#hud-patrol-contract): actual reset→selection→start→distinct fresh Main shows the exact authoritative saved state and enabled actions; protect real data/debt and retain accepted scopes. |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Capability | Supply-status child DONE0c2dc2e retained. [Literal cargo contract](#hud-cargo-contract) now fixes typed saved lifecycle/inventory/reward fields, funded g1→reset g2→start g3, depleted0/6 refusal, exact HUD labels/locks, cold owner versus family selection, debt/refused-reset protection and existing graphical source-fixture command/original300s cap. Source binding only; no runtime discrepancy, engine run or qualification PASS. BLOCKED ordinary-driver/limit binding—Codex: actual funded physical two-delivery reset/select/start command/route/original whole-sequence cap and distinct-process cold state/UI observations remain missing. KIT-RELOAD stays PARKED at its original30s including preload. Reuse this field binding; do not repeat the completed source survey or infer a successful next start from depleted refusal. | [Literal cargo contract](#hud-cargo-contract): actual funded reset→family selection→Start→distinct fresh Main restores the exact authoritative lifecycle/inventory/reward state and enabled actions; depleted refusal and debt preserve data and accepted scopes. |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Capability | Restored-objective repair DONE on checkpoint3d92b91; retained-feedback20 assertions accepted in their stated scope. [Literal Convoy contract](#hud-convoy-contract) fixes typed slot/host/model/threat fields, outer debt authority, paid g→reset g+1→Start g+2/entity e→e+1, exact HUD labels/actions, cold frozen/rebind and selected-family distinctions. Existing fixture commands/original300s caps are bound; no runtime discrepancy, engine run or new qualification PASS. BLOCKED ordinary-driver/limit binding—Codex: physical Reset/family selection/rendezvous Start command/route/original whole-sequence cap and distinct-process cold host/threat/UI/payment observations remain missing. Parked full save suite/PLAY-CONVOY remain closed; reuse470aa24c4/4fc5ef9f3 maps and this field binding rather than resurvey. | [Literal Convoy contract](#hud-convoy-contract): actual reset→family choice→rendezvous Start→distinct fresh Main restores exact authoritative host/threat/payment state and correct actions; refused reset/debt protect existing data and accepted repairs. |
@@ -10583,6 +10583,144 @@ defect; retain any failure before separately selecting a repair. Scan's previous
 full-suite failure stays parked with its existing budget/reopen condition.
 The remaining nine source classifications are now defined below; their gameplay
 and resource acceptance remain unperformed.
+
+<a id="race-hud-reset-contract"></a>
+### HUD-RACE — two existing owners, literal reset and reload proof
+
+HUD-RACE is the existing reset→selection→start→distinct fresh Main outcome.
+Prerequisites for ordinary qualification: PLAY-RACE's accepted completion
+capability and the selected actual source/package/profile; reuse7997b2b37 only
+within its recorded packaged scope. This definition does not select another
+first-play or reopen PARKED REPEAT-RACE. The earlier RACE-PAGE-RESET source
+diagnosis found no discrepancy and is closed; no repair or new diagnosis is
+authorized by this mapping.
+
+**Name the surface and authority.** Production still has two Race sessions.
+`scripts/game/game_flow.gd:_new_cinder_race_session()` owns the Activity Board/
+objective session,one lap/2s countdown/120s deadline,with durable session state.
+`scripts/world/nearby_sector_activity_binding.gd` independently creates a Race
+director/session for the Nearby Cinder page,one lap/3s countdown/120s deadline.
+Its live/completed generation is session-scoped; only its best-result summary
+and consumed reward receipt are restored. `bind_cinder_race_best_persistence()`
+explicitly supplies that summary-only contract. The page does not become the
+Board's durable session merely because both use the same route ID or store.
+
+`scripts/ui/nearby_sector_activity_presenter.gd:select()` changes its presenter
+selection only. Nearby page Start/Reset dispatch to binding.start_race/reset_race;
+Board reset_active_activity uses transactional reset_with_persistence. Observe
+both owners; do not call one owner's reset and assert the other's generation
+was reset. A future request to unify them requires an explicit product choice,
+not a speculative fix. Current acceptance preserves the documented separation.
+
+| Existing sequence moment | Literal Nearby Race readback / enabled actions | Durable ownership and protected result |
+| --- | --- | --- |
+| Completed paid baseline | Capture actual completed page generation G,last finish T,best B,persisted/consumed flags and current binding/Main IDs. A fixture8s finish is disclosed component setup,never an ordinary flown result. | Capture actual Board session independently and the protected save namespaces/reward authority. A Board completion alone cannot seed a claimed page completion. One genuine completion pays once;no fabricated receipt or new paid replay. |
+| Page Reset | Actual current Race row Reset dispatches binding.reset_race; accepted session reset returns idle/new session lifetime and clears current presentation reason while retaining saved best. Observe actual generation/state/last-time rather than assigning them. | Page reset does not reset Board session or erase its pending debt. Best/consumed receipt and unrelated payload remain protected. No implicit Board transaction is expected. |
+| Select Race | Presenter selected_activity becomes cinder_reach_checkpoint_route; actual selected row/focus agrees. | No GameFlow select_activity_kind,session start,store write,credit or reward authority from Select. |
+| Page Start | Actual Start dispatches binding.start_race,enters countdown with its3s source setting;fresh session/current generation remains actual. No new completion/payment is accepted merely from Start. | An incomplete replacement is session-scoped and cannot replace best or consumed receipt. Observe Board's independent state rather than assuming a shared countdown. |
+| Normal close and distinct fresh Main | Old Main/binding/session/presenter retired;new current Main/binding/session IDs. Page restores idle,not running,last_time_seconds<0,best B,best_result_persisted=true and best_reward_consumed=true for the paid fixture;no replayable completed/live page generation. Presenter selection is not durable. | Reload Board's actual independently saved session/debt under its own codec;it may legitimately differ from page idle. Retain semantic save fields/expected orderly-close writes;do not demand byte-identical whole files when normal Main shutdown saves its own session. Re-requesting a page reward from restored display cannot pay or write again. |
+
+**Literal durable fields.** In the actual UserDataStore payload,
+`cinder_timed_race_session` has schema_version and activities with exactly one
+record A: activity_id,generation,state,progress,reward_requested,reward_granted.
+A.progress has activity_id,generation,state,session_state. session_state has
+schema_version,activity_id,configured_laps,configured_countdown_seconds,
+configured_timeout_seconds,session_generation,session_started_once,activity_state,
+race_state,presentation_reason. Its activity_state has schema_version,activity_id,
+state,generation,next_checkpoint_index,failure_reason. Its race_state has
+schema_version,activity_id,state,generation,lap_count,current_lap,
+next_checkpoint_index,countdown_remaining_seconds,race_elapsed_seconds,
+lap_started_at_seconds,penalty_seconds,last_time_seconds,best_time_seconds,
+failure_reason. Use the actual codec's enums: timed state IDLE0/COUNTDOWN1/
+ACTIVE2/COMPLETED3/FAILED4; nested checkpoint activity IDLE0/ACTIVE1/
+COMPLETED2/FAILED3. Equal integer values do not imply equal semantic states.
+
+Durable debt is A.reward_requested=true/reward_granted=false on completed G.
+An accepted payment sets granted and atomically updates
+`payload.game_flow_reward_store`,including
+`reward_counts.return_race_record_to_shipyard`;compare actual before/after count
+and generation. Reset/start cannot discard unpaid debt. A paid completed record
+has true/true;the separate accepted durable reset advances generation,sets
+IDLE0/clears progress,retains last/best and writes false/false. The page sequence
+does not perform that durable reset. Capture these exact fields at each boundary,
+including any legitimate independent orderly-close save,not an assumed empty
+Board session.
+
+The separate `payload.cinder_race_best_result` record is schema_version1,
+payload_kind`cinder_race_best_result`,slot_id and best_result. best_result contains
+activity_id,time_seconds,penalty_seconds,reward_receipt. Nonempty reward_receipt
+contains exactly activity_id,reward_id`return_race_record_to_shipyard`,
+replay_allowed=false. There is no live generation/progress in this summary.
+Retain it semantically through page Reset/Select/Start and fresh Main. Page Reset
+advances local G→G+1,clears progress/failure/feedback but retains last/best;
+accepted Start advances again G+1→G+2/countdown. A fresh page begins local
+generation0/IDLE with only best overlay. These are distinct from persisted
+Board generation;never compare them as one authority counter.
+
+**Board display/actions.** On restored non-IDLE durable Race,selection_locked
+is true. The selected Race button stays enabled and reads
+`SELECTED  //  TIMED CINDER RACE`;other family buttons disable. Unlocked status
+is `READY  //  TIMED CINDER RACE`,locked status
+`LOCKED  //  CURRENT SORTIE ALREADY STARTED`. Objective text follows actual
+durable state: countdown`RACE  START …`,active`RACE  L… G… … BEST …`,
+completed`RACE  FINISH … BEST …`,failed`RACE  FAILED…`;IDLE has empty race text.
+The ellipses denote formatted live values,which must match actual session
+clock/lap/gate/finish/best,not literal punctuation or a fabricated snapshot.
+Race has no Patrol-specific REPEAT action. Normal page Select does not unlock
+or change these Board predicates.
+
+**Enabled means available, not guaranteed accepted.** For Race the presenter
+sets actions_enabled from binding_available and HUD applies its inverse equally
+to SELECT/START/RESET.disabled. With a current available binding,all three are
+enabled in idle/countdown/active/failed/completed;there is no per-state disabling
+contract. Without binding,all three are disabled. An enabled Start during a
+running session can still be refused by the authoritative session; UI presence
+does not grant authority. Reset for active/countdown/critical presentation first
+requests confirmation for the same activity/generation,emits no reset intent
+and changes no authority;confirmation must still match that generation before
+dispatch. A completed paid standard-priority row does not need that active-run
+confirmation. While confirmation is pending,the actual label is `CONFIRM RESET`.
+Retain normal focus/remapped input and actual intent/result.
+
+**Proof scope and missing capability.** Existing
+`tests/cinder_race_best_persistence_roundtrip_test.gd` uses MemoryFilesystem,
+direct binding completion and two constructed runtimes;it proves best8s/consumed
+receipt/reload-idle/no replay and no incomplete-run write,not real-file/Boot/
+normal UI/fresh-process qualification. Existing
+`tests/cinder_race_retained_feedback_test.gd` supplies snapshots to a retained
+HUD row;it proves formatting/row identity,not actual completion or persistence.
+`tests/nearby_activity_persistence_hud_integration_test.gd` only forwards save/
+load intents and formats receipts;it cannot prove this whole sequence.
+`tests/cinder_race_session_save_restore_test.gd` covers staged/direct authority
+and memory/selected real-file cases with fresh Main in the same OS process;
+its full-suite300s failure remains parked,no unchanged rerun authorized.
+Caller-injected nearby session Load stores detached restored presentation and
+does not adopt a live local page Race;it cannot supply an ordinary cold caller.
+
+Codex's missing capability is an ordinary input caller plus passive actual
+page/Board session,button/selection/intent,real-file field and distinct-Main
+readback in the existing native-sortie runner/observer. Use normal visible page
+controls and orderly close/relaunch;no direct start/reset/reward handler,
+assigned selection,snapshot injection,actor placement or fabricated completion
+counts as the ordinary path. There is no existing HUD-RACE ordinary CLI to
+claim runnable. Preserve accepted first-play setup and all parked travel/home
+limits rather than renaming this as a repeat route.
+
+Historical static diagnosis had30min mapping and at most one≤300s hypothetical
+probe;it ran no probe and supplies no reusable execution allowance. A future
+selected ordinary HUD sequence has a300s inner/360s outer engineering ceiling
+including close/relaunch/readback,with no enlargement of original first-play/
+120s race or parked-repeat limits. Freeze exact source/package/engine/profile,
+route inputs,absolute all-in deadline and independent abort before execution.
+Use headless checks or private Xvfb/x11/Dummy for actual rendered UI. Put raw
+unfiltered logs,intents,current identities,real save snapshots and action/
+display observations under existing native `--output` directory
+`/srv/mudds-work/race-hud-final/`;require actual child exit0/normal close and all
+listed predicates. Existing focused source suites retain default300s ceiling
+and their own markers;green component tests cannot close this ordinary goal.
+Stop at the first contradictory predicate;retain the result and original
+cumulative/repair rules before any separately selected correction. No execution,
+runtime discrepancy,owner unification or product completion is claimed here.
 
 ### Race repetition — selected ordinary-input capability
 

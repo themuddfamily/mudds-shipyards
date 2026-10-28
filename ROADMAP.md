@@ -231,6 +231,11 @@ retained-Main lifecycle,finite void probes and delivered berth migrations.
 These source checks retain their limits;ordinary walking/flight,actual visual
 review,native performance and final-candidate qualification remain open.
 
+[Race HUD reset/reload](docs/ROADMAP_BACKLOG.md#race-hud-reset-contract)
+now fixes the separate page/Board authorities,literal saved state/debt,
+enabled actions,confirmation and fresh-Main readbacks. No discrepancy or
+owner-unification repair is inferred;the ordinary caller remains missing.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
