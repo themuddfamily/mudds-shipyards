@@ -259,6 +259,12 @@ hits,actual targeting consequences and strict repaired return/reuse. The
 analytical trajectory is checked;ordinary controller/receipt implementation
 and execution remain open. Zenith's parked startup failure stays untouched.
 
+[Fleet role-budget goals](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract)
+now define the full role metrics,normalization,same-band comparisons and
+immediate-access proof. Current-nine checks and historical subset tables are
+distinguished;production budget/consumer implementation and eight accepted
+missing-craft specifications remain prerequisites to final17 qualification.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain

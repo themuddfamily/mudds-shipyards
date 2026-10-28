@@ -707,6 +707,12 @@ are separate choice facts; the card does not infer a universally better craft
 from them. Spool remains in this reference table rather than crowding the
 ordinary boarding instruction.
 
+The current live differentiation suite covers all nine definitions; the
+FleetRoleRegistry's role contracts cover only Torrent/Arrow/Jovian/Zenith/
+Halyard/Bulwark. Extending that production policy to the three Cinder craft is
+still implementation work. Neither scope establishes the eight unbuilt
+originals' approved roles or the final seventeen-craft result.
+
 ### The definition
 
 A craft's handling is a vector over **16 axes** (`handling_axis_count`) — the 12
@@ -725,8 +731,9 @@ The three excluded axes — `flight_assist_strength`, `visual_bank_degrees`,
 excluded on purpose.
 
 **The rule:** for every *ordered* pair `(A, B)` of distinct craft, `B` must beat
-`A` on at least one of the 13 trade-off axes. With eight craft that is 56 ordered
-pairs, all 56 of which the audit asserts. Equivalently: no craft's handling
+`A` on at least one of the 13 trade-off axes. With the current nine craft that
+is 72 ordered pairs and 36 unordered pairs. The live suite asserts all72
+ordered comparisons. Equivalently: no craft's handling
 vector weakly dominates another's across all 13 axes.
 
 Two further conditions stop the rule being satisfied trivially:
@@ -734,14 +741,16 @@ Two further conditions stop the rule being satisfied trivially:
 - **Distinctness.** Every unordered pair must differ on at least
   `minimum_differing_handling_axes` of the 16 axes. Measured today, the minimum
   across all pairs is exactly 14 of 16 — the fleet is at the floor, not above it.
-- **Signature.** Each craft must be the *sole* extreme on its own axes:
-  Jovian alone owns the highest hull and the lowest top speed; Zenith alone owns
+- **Signature.** Preserve the current live suite's named extremes:
+  Jovian alone owns the lowest top speed and Bulwark the highest hull; Zenith alone owns
   the highest yaw and roll while owning the lowest hull; Arrow alone owns the
   highest boost speed, paying for it in launch acceleration and weapon cadence;
   Torrent alone owns the strongest boost multiplier, the fastest cadence and the
   most forgiving landing gate; Halyard alone owns the highest sustained top speed
-  while owning the worst acceleration, braking, throttle response, boost
-  multiplier, turn rates and landing gate, and the longest spool and cadence.
+  while owning the worst acceleration, braking, boost multiplier and landing
+  gate, and the longest spool and cadence. Do not import the older roster's
+  turn/throttle claims into the current nine or silently assign these extremes
+  to the future seventeen before their specifications are approved.
 
 ### How it is measured
 
@@ -781,10 +790,10 @@ definitions. They are a balance matrix, not historical evidence.
 | Bomber | 2 | 2 | 6 | 2 | 6 | 4 | — | 2 |
 | Interceptor | 7 | 4 | 2 | 7 | 3 | 2 | 2 | — |
 
-### The current margin, and why it is thin
+### Historical subset margin
 
-Advantage counts today (`B` over `A`), computed from the eight
-`assets/ships/*.tres` files with the same two axis lists:
+The following retained five-craft subset table predates the complete current
+nine. It is not a fresh runtime result or the final fleet's acceptance:
 
 | B (row) beats A (column) on | Torrent | Arrow | Jovian | Zenith | Halyard |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -794,7 +803,7 @@ Advantage counts today (`B` over `A`), computed from the eight
 | **Zenith** | 8 | 8 | 11 | — | 10 |
 | **Halyard** | 3 | 3 | 2 | 3 | — |
 
-The minimum is **2**: the freighter's, the transport's, and the three new
+The retained earlier tables recorded a minimum of **2**: the freighter's, the transport's, and the three new
 craft's narrowest matchups. Jovian's entire lateral case against every fighter is
 `maximum_hull` and `passive_drag` and nothing else; the transport's case against
 the freighter is `maximum_speed` and `boost_speed` and nothing else. The audit
@@ -818,12 +827,121 @@ almost no room left to exist without dominating something.
    on — and name what it pays for it. If neither exists, the craft has no role.
 6. Check the candidate does not take a signature away from an existing craft. The
    original signature assertions above are frozen; a new craft that out-rolls Zenith
-   or out-hulls Jovian turns them red.
+   or out-hulls Bulwark turns the current-nine assertions red. A changed final
+   roster must resolve signature conflicts in its accepted SPECs, rather than
+   silently weakening the existing regression checks.
 7. Only then build geometry, and add the craft to the fleet so
    `tests/fleet_role_differentiation_test.gd` measures it for real.
 
-Steps 3–6 are a table exercise on eight `.tres` files and take minutes. They are
+Steps 3–6 use the current nine `.tres` files and the candidate's accepted SPEC. They are
 cheap precisely because they happen before art.
+
+<a id="normalized-role-budget-contract"></a>
+### Required normalized role budget — implementation and proof contract
+
+The original Phase5 requirement also includes firepower/range, utility,
+footprint, boarding time and skill floor. The 16-field comparison above does
+not cover those dimensions. No normalized role-budget resource is implemented
+in the current registry. This section defines that missing production
+capability; it does not claim a new balance result or tune any craft.
+
+Use the existing ShipDefinition/FleetRoleRegistry owners. Each production craft
+must publish its stable definition ID, accepted scale band, intended player
+story, one concrete advantage and one concrete weakness, plus the following
+typed budget fields and their source/consumer. A duplicate evidence-only table
+or validator is not the implementation. The existing live role/choice report
+must consume this data alongside its actual available actions; it must not
+advertise a capability that only exists in a proposal or decorative mesh.
+
+| Required dimension | Literal raw fields and comparison direction |
+| --- | --- |
+| Mobility | Rated base/boost speed and thrust acceleration, higher favorable; retain their authored units and actual production flight consumer. These are rated values, not measured journey speed. |
+| Rotational response | Rated yaw/roll rates, higher favorable. Keep assist/bank/mouse-clamp values as undirected feel fields; the existing 16-axis distinctness still includes them. |
+| Braking/durability | Rated brake acceleration and maximum hull, higher favorable; passive drag lower favorable under the existing policy. Record actual component consequence/repair ownership separately, not imaginary hull regeneration. |
+| Firepower/range | Per actual pilot/crew weapon: damage per accepted trigger, production cooldown, resolver range, warmup/heat lockout, finite ammunition/refill rule and minimum operators. Higher damage/range/ammunition favorable; lower cooldown/warmup/lockout/operator count favorable. Unarmed is an explicit accepted capability state, not a missing profile silently assigned zero. Actual heat/payload/role constraints cannot be replaced by ShipDefinition.weapon_cooldown alone. |
+| Cargo | One capacity/handoff axis per actual stock kind and transfer consumer, higher favorable. No invented conversion between repair kits, freight units and other manifests; unsupported kind has declared zero capacity and no advertised transfer action. |
+| Passenger/support | Actual nonpilot seat capacity, higher favorable; each real engineer/gunner/Loadmaster/Navigator/support action has a separate supported boolean and its physical station/authority/consumer. A seat mesh or Arrow pod is not a gameplay role. Keep required operators and cooldown/stock costs with the action. |
+| Footprint | Actual enabled root-collision union span/height/length in metres, each lower favorable for access. Preserve the complete geometry rather than using art bounds, one primary box or an asserted size class as the measurement. |
+| Boarding time | Seconds from the first real E starting the closed-canopy/boarding handoff to actual settled piloted seat, lower favorable; fresh healthy OFFLINE home and supported current candidate. Exclude walking distance; include the real authored handoff. Do not use a staged seat or tooltip appearance as completion. |
+| Skill floor | Publish the declared minimum input/action sequence and operator count for the distinctive function, plus its actual tightest timing window, allowed aim/attitude error and required approach tolerance. Fewer required simultaneous operators/control channels favorable; larger permitted windows/errors favorable. Explicitly unbounded windows are distinct from missing values. This is an operational demand description, not a claim to have measured human learning or enjoyment. |
+
+**Normalization is per field, not an arbitrary overall rating.** For each
+nonnegative raw field x, choose its fixed unit u from the table (1m/s,1m/s²,
+1degree/s,1hull point,1damage point,1second,1metre,one operator/seat/stock unit,
+1/s for response rates and1 for dimensionless ratios).
+Publish n=x/(u+x) for benefit axes and n=u/(u+x) for cost axes. Booleans are0/1.
+Use degrees for angle tolerances; explicitly unbounded favorable windows or
+ammunition score1 with the unbounded flag retained. Unsupported actions keep
+their false capability flag and explicit zero benefit,not imaginary unlimited
+resources or zero-cost firing. Never turn missing/unapproved data
+into zero or use a scored adjective in place of the raw demand fields.
+This monotone bounded vector has no weights, scalar sum or compensating spend:
+extra cargo cannot numerically purchase erased maneuvering weaknesses. Raw
+values, units, capabilities and costs remain visible beside normalized values.
+
+For every ordered same-band pair, require at least one genuine favorable raw
+field for each craft, so neither weakly dominates the other. Compare finite raw
+values with existing Godot is_equal_approx semantics, then confirm the normalized
+ordering is consistent; do not lose a real advantage to saturated score
+rounding. Every required field must be implemented/sourced or explicitly
+unsupported before that pair can qualify. A missing value means NOT_QUALIFIED.
+An unmatched role/action remains its own boolean/cost axis rather than being
+collapsed into a generic utility point. The existing current-nine global
+13-axis non-dominance and≥14/16 distinctness checks remain required too; the
+new full-role budget does not replace or weaken them.
+
+Current bands are small Torrent/Arrow/Zenith/Cinder Light and medium
+Jovian/Halyard/Bulwark/Cinder Hauler/Cinder Bomber. Full-role same-band membership
+therefore has16 unordered/32 ordered current comparisons. The final17 contains
+the existing nine plus Titan/Vortex/Paradox/Katana/Predator/Dynamic/Utopia/Salyut;
+their eight SPEC approvals must establish actual bands/functions/signatures
+before final pair membership or numeric results can be accepted. The complete
+17-profile raw comparison has136 unordered/272 ordered pairs; those counts do
+not imply the unbuilt craft or role-budget data exist.
+
+**Source and ordinary proof.** Extend the existing registry and live
+`fleet_role_differentiation_test.gd`/`fleet_role_registry_test.gd` to consume the
+actual production resource, reject missing fields/wrong units/false capability
+claims and detect a deliberately dominating same-band candidate. Preserve all
+current raw-field/signature/identity checks. Fix the existing non-dominance
+failure message when integrating: `_count_advantages(first,second)` counts the
+second's wins, while the current error names the reverse upgrade. The symmetric
+all-pairs predicate is still the existing behavior; this wording issue is not
+a measured balance defect or permission to retune ships.
+
+Numeric definition values need actual live-definition reads; firing/cargo/crew
+claims reuse the existing craft/ROLE/PLAY outcomes and actual receipts rather
+than another balance flight. The only new timing readback is the ordinary
+boarding event interval in that craft's existing journey, with identity/default
+controls/current candidate/seat completion. Record the skill-demand values from
+the same already-required action contract and observed acceptance/refusal;
+mandatory human-review exclusions remain unchanged. Do not claim general
+player skill from a bot/controller pass. Actual changes to balance require
+their named observed defect, same-scenario comparison and existing checkpoint
+rules, not an automatic response to a new spreadsheet.
+
+**Immediate access.** On a fresh profile the current nine remain registered,
+physically available and boardable through their existing ordinary craft/access
+owners without rank/currency/mission-credit/purchase gates. Current fighter
+access includes Torrent, Zenith and Cinder Light; Arrow's recon identity stays
+honest. Retain legitimate occupied/destroyed/reserved/engine-state refusals and
+fresh claim rules. Check the live registry/physical E/settled seat; the read-only
+FleetRegistryConsole grants no access. Reuse accepted routes, and leave parked
+physical arrivals open; do not create a replacement all-nine Sandbox loop.
+Future required starter membership is an explicit field of the eight accepted
+SPECs, not an inferred unlock or invented progression system.
+
+**Missing work and limits.** Codex implements the production role-budget
+resource/consumer, three Cinder registry contracts and selected existing
+observer/test extensions. None exists merely because this definition does.
+Use one selected craft/function slice within the existing90min all-in/one-
+correction limit, source suites300s, ordinary craft900/outer960s and tighter
+accepted/parked member limits. Freeze source/resource/profile/absolute deadline
+and raw existing test/native `--output` location before execution; retain full
+logs, live raw/normalized fields, pair failures and actual action/boarding
+receipts. No new evidence-schema/version family, balance matrix inventory or
+automatic trial is selected. Eight unapproved SPECs remain exact owner inputs;
+runtime resources, tests, final17 balance and starter acceptance remain OPEN.
 
 ---
 
@@ -836,7 +954,8 @@ cheap precisely because they happen before art.
   has been established, and inventing one here would be exactly the unevidenced
   assertion this document argues against.
 - **LOD triangle budgets.** Zenith's 47,274 / 5,412 authored levels are its own
-  frozen contract, not a fleet target; the other four are built differently.
+  frozen contract, not a fleet target; complete-current-craft targets now live in the existing
+  [LOD contract](../ROADMAP_BACKLOG.md#current-craft-lod-contract).
 - **Damage, destruction and debris presentation.** Phase 6 scope.
 - **Berth and station-side visual language.** Owned by
   `docs/research/STATION_TOPOLOGY.md` and the station module suites. The only
