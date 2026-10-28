@@ -6290,7 +6290,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | Qualification | DONE packaged ea8fe43:22 settled goals/171.602m,17.302m local/max9.944m origin distance, actual same-door candidate/E/OPEN-clear/return and distinct Torrent E→BOARDING/90seated. Same two actual drone roots/seed/defaults/home/OFFLINE/parked,2428 consecutive samples; all77Python/package/startups/audit/ONEroute PASS first attempt. [Frozen contract/full result](history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted). Rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | Definition | [Eleven existing topology IDs plus ladder/scale/version gaps](#station-relationships-exact-gaps) now have exact registered anchors or preidentified unregistered intervals,confidence/modern-wording boundaries and evidence/access owner. B3 room/C1 VIP/traversal contradictions corrected without new anchors. OPEN Codex bounded exact-artifact locator/inspection/registration;availability is unestablished,not assumed unavailable. User supplies actual missing access/dimension/build/continuity artifact or named modern-interpretation decision only after the stated boundary. No historical/runtime authentication or new topology claim. | One finite record of unresolved adjacency/elevation/scale/version/ladder claims, each with source anchors or exact missing evidence/interpretation decision. |
 | STATION-CENTRAL-VIEW | One fixed current Central operational-view review and any resulting repair | 9,12 | Qualification | [One fixed supported directory/operational-view contract](#central-standing-operational-view) binds actual first-person measured-eye camera,finite existing route candidates,atlas CENTRAL BERTH text/direction,live tow/cargo phase,2560×1440 High PNG/passive frame metadata and out/back clearance comparison. Existing300s/outer360 and accepted WALK-CENTRAL/LIFE-TOW scopes retained. Codex implements normal camera/sign/cargo/image correlation;old capture stall remains PARKED without known cause,no unchanged retry. Actual image/inspection/repair NOT_RUN. | Inspect that one frozen view: close as explicit inspected no-finding, or name and repair its actual defect with same-view before/after and unchanged walk/flight/collision clearance. Either result closes this view only; no capture-timeout exemption or new sweep. |
-| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | Definition INCOMPLETE for remaining existing subjects. [Central normal view](#central-standing-operational-view) and [Aft/Habitat views](#aft-habitat-normal-view-contracts) now bind actual camera/route/text/image/phase/clearance fields;their observer/ordinary arrival/capture code and parked stops remain open. [Existing13-subject table](#station-presentation--finite-review-boundaries) owns remaining Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol exact view fields;no new roster or survey. Reuse accepted scopes. Actual inspected no-finding/repair and native/final gates NOT_RUN beyond recorded acceptance. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
+| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | Definition INCOMPLETE for remaining existing subjects. [Central](#central-standing-operational-view),[Aft/Habitat](#aft-habitat-normal-view-contracts) and [Freight/Fleet views](#freight-fleet-normal-view-contracts) now bind actual camera/route/text/image/phase/clearance fields;their observer/ordinary arrival/capture code and parked stops remain open. [Existing13-subject table](#station-presentation--finite-review-boundaries) owns remaining Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol exact view fields;no new roster or survey. Reuse accepted scopes. Actual inspected no-finding/repair and native/final gates NOT_RUN beyond recorded acceptance. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | Definition | DONE; pilot/payload implemented, additional crew/Nav semantics missing | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | Decision | WAITING; precise interpretation needed, no approved scope reduction | Recorded exact additional role/count/action/physical-access contract; pilot-only runtime is not scope reduction. |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -9405,6 +9405,137 @@ remain required. A new inspected no-finding or named repaired defect needs this
 same normal view and unchanged physical predicates;no actual view/repair/native/
 full STATION-FINDINGS qualification is claimed. All new execution NOT_RUN.
 
+<a id="freight-fleet-normal-view-contracts"></a>
+### Freight and Fleet: actual service doorway and Zenith threshold views
+
+STATION-FINDINGS Freight/Fleet source binding2026-10-28 00:49:55→01:14:55UTC
+including source review,checks,commit/push and cleanup. Root owns documents;
+two read-only agents bind these existing subjects. No engine,image,accepted
+capture/flight rerun or parked retry. Physical references are LIFE-GANTRY,
+WALK-FREIGHT's existing branch/terminal owner,and LIFE-ARM/CRAFT-ACCEPT-ZENITH
+for Fleet. Accepted route/capture scopes are reused;whole Freight/KIT-RELOAD,
+all-fleet access and original art/final gates remain separate.
+
+**Shared supported camera/output.** Same actual unseated controlled Player,
+normal remappable toggle_first_person and sampled mouse-look,real supported
+arrival before capturing. Current viewport camera==Player.get_camera(),active/
+unsuspended first-person and measured-eye report;record actual body/camera/eye/
+authored+effective FOV/near/far/viewport. Source standing eye1.7525m/72°/near.08
+is configuration,not measured proof. Marker .15m lifts are not floor or eye.
+Use2560×1440/High/Forward+/Vulkan/100%UI,content-scale-zero and recorded actual
+antialiasing/renderer;keep honest gameplay HUD. No camera perch,pose write,FOV
+widening or service seek/pause. Private isolated Xvfb/explicitx11/Dummy audio;
+this view proves only that environment,not native-GPU/physical-device performance.
+
+Each named PNG below has same-basename JSON under existing native --output/
+presentation/,binding source/package/PID/Main/Player/support/capsule/current
+camera/eye/FOV/window,actual marker/sign/row/text transforms/current target,
+projection/front-face/occlusion,door/berth/actor/claim/service-clock/mover state
+to the rendered frame. Full-size inspected pixels must show readable literal
+text/direction and unobstructed approach geometry. Metadata/source strings or
+coordinate arrival alone cannot pass;failed finite framing is a named missing
+view capability,not permission for another location or larger budget.
+
+**Freight actual owners and finite candidates.** Reuse
+LifeTowPilot.GANTRY_GOALS's hub→Freight route/current boarding marker. Module
+current translation is(-53,.38,28.8),but use actual live marker transforms:
+service threshold local(15.15,.15,29),room(19.2,.15,29),boarding-staging
+(8.9,.15,27.8). These are source-owned arrival candidates,not accepted measured
+cameras or permission to teleport. Codex must supply normal supported movement
+from existing route to service threshold/room;LIFE-GANTRY's boarding success does
+not establish that room access. First qualified service-threshold then room view
+produces freight-service-door.png;first qualified boarding-staging then actual
+boarding-marker view produces freight-boarding-approach.png. If those candidates
+cannot frame their own required text/access,stop that member as a framing failure.
+
+Actual atlas FREIGHT SERVICE targets service-room,FREIGHT BOARDING targets
+boarding-staging via StationWayfindingSignage.MODULE_LANDMARKS. Resolve emitted
+WayfindingSignBatch/report rows and actual quad/normal/target/bearing;they are
+NOT Label3D. Separately find depth-tested shaded FreightSign Label3D children by
+actual text and owner,not generated sibling suffix. Preserve APPROACH_LEGEND's
+two lines JOVIAN FREIGHT BERTH F-01 / BOARDING + TERMINAL >>,the FREIGHT CONTROL
+label and three-line SERVICE AHEAD / CARGO + BOARDING BEHIND / KEEP TRANSFER LANE
+CLEAR. Door image requires SERVICE/FREIGHT CONTROL and approach image requires
+BOARDING/approach legend/direction,with current text/frame legibility. Their
+atlas directions must still point at the actual registered marker/berth.
+
+ServiceAccess local(15.75,0,29),yawPI/2,is initially closed/unlocked/nondeferred,
+real motion.62s. Require current door candidate and ordinary E/[ E ] OPEN FREIGHT
+CONTROL→actual OPEN && !is_portal_blocked before same-Player threshold→room→
+supported return. Do not directly call door.interact or let a competing cargo
+terminal consume that E. Record before/after door/blocker/capsule identities and
+actual unobstructed movement;source connection5.8m/service3.1m/head4.1m/transfer
+3.4m clearances do not replace measured traversal with actual.76m capsule
+diameter/1.94m height. Preserve typed cargo/progress/payment before/after this
+view;full terminal/transfer/receipt-reload remains WALK-FREIGHT,not this image.
+
+Observe live OperationalLattice/Activities/FreightApproachGantry at(-53,.38,29.7),
+yaw−PI/2/profile gantry/seed4409. Keep same _gantry_carriage/_gantry_tool drawn
+identities and advancing clock/poses through normal nearby walking/boarding;
+record actual phase at the image,never pause at a staged3.85s/4.1s tableau.
+LIFE-GANTRY2df8c31's127.445m/13 settled goals/12.509m local walk/90seatedframes
+is accepted only in its existing scope. Preserve15s per goal/12s boarding,
+nearby>11m and every nearby sample≤12m,original CAP300/outer360. New integrated
+service/door/frame observer remains implementation work. KIT-RELOAD's original
+30s/first-normal-frame stop stays PARKED;CRAFT-JOVIAN900/960 cannot enlarge it.
+
+**Fleet actual open threshold.** Fix only Zenith/zenith_fleet_dock_berth,
+actual atlas DOCK 01 ZENITH(label dock_01),linked to
+fleet-dock-comb:dock-01-threshold. Reuse the THREE existing LIFE-ARM feet goals
+(20.2,4.2,59.2)→(18.6,4.2,58.6)→(18.2,4.2,58.2),with prior accepted approach.
+First candidate whose actual player view shows legible destination and clear
+threshold produces fleet-zenith-threshold.png. No candidate qualifies by merely
+being named clearance;no fourth waypoint or overview-camera substitute.
+
+Resolve actual generated sign report/row/quad,not a presumed panel position;
+placement is collision-filtered. Keep label1.6×.2m/row gap.03/plate margin.04/
+face offset.01 as source geometry with current station transform. Separate
+DockLandmarks/AssignedDockLabel01 floor text ZENITH // B7 OBSERVED and vertical
+DockRouteFascia01 DOCK 01 are not substitutes for the atlas destination.
+Their depth testing stays enabled. Current comb origin(12,4.2,68.3),yawPI/2;
+RouteDock01Threshold local(9.25,.15,10)→world(22,4.35,59.05),AssignedDock01
+world(22,4.35,53.3). Cue elevation4.35 is not actual deck4.2 or camera height.
+There is NO StationDoor/portal here:door comparison is N/A/open dock route,
+while actual obstruction/capsule/hull/berth clearance remains required.
+
+Reuse zenith_fleet_dock_integration_test's scoped slab12×.6×15/top4.2 and
+24-shape hull18convex/3cylinder/3box/minY4.23/.03 clearance,live containment/
+occupied lease,actual berth transform and landing half extents(8.4,4.6,7.4).
+These staged/ray/accelerated tests do not prove new ordinary camera clearance.
+Accepted4bf5e889/4870595fa two strict homes/OFFLINE/physical exits/wing-clear>7m/
+fresh reuse/normal OS0 remain closed. This image needs passive current marker/
+body/camera/shape/berth/landing-identity correlation,not another flight replay.
+Keep original300/outer360,15s navigation/12s boarding/10s exit and original
+captured landing budget/stall4s. Source coordinates never waive collision.
+
+**Existing captures and exact missing implementation.** Freight689e2ed0e's
+accepted1400×900 standalone pair/custom lights/environment/fixed4.1s equipment/
+direct door opening stays accepted only there,no unchanged recapture. Operations
+05 uses dynamic evidence camera/FOV49/tableau equipment3.85s;Scenes Freight
+approach is elevated/FOV58 and staged Player. Fleet overview uses(-18,68,82)→
+(-25,1,22)/FOV64;docks04–06/FOV55 approach capture is not Zenith. None qualifies
+these ordinary integrated measured-eye views or a new registered image count.
+
+Extend existing native runner and NativeSortieObserver _life_observation with
+actual Player camera/report/FOV/image correlation,current atlas/physical-label
+geometry,Freight door/input/blocker and phase. Existing observer already has
+support/capsule/movers/boarding but Freight door is absent from its Habitat-only
+door branch. Fleet needs current sign/threshold/camera/berth correlation.
+Ordinary image selectors do not exist;existing life-gantry/life-arm/zenith-return-
+reuse routes are references,not ready screenshot commands. Normal service-room
+arrival/clear return remains separate missing code,not promoted staged proof.
+
+Freeze one selected member/candidate/package/profiles/output/absolute≤90min
+all-in deadline before editing. Existing300/360 and all tighter member/capture/
+parked limits remain unchanged;no extra framing waits or clock reset. First
+unexpected failure stops;one correction only after cumulative-cost GO,then
+failure/deadline PARKED+cleanup. Headless checks or owned Xvfb/explicitx11/Dummy,
+independent abort/input release,actual OS0/zero diagnostics and owned process/
+display closure remain required. Actual image/inspection/no-finding or named
+same-view repair must preserve accepted walking/boarding/landing/transfer scope.
+New view/clearance/ordinary arrival/native/final qualification remains NOT_RUN;
+source definitions do not close full STATION-FINDINGS.
+
 ### Station presentation — finite review boundaries
 
 **Capture binding pass, 2026-10-26, source0383848bf: BLOCKED definition — Codex.**
@@ -9426,8 +9557,8 @@ Names are declared frames, not evidence that an image exists or passed review.
 | Central | Operations `02_central_berth_operations.png`; Scenes `station.png` | [Normal first-person directory contract](#central-standing-operational-view) now fixes supported spawn/three original route candidates,measured eye/72° camera,actual atlas-backed CENTRAL BERTH row,2560×1440 High image/metadata/live-phase/access comparison and original300/360s. Camera/sign/cargo/frame observer remains missing runtime work;CENTRAL-VIEW capture/inspection stays parked,not replaced by elevated overview. |
 | Aft | Operations `03_aft_operations_route.png`; Scenes `aft_junction.png`, `operations_room.png` | [Lower doorway and separate upper normal-view contract](#aft-habitat-normal-view-contracts) fixes original ROOM/LIFE-ARM candidates,measured first-person camera,real headers/UPPER DECK,2560×1440 output and door/capsule/service comparison. Ordinary observer/capture/paused-motion receipt remain missing implementation;120s image and WALK-AFT failures stay parked. |
 | Habitat | Operations `04_habitat_service_access.png`; Scenes `habitat_exterior.png`, `habitat_common_room.png` | [Common-entry/bunk-wake/garden-observation contract](#aft-habitat-normal-view-contracts) fixes measured first-person camera,actual wayfinding versus room labels,1400×900 normal outputs and door/support/reservation comparisons. Accepted loop does not prove branch arrival;ordinary branch/camera capture remains missing implementation. y2.55 stage/no-image180.842s stop stays parked. |
-| Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | Literal `FREIGHT SERVICE` / `FREIGHT BOARDING`, `JOVIAN FREIGHT BERTH F-01\nBOARDING + TERMINAL >>` and `SERVICE AHEAD\nCARGO + BOARDING BEHIND\nKEEP TRANSFER LANE CLEAR` are fixed. Still bind integrated service/boarding camera/eye height/FOV/image and unlocked-door/clearance comparisons. Accepted689e2ed0e standalone pair remains accepted only in its custom capture environment. |
-| Fleet | Scenes `fleet_overview.png` is overview context only | Threshold member fixed to Zenith / `zenith_fleet_dock_berth`, destination `DOCK 01 ZENITH`. Existing LIFE-ARM approach→clearance→candidate walking goals `(20.2,4.2,59.2)→(18.6,4.2,58.6)→(18.2,4.2,58.2)` are not camera poses. Still supply supported player-eye transform/FOV/image and boarding/landing clearance proof. Overview does not bind this member. |
+| Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | [Freight service/boarding normal-view contract](#freight-fleet-normal-view-contracts) binds live marker candidates,measured Player camera,atlas versus physical legends,2560×1440 image/metadata,real ServiceAccess and gantry/capsule comparison. Normal room arrival/door/image observer remains missing implementation;accepted689e2ed0e standalone pair stays scoped,no recapture. |
+| Fleet | Scenes `fleet_overview.png` is overview context only | [Zenith threshold normal-view contract](#freight-fleet-normal-view-contracts) binds the three existing approach feet candidates,measured current Player camera,actual atlas DOCK 01 ZENITH row,2560×1440 PNG/metadata and current capsule/berth/landing predicates. Door N/A/open dock,not invented E. Observer/actual pixels remain missing;accepted reuse stays scoped and overview is not this image. |
 | Annex | No explicit frame in the required13 sets | Console literals fixed: `SHIP SERVICES`, initial `READY // LAND & EXIT ENGINEER CRAFT`, `[ E ]  RESTOCK ACTIVE SHIP REPAIR KITS`. Still supply central-aisle arrival image/camera/eye height/FOV and interaction/clearance comparison. Unfinished south gate remains excluded. |
 | Observation | No explicit frame in the required13 sets | Member fixed to `observation-pad`; literals `OBSERVATION PAD`, `OBSERVATION  //  SURVEY ARRAY`, `←  LOGISTICS    \|    OBSERVATION  →`. Existing connector/threshold openings3.44m/5.66m remain. Still supply supported cross-landing camera/eye height/FOV/image and return comparison. |
 | Salvage | No explicit frame in the required13 sets | Literals fixed: `INSPECTION PAD`; `FIELD COIL`, `RELAY BOARD`, `CRACKED COUPLING`; `GRADE A // USABLE`, `GRADE B // USABLE`, `GRADE D // RECYCLE`. Reuse accepted WALK-SALVAGE access/inspection/revisit scopes. Still supply supported arrival camera/eye height/FOV/image/access comparison; native/final gates remain separate. |

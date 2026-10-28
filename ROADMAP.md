@@ -205,6 +205,10 @@ and the original capture stall stays parked.
 now distinguish lower consoles/upper deck and common entry/bunk wake/garden
 access,with real camera/text/door/capsule checks. Missing ordinary arrivals and
 rendered observers remain open;neither parked capture is reopened.
+[Freight and Zenith threshold views](docs/ROADMAP_BACKLOG.md#freight-fleet-normal-view-contracts)
+now bind real markers/signs,cameras,images and door/gantry/berth comparisons.
+Accepted standalone Freight and Zenith flights stay scoped;ordinary integrated
+framing and missing room arrival remain implementation work.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
