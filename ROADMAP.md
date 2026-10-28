@@ -219,6 +219,12 @@ are distinct;VIP retains its exact stair failure and reopening prerequisite.
 All13 station subject definitions are source-bound;ordinary continuation,
 capture/inspection and final qualification remain open.
 
+[Four craft-identity goals](docs/ROADMAP_BACKLOG.md#four-craft-identity-claims)
+now name literal shipped claims,registered source anchors,unsupported propositions
+and exact missing evidence or explicit owner approval. Torrent/Zenith stay
+bounded partial reconstructions;Arrow/Jovian name-to-model remains unknown.
+Those dependencies remain open;definition work does not authenticate a craft.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
