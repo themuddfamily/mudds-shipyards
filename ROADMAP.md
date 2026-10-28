@@ -265,6 +265,11 @@ immediate-access proof. Current-nine checks and historical subset tables are
 distinguished;production budget/consumer implementation and eight accepted
 missing-craft specifications remain prerequisites to final17 qualification.
 
+[Arrow hostile loss/recovery](docs/ROADMAP_BACKLOG.md#arrow-hostile-loss-recovery-contract)
+now binds real Heavy admission,hostile lethal receipts,WITHDRAWN/no-credit
+ordering,natural berth regeneration and usable fresh reboarding/flight.
+The fatal caller/readbacks remain implementation work;no combat run is claimed.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
