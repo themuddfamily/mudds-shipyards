@@ -270,6 +270,11 @@ now binds real Heavy admission,hostile lethal receipts,WITHDRAWN/no-credit
 ordering,natural berth regeneration and usable fresh reboarding/flight.
 The fatal caller/readbacks remain implementation work;no combat run is claimed.
 
+[Cinder Light loss/recovery](docs/ROADMAP_BACKLOG.md#light-hostile-loss-recovery-contract)
+now binds its nested craft identity,hostile loss,natural Dock06 reset,live
+markers and recovered repeater consumer. The original unproved codec fixture
+and parked-attempt limits remain prerequisites;no new run or correction is selected.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
