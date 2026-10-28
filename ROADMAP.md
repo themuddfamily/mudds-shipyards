@@ -225,6 +225,12 @@ and exact missing evidence or explicit owner approval. Torrent/Zenith stay
 bounded partial reconstructions;Arrow/Jovian name-to-model remains unknown.
 Those dependencies remain open;definition work does not authenticate a craft.
 
+[Station module/graph proof](docs/ROADMAP_BACKLOG.md#station-module-graph-proof)
+now fixes the seven registered modules,exact bounds/slots,derived graph,
+retained-Main lifecycle,finite void probes and delivered berth migrations.
+These source checks retain their limits;ordinary walking/flight,actual visual
+review,native performance and final-candidate qualification remain open.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain

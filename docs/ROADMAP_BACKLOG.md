@@ -145,7 +145,7 @@ specifications remain authoritative, including any clause not yet proof-bound.
 | --- | --- | --- | --- |
 | 1 Research | Original-labelled identity/topology claims have reproducible registered anchors/confidence; unknowns and any explicit approved interpretation are recorded honestly  | `IDENTITY-TORRENT`, `IDENTITY-ARROW`, `IDENTITY-JOVIAN`, `IDENTITY-ZENITH`, `STATION-RELATIONS`, `SPEC-TITAN`, `SPEC-VORTEX`, `SPEC-PARADOX`, `SPEC-KATANA`, `SPEC-PREDATOR`, `SPEC-DYNAMIC`, `SPEC-UTOPIA`, `SPEC-SALYUT`, `RIGHTS-HISTORICAL-MEDIA` | Claim reproducibility → the four identity owners, station relationships and eight original SPECs; redistribution → rights owner. Preserve ledger source IDs/URL/access/upload/recording/build distinctions, inspected-rendition hash/metadata/frame anchors/confidence, exclusions, source-core versus modern normalization and matching shipped wording. The [four implemented original-labelled identity claims](#four-craft-identity-claims) now bind literal shipped wording,registered evidence/spec/runtime/focused-proof and exact missing provenance/name-tied source or explicit owner approval. Their outcomes remain WAITING on those inputs;source definition is not authentication. Other original-labelled assets retain their existing SPEC/STATION-RELATIONS owners;any uncovered literal claim→evidence/runtime/proof mapping remains Codex definition work. No model/test/modern interpretation authenticates unknown history; all eight SPEC approvals remain pending. |
 | 2 Vertical slice | Final-package Guided3/3, original all-nine Sandbox/recovery1/1 and original Settings/re-entry1/1; actual ordinary controls/combat/home/exit/usable continuation  | `GUIDED-FINAL`, `SANDBOX-RECOVERY`, `SETTINGS-INPUT`, `SETTINGS-RETURN`, `PACKAGE-FINAL`, `MATRIX-FINAL`, `LIFE-VISIBLE`, `LIFE-REUSE`, `LIFE-PACKAGE-DEFINE`, `CRAFT-ACCEPT-TORRENT`, `CRAFT-ACCEPT-ARROW`, `CRAFT-ACCEPT-JOVIAN`, `CRAFT-ACCEPT-ZENITH`, `CRAFT-ACCEPT-HALYARD`, `CRAFT-ACCEPT-BULWARK`, `CRAFT-ACCEPT-CINDER-LIGHT`, `CRAFT-ACCEPT-CINDER-HAULER`, `CRAFT-ACCEPT-CINDER-BOMBER`, `WALK-CENTRAL`, `WALK-AFT`, `WALK-HABITAT`, `WALK-FREIGHT`, `WALK-FLEET`, `STATION-RELATIONS`, `CONTROL-FINDINGS`, `INPUT-KBM`, `INPUT-CONTROLLER`, `REMAP-DEFINE`, `STATION-FINDINGS`, `ART-FINDINGS`, `AUDIO-MIX-DEFINE`, `AUDIO-MIX`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE` | Consume original core/access/lifecycle predicates within the listed craft/station owners, not their unrelated whole-container scope. Required packaged Guided3/3, all-nine/54-waypoint/eight-excursion/crash/recall/regeneration/reuse Sandbox1/1 under300s and original Settings-return1/1 remain unchanged; production Player/collision/seat/command/combat/berth authorities, same-tick demand, occupy-before-snap docking,1.5 neutral physics seconds before automatic shutdown and usable physical exit remain required. [Flight observation contract](#vertical-slice-flight-observations) now binds mapping/equivalent sampling/chase/sight/flight-path/camera source cases and exact missing ordinary packaged Guided observation support; caller remains implementation OPEN. Material identity/metric mapping/UV handedness/formed surfaces and authored boarding/character animation retain existing craft/art/capture proof requirements. Bind actual device, audibility and target-budget inputs separately. Accepted baseline/subset tests do not satisfy those missing clauses. |
-| 3 Station | Nine named connected physical branches and required interactions/revisit complete; four accepted service motions retained; actual topology/art/collision/berth findings resolved  | `WALK-CENTRAL`, `WALK-AFT`, `WALK-HABITAT`, `WALK-HABITAT-LOOP`, `WALK-HABITAT-RESTART`, `HABITAT-BUNK-REST`, `WALK-FREIGHT`, `FREIGHT-TERMINAL-INTERFACE`, `WALK-FLEET`, `WALK-ANNEX`, `WALK-OBSERVATION`, `WALK-SALVAGE`, `WALK-SALVAGE-ACCESS`, `WALK-SALVAGE-INSPECT`, `WALK-SALVAGE-REVISIT`, `WALK-VIP`, `LIFE-TOW`, `LIFE-GANTRY`, `LIFE-ARM`, `LIFE-PATROL`, `STATION-RELATIONS`, `STATION-CENTRAL-VIEW`, `STATION-FINDINGS`, `ART-FINDINGS`, `capture-scenes`, `capture-station-operations`, `capture-jovian-freight-berth`, `capture-berth-feedback`, `PACKAGE-FINAL`, `MATRIX-FINAL`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE` | Consume nine physical branch/interaction/revisit members and four service motions, retaining source confidence, supported visible/collision agreement and actual berth/access clearance. WALK-FLEET retains its existing nine-current-craft membership; future eight berth/access results belong to their Phase4 craft journeys, reused without a second Fleet loop. BLOCKED definition—Codex: exact branch/module identity/bounds/connections/evidence/lifecycle proof, single world graph, negative-space probes, reviewed berth migration/overlap/envelopes, performance ceilings and Main re-entry→existing candidate/check/route. Reuse the fixed13-subject station presentation roster; do not resurvey it or infer wider acceptance from WALK/source-DONE. |
+| 3 Station | Nine named connected physical branches and required interactions/revisit complete; four accepted service motions retained; actual topology/art/collision/berth findings resolved  | `WALK-CENTRAL`, `WALK-AFT`, `WALK-HABITAT`, `WALK-HABITAT-LOOP`, `WALK-HABITAT-RESTART`, `HABITAT-BUNK-REST`, `WALK-FREIGHT`, `FREIGHT-TERMINAL-INTERFACE`, `WALK-FLEET`, `WALK-ANNEX`, `WALK-OBSERVATION`, `WALK-SALVAGE`, `WALK-SALVAGE-ACCESS`, `WALK-SALVAGE-INSPECT`, `WALK-SALVAGE-REVISIT`, `WALK-VIP`, `LIFE-TOW`, `LIFE-GANTRY`, `LIFE-ARM`, `LIFE-PATROL`, `STATION-RELATIONS`, `STATION-CENTRAL-VIEW`, `STATION-FINDINGS`, `ART-FINDINGS`, `capture-scenes`, `capture-station-operations`, `capture-jovian-freight-berth`, `capture-berth-feedback`, `PACKAGE-FINAL`, `MATRIX-FINAL`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE` | Consume nine physical branch/interaction/revisit members and four service motions, retaining source confidence, supported visible/collision agreement and actual berth/access clearance. WALK-FLEET retains its existing nine-current-craft membership; future eight berth/access results belong to their Phase4 craft journeys, reused without a second Fleet loop. [Module/graph/lifecycle and clearance source contract](#station-module-graph-proof) now binds seven actual modules/seven slots/51markers,authored bounds/evidence,one derived14-node/seven-component graph,retained-Main source predicates,finite void probes and existing berth migrations/overlap/envelope checks. Source census/native budget owners and fresh Restart Shift distinction are explicit;actual candidate qualification,ordinary continuation,upper-bound guard coverage and visual/native review remain OPEN with their named existing owners. No extra walking branch or graph-as-traversal inference. Reuse the fixed13-subject station presentation roster; do not resurvey it or infer wider acceptance from WALK/source-DONE. |
 | 4 Original fleet | All twelve original craft, including eight absent today, implemented and accepted through their full specified physical/function/damage/recovery/reuse lifecycle  | `CRAFT-ACCEPT-TORRENT`, `CRAFT-ACCEPT-ARROW`, `CRAFT-ACCEPT-JOVIAN`, `CRAFT-ACCEPT-ZENITH`, `CRAFT-ACCEPT-TITAN`, `CRAFT-ACCEPT-VORTEX`, `CRAFT-ACCEPT-PARADOX`, `CRAFT-ACCEPT-KATANA`, `CRAFT-ACCEPT-PREDATOR`, `CRAFT-ACCEPT-DYNAMIC`, `CRAFT-ACCEPT-UTOPIA`, `CRAFT-ACCEPT-SALYUT`, `SPEC-TITAN`, `SPEC-VORTEX`, `SPEC-PARADOX`, `SPEC-KATANA`, `SPEC-PREDATOR`, `SPEC-DYNAMIC`, `SPEC-UTOPIA`, `SPEC-SALYUT`, `BUILD-SPLIT-TITAN`, `BUILD-SPLIT-VORTEX`, `BUILD-SPLIT-PARADOX`, `BUILD-SPLIT-KATANA`, `BUILD-SPLIT-PREDATOR`, `BUILD-SPLIT-DYNAMIC`, `BUILD-SPLIT-UTOPIA`, `BUILD-SPLIT-SALYUT`, `CRAFT-GAPS-TORRENT`, `CRAFT-GAPS-ARROW`, `CRAFT-GAPS-JOVIAN`, `CRAFT-GAPS-ZENITH`, `IDENTITY-TORRENT`, `IDENTITY-ARROW`, `IDENTITY-JOVIAN`, `IDENTITY-ZENITH`, `WEAPONS-DEFINE`, `DAMAGE-DEFINE`, `ROLE-JOVIAN-ENGINEER`, `WALK-FLEET`, `ART-FINDINGS`, `PACKAGE-FINAL`, `MATRIX-FINAL` | Full twelve original journeys are required: Torrent/Arrow/Jovian/Zenith plus Titan/Vortex/Paradox/Katana/Predator/Dynamic/Utopia/Salyut. The latter eight require explicit owner SPEC approval and actual implementation after their finite BUILD-SPLIT definitions. Each needs editable source/import/manifest, separated historical/modern art, definition/physics/anchors, reviewed pinned bidirectional art/collision agreement, exact capsule/berth/neighbour/muzzle/camera clearance, atomic authority-free LODs and full ordinary function/damage/recovery/save/reuse/switch/re-entry. BLOCKED input—user: eight design decisions. BLOCKED definition—Codex: implemented capability and remaining journey/art/collision/LOD proof→actual source/package/command/original limits. Neither SPEC nor BUILD-SPLIT delivers a ship. |
 | 5 Expanded fleet | Five modern additions accepted through their actual distinct functions/tradeoffs/roles and full lifecycle; they do not replace the eight absent originals  | `CRAFT-ACCEPT-HALYARD`, `CRAFT-ACCEPT-BULWARK`, `CRAFT-ACCEPT-CINDER-LIGHT`, `CRAFT-ACCEPT-CINDER-HAULER`, `CRAFT-ACCEPT-CINDER-BOMBER`, `CRAFT-GAPS-HALYARD`, `CRAFT-GAPS-BULWARK`, `CRAFT-GAPS-CINDER-LIGHT`, `CRAFT-GAPS-CINDER-HAULER`, `CRAFT-GAPS-CINDER-BOMBER`, `ROLE-HALYARD-PASSENGER`, `ROLE-HALYARD-ENGINEER`, `ROLE-HALYARD-GUNNER`, `ROLE-HALYARD-LOADMASTER`, `ROLE-BULWARK-GUNNER`, `ROLE-CINDER-LOADMASTER`, `ROLE-CINDER-NAVIGATOR`, `HAULER-CARGO-DEFINE`, `BOMBER-REARM-POLICY`, `BOMBER-ROLES-DEFINE`, `BOMBER-ROLE-DECISION`, `WEAPONS-DEFINE`, `DAMAGE-DEFINE`, `PLAY-CINDER-SUPPLY`, `WALK-FLEET`, `ART-FINDINGS`, `AUDIO-MIX`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE`, `PACKAGE-FINAL`, `MATRIX-FINAL` | Full five modern journeys are required, not substitutes for originals. Halyard needs embodied passenger/gunner/engineer/Loadmaster/moving carry; Bulwark actual gunner hit/release/reseat; Light actual repeater/cooldown/component effects; Hauler ramp/conserved supply/travelling mass driver/Loadmaster/Navigator; Bomber travelling four-round payload hit/miss/depletion/refusal/refill on physical pilot retake, with extra roles subject to their recorded decision. Preserve NEW status, reusable authorities, roster/berth/audio identity and complete lifecycle. BLOCKED definition—Codex: remaining visual-grammar audio/LOD/damage/debris proof and final17-craft lateral trade-offs/normalized budgets/no-strict-upgrade/starter access. Reuse existing grammar/craft/art owners; nine-current source differentiation does not prove the future roster. |
 | 6 Combat/damage | Six encounter owners, applicable eleven current firing bindings/five component consequences and missing-original specifications operate through real combat/repair/destruction/recovery/home, without double effects/rewards  | `WEAPONS-DEFINE`, `DAMAGE-DEFINE`, `COMBAT-INTERCEPTOR`, `COMBAT-COURIER`, `COMBAT-WING`, `COMBAT-WING-ADMISSION`, `COMBAT-PERIMETER`, `COMBAT-BREACH`, `COMBAT-TORPEDO`, `BOOT-BREACH-OWNERS`, `PLAY-BREACH`, `PLAY-TORPEDO`, `TORPEDO-AUTH-DEFINE`, `PICKET-ACTOR-DEFINE`, `CONVOY-ACTOR-DEFINE`, `EMBERLINE-ACTOR-DEFINE`, `ROLE-JOVIAN-ENGINEER`, `ROLE-HALYARD-ENGINEER`, `HALYARD-NETWORK-REPAIR-PANEL`, `NET-HULL-HUD`, `NET-HULL-INSTRUMENTS`, `BOMBER-REARM-POLICY`, `capture-combat-visuals`, `capture-varied-encounters`, `AUDIO-MIX`, `PACKAGE-FINAL`, `MATRIX-FINAL` | Weapon profiles/source→authority→resolver→once-only damage/collision/score→pooled presentation/audio must hold for the fixed eleven current firing bindings, five components and six encounter owners; missing-original weapon/role choices stay with their Phase4 SPECs. Reuse the Phase4/5 craft owners for their actual weapon/component/repair/destruction/regeneration predicates and named physical repair roles. Preserve faction/self/friendly/world-occlusion/miss, duplicate/out-of-order/reverse receipts, lethal/nonlethal chronology, hitch/abort/reentrant saturation/recycle, detach/re-entry, repair interruption and pool/resource lifetime ceilings. Breach/Torpedo PLAY results are shared, not duplicate sorties. BLOCKED definition—Codex: uncovered ordinary actor/contact/profile/consumer/return observations and exact source/package/command/original-cap bindings; declared pool limits and combat-range High/glow-disabled views must have actual proof or remain blocked. Native legibility and authorized audible chronology remain separate; matrix/source-DONE alone does not prove them. |
@@ -8847,6 +8847,200 @@ Scope: original §2 and §7; Phases 1, 3–6 and 10.3. A component pass does not
 | CRAFT-ACCEPT[one completed craft] | GATED on all promised capabilities | Run that craft's full fleet scenario: access/roles/flight/combat/damage/recovery/reuse and art/limits. Stop at named craft result, not the entire fleet. |
 
 Original fleet remains Torrent, Arrow, Jovian, Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut and Zenith. Missing definitions: **Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia and Salyut**. Instantiate ORIGINAL-SPEC/BUILD/ACCEPT per craft. Four original-inspired candidates plus five modern designs do not finish the twelve-original commitment. Modern interpretations require explicit scope decisions and honest labels.
+
+<a id="station-module-graph-proof"></a>
+### Station modules and graph — exact source and lifecycle boundary
+
+This binds the existing Phase3 module/graph/clearance clause, not additional
+walking branches or a new test matrix. Prerequisite proof owners are the
+existing nine WALK branches, LIFE-TOW/GANTRY/ARM/PATROL, STATION-RELATIONS,
+STATION-FINDINGS, ART-FINDINGS and PERF-ROUTES-DEFINE/PERF-CELLS-DEFINE;
+their accepted scopes and parked causes remain attached to those same IDs.
+The physical routes and player views stay in their linked contracts.
+
+**One registry, derived graph.** `scripts/world/shipyard_world.gd` discovers
+`station_modules`, builds `StationRouteRegistry`, then derives
+`StationNavigationGraph` from that report. Discovery stops descending after
+finding a module. `STATION_HUB_ENDPOINT_DECLARATIONS` owns the seven live
+station-side anchors; proximity never creates an edge. Accessors
+`get_station_route_registry_report()`, `get_station_route_adjacency_graph()` and
+`get_station_navigation_graph_report()` return detached data. Require valid
+reports/no errors,exactly7 modules/7 hub endpoints/7 slots/51 route markers,
+zero dangling/overclaimed slots and the following module/route/slot membership.
+Central is hub-owned and VIP is within Aft; neither is an eighth registered
+module. Seven modules do not replace the nine required physical branches.
+
+| Existing module ID | Authored local minimum → maximum | Sole connection route → slot |
+| --- | --- | --- |
+| aft-junction-stack | (−10.4,−1.5,−2.6) → (11.2,8.4,21) | approach → hub-aft-junction |
+| habitat-spine | (−9,−1.6,−4.25) → (21.36,7.3,29.25) | approach → hub-starboard-habitat |
+| fleet-dock-comb | (−2.6,−2.5,0) → (21,5,48) | approach → hub-fleet-dock-comb |
+| jovian-freight-berth | (−23,−3.4,−4.8) → (23,14.2,51.5) | approach → hub-registry-pod-freight |
+| fabrication_annex | (−14.2,−.4,0) → (14.2,5.6,20.2) | annex_inbound → fabrication_annex_inbound |
+| observation-logistics-spur | (−13.4,−.3,0) → (13.4,4.4,39.5) | origin → observation-logistics-spur-origin |
+| salvage-terrace | (−18.1,−1.8,−.7) → (27.3,7.1,18.1) | connector → hub-salvage-terrace |
+
+Bounds come from each existing `scripts/world/<module>.gd` integration-footprint
+getter, with underscores in filenames. Record actual live anchor transform
+and transformed bounds from that same current module, not a cached world pose.
+Require finite,ordered min/max and marker transforms agreeing with actual
+`get_route_marker()`/`get_route_transform()`; authored bounds do not prove
+physical traversability or absence of collision outside them. Current generic
+`StationModuleContract.validate_contract()` validates finite local_min/anchor,
+but does not independently validate local_max. That narrower check cannot be
+reported as complete min/max validation; any required upper-bound guard belongs
+in the existing contract/test, not a parallel validator family.
+
+The existing graph intentionally has14 nodes/7 edges/7 components: its seven
+distinct hub endpoints are not collapsed into one walkable vertex. Rebuilding
+an independent registry/derived graph from the live declarations must reproduce
+node/edge IDs and transforms. Do not redesign this graph or claim that a route
+search proves physical continuity. `tests/station_route_registry_integration_test.gd`
+owns exact roster/slots/live hub anchors/internal-marker exclusions/no authority
+leak; `tests/station_navigation_graph_test.gd` owns derived graph equivalence,
+malformed/rejected reports, deterministic courier movement and ownership.
+
+**Identity/evidence/contracts.** `StationModuleContract` already reports
+integration_footprint,evidence_metadata,component_roster,collision_contract,
+authority_contract,performance_contract,lifecycle_contract,audit_report and
+validation_errors. Require nonempty honest evidence metadata and valid module
+audit,not historical authentication. Aft/Fleet/Fabrication/Observation/Salvage
+remain modern_interpretation; Habitat fixed_era_inspired_modern_interpretation;
+Freight creator_roster_supported_modern_interpretation. Habitat original/fixed-era
+geometry and Freight authenticated geometry/layout remain false; Fabrication/
+Observation/Salvage source_bounded=false,Salvage confidence none. All hub
+connections are modern interpretations. Historical unresolved claims retain
+their [existing station relationship inputs](#station-relationships-exact-gaps).
+
+**Lifecycle, retained Main.** Existing lifecycle is identity_preserving_enable_disable,
+runtime_rebuild_allowed=false,reversible: visibility/collision layers follow
+enablement,shapes are retained,disabled processing stops. Bind those observations
+to the same module/descendant/resource IDs before disable,while disabled and
+after re-enable. The existing registry integration suite removes/re-adds the
+same Main subtree,retains world/module IDs,restores the exact counts/edges and
+valid reports with no dangling/overclaimed slots. Navigation's retained-Main
+check similarly preserves seven courier/descendant IDs,enabled processing and
+valid navigation/operational-lattice audits. Its synthetic fresh-world contract
+probe clears old registry errors; that is not ordinary player reload proof.
+Reuse `tests/main_reentry_quality_test.gd`'s three staged cycles in its already
+accepted scope; do not rerun or promote it to normal OS/process-restart proof.
+
+**Fresh Restart Shift remains a different existing owner.**
+`GameFlow._restart_shift()` marks orderly shutdown and reloads the current scene;
+HUD restart_requested already binds it. A fresh Main must have fresh world/
+module ownership,not preserved instance IDs. The existing
+[SERVER-BASELINE restart contract](#server-main-reentry-binding) and SETTINGS
+return owners retain their actual ordinary input/usable continuation scope.
+The native-sortie runner/observer still lacks that actual HUD Restart Shift
+caller and fresh registry/graph/current-module observation. Add those passive
+station assertions to that existing caller when selected; do not create an
+extra station reload journey. `--route habitat-restart` is quit+cold restart
+and cannot supply this result. No user-facing retained-ID reload is invented.
+
+#### Existing void, migration and overlap predicates
+
+Reuse existing probes with current module transforms, WORLD bodies/no Areas
+and physics synchronization. They are finite source checks, not a substitute
+for ordinary walking/flight or image inspection.
+
+- **Aft:** four local rays must miss: (−9,8,6)→(−9,−4,6),
+  (8.5,8,5.8)→(8.5,−4,5.8), (0,.3,7.2)→(0,12,7.2),
+  (−7.8,4.5,16)→(−7.8,13,16). Isolated
+  `tests/aft_junction_stack_test.gd` also requires operations-room roof
+  (5.6,1,13.2)→(5.6,8,13.2) hit and declared open ratio>.67;
+  `tests/station_operational_lattice_test.gd` reuses the four misses in-world.
+- **Habitat:** `get_negative_space_samples()` owns (−8.1,1,8),(8.1,1,8),
+  (−4.1,1,−2.2),(4.1,1,−2.2); query each sample+UP×7→sample−UP×4.
+  Isolated `tests/habitat_spine_test.gd` requires four misses with roof-hit
+  controls. Integrated lattice check permits an existing starboard-deck first
+  hit but rejects an OperationalLattice descendant. Preserve that narrower
+  result; neither first-hit check proves all-world volumetric emptiness.
+- **Freight/launch:** lattice caller requires Freight-local(0,3,49.5)→
+  (0,3,55) miss; at worldz−34/−46/−58, cross-rays(−9.5,1.2,z)→
+  (9.5,1.2,z) and headroom(0,.2,z)→(0,10,z) miss. No service envelope
+  may overlap protected launch AABB position(−10.75,0,−68),size(21.5,12,40).
+- **Comb:** reuse all five transformed WORLD±6m rays and
+  full_footprint_floor_present=false from the existing
+  [Fleet access geometry contract](#fleet-cabin-reverse-clear-reboard).
+  `fleet_dock_comb_integration_test.gd` owns that full first-hit predicate;
+  expansion's separate check only rejects expansion-structure intruders.
+  Neither sampled result closes overview/visual negative-space review.
+
+**Existing modern migrations, not new relocation choices.**
+`scripts/world/fleet_expansion_berths.gd` and
+`tests/fleet_expansion_berths_test.gd` own these already-delivered placements,
+composed at worldorigin(12,4.2,68.3),yaw+PI/2. They require no invented new
+owner permission or historical claim.
+
+| Existing berth | Recorded migration / protected reason | Current local position; root height; departure lift; landing half-extents |
+| --- | --- | --- |
+| dock_04_cargo | z−8→−5; old lane crossed VIP wall/glazing and assist stopped1.56m short | (−16.4,0,−5);1.61;9m;(3.8,2,6.5) |
+| dock_05_bomber | z−18→−27; prevents new landing deck roofing AftSpine | (34,0,−27);1.335;4m;(3.9,2,8.2) |
+| dock_06_interceptor | x0→−17,z34→52; preserves comb trunk/clears Dock04 lane | (−17,0,52);1.06;12m;(2.8,1.7,4.8) |
+
+Deck top−.02m,capture center(0,8,30),capture half-extents(12,12,18) remain
+the source values. The baseline six berth transforms remain locked by
+`ShipyardWorld.SHIP_BERTH_FEEDBACK_SPECS` and
+`tests/fleet_dock_comb_integration_test.gd`: Central(0,1.15,−10),
+Arrow(−43,1.15,15.5)/+PI/2,Jovian(−53,1.63,57.3)/PI,
+Zenith(22,5.28,53.3),Halyard(37,5.28,53.3),Bulwark(52,7.68,53.05);
+other rotations identity. Comb adds no berth authority; expansion berths join
+the actual deferred registry. Resolve live registry entries before any query.
+
+`tests/fleet_expansion_shipyard_integration_test.gd` owns exactly six route
+bodies with no positive overlap against comb/connector/Halyard apron/Aft or
+registered landing volumes when all three overlap axes exceed.001m. Its three
+Cinder lane sweeps use actual enabled root collision shapes, dock attitude,
+capture→dock,maximum.25m pitch,live collision mask,bodies only,own RID excluded,
+maximum four contacts/query,and require no blockers; the inserted.25m blocker
+must turn the check red. Its dressing check shrinks each face1mm before testing
+unrelated WORLD solids. These predicates do not cover every flight trajectory.
+
+`tests/jovian_freight_berth_transform_test.gd` owns exact moduleorigin
+(−53,.38,28.8),identity rotation,worldbounds(−76,−3.02,24)→(−30,14.58,80.3),
+Aft/Habitat footprint isolation.01m and other landing-volume separation.2m.
+Its.002m contact allowance is only the four named DeckA/DeckB RegistryPod/
+PortBerth seams in that caller,not blanket overlap permission. Existing
+`tests/jovian_freighter_berth_fit_test.gd` bounds real render corners/collision
+vertices within the published ship envelope with.03m tolerance; envelope physics
+permits only authoritative apron floors. Lattice source proof requires mesh
+corners within.025m of published render/service AABBs,activity→landing AABB
+gap≥.15−.001m and activity roots≥12m apart. Preserve those original checks.
+The existing Salvage-specific nine-craft/157-root-shape/Halyard-lane checks
+in `tests/station_surface_playability_test.gd` remain local to that geometry;
+they do not prove every module's clearance.
+
+No new source caller is missing for these listed probes. What remains is actual
+candidate qualification and the original ordinary capsule/boarding/flight/
+animation/visible-collision/negative-space review in WALK/craft/STATION/ART,
+not a new evidence-layer task. Any requirement for unsampled live geometry
+needs a named extension to its existing production observation/check owner.
+No new berth-migration decision or required layout change is established here.
+
+**Performance/source proof versus native proof.** Each module's existing
+`get_performance_contract()`/audit remains the source census ceiling owner;
+no replacement count inventory is created. Fabrication's production open
+Observation-gate variant differs from standalone; compare the actual variant.
+Those counts and courier envelopes do not establish GPU frame time. Native
+machine/profile/route/frame/VRAM/world-residency gates stay with
+[PERF machine cells](#performance-machine-cells) and
+[canonical repetition](#canonical-repeat-rest-resource),including their exact
+owner inputs and missing collectors. No software run qualifies native hardware.
+
+Source proof uses the existing test-matrix selectors
+`station_module_contract_test`, `station_route_registry_integration_test`,
+`station_navigation_graph_test`, and accepted `main_reentry_quality_test` only
+in its recorded scope. At any selected candidate use the established headless/
+Dummy isolated runner,300s default per-suite ceiling and exact frozen source/
+engine/results directory. Require exit0,zero diagnostics and the suite's
+`STATION_MODULE_CONTRACT_TEST_OK`, `STATION_ROUTE_REGISTRY_INTEGRATION_TEST_OK`,
+`STATION_NAVIGATION_GRAPH_TEST_OK` or `MAIN_REENTRY_QUALITY_TEST_OK` marker as
+appropriate,plus the actual predicates above. Retain console/exit marker and actual unfiltered logs under the existing
+`run_test_matrix.sh --results-dir` output,frozen at selection as
+`/srv/mudds-work/station-module-graph-final/<selected-suite>/`,with the literal
+selected selector above. Source mapping is not a new run or final-candidate
+acceptance. The registered source suites and actual WALK/
+view/performance owners are sufficient; no new schema,IDs or evidence chain.
 
 <a id="station-relationships-exact-gaps"></a>
 ### Station relationships: registered motifs and exact unresolved claims
