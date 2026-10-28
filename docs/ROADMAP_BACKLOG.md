@@ -5344,7 +5344,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 
 | Existing container IDs | Fixed boundary; exact remaining definition/input |
 | --- | --- |
-| WALK-FLEET | [Nine home/approach/exit route owners](#fleet-nine-access-routes) are source-bound,including actual markers,current-cache rule and existing caller limits. Cabin/reverse/clear-reboard and craft-specific clearance fields remain explicit Codex work; reuse each CRAFT receipt,not another Fleet loop. Parked all-nine Sandbox remains unchanged. |
+| WALK-FLEET | [Nine home/approach/exit route owners](#fleet-nine-access-routes) are source-bound,including actual markers,current-cache rule and existing caller limits. [Cabin/reverse/clear-reboard and clearance predicates](#fleet-cabin-reverse-clear-reboard) are now source-bound;missing physical egress/ordinary continuation and fresh geometry observers remain Codex implementation. Reuse accepted Bomber parked reboard and Torrent/Arrow/Zenith reuse,not another Fleet loop. Parked all-nine Sandbox remains unchanged. |
 | STATION-FINDINGS | Central, Aft, Habitat, Freight, Fleet, Annex, Observation, Salvage, VIP; tow, gantry, arm and patrol service views. Existing capture membership and literal text/Zenith berth/service contracts are fixed in the [station table](#station-presentation--finite-review-boundaries). Missing supported player-eye camera/phase/image-readback capability is explicit; do not resurvey the13 subjects. A reviewed view closes that view; parked views retain their reopening cause. |
 | ART-FINDINGS | [Finite art coverage contract](#art-view-coverage-contract) binds all13 required sets/143 PNGs, staged versus ordinary scope, current-fleet/character/effect moments and Ember/Aurora/Rime production views plus finite Low/ultrawide/comfort overlays. Membership survey is closed. Codex still owes phase-bound production-camera observation and solar/weather feed/view capability; actual inspections/repairs remain open. Station references its existing13-subject map once; parked causes/caps stay unchanged. |
 | CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. For one unaccepted named member, Codex implements ordinary input/observer support in the existing native-sortie runner and observer, using that craft's live seat/berth/muzzle markers and production receipts. Reuse accepted members. [Halyard/Hauler/Bomber contact budgets](#crew-cargo-bomber-contact-budget) now bind exposed shell targets, two-hit impairment/failure, passive repair and recovery predicates; fresh single boosted contact cannot kill these hulls. Hauler's [range-header contract](#hauler-range-header-contact-route) now supplies its intact obstacle/input stages/limits; actual input/query/contact-observer implementation is missing. Its fatal member now binds direct Hauler Heavy launch and actual source2103 scatter damage,with real station-survival/hit-count/time predicates; execution remains NOT_RUN. [Halyard/Bomber sibling actions](#halyard-bomber-contact-actions) now bind their distinct collision targets/limits,actual consumers and source2103 fatal members. All three callers/observers remain implementation OPEN; reuse existing other-craft contact contracts. The [current-nine integrated budget](#craft-integrated-journey-budget) now supplies900s/outer960s as an engineering limit; existing300s/tighter members stay unchanged. [Fixed handback/Main contracts](#current-craft-handback-and-main) now supply one counterpart per craft,actual physical control/reclaim predicates and exact missing same-Main component/empty-seat/home assertions; accepted pair/source scopes remain closed. Integrated caller remains missing; no parked route gains time. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
@@ -6276,7 +6276,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | Capability | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WALK-FREIGHT | Full Freight terminal/door/room/conserved-transfer/receipt-reload/same-ship return | 7,9 | Qualification | Interface delivered509703300/checkpoint5097033; full ordinary route remains GATED on its frozen route and existing cold KIT-RELOAD failure. Automatic workflow approved2026-10-21. Existing Jovian automatic cargo delivery remains accepted in its own scope; KIT-RELOAD remains PARKED. [Concrete ordered handoff](#freight-terminals--physical-interface-and-existing-transfer-owner); no route selected | [Station](#proof-core): complete terminal/door/room/delivery, cold committed receipt and same-ship supported return; KIT-RELOAD prerequisite. |
 | FREIGHT-TERMINAL-INTERFACE | Ordinary Freight terminal interaction bound to actual conserved cargo owners | 7,9,13 | Capability | DONE on509703300/checkpoint5097033: both actual-Main raw-E fittings, initial/saved/depleted/current-owner/re-entry/refusal checks and existing conserved/once-only cargo suite PASS; paired checkpoint/startups PASS. Existing6-kit source/berth capacity64/two-kit entitlement retained; full ordinary walk and cold KIT-RELOAD remain separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| WALK-FLEET | Fleet Dock access and all-shipped berth reuse, shared with CRAFT-ACCEPT | 7,9 | Container | [Nine source-bound access routes](#fleet-nine-access-routes) fix home IDs,station trigger/approach paths,live boarding/exterior markers,current-cache requirements and accepted caller scopes. Missing cabin/return/clear-reboard inputs and craft-specific safe paths/comb-neighbour predicates remain Codex definition/implementation; no route or threshold alone accepts reuse. Original parked54-waypoint/eight-excursion/crash/reuse Sandbox300s is unchanged; final package/actual clearance review stay open. | The nine current craft pass approach/current seat/home exit/fresh use through their [existing craft journeys](#fleet-access-and-reuse--shared-acceptance-boundary); exact missing route/clearance/candidate fields are in State. |
+| WALK-FLEET | Fleet Dock access and all-shipped berth reuse, shared with CRAFT-ACCEPT | 7,9 | Container | [Nine source-bound approaches](#fleet-nine-access-routes) plus [cabin/reverse/clear-reboard/clearance continuations](#fleet-cabin-reverse-clear-reboard) now bind each current craft/live marker/physical owner. Accepted Torrent/Arrow/Zenith full reuse and Bomber parked reboard are reused;Cinder live handoff and Bulwark actual exit/rung reverse are fixed. Missing large-craft physical egress/cabin/ordinary continuation and fresh capsule/animation/comb-neighbour observations are Codex implementation. Original parked54-waypoint/eight-excursion/crash/reuse Sandbox300s and Light/role gates unchanged;actual all-nine/native/art/final qualification OPEN. | The nine current craft pass approach/current seat/home exit/fresh use through their [existing craft journeys](#fleet-access-and-reuse--shared-acceptance-boundary); exact missing route/clearance/candidate fields are in State. |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | Qualification | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WALK-OBSERVATION | Observation supported return | 7,9 | Qualification | OPEN/unqualified. Privatebae551d58 full route PASS54 goals/345.753m/60-frame view/home/normal Exit0/clean logs, but active-tooltip repair INCONCLUSIVE: original visible TooltipPanel not exercised. Later actual-Main baseline did not produce it. Candidate remains unmerged; all five unique commits/seven files preserved by verified bundle/patch/source archive and pushed archive/withheld/exit-tooltip-order-20261020; local/remote/tracking working refs deleted. Missing actual hover owner/pointer/window/foreground state and original visible tooltip/root bindings before a separately selected repair. Full integrated route acceptance retained. [Accounting](history/ROADMAP_DELIVERIES.md#tooltip-candidate-accounted-and-archived--unqualified--2026-10-20) | Integrated-source normal hub/Annex/Observation physical viewing route and supported hub return/normal exit; withheld private pass is not integration. |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | Qualification | DONE in recorded current Linux-source ordinary scope: ACCESS9749f742c, INSPECT5189436f1, REVISITf7abac379. Actual hub approach/three grades/real-file publication/distinct-process restore/physical repeats/full retained-hub return accepted; original limits retained. Existing staged/memory-store checks remain separate; production Boot/OS-XTest/native/final-package gates remain. [Complete scope](history/ROADMAP_DELIVERIES.md#existing-salvage-durable-physical-revisit-qualified--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -8812,9 +8812,10 @@ pose and the current craft/berth/neighbour identities; continuous normal capsule
 movement must remain supported,unblocked and free of hull/canopy/neighbour
 penetration. Numeric support/identity cannot replace the existing player-height/
 overview art and visible/collision/comb/neighbour/muzzle review in STATION/ART.
-Missing reverse/cabin/clear-reboard control and fresh observer support are Codex
-implementation; missing craft-specific literal safe paths/clearance predicates
-remain definition fields,not proof inferred from source coordinates.
+[The continuation binding below](#fleet-cabin-reverse-clear-reboard) supplies
+craft-specific cabin/reverse/clear-reboard references and literal clearance
+observations. Missing controls/egress/fresh observer support remain Codex
+implementation;source references are not proof of safe physical traversal.
 
 The original Sandbox command still has54waypoints,eight non-Torrent excursions,
 crash/recall/regeneration/Light reuse and original300s. It is PARKED and unchanged;
@@ -8825,6 +8826,106 @@ No engine/source test,package,rendered view or hardware run occurred. A later
 selected capability owns existing driver/observer/admission/focused checks,
 ≤90min all-in/one correction/first-failure stop and required clean-source playable
 checkpoint/isolated package validation/integration/owned cleanup.
+
+<a id="fleet-cabin-reverse-clear-reboard"></a>
+#### Nine access continuations: actual cabin,reverse and fresh boarding
+
+WALK-FLEET source binding2026-10-28 00:20:34→00:45:34UTC including source
+review,checks,commit/push and cleanup. Root owns documents;two read-only agents
+bind five cockpit-only and four walkable craft. No engine,test,route retry or
+new worktree. Literal prerequisites:the matching existing CRAFT-ACCEPT member
+and its actual physical home/exit scope;each named ROLE owns its role claim/
+function once. Existing fleet-nine-access-routes already owns approach/home IDs;
+these continuations fill its cabin/reverse/clear-reboard fields,not a new fleet
+journey or nine-craft matrix. Parked Sandbox/Light/gunner/role attempts keep their
+exact source,cause,cumulative cost and reopening conditions.
+
+**One ordinary fresh-admission predicate.** Keep same Player/current craft/home,
+actual live BoardingPoint/get_boarding_position,ExitPoint/get_exit_transform,
+seat/command source,current registered frame/claim/berth/token and actual support.
+After strict home/OFFLINE/separate E,wait for the real authored exterior transition
+to complete and collision/control to return;then supported ordinary walking must
+move actual interaction origin>7m from the CURRENT boarding marker so GameFlow
+clears _reboard_blocked_ship. Reapproach through the listed safe source corridor,
+settled speed≤.35,current same-craft available reservation-backed ShipBoardingArea,
+no competing station candidate,then a separate fresh E admits pilot/role. Merely
+walking7m,forcing candidate or recycling a held E is not reboarding. Internal
+pilot→cabin stand deliberately has no exterior reboard suppression;do not require
+a7m detour for an interior helm retake.
+
+| Existing craft | Concrete cabin/exit/reverse/clear continuation and retained scope |
+| --- | --- |
+| Torrent | No walkable cabin. Reuse accepted TorrentReturnReusePilot/torrent-return-reuse:actual home/90neutral/OFFLINE/physical exit,radial horizontal outward walk max(4,8−horizontal boarding distance),actual>7/unblocked,reapproach live marker/fresh candidate/E,second flight/home/exit/UI. Preserve12s clear/process300s. Root BoardingPoint/ExitPoint and cockpit-owned entry/seat remain live source objects,not a new cockpit teleport. Only uncovered geometry observations are added. |
+| Arrow | No walkable cabin. Reuse accepted ArrowReturnReusePilot/arrow-return-reuse:actual ladder exit/current wing-safe reversed climb,within.65m live exit;ordinary walk to(-35,0,22) until>7/unblocked,then(b.x,0,22)→b/current candidate/E/fresh pilot stream,second flight/home/exit/UI. Keep25s weapon/process300s. Actual ladder foot(-3.4,-1.17,-4.05),root boarding foot+(0,.08,-.45),exit foot+(0,0,-.75);use existing _access_climb_points/ACCESS_ENTRY,not an invented cabin. |
+| Zenith | No walkable cabin. Reuse accepted ZenithReturnReusePilot/zenith-return-reuse and actual berth-transformed wing_port(-7.2,-1.08,3.9)→wing_clear(-1.6,-1.08,5.9),>7/unblocked→reapproach(-3.8,-1.08,4.9)→fresh candidate/E/new consumed stream→second flight/home/exit/wing-clear/UI. Preserve within.8m live exit/process300s. Never reverse through wing;live boarding/exit and cockpit-parent transforms remain authoritative. |
+| Cinder Light | No walkable cabin. Reuse existing frozen WEAPON-CINDER-LIGHT two-flight contract:strict home/OFFLINE/E/supported exit→live b+(-8,0,0)→>7/unblocked→b/current candidate/E/fresh stream→second flight/home/exit/clear. It remains PARKED at exact codec-comparison failures/reopening boundary,not an accepted new selector. Keep15s walk/12s boarding/10s exterior/25s weapon/300s process/outer360;Sandbox crash-reuse remains its separate parked scope. |
+| Cinder Bomber | No walkable cabin;extra crew still behind BOMBER-ROLE-DECISION. BomberRearmPilot/bomber-rearm255f8df2b ALREADY accepts parked payload spending/refusal→OFFLINE/E/supported detached exit→reverse approach_path[:-1] until>boarding_reach/unblocked→same full six-goal approach/current candidate/E→generation4/fresh release/final exit. Keep300s/outer330. Missing integration is actual flown strict home into this accepted continuation/full-flight reuse,not a new rearm or basic clear/reboard policy. |
+| Jovian | Preserve separate pilot-door and cargo-ramp routes. Cargo access/deck/exterior live markers local(-10.05,-1.08,3.2)/(-5.05,.64,3.2)/(-10.7,-1.08,3.2);cabin stand(0,.52,-6.70),yawPI. Existing role route:actual deck→(0,.60,3.2)→(0,.60,-5.25)→engineer(-1.35,.60,-5.25);pilot retake via(0,.60,-6.70)/actual helm E. Pilot exterior uses its existing six-point door/stair get_exterior_exit_waypoints,not cargo markers. Reverse the actual owned route only after settled physical return,then clear/reapproach through the existing Freight apron. Continuous-interior fixture stages start and does not prove claim/reverse/full reuse;ordinary continuation remains code work in CRAFT/ROLE. |
+| Halyard | Reuse actual deck→live chair-derived approaches in halyard_continuous_role_route_test and the existing passenger/engineer contracts. Access/deck/crew exterior local(-4.55,-1.12,-4.80)/(-1.75,.64,-4.80)/(-5.20,-1.12,-4.80);stand(0,.52,-8.90). Ordinary helm approach is actual local pilot position+(-.6,0,.6),then look/E. Passenger exterior differs from pilot exit;GameFlow's two Jovian-only departure guards still require the named physical-egress repair. No station-spawn recall counts. Actual exterior→reverse existing trunk approach/clear>7→fresh hatch/chair/helm applies only after that repair. Keep existing12s exit/15s walk/8s transition and current authenticated body/claim. |
+| Bulwark | Actual standing(-.62,1.33,.40);existing network gunner corridor(-.4,1.30,1.65)→(1.45,1.30,1.65)→(1.45,1.30,.60),entry(1.25,1.33,.65). Preserve parked solo four-point route separately. Actual overridden pilot ExitPoint is(-5.5,-1.08,5.7),yaw−PI/2 on raised6.6m slab,not inherited(-7.6,-1,.75). Crew hatch/exterior reverse remains production work. From actual supported exit,use live comb dock-03-threshold→vertical-top→vertical-base→trunk-aft in reverse of its source-owned forward access. Cue lift.15m is not foot support:actual DockSlab03Upper→Rung03Vertical→Trunk carries2.4m→0 elevation relative comb. No guessed diagonal down the step. Existing Bulwark→Hauler Sandbox ten-goal route stays frozen. Clear/reapproach/new claim uses that actual supported source corridor,not a cockpit jump. |
+| Cinder Hauler | After actual attachment/reset,re-resolve live production marker identities as below. Interior CargoCabinAccessMarker(-2.20,-.30,0),ExitMarker(-2.75,-.82,0);Loadmaster entry(0,-.86,.25)/chair(.95,-.30,1.10),Navigator entry(-.95,-.86,.25)/chair(-.95,-.30,1.10). Existing cinder-remote-crew-moving-handback aisle(0,-.86,-.65) is UNRUN and must pass full capsule walking before accepted. Ray checks/bare staged occupant do not prove passage. Preserve BoardingRampSupport/sill/step;remote-piloted ramp eligibility needs its already-named repair. Accepted supply final apron(8.8,4.18,90) is reused only in its supported scope. Full home/exterior→actual apron clear>7→same route/current hatch/chair/pilot remains the missing ordinary CRAFT/ROLE continuation. |
+
+**Cinder live markers replace builder literals.** FleetExpansionProductionBinding
+_bind_pedestrian_handoff reads actual collision union/support deck top and XZ
+containment,uses.45m lateral hull clearance,then moves get_boarding_marker's
+node AND root BoardingPoint/ExitPoint/reservation-backed ShipBoardingArea to the
+same supported world point. reset_craft_for_reuse repeats it. Raw Light/Bomber/
+CargoBoardingMarker constants are not production poses;bind node identities and
+current getters after every attachment/regeneration. Hauler interior access/
+exit markers remain distinct. Successful binding's hull-AABB/deck test is not
+proof of lateral walking/cabin geometry or the entire return animation.
+
+**Exact clearance observations,not coordinate-only acceptance.** Extend existing
+native_sortie_observer current-craft rows with actual home/source/seat/berth IDs,
+current live markers/camera/support and original route-turn movement. Never use
+inactive details_current=false cached rows. Standing/walking uses actual ordinary
+PlayerCollision capsule1.94m/radius.38 and safe_margin.002;do not shrink it. Reuse
+existing Bulwark capsule intersect/cast_motion and fleet physical-query owners
+against current colliders,with own support contacts explicitly identified. No
+wall/hull/canopy/neighbour obstruction or penetration may be hidden by excluding
+a whole shared support body. Record actual shape/RID/transforms/mask/margin,
+contact support/normal and blocked motion operands. Ordinary movement must stay
+continuous,supported and usable;reaching an endpoint/ray hit alone cannot pass.
+
+During authored boarding/disembark arcs,Player intentionally disables embodied
+collision until _complete_disembark restores it. Those arcs are not walking
+proof. Separately retain actual camera/body/ladder/canopy/seat/exit animation
+poses and visible-neighbour envelope review;do not apply the standing capsule
+as a fabricated seated posture or claim a downward settle ray proves lateral
+clearance. settle_exit_onto_support rise.3/maxdrop2.5/tolerance.05 only establishes
+that supported downward settlement. Existing player-height/overview art reviews
+still own visible/collision agreement and actual clipping findings.
+
+Reuse tests/fleet_expansion_shipyard_integration_test.gd's existing source query
+for current enabled root flight-collision shapes at actual berth dock attitude
+along capture→dock in.25m samples,excluding the craft's own RID only. Actual
+ordinary departure/capture/dock and live collision-union observations remain
+required;sampled bounds do not prove continuous flight or mesh agreement.
+Bulwark get_berth_clearance_report uses live landing union INCLUDING chin,not
+its old smaller literal;parked render bounds remain(-5.8,-.9,-6)/(11.6,5,12).
+For comb voids reuse all five FleetDockComb.get_negative_space_samples transformed
+by CURRENT comb transform,existing WORLD ray±6m and zero expansion-structure
+intruders;retain comb's own no-hidden-full-floor validation. This does not invent
+an all-world empty-space claim or close overview/negative-space visual review.
+Existing service-dressing/world-solid intrusions must remain0 with its1mm
+contact allowance;no per-neighbour evidence family or extra fleet test is needed.
+
+**Missing executable work and limits.** Existing run_native_sortie.py/craft/role
+owners implement only the uncovered member in their accepted journey;no new
+all-nine selector or copied waypoint manifest. Single walking-goal15s,boarding12s
+and exterior12s are first-engineering defaults only for previously unbounded
+members;all recorded member limits remain unchanged. Retain Light exterior10s,Bomber300/330,Torrent/Arrow/Zenith300 and all
+original per-stage/role limits. Existing integrated CRAFT900s/outer960 does not
+extend parked300s routes or supply full acceptance from a smaller fragment.
+Freeze one actual candidate/package/member/profiles/output and absolute≤90min
+all-in deadline before editing,including focused checks/required clean-source
+checkpoint/isolated package smoke/integration/cleanup. First unexpected failure
+stops;one correction only after cumulative-cost GO,then failure/deadline PARKED.
+Headless checks or private Xvfb/x11,Dummy audio,independent abort/input release
+are mandatory. Existing native --output keeps actual ordered movement/camera/
+shape/support/source/claim/berth/clear/fresh-input/exit/OS0/zero-diagnostic operands.
+All new ordinary/capsule/animation/native/art/final qualification remains OPEN/
+NOT_RUN;source continuation binding is not WALK-FLEET acceptance.
 
 <a id="art-view-coverage-contract"></a>
 ### Whole-game art — finite views and missing production coverage
@@ -11005,8 +11106,9 @@ both Jovian-only;Bulwark currently falls back to station-spawn teleport. After
 the post-cut return and B's fresh physical reclaim above,B performs the normal
 stand/exterior/reentry member here;no airborne hatch re-admission is assumed. Fix
 both guards and author the actual Bulwark supported reverse gunner aisle/hatch/
-exterior path. Current inherited exterior marker is local(-7.6,-1,.75);there is
-no Bulwark exterior waypoint override to claim as a passing route. Required
+exterior path. Current overridden pilot ExitPoint is local(-5.5,-1.08,5.7),yaw−PI/2 on
+the raised slab;there is no Bulwark exterior waypoint override to claim as a
+passing physical passenger route. Required
 production endpoint:same Player continuously reaches that actual authored exit
 through the hatch,retains floor/capsule support for15settled ticks and walks
 20ordinary input ticks with .25m<displacement<5m;A's pilot/home ownership remains

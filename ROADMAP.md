@@ -185,6 +185,10 @@ ordinary callers remain missing;held-flight fixtures are not lifetime proof.
 now specifies the actual role cameras,finite supported view candidates,images/
 receipts and original300/360s limits. The current caller disables rendering;
 the opt-in rendered observer remains implementation work.
+[Fleet access continuations](docs/ROADMAP_BACKLOG.md#fleet-cabin-reverse-clear-reboard)
+now bind the nine craft's real cabin/exit/clear-reboard owners and clearance
+observations. Accepted reuse is retained;large-craft egress and uncovered
+ordinary geometry/continuation work remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
