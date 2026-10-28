@@ -6289,7 +6289,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | Qualification | DONE packagedf2bf35a:15 settled goals/108.091m,18.303m local walk/max11.711m arm distance, actual Zenith boarding/90seated;1642 consecutive samples/three actual movers/current home/OFFLINE/parked. One actual controller step proof replaces unsupported blanket-speed assumption without changing ordinary bound/physics. [Original failures and accepted full result](history/ROADMAP_DELIVERIES.md#aft-service-arm--actor-proven-ordinary-route-accepted) retained; rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | Qualification | DONE packaged ea8fe43:22 settled goals/171.602m,17.302m local/max9.944m origin distance, actual same-door candidate/E/OPEN-clear/return and distinct Torrent E→BOARDING/90seated. Same two actual drone roots/seed/defaults/home/OFFLINE/parked,2428 consecutive samples; all77Python/package/startups/audit/ONEroute PASS first attempt. [Frozen contract/full result](history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted). Rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | Definition | [Eleven existing topology IDs plus ladder/scale/version gaps](#station-relationships-exact-gaps) now have exact registered anchors or preidentified unregistered intervals,confidence/modern-wording boundaries and evidence/access owner. B3 room/C1 VIP/traversal contradictions corrected without new anchors. OPEN Codex bounded exact-artifact locator/inspection/registration;availability is unestablished,not assumed unavailable. User supplies actual missing access/dimension/build/continuity artifact or named modern-interpretation decision only after the stated boundary. No historical/runtime authentication or new topology claim. | One finite record of unresolved adjacency/elevation/scale/version/ladder claims, each with source anchors or exact missing evidence/interpretation decision. |
-| STATION-CENTRAL-VIEW | One fixed current Central operational-view review and any resulting repair | 9,12 | Qualification | PARKED capture prerequisite remains. Before selection Codex binds one player-height view/source and its visibility/clearance criteria from the existing station roster. No assumed defect or unchanged capture retry. | Inspect that one frozen view: close as explicit inspected no-finding, or name and repair its actual defect with same-view before/after and unchanged walk/flight/collision clearance. Either result closes this view only; no capture-timeout exemption or new sweep. |
+| STATION-CENTRAL-VIEW | One fixed current Central operational-view review and any resulting repair | 9,12 | Qualification | [One fixed supported directory/operational-view contract](#central-standing-operational-view) binds actual first-person measured-eye camera,finite existing route candidates,atlas CENTRAL BERTH text/direction,live tow/cargo phase,2560×1440 High PNG/passive frame metadata and out/back clearance comparison. Existing300s/outer360 and accepted WALK-CENTRAL/LIFE-TOW scopes retained. Codex implements normal camera/sign/cargo/image correlation;old capture stall remains PARKED without known cause,no unchanged retry. Actual image/inspection/repair NOT_RUN. | Inspect that one frozen view: close as explicit inspected no-finding, or name and repair its actual defect with same-view before/after and unchanged walk/flight/collision clearance. Either result closes this view only; no capture-timeout exemption or new sweep. |
 | STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | BLOCKED definition (Codex). One selected existing branch/view per 15–30 minute definition: fix the exact Fleet berth or Observation pad where relevant, supported camera pose/height, renderer/quality/resolution/scale, image size and literal text/access/clearance predicates. Reuse accepted views; Habitat and other parked captures require their existing causal reopening conditions. The [2026-10-26 capture binding pass](#station-presentation--finite-review-boundaries) maps all13 subjects and records exact absent fields; reuse it, with no automatic successor survey or capture. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | Definition | DONE; pilot/payload implemented, additional crew/Nav semantics missing | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | Decision | WAITING; precise interpretation needed, no approved scope reduction | Recorded exact additional role/count/action/physical-access contract; pilot-only runtime is not scope reduction. |
@@ -9145,6 +9145,116 @@ focused check,within the existing all-in90min/one-correction rule. Original
 journeys require their recorded causal reopening decisions. This definition
 selects no engine run,rendered capture,real audio,hardware qualification or retry.
 
+<a id="central-standing-operational-view"></a>
+### Central: one supported first-person directory and operational view
+
+STATION-CENTRAL-VIEW / Central member of STATION-FINDINGS,source binding
+2026-10-28 00:37:42→01:02:42UTC including source review,checks,commit/push and
+cleanup. Root owns documents;one read-only agent binds this already-named view.
+No engine,image,accepted route rerun or parked capture retry. Literal prerequisites:
+WALK-CENTRAL and LIFE-TOW accepted scopes supply existing physical/operational
+owners;they are reused,not rerun to define a view. This fixes Central only among
+the existing13 station subjects;registered13sets/143images remain unchanged.
+
+**Finite supported camera choice.** Same actual Player after normal Begin Shift,
+control-enabled/unseated/standing with real floor support at authored spawn
+(-8.5,.18,11). Use ordinary remappable toggle_first_person,then sampled mouse-look
+at the actual directory's CENTRAL BERTH row center. Require actual
+viewport.get_camera_3d()==Player.get_camera(),first-person active/unsuspended and
+measured eye in get_camera_view_report. The shipped rig's measured standing eye
+is1.7525m;record actual report/body/world transforms. Scene pivot1.42m plus5.2m
+spring is third-person configuration,not a standing-eye witness. No camera
+teleport/review rig/avatar placement or invented absolute sign transform.
+
+Choose the FIRST qualified supported view from this finite original route:
+spawn,then LifeTowPilot.OUTBOUND(0,0,12.5)→(6,0,12.5)→(6,0,13.5). Those are
+ordinary walking goals from source,not free camera positions. At a settled
+candidate,normal mouse-look may target the emitted Central label quad. Require
+front-facing actual directory row in current frustum,unoccluded/readable pixels,
+real berth-directed arrow and visible nearby tow/cargo/berth approach context.
+If no candidate supplies that view before original route endpoint,the named
+framing capability fails;no new perch,extra waypoint,FOV widening or cap change.
+Finish existing RETURN(6,0,12.5)→(0,0,12.5),ending at that same supported
+Central-forward approach with the same controlled Player. Preserve existing walking/support/arrival predicates;this
+short view comparison does not replace WALK-CENTRAL's full accepted sortie.
+
+**Actual sign and text.** ShipyardWorld.get_station_wayfinding→
+StationWayfinding.get_sign_batch resolves ONE WayfindingSignBatch MeshInstance3D,
+not Label3D. Actual get_wayfinding_report.signs entry id=station_directory has
+position/normal/approach_direction/panel bounds/front row order. Find
+label=central_berth;require text EXACTLY CENTRAL BERTH,source berth:central_berth
+and current real berth target. Derive the actual atlas-backed row quad center
+from emitted _emit_face geometry,ROW_HEIGHT/ROW_GAP/PLATE_MARGIN/arrow side and
+runtime report;do not infer a fixed sign placement. Observe arrow_degrees/shape/
+colour and its current target/bearing. Clear visible label/arrow is required;
+a matching report string alone cannot establish legibility.
+
+**Image and live phase.** Exactly one review image central-standing-directory.png
+with same-basename JSON in the selected existing native runner --output directory,
+under presentation/. Configure actual production display/High quality at
+2560×1440/100%UI/Forward+/Vulkan before the witness,normal authored72° vertical
+FOV,near.08;record actual effective values/current viewport dimensions. Use
+private isolated Xvfb with explicitx11/Dummy audio. Actual image must be2560×1440,
+not resized from another viewport. Renderer/native-GPU qualification stays
+separate. Keep honest gameplay HUD rather than hide it for composition.
+
+At capture record live CentralTowServiceActivity origin(6.8,0,14),profile full/
+seed1103 and CentralCargoTransferLine origin(-6,0,17.9),profile cargo_line/seed5507.
+Their clocks/enabled state/current mover transforms/drawn identities must be
+observed from actual production sources. Across ordinary approach/return,
+require existing LIFE-TOW advancing-clock/mover observations;do not pause/seek a
+7.25s tableau or reset clocks to manufacture this frame. Exact natural phase at
+the image is recorded,not a new claim of every service phase. Tow/gantry/arm/
+patrol full ordinary goals retain their own scope.
+
+Passive JSON binds source/package/process/Main/Player/capsule/support collider,
+actual world/camera/eye/FOV/viewport,chosen candidate index,sign batch+row quad/
+text/target/normal/bearing/frustum/occlusion,current berth/craft and service
+clock/mover operands to that rendered frame. Inspect full-size pixels for clear
+CENTRAL BERTH/non-colour direction cue,no occluding service geometry,float/
+clipping,or misleading berth approach. Ordinary out/back must remain supported/
+unblocked with actual.38radius/1.94height capsule and unchanged world/craft
+collision/berth/flight authority. Missing geometry/readability stays a finding,
+not an assumed defect or a PASS from metadata.
+
+**Existing narrower capture/proof.** capture_station_operations.gd's
+02_central_berth_operations.png dynamically frames a temporary evidence camera
+FOV48/tableau7.25;capture_scenes station.png is an elevated overview. Optional
+08_wayfinding_pylon_player_eye.png is a DIFFERENT StationOperations pylon
+labelled BERTHS >> / ROUTE A,with synthetic1.65m/FOV50/6.5s tableau. None supplies
+this ordinary CENTRAL BERTH directory witness. Preserve their original commands,
+output contracts and limits;no registered capture count is increased by this
+one bounded review image.
+
+central_berth_route_readability_test's analytic capsule/standing+jump handoff
+sweep uses spawn→(-8,.095,7)→(-7,.095,3)→(-5,.095,-2)→live Torrent boarding;
+it protects presentation geometry,not ordinary walking. Reuse accepted
+WALK-CENTRAL launch/strict-home/OFFLINE/exit and LIFE-TOW seven live movers/
+nearby walking as scoped access/coexistence facts. A repair discovered in the
+new image must keep those physical predicates and same-view before/after;
+no inspected finding means explicit no-finding for this ONE view only.
+
+**Missing runtime observer — Codex.** Extend existing native-sortie/observer
+_life_observation support/capsule/movement/tow facts with real first-person
+camera/directory-atlas/cargo/frame correlation and actual viewport readback.
+The ordinary Central capture selector does not exist. Production display/input
+must drive the view;neither source capture helper nor proposed flag is a runnable
+ordinary command. Existing MUDDS_CAPTURE_OUTPUT_DIR only chooses the staged
+harness's destination;it cannot make its camera/player route ordinary.
+
+Keep original capture300s and ordinary CAP300/independent outer360,existing
+walk/input/exit waits;no extra settling/time freeze or deadline reset for a
+screenshot. Freeze actual source/package/output/absolute≤90min implementation
+clock before edits. First unexpected failure stops;one correction only after
+cumulative-cost GO,then failure/deadline PARKED and owned cleanup. Every Godot
+invocation uses Dummy audio;release input/cursor,reap owned game/Xvfb and require
+actual OS0/zero diagnostics. Central's old capture stall remains PARKED:precise
+cause is not established by its retained records. Preserve that attempt's cost/
+reopening condition;new framing definitions do not authorize an unchanged retry
+or invent a cause. Actual rendered execution remains GATED/NOT_RUN until its
+original causal/reprioritization boundary is satisfied. Source definition is
+filled;Central image/inspection/repair and full STATION-FINDINGS remain OPEN.
+
 ### Station presentation — finite review boundaries
 
 **Capture binding pass, 2026-10-26, source0383848bf: BLOCKED definition — Codex.**
@@ -9163,7 +9273,7 @@ Names are declared frames, not evidence that an image exists or passed review.
 
 | Existing subject | Declared frame binding | Exact remaining binding / retained boundary |
 | --- | --- | --- |
-| Central | Operations `02_central_berth_operations.png`; Scenes `station.png` | Literal destination `CENTRAL BERTH` is fixed. Still missing supported standing-spawn-directory camera transform/eye height/FOV, image/metadata and berth-access comparison. Elevated station overview is not this view; CENTRAL-VIEW stays parked. |
+| Central | Operations `02_central_berth_operations.png`; Scenes `station.png` | [Normal first-person directory contract](#central-standing-operational-view) now fixes supported spawn/three original route candidates,measured eye/72° camera,actual atlas-backed CENTRAL BERTH row,2560×1440 High image/metadata/live-phase/access comparison and original300/360s. Camera/sign/cargo/frame observer remains missing runtime work;CENTRAL-VIEW capture/inspection stays parked,not replaced by elevated overview. |
 | Aft | Operations `03_aft_operations_route.png`; Scenes `aft_junction.png`, `operations_room.png` | Literal lower-console labels `ACTIVITY BOARD` / `DESTINATION BOARD` and upper `UPPER DECK` are fixed. Still missing supported doorway camera/eye height/FOV/image and door-clearance comparison; keep separate upper stair/workpost view. The120s/no-image console attempt stays parked. |
 | Habitat | Operations `04_habitat_service_access.png`; Scenes `habitat_exterior.png`, `habitat_common_room.png` | Literal `OBSERVATION DECK` / `GARDEN CUPOLA` are fixed. Still missing measured-eye common-entry camera/FOV/image/metadata and exact bunk/wake/doorway comparisons. Existing local camera y2.55 does not qualify standing arrival;180.842s/no-image attempt stays parked. |
 | Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | Literal `FREIGHT SERVICE` / `FREIGHT BOARDING`, `JOVIAN FREIGHT BERTH F-01\nBOARDING + TERMINAL >>` and `SERVICE AHEAD\nCARGO + BOARDING BEHIND\nKEEP TRANSFER LANE CLEAR` are fixed. Still bind integrated service/boarding camera/eye height/FOV/image and unlocked-door/clearance comparisons. Accepted689e2ed0e standalone pair remains accepted only in its custom capture environment. |

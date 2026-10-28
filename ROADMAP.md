@@ -197,6 +197,10 @@ ordinary callers and four owner policy decisions remain open.
 now distinguish registered motifs,unregistered intervals and missing scale/build/
 continuity evidence. B3 room and C1 VIP wording is corrected;exact source access
 and inspection remain open rather than being assumed unavailable.
+[Central operational view](docs/ROADMAP_BACKLOG.md#central-standing-operational-view)
+now names the measured player camera,real directory row,supported route,live
+services,image and clearance checks. The rendered observer remains unimplemented
+and the original capture stall stays parked.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
