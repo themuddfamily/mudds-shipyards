@@ -177,6 +177,10 @@ missing independent callers and the parked full play trial remain open.
 bind the actual tender/raider,current/late death/reset observations and retained
 solo restoration. Ordinary escort and missing tender-death network proof remain
 implementation work;the parked full Convoy trial stays closed.
+[Picket actor/lance/crew](docs/ROADMAP_BACKLOG.md#picket-actor-lifecycle-goals)
+and [Emberline travelling bolts](docs/ROADMAP_BACKLOG.md#emberline-flight-lifecycle-goals)
+now have finite actual-flight/current/late/terminal/restoration goals. Combined
+ordinary callers remain missing;held-flight fixtures are not lifetime proof.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
