@@ -193,6 +193,10 @@ ordinary geometry/continuation work remain open.
 now specify nine context selectors,activity/world cuts,exact final installation
 identity and restart/data/control outcomes. Existing probes are reused;missing
 ordinary callers and four owner policy decisions remain open.
+[Station relationship gaps](docs/ROADMAP_BACKLOG.md#station-relationships-exact-gaps)
+now distinguish registered motifs,unregistered intervals and missing scale/build/
+continuity evidence. B3 room and C1 VIP wording is corrected;exact source access
+and inspection remain open rather than being assumed unavailable.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings

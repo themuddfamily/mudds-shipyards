@@ -6288,7 +6288,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | Qualification | DONE packaged2df8c31 ordinary scope:127.445m/13 settled goals,12.509m local walk/max10.297m from gantry, actual Jovian boarding/90seatedframes; same two movers clock/poses, home berth/OFFLINE/parked,1,668 consecutive samples/no diagnostics. Seat is distant; rendered/full-station/final remain separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | Qualification | DONE packagedf2bf35a:15 settled goals/108.091m,18.303m local walk/max11.711m arm distance, actual Zenith boarding/90seated;1642 consecutive samples/three actual movers/current home/OFFLINE/parked. One actual controller step proof replaces unsupported blanket-speed assumption without changing ordinary bound/physics. [Original failures and accepted full result](history/ROADMAP_DELIVERIES.md#aft-service-arm--actor-proven-ordinary-route-accepted) retained; rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | Qualification | DONE packaged ea8fe43:22 settled goals/171.602m,17.302m local/max9.944m origin distance, actual same-door candidate/E/OPEN-clear/return and distinct Torrent E→BOARDING/90seated. Same two actual drone roots/seed/defaults/home/OFFLINE/parked,2428 consecutive samples; all77Python/package/startups/audit/ONEroute PASS first attempt. [Frozen contract/full result](history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted). Rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | Definition | BLOCKED input — Codex records source anchors for only the existing adjacency/elevation/scale/version/ladder claims; the user supplies missing evidence/access or approves explicit interpretation. No new topology claim is implied. | One finite record of unresolved adjacency/elevation/scale/version/ladder claims, each with source anchors or exact missing evidence/interpretation decision. |
+| STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | Definition | [Eleven existing topology IDs plus ladder/scale/version gaps](#station-relationships-exact-gaps) now have exact registered anchors or preidentified unregistered intervals,confidence/modern-wording boundaries and evidence/access owner. B3 room/C1 VIP/traversal contradictions corrected without new anchors. OPEN Codex bounded exact-artifact locator/inspection/registration;availability is unestablished,not assumed unavailable. User supplies actual missing access/dimension/build/continuity artifact or named modern-interpretation decision only after the stated boundary. No historical/runtime authentication or new topology claim. | One finite record of unresolved adjacency/elevation/scale/version/ladder claims, each with source anchors or exact missing evidence/interpretation decision. |
 | STATION-CENTRAL-VIEW | One fixed current Central operational-view review and any resulting repair | 9,12 | Qualification | PARKED capture prerequisite remains. Before selection Codex binds one player-height view/source and its visibility/clearance criteria from the existing station roster. No assumed defect or unchanged capture retry. | Inspect that one frozen view: close as explicit inspected no-finding, or name and repair its actual defect with same-view before/after and unchanged walk/flight/collision clearance. Either result closes this view only; no capture-timeout exemption or new sweep. |
 | STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | BLOCKED definition (Codex). One selected existing branch/view per 15–30 minute definition: fix the exact Fleet berth or Observation pad where relevant, supported camera pose/height, renderer/quality/resolution/scale, image size and literal text/access/clearance predicates. Reuse accepted views; Habitat and other parked captures require their existing causal reopening conditions. The [2026-10-26 capture binding pass](#station-presentation--finite-review-boundaries) maps all13 subjects and records exact absent fields; reuse it, with no automatic successor survey or capture. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | Definition | DONE; pilot/payload implemented, additional crew/Nav semantics missing | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -8727,6 +8727,87 @@ Scope: original §2 and §7; Phases 1, 3–6 and 10.3. A component pass does not
 | CRAFT-ACCEPT[one completed craft] | GATED on all promised capabilities | Run that craft's full fleet scenario: access/roles/flight/combat/damage/recovery/reuse and art/limits. Stop at named craft result, not the entire fleet. |
 
 Original fleet remains Torrent, Arrow, Jovian, Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut and Zenith. Missing definitions: **Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia and Salyut**. Instantiate ORIGINAL-SPEC/BUILD/ACCEPT per craft. Four original-inspired candidates plus five modern designs do not finish the twelve-original commitment. Modern interpretations require explicit scope decisions and honest labels.
+
+<a id="station-relationships-exact-gaps"></a>
+### Station relationships: registered motifs and exact unresolved claims
+
+STATION-RELATIONS / parents9,36,source binding2026-10-28 00:32:17→00:57:17UTC
+including source review,wording corrections,checks,commit/push and cleanup. Root
+owns documents;one read-only agent binds the existing station claims. No media
+lookup/download/frame extraction,engine or historical authentication selected.
+Prerequisite:existing docs/research/source_ledger.json and STATION_TOPOLOGY.md;
+reuse their eleven stable topology IDs,not another floor-plan/source inventory.
+This is a finite definition of what is and is not established;historical/source
+access and interpretation decisions remain open where stated.
+
+| Existing relationship | Exact registered support and unresolved field |
+| --- | --- |
+| OE-B2-COMB | B2 295000–310000ms records trunk/perpendicular arms/broad slabs/voids;bounded motif only. Existing document medium/medium-high grading does not authenticate exact count,orientation,metric scale,elevation or live joins. |
+| OE-B2-SLABS | Same B2 anchor supports broad slabs/voids,medium. Thin-neck/parallel details,functions/dimensions need their own exact observation;current slab geometry is modern. |
+| OE-B2-BERTHS | Registered B4 f1742/290333ms shows one craft appearing at a previously empty distant berth. Quoted B2 280000ms/04:40 start and B4 223000–233000ms/03:43–03:53 are unregistered;the latter is a DIFFERENT interval from registered B4 frames. No exact separate-arm arrangement,simultaneous roster or class-to-berth assignment is established. |
+| OE-B3-SPAWN | B3 4000–52000ms records exposed spawn/return deck,short vertical transition,arms and VIP sightline,medium-high in that observed version. First-login versus return,exact adjacency/rise/form and access to VIP remain unknown. Quoted return63000–70000ms is unregistered. |
+| OE-B3-ROOM | Claim string exists but quoted160000–180000ms has no registered room anchor. Treat room adjacency as inferred/unverified,not original_era_observed. Codex must locate exact inspected B3 rendition,extract/review this interval and register only what it actually shows before raising the claim. |
+| OE-B3-LEVELS | Quoted373000–430000ms has no registered elevation-route anchor;inferred/low until inspected. Exact connected heights/joins remain unknown;LIVE4.2m/raised deck values do not establish history. |
+| OE-B2-REGEN | B2 0–80000ms records regeneration/control-room motif,medium. Plan/scale/controls/adjacency and connection to later spawn labels remain unknown. ModernFleetRegistry is new,not that room reconstructed. |
+| OE-B5-TORRENT | B5 f306/10200ms,f322/10733ms,f465/15500ms bound label/materialization/occupied-seat sequence,high bounded confidence. Do not infer station coordinates,dimensions,build identity or a whole historical floor plan. |
+| FX-A8-LATTICE | A8 official-media artifacts/asymmetric-lattice claim are registered,but anchors=[]/rendition=null. Exact inspected image is not pinned. Existing high fixed-image/medium-continuity grading cannot establish an original-era layout or live mirror symmetry. |
+| L-C1-HAB | C1 80000/110000/120000/200000ms separately register habitat entry,bunks,chair corridor,red VIP area. Later-source-only/medium motifs/low provenance;no registered continuous traversal or VIP interior. Exact joins/build/date/original applicability and identity with B3 VIP remain unknown. |
+| INF-UNIFIED | No anchor supports one exact station joining all versions;unsupported inference. LIVE graph is authored modern interpretation. Do not join B2/B3/A8/C1 merely because their motifs resemble one another. |
+
+**Existing ladder,scale and version clauses.** No registered anchor names a
+station ladder. B3 short transition does not identify ladder/stair/ramp. Current
+ShipyardWorld records implementation_form=modern_stair_ramp,
+historical_form_identified=false,historical_ladder_supported=false. A ladder
+implementation requires its own supporting observation or explicit modern
+interpretation scope,not relabelling the current stair. All three existing
+station_floor_plan_variants have unresolved scale/adjacency;B3/C1 also retain
+version conflicts. A same-version dimension reference and recording/build or
+actual continuity evidence are required. Upload/asset-created dates do not
+supply those fields;user approval of modern dimensions cannot authenticate them.
+
+**Availability and ownership are explicit.** Ledger B2/B3/B4/B5/C1 are
+observed_but_not_tracked with complete-rendition hash/bytes/dimensions/FPS,
+canonical artifact URL and archive_status=not_located;no local/private path is
+registered. A8 API endpoints were marked live_endpoint at their recorded access
+date,with no inspected rendition. This proves neither current availability nor
+current absence. Codex owns the next bounded locator/access check of THESE exact
+registered artifacts,then exact-byte verification and extraction/review of the
+preidentified intervals—not a filesystem-wide search or new media catalogue.
+
+For a selected existing claim,freeze one artifact/interval and15min all-in
+limit before checking. Existing B3 room160000–180000ms,levels373000–430000ms and
+return63000–70000ms;B2 wider280000–295000ms and B4 quoted223000–233000ms are the
+finite unregistered ranges if retaining their assertions. Match the ledger's
+complete inspected rendition hash/metadata before treating frame/time positions
+as reproducible. If a different rendition is actually used,record its identity
+and explicit mapping;never reuse old frame numbers by assumption. An exact
+successful inspection may add a real observation to the EXISTING ledger and
+correct the existing topology claim;no new evidence/schema/version family.
+Stop at first failed access/byte/claim predicate and record it;do not switch to
+another source or guessed timestamp in the same selected task.
+
+Only an actual failed exact lookup makes missing access a resource request to
+the user:provide a readable matching rendition/local locator or source access.
+Historical scale/build identity and unsupported joins are separately missing
+artifacts;the user may instead approve a named modern interpretation with those
+unknowns retained. No request to approve an authentic original layout is implied,
+and current modern runtime geometry need not wait for historical validation.
+STATION-RELATIONS remains OPEN on actual source checks/owner inputs;this mapping
+does not transfer unperformed Codex work to the user or mark PLAN-NEXT complete.
+
+**Literal wording and proof scope.** Existing STATION_TOPOLOGY now marks the
+unregistered B3 room inferred,limits C1 to separate motifs/red area,removes its
+unsupported traversal diagram edges and qualifies the absent authenticated VIP
+route while preserving the reachable modern suite. No anchors were fabricated
+or ledger confidence raised. Existing station_topology_evidence_test protects
+LIVE registry/document agreement;research_evidence_test protects B3 wording/
+no invented ladder attribution. Those checks cannot prove a historical route.
+The existing station_route_confidence_validator only requires some source anchor,
+so its PASS could not prove exact timestamp→claim. No validator or engine was
+run/added here. Source hash/rendition/anchor and actual independent inspection
+are the historical proof;ordinary station walking/art/clearance retain their
+own WALK/STATION/ART owners. Preserve media rights:private source frames are
+not runtime assets or build payload;rights approval remains its separate gate.
 
 ### Fleet access and reuse — shared acceptance boundary
 

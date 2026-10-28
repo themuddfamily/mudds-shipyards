@@ -84,9 +84,10 @@ flowchart LR
   D["spawn / return deck"] --- V["short vertical transition"]
   D --- A["branching exposed arms"]
   D -. "sightline" .-> VIP["red VIP landmark"]
-  D --- B["blue-operated opening"]
-  B --- C["compact console / window room"]
-  A --- L["projecting routes at several elevations"]
+  %% Proposed room/elevation relationships lack registered anchors.
+  B["blue-operated opening — unregistered"]
+  C["compact console / window room — unregistered"]
+  L["projecting multi-level routes — inferred"]
 ```
 
 Whether this is the first-login spawn, a death-return location, or both is
@@ -99,17 +100,20 @@ routes rest on unregistered citations and are graded accordingly below.
 ```mermaid
 flowchart LR
   A8["A8 official 2017 asymmetric boom/block lattice"] --- AF["ships at several orientations"]
-  C1D["C1 exterior deck"] --- C1H["habitat entry"]
-  C1H --- C1B["bunks"]
-  C1B --- C1C["chair corridor / consoles"]
-  C1C --- C1V["red VIP area"]
-  A8 -. "continuity only; not exact 2009 geometry" .-> C1D
+  %% C1 has separate registered observations; no edge asserts traversal.
+  C1H["C1 habitat entry @ 01:20"]
+  C1B["C1 bunks @ 01:50"]
+  C1C["C1 chair corridor @ 02:00"]
+  C1V["C1 red VIP area @ 03:20"]
 ```
 
 A8 is `fixed_era_only`: high confidence for the 2017 image, medium continuity
 with the original. C1 is `later_source_only`: visible motifs are medium
 confidence, while recording/build provenance and launch-era applicability are
-low confidence.
+low confidence. The C1 anchors register separate motifs, not a continuous
+deck-to-habitat-to-VIP traversal. A8 has no pinned inspected image rendition or
+registered anchor in the ledger; its listed confidence is the document's source
+grading, not new independent image verification.
 
 ## LIVE — current implementation graph
 
@@ -493,10 +497,10 @@ fixed-build attribution.
 | Relationship | Live implementation | Label | Evidence anchor | Status | Unknowns |
 | --- | --- | --- | --- | --- | --- |
 | A red VIP landmark is visible from the spawn deck | — (sightline only; nothing is built to reproduce it) | observed | B3 `00:04–00:52` "…and red VIP sightline" | `original_era_observed` | distance, elevation, whether any route reached it |
-| A red VIP area with an interior | — (deliberately not built) | fixed-era-inspired | C1 `03:20` "Red VIP area" | `later_source_only` | contents, plan, provenance, era |
+| A red VIP area; interior unestablished | — (not reconstructed from this source) | fixed-era-inspired | C1 `03:20` "Red VIP area" | `later_source_only` | contents, plan, provenance, era |
 | Live VIP door and landmark | `AftJunctionStack/VIPAccess` plus `vip-landmark` `(-5.15, 4.35, 68.9)` | new | none | `modern_interpretation` | placement, elevation, adjacency to the operations room |
 | Live VIP interior behind that door | `VipReceptionSuite` (threshold, reception lounge, outboard glazing), cantilevered off the aft upper deck | new | none | `modern_interpretation` at confidence `none` | everything: whether any original interior existed, its plan, contents, materials, lighting, scale and era |
-| Any traversable route from a spawn deck to a VIP interior | none exists | unknown | none | `unknown` | B3 gives a sightline, C1 gives an area; no source joins them |
+| Any source-authenticated traversable route from a spawn deck to a VIP interior | none established by the held anchors; the modern LIVE suite is reachable | unknown | none | `unknown` | B3 gives a sightline, C1 gives an area; no source joins them |
 
 ### Platform and elevation relationships
 
@@ -563,14 +567,14 @@ The live pod holds no regeneration authority. It publishes the
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `OE-B2-COMB` | original era | long trunk with perpendicular rung-like arms | B2 `04:55–05:10` | medium-high | `original_era_observed` | Current orthogonal branches echo but do not reproduce it | count, orientation, scale |
 | `OE-B2-SLABS` | original era | broad parallel slabs/end volumes through thin necks and voids | B2 `04:55–05:10` | medium | `original_era_observed` | Comb dock slabs echo the rhythm; no other strong live equivalent | functions, dimensions |
-| `OE-B2-BERTHS` | original era | ships at separate lattice offsets | B2 `04:40–05:10`; B4 `03:43–03:53` (B4 timestamp unregistered) | high/medium layout | `original_era_observed` | Current world has exactly nine lease-bound production berths; the comb's three dock markers do not establish a historical mapping | class assignment, simultaneous roster |
+| `OE-B2-BERTHS` | original era | one craft appears at a previously empty distant berth; multi-arm arrangement unestablished | B4 `f1742` / `290333 ms`; wider B2 `04:40–05:10` and B4 `03:43–03:53` citations remain unregistered at their quoted bounds | high for bounded appearance; exact layout unknown | `original_era_observed` for bounded appearance only | Current world has exactly nine lease-bound production berths; the comb's three dock markers do not establish a historical mapping | class assignment, simultaneous roster |
 | `OE-B3-SPAWN` | observed build | exposed deck and short vertical transition | B3 `00:04–00:52` | medium-high | `original_era_observed` | Central spawn and observation stair | first-login vs return |
-| `OE-B3-ROOM` | observed build | deck → blue opening → console/window room | B3 `02:40–03:00` (unregistered timestamp; the claim is registered without an anchor) | medium | `original_era_observed` | Dock Operations and Aft operations motifs only | function, wider adjacency, anchor |
+| `OE-B3-ROOM` | observed build | proposed deck → blue opening → console/window room | B3 `02:40–03:00` (unregistered timestamp; the claim is registered without an anchor) | unverified until exact anchor | `inferred` | Dock Operations and Aft operations motifs only | function, wider adjacency, anchor |
 | `OE-B3-LEVELS` | observed build | projecting routes at several elevations | B3 `06:13–07:10` (unregistered timestamp) | low until anchored | `inferred` | Aft stack and observation stair | obscured connections, anchor |
 | `OE-B2-REGEN` | original era | enclosed regeneration/control space | B2 `00:00–01:20` | medium | `original_era_observed` | ModernFleetRegistry is not a reconstruction | exact control functions |
 | `OE-B5-TORRENT` | B5-observed | empty berth → spawn → approach → seat → flight | B5 `00:10.200`, `00:10.733`, `00:15.500` | high | `original_era_observed` | Central Torrent berth loop | station coordinate/build date |
 | `FX-A8-LATTICE` | fixed 2017 | asymmetric booms/blocks and multi-orientation fleet | A8 official image | high fixed/medium continuity | `fixed_era_only` | Broad live lattice language; the live mirrored branch pair is symmetric and therefore not an A8 continuity claim | original-era continuity |
-| `L-C1-HAB` | later source | deck → habitat → bunks → chairs/consoles → VIP | C1 `01:20`, `01:50`, `02:00`, `03:20` | medium visible/low provenance | `later_source_only` | Habitat Spine motifs | build, date, original applicability |
+| `L-C1-HAB` | later source | separate habitat, bunk, chair-corridor and VIP observations; joins unestablished | C1 `01:20`, `01:50`, `02:00`, `03:20` | medium visible/low provenance | `later_source_only` | Habitat Spine motifs | build, date, original applicability |
 | `INF-UNIFIED` | cross-source | all subgraphs form one exact station | none | low/unsupported | `inferred` | Current graph is one authored interpretation | every exact join |
 
 ## Implemented bounded macro correction and remaining boundary
@@ -618,8 +622,10 @@ The confidence grading is **partial**, not complete. Explicitly still open:
 3. `OE-B3-ROOM` and `OE-B3-LEVELS` rest on timestamps the ledger does not
    register. Until anchors are added, the compact console/window room and the
    multi-elevation route claims are `inferred` at best.
-4. The `OE-B2-BERTHS` B4 citation `03:43–03:53` is unregistered; only the B2
-   half of that row is reproducible from the ledger.
+4. The `OE-B2-BERTHS` B4 citation `03:43–03:53` is unregistered;
+   registered B4 f1742/290333ms instead supports the bounded distant empty-berth
+   appearance. It is a different interval and cannot authenticate the quoted
+   wider multi-arm arrangement;the registered B2 anchor begins04:55,not04:40.
 5. Room functions, the six-alcove count, the eight-chair count, the three-tooth
    count, and every class-to-berth assignment are `new` with no source.
 6. Whether B3's VIP sightline and C1's VIP area are the same place is unknown,
