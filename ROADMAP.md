@@ -181,6 +181,10 @@ implementation work;the parked full Convoy trial stays closed.
 and [Emberline travelling bolts](docs/ROADMAP_BACKLOG.md#emberline-flight-lifecycle-goals)
 now have finite actual-flight/current/late/terminal/restoration goals. Combined
 ordinary callers remain missing;held-flight fixtures are not lifetime proof.
+[Halyard late-join presentation](docs/ROADMAP_BACKLOG.md#halyard-late-presentation-render-contract)
+now specifies the actual role cameras,finite supported view candidates,images/
+receipts and original300/360s limits. The current caller disables rendering;
+the opt-in rendered observer remains implementation work.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
