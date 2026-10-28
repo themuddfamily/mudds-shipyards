@@ -201,6 +201,10 @@ and inspection remain open rather than being assumed unavailable.
 now names the measured player camera,real directory row,supported route,live
 services,image and clearance checks. The rendered observer remains unimplemented
 and the original capture stall stays parked.
+[Aft and Habitat views](docs/ROADMAP_BACKLOG.md#aft-habitat-normal-view-contracts)
+now distinguish lower consoles/upper deck and common entry/bunk wake/garden
+access,with real camera/text/door/capsule checks. Missing ordinary arrivals and
+rendered observers remain open;neither parked capture is reopened.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
