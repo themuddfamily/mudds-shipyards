@@ -8534,12 +8534,12 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; active solo assist retains home pilot preference; busy boarding/exit attempts unavailable. Fresh ownership replaces leases/pose; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | Qualification | DONE packaged311df73; existing loader/probe/runner docking+Convoy selector, full source and archive ELF kill/restart pass at original caps with fresh home-pilot control and exact terminal/reward boundary | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | Qualification | GATED exact installed/final candidate. Source and archive-extracted 311df73 Bulwark/home/Convoy cut pass; no old lease/assist/seat identity restored. Ordinary/full installed acceptance remains distinct. BLOCKED definition — Codex: bind retained Bulwark/home/Convoy assist cut and existing installed command to exact committed preference/activity/debt fields, kill trigger, distinct restart, fresh safe-home pilot ownership and ordinary continuation receipts at original limits. Reuse311df73 source/archive proof within its scope; final installed bytes remain a separate gate. No old lease/assist/seat identity is restored. | Exact installed candidate interrupted during actual assist restarts at settled safe-home pilot context; no old lease/pose, actual activity/debt/reward conserved and usable controls. |
-| DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | Qualification | Executable release support DONE24774c04: accepted/refused busy-exit cut, independent real-file preimage/CAS/backup/refusal, actual-9/reap/distinct Boot, station walk or fresh pilot/throttle, exact protected payload/paid1 and both clean markers. Source and embedded private-Linux pairs pass; [finite contract/result](#busy-exterior-exit-interruption--frozen-2026-10-27). No unchanged repeat of these accepted pairs. Full installed/ordinary qualification stays GATED on exact installed candidate; BLOCKED definition — Codex: bind installed prefix/ELF/hash and complete ordinary preparation route/caller to this same busy-exit cut with original limits. Existing `PACKAGE_PROBE_RECOVERY_CONTEXT=exit`/`exit_refused`, `PACKAGE_PATH` and `run_package_probes.sh --in-world-interruption --native-export` supply scripted executable commands; they do not supply a complete ordinary approach journey. Do not substitute on-foot/crew/airborne cuts. | Busy exterior exit: accepted unavailable publication changes the durable record to the contracted unavailable state; refused publication preserves the prior durable home preference. At the bound cut, actual kill/distinct restart selects the [settled supported recovery](#settled-docking-recovery-contract) and ordinary continuation without stale seat/transition claims. |
+| DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | Qualification | Executable release support DONE24774c04: accepted/refused busy-exit cut, independent real-file preimage/CAS/backup/refusal, actual-9/reap/distinct Boot, station walk or fresh pilot/throttle, exact protected payload/paid1 and both clean markers. Source and embedded private-Linux pairs pass; [finite contract/result](#busy-exterior-exit-interruption--frozen-2026-10-27). No unchanged repeat of these accepted pairs. Full installed/ordinary qualification stays GATED on exact installed candidate; [Installed prefix/ELF/hash and ordinary Bulwark home/OFFLINE/E preparation](#installed-recovery-exact-cuts) are now bound;Codex implements the missing complete normal-input cut/UI continuation while preserving original limits. Existing `PACKAGE_PROBE_RECOVERY_CONTEXT=exit`/`exit_refused`, `PACKAGE_PATH` and `run_package_probes.sh --in-world-interruption --native-export` supply scripted executable commands; they do not supply a complete ordinary approach journey. Do not substitute on-foot/crew/airborne cuts. | Busy exterior exit: accepted unavailable publication changes the durable record to the contracted unavailable state; refused publication preserves the prior durable home preference. At the bound cut, actual kill/distinct restart selects the [settled supported recovery](#settled-docking-recovery-contract) and ordinary continuation without stale seat/transition claims. |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE source map only on470aa24c4; progress/embodiment contract and two actual runtime gaps below. Four terminal-only active-resume policies remain explicitly unresolved; no original promise waived | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ASTEROID-START-FRESH | Start Fresh durably abandons the interrupted active Asteroid Threading run | 13,31 | Capability | DONE packaged59c55cb: full production179/253.847s under original300; public title/live Start Fresh, refusal/retry, samegen IDLE/laterstream/cold Main and retained-owner/reward protections. Ordinary OS-input/interruption/final candidate remain separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | CINDER-SUPPLY-DEBT | Earned Cinder platform supply completion survives refused payment and cold restart | 13,31 | Capability | DONE packagedf8b5f86: genuine earned proof before payment; three actual-file child processes prove refused debt, one cold payment, paid replay fence and next generation. Active manifest reconstruction and Hauler stock policy remain separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE source map; Aurora/Rime visit restoration differs from Ember passive survey continuity. WORLD-SAVE per-world boundary and installed RECOVERY-KILL remain open; no broader location promise waived | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | Definition | BLOCKED definition (Codex): enumerate only uncovered installed on-foot/pilot/cabin/bunk/crew/docking/activity/planet cuts against their settled contracts. Each member needs its exact committed durable boundary, expected data/debt/payment delta, owned kill/restart command, supported endpoint and original cap. Reuse accepted cuts; four active-run product policies remain with the user. | Finite uncovered installed contexts/activity/OS cuts tied to existing settled contracts and exact Linux candidate; explicit initial state/cut/restart/data/control proof. |
+| RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | Definition | Source-bound [finite installed cuts](#installed-recovery-exact-cuts):nine actual context selectors,existing terminal-debt activity/planet members,exact managed final prefix/ELF/export-record binding,committed cut/PID/byte/protected-data/control/payment endpoints and original leg/group caps. Current runner/selectors/accepted checkpoint scopes reused;missing ordinary UI/preparation/continuation,uncovered installed selectors and general aggregate guard remain Codex implementation. Final bytes depend on PACKAGE-FINAL/INSTALL-LINUX-CLEAN;four active-run decision artifacts stay owner-WAITING. New qualifications NOT_RUN. | Finite uncovered installed contexts/activity/OS cuts tied to existing settled contracts and exact Linux candidate; explicit initial state/cut/restart/data/control proof. |
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | Capability | DONE supported runtime_settings10→11 source case on 4d1ba694/run pin2e8ef5149. Normal production writer loads10 once before first apply, preserves all prior values/profile and paid Race/reward, keeps stored10 through STABLE; explicit visible Save writes exact11 with only high_contrast_hud=false/reticle_style=standard added. Entire payload differs only in that section; generation6→7, exact parent and .bak bytes/mode0600. Distinct normal reader consumes exact writer generation10 SHA, restores complete InputMap/profile/Race/reward1, completes Begin Shift within475ms/UI5s, same-Player supported≥1m walk/settle/12 neutral ticks and clean close togen19 with valid predecessor. Final writer37.189s/91 and reader38.544s/153, actualOS0/markers1/no diagnostics; independent source/raw review GO. Earlier17.044/31.629/37.541 failures and one intermediate writer pass retained on original90min11:15:39Z clock; causal corrections wait actual Main readiness/normal intro completion without changing criteria or caps. Owned cleanup complete; game code unchanged/no identical export. Final installed/native/device/other-format migration gates remain open. [Accepted result](history/ROADMAP_DELIVERIES.md#settings-schema10-migration-accepted-20261025); [earlier park](history/ROADMAP_DELIVERIES.md#settings-schema10-migration-parked-20261025). | Freeze one actual supported older file/version and expected current document/unchanged protected fields. Production migration writes the expected current state; a distinct normal process reloads it and permits ordinary continuation without duplicate rewards. Missing fixture, expected values or original command keeps this GATED; do not invent a migration promise. |
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | Capability | DONE for the frozen primary/valid-backup read-only source case on3380961fb: two distinct normal Main processes restore backup schema11/FOV96/full profile and paid ledger1, preserve primary/bak/recovery bytes/names/modes0600, refuse unconfirmed Save with UNSAVED feedback, complete normal Begin Shift/supported walking/12 neutral ticks and exit0. Main alone creates recovery; Race restore and durable startup/close writes intentionally refuse. First pair passes33.085s/114 and33.151s/108 with marker1/no diagnostics, unchanged source/cache/editor/template guards and independent review GO. No repair confirmation or paid Race actor restoration claim. Owned processes/scratch cleaned; [exact result](history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025). Backup-repair guidance child DONE2456552bd/checkpoint2456552: after authentic rejected startup and explicit confirmation, actual Settings gives quit/reopen instruction; generic no-owner success remains unchanged. Old copy exactlyoneRED, fixedHUD16/total80source/WindowsPCK16 assertions and actual1024×768/requested1.6 fit, pairedexports/3strictstartups/1529PCKaudit pass. [Exact scope](history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026). Other corruption arrangements/ordinary explicit repair/distinct-restart/installed/native scope remain unqualified. | Freeze one actual corrupt primary/tmp/bak arrangement and exact production fallback/expected protected file bytes and fields. Distinct normal restart selects that fallback, preserves valid recovery copies and permits ordinary continuation without duplicate rewards. Missing corruption case or expected fallback keeps this GATED. |
 | SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | Capability | Outer-envelope source case4b66b3548 and installed schema2 primary/tmp/bak cases remain accepted on package755ad605a/driver0d06648d; [primary](history/ROADMAP_DELIVERIES.md#installed-future-primary-refusal-accepted-20261026), [temporary/backup](history/ROADMAP_DELIVERIES.md#installed-future-remaining-placements-accepted-20261026). Legacy mixed CFG8/CFG7 destructive recovery and read-only fallback repaired7876ebc8d/checkpoint7876ebc: all three future placements × mutable load/read-only load/direct legacy save refuse ERR_INVALID_DATA; files/Unix modes/live values/signals remain exact. Same frozen test goes27 RED predicates→291-assertion GREEN; actual Windows PCK291 plus paired startup/payload audit pass. [Repair and exact scope](history/ROADMAP_DELIVERIES.md#legacy-future-cfg-preservation-accepted-20261026). Nested typed payload12 primary-only supported-outer1 case DONE on exact7876ebc Linux package/driverddfa82789: ordinary Save/confirmed Reset refuse, four fixture subtrees preserved through15 disk milestones, only actual session1/2 crash/diagnostic additions, distinct cold three-point51.335m walk and two normal OS0 exits; four declared warnings/zero unexpected diagnostics. Existing runner extended without gameplay/observer changes; [exact acceptance and limits](history/ROADMAP_DELIVERIES.md#installed-nested-settings-refusal-accepted-20261026). No other nested format/placement or final-candidate inheritance. Ordinary lone-CFG8/atomic-JSON coexistence DONE on exact7876ebc Linux package/driver2fe5d91d7: all2874 observations retain the future CFG guards, Save/clean direct Reset succeed with exact current defaults, cold JSON loads without migration/warnings, three walking points53.465m/two normal OS0 exits and both actual5physics-second stable/clean lifecycles pass. Fourteen disk milestones/five declared JSON namespaces; first2/cold0 warnings/zero unexpected diagnostics. [Exact case and first unit-fixture failure](history/ROADMAP_DELIVERIES.md#installed-legacy-cfg-coexistence-accepted-20261026). No gameplay/policy change; other placements/native/final-candidate scopes remain separate. The named legacy-UI definition is closed; reuse the accepted source/API/outer/nested/legacy cases, with no automatic successor survey or unsupported-format matrix. Do not repeat closed source surveys/API cases; no new runtime gap inferred there. Final-candidate/device/native-GPU/native-Windows scope remains separate; owner exclusions unchanged. | Named unsupported envelope/format refuses destructive overwrite; primary/tmp/bak names/bytes/modes and loaded authority preserved across fresh processes; accepted outer-envelope scope retained. |
@@ -14482,6 +14482,151 @@ and duplicate builds are removed; only records.tar.gz/closeout.json remain there
 About16.8minutes through validated publication/cleanup versus20estimated; final
 main integration/push/branch deletion stay charged to this same clock.
 
+<a id="installed-recovery-exact-cuts"></a>
+### Installed recovery: finite contexts,activity cuts and exact final bytes
+
+RECOVERY-CUTS-DEFINE / parents2,31,source binding2026-10-28 00:26:55→00:51:55UTC
+including source review,checks,commit/push and cleanup. Root owns documents;
+two read-only agents bind contexts and activity/planet selectors. No install,
+engine,kill,fixture preparation or accepted-probe rerun. Prerequisites:
+PACKAGE-FINAL/INSTALL-LINUX-CLEAN exact final candidate,each matching settled
+RECOVERY-*-DEFINE contract and named activity/world owner below. A future final
+candidate/hash is a required PACKAGE-FINAL output,not an unknown user choice or
+a reason to redesign existing checkpoint probes. This closes roster/path/cut/
+expected-data/endpoint/limit fields only;execution remains gated on actual bytes.
+
+**Final installed binding — Codex.** Reuse INSTALL-LINUX-CLEAN's actual private
+`/srv/mudds-work/linux-clean-final/installed game` prefix and its corresponding
+applications directory. Resolve INSTALLED_ELF from actual
+.mudds-shipyards-install.json executable/generation,verify owner=
+mudds-shipyards-linux-desktop,complete manifest/file hashes/modes/launcher and
+matching final PACKAGE-LINUX archive/source. Require the authoritative external
+schema1/Linux export-result record for that SAME ELF/source40hex/bytes/SHA256,
+retained outside the managed prefix. No invented hash,adjacent installed sidecar,
+new repository manager or older checkpoint can stand in for those inputs.
+
+Use a fresh absent `/srv/mudds-work/recovery-cuts-final/<selected-member>/` ROOT
+for results/tmp/private profiles;never overwrite an earlier case. Set TMPDIR to
+its private0700 tmp directory;existing runner owns/removes its mktemp profile.
+Keep inherited HOME unchanged. Record resolved ELF path/hash/bytes/compiled
+source,managed manifest/generation/files/modes,export-record path/hash before
+and after the case;all installed/protected/source/cache bytes stay unchanged.
+Preserve actual cut/cold/final files in existing results before scratch cleanup.
+Final package absence keeps execution GATED;binding procedure is already fixed.
+
+**One actual committed cut.** All rows require accepted real-file authority,
+IN_WORLD_INTERRUPTION_READY from the live owned arm PID,independent primary/
+backup/generation/commit/digest/protected-data read,owned SIGKILL/reap−9 and
+unchanged paused primary bytes across kill. Launch a distinct PID with the same
+private files/installed ELF. Reader must exit0 with IN_WORLD_RECOVERY_OK,zero
+diagnostics,exactly one crash event and final crash_recovery=clean /
+safe_start_recovery=clean_shutdown. Actual restart/data/controls must pass;
+a marker without those operands is insufficient. Legitimate later commits may
+advance journal headers;protected payload/debt/payment values remain exact.
+
+| Existing context selector,all with activity=convoy | Actual committed boundary and exact cold playable finish |
+| --- | --- |
+| on_foot | Bulwark/bulwark_fleet_dock_berth,real home/OFFLINE/completed supported exit,solo_safe_recovery four-field home preference mode=on_foot. Convoy first credit1/second FAILED. Cold awake unseated supported exterior,controls enabled,no seat/hatch/cabin claim;preferred craft does not overwrite default active_ship. Actual8 inboard walking ticks+settle move>.1m,then real E boards preferred Bulwark. |
+| pilot | Confirm actual sorted-fleet index1 is bulwark_heavy_gunship;durable home preference mode=pilot,current real pilot/hatch,second Convoy ACTIVE/first credit1. Cold acquires fresh home pilot/hatch/berth and same saved active host/threat/progress boundary,no flight pose. Actual two throttle ticks produce ONLINE/positive consumed command. |
+| cabin | Halyard/halyard_fleet_dock_berth,real airborne pilot leave/current cabin frame;home preference mode=cabin,second Convoy FAILED/credit1. Cold awake unseated supported home cabin/fresh containment/hatch,no pilot/crew claim;24 walking ticks>.1m,real E helm retake/cabin-owner release,two throttle ticks ONLINE/positive command. |
+| rest | Same Halyard,actual WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction asleep/current reservation;home preference mode=rest,failed second Convoy/credit1. Cold same awake supported cabin/walk/helm/throttle endpoint,NO sleep/bunk reservation/old seat. Existing probe entry placement/seating is a setup fixture;Habitat station rest is separate. |
+| crew | Halyard SoloPassengerSeatInteraction/crew_port_00,actual E/current assignment/seat generation/frame/tag;home preference mode=crew,failed second Convoy/credit1. Cold awake supported home cabin,old role/assignment/tag absent;24-tick walk>.1m,real E helm retake/two-tick ONLINE positive throttle. Reuse installed71f681d exact acceptance;do not rebuild its runner. |
+| engineer | Jovian/jovian_freight_berth passenger_port_01;actual claim after pilot leave,home preference mode=crew (not new engineer mode),failed second Convoy/credit1 plus protected settings/IDLE cargo. Cold awake supported cabin/no old engineer/work/helm;fresh actual engineer claim,localized damage fixture,real timed repair spends1 kit,ordinary stand cancels later work without extra kit,actual helm/throttle. No inventory/live-work/airborne restore claim. |
+| docking | Bulwark actual accepted assist/current lease,after2 real physics ticks positive motion/elapsed,still active/uncompleted/unaborted;home preference remains mode=pilot. Convoy FAILED/landing_requested/credit1/no debt. Cold fresh occupied home/pilot/hatch,no old assist/request/target;two throttle ticks work before separate continuation. Reuse311df73 source/package cut. |
+| exit | Bulwark home/OFFLINE/current pilot;actual synchronous busy DISEMBARKING before canopy await commits ONLY solo_safe_recovery={mode:unavailable},generation+1/exact old primary→backup. Convoy FAILED/returned_to_shipyard/credit1. Cold supported controllable station fallback,no stale exit/seat/hatch/landing/crew;24-tick walk>.1m,protected failed activity/debt/settings/payment exact. |
+| exit_refused | Same actual busy exit,but owned empty .tmp directory causes real store refusal. Prior primary/backup/generation/pilot preference unchanged,retry scheduled;remove owned blocker while paused before READY. Cold fresh Bulwark home pilot/hatch,no stale transitions,two throttle ticks ONLINE/positive command,credit1/protected data unchanged. Reuse24774c04 accepted/refused pair in its scope. |
+
+Ordinary home preferences contain exactly location=mudds_home_berth,mode,
+craft_id,berth_id;unavailable is exactly the one-field record above. No pose,
+velocity,claim/seat/lease token,sleep/work state is serialized. For pilot,the
+saved ACTIVE second Convoy completes once;on_foot/cabin/rest/crew/docking reset
+the failed run without payment and complete a genuinely DISTINCT next Convoy.
+Those disclosed continuation fixtures yield credit1→2 once. Engineer/exit/
+exit_refused preserve1→1. Retain exact same saved boundary before continuation;
+fixture success is not ordinary escort flight. ca0/f90547c37/71f681d/311df73/
+24774c04 and ordinary engineer378d99caf each retain their precise accepted scope;
+the latter has no earned Convoy fixture and cannot accept installed engineer.
+
+| Existing activity selector,all pilot-only except Convoy contexts above | Exact owed/paid cut and cold result |
+| --- | --- |
+| beacon | cinder_beacon_session schema1/positiveG COMPLETE/cursor4,requested/unpaid after actual refused reward write. Same terminal/cursor survives safe-home pilot Resume;one real Start retry grants debris_route_navigation_data once. Staged four samples remain disclosed. |
+| scan | cinder_structure_scan_session schema1/G1 COMPLETE/elapsed4s,requested/unpaid after prior actual.5s checkpoint. Cold same debt,Start retry grants derelict_material_sample once,settings/cargo exact. No caller-time/placement fixture becomes ordinary scanning. |
+| mining | cinder_mining_capacity schema2/kind cinder_mining_capacity_receipt:state2/G1/elapsed6/reward_requested=false/capacity_paid=false,empty capacity. Actual .tmp refusal preserves primary;remove blocker before kill. Cold same extraction;one capacity commit acknowledges sameG/time. Receipt cinder_raw_ore_sample has granted=false/replay_allowed=false;no minted ore/credit reward. |
+| stationdefense | station_defense_session outer1/session2 completed history/completion sameG/requested unpaid/reward handoffG0,elapsed10.5s. Cold fresh IDLE combat+terminal debt;one Start retry grants return_defense_report_to_shipyard and acknowledges same history once. No active enemies/health/timer/lease restoration policy is inferred. |
+| hulk | cinder_hulk_power_session schema1/activity cinder_hulk_power_restoration/state2/G1/elapsed3,cell0;real breaker+180 owner ticks then refused reward/pilot boarding. Production Boot retry may pay before Resume;exact terminal survives,hulk_auxiliary_power_cell0→1 once,safe-home throttle usable,foreign data exact. Do not demand payment only after Resume or repeat accepted breaker proof. |
+| breach | heavy_breach_session nearby-sector Heavy/cleared same positiveG/floor/offered index1/unpaid. Safe-home Arrow/production exit/physical board retry commits return_heavy_breach_credit once with terminal acknowledgement in SAME actual payment document,before later tutorial writes. THIRD paid cold Boot retains receipt1/exact paid record. Reuse c78e0ac;no active-combat/Torpedo policy implied. |
+| ember | Existing first-relay incomplete G/index1/reward0 active-journey receipt in legacy ember_relay_survey_completion. Cold supported Mudds/passive checkpoint→genuine fresh admission/original remaining survey→ember_beacon_data once. Reuse923d7b326/6112944d0 only in disclosed placed-outbound/safe-yard scope;canonical_outbound NOT_RUN/standing_pose_restore NOT_SUPPORTED. |
+| ember-abandon | Genuine first-relay save→accepted explicit decline:active slot absent/exact record in _declined/generation+1/backup predecline primary. Cold Mudds/no old location/work/payment;new actual admission index0,old index1 passive,0→0. Reuse b30a9ea93/7337dc543 and8e74c40 scopes;physical abandon/home/completed debt still open. |
+
+These cuts conserve actual typed generation/progress/requested/granted fields,
+paid ledger and foreign data through their existing owner,not a generic owed
+queue. Convoy uses the context table once. Missing installed selectors are the
+existing ACT-WRITES-DEFINE members for cinder_timed_race_session,
+cinder_patrol_session,jovian_cargo_session,cinder_asteroid_session,
+cinder_cargo_delivery and heavy_breach_session/Torpedo scenario. Their existing
+accepted-checkpoint/terminal-debt contracts remain the finite field sources;
+Codex must extend existing arm/kill/restart/control path for each uncovered
+member. Cinder supply's genuine v2 transfer proof/f8b5f86 once-only debt remains
+required;Heavy credit cannot stand in for Torpedo. Do not fabricate inventory,
+terminal completion or a new context×activity cross product.
+
+**Planetary cuts are owned once.** Use WORLD-SAVE-DEFINE's exact
+[world-save-exact-boundaries](#world-save-exact-boundaries) roster,including
+Ember unpaid/CAS-terminal/paid reboard/real-home retirement/declined-next-visit
+and Aurora/Rime ACTIVE/unpaid retirement/paid reboard/Quit-during-restoring/
+kill-during-restoring/Start Fresh. No Aurora/Rime selector exists. Codex extends
+the existing world persistence/restart owner;retain missing Ember terminal-write
+retry/return continuation and crash-safe Aurora/Rime settled restore retirement.
+Do not repeat the source map or introduce another receipt namespace. WORLD-SAVE
+4500s/4560s and all its original constituent/parked limits remain binding.
+
+**Four active policies remain explicit user inputs.**
+RECOVERY-POLICY-CINDER-SUPPLY requires inventory/manifest/deadline disposition;
+RECOVERY-POLICY-DEFENSE waves/health;RECOVERY-POLICY-BREACH and
+RECOVERY-POLICY-TORPEDO active encounter/target/objective/timer disposition.
+Their decision-register artifacts are still WAITING on the owner. Terminal-only
+accepted recovery does not choose or waive those active-run contracts.
+
+**Existing installed command,not selected here.** Set PACKAGE_PATH to the
+manifest-resolved INSTALLED_ELF,PACKAGE_PROBE_EXPORT_METADATA to that exact final
+external record,PACKAGE_PROBE_RECOVERY_CONTEXT to ONE table selector (pilot for
+non-Convoy),PACKAGE_PROBE_AUDIO_DRIVER=Dummy,PACKAGE_PROBE_TIMEOUT_SECONDS=300,
+PACKAGE_PROBE_RESULTS_ROOT=$ROOT/results,PACKAGE_PROBE_RUN_ID=installed-<member>.
+Then existing tools/release/run_package_probes.sh --in-world-interruption
+--native-export --activity=<existing-selector> executes the installed embedded
+ELF directly,no external script/pack override. Actual result is
+$ROOT/results/installed-<member>/in-world-interruption.json plus existing raw
+arm/resume/paid-replay logs and documents. Unsupported selector is missing
+implementation,not runnable syntax. Ordinary route additionally needs complete
+normal preparation/recovery UI/continuation in existing native driver;probe
+placements/direct Resume/start_shift/activity advancement do not prove it.
+DOCK-EXIT-RECOVERY-CUT uses this exact prefix/cut and its existing Bulwark
+CRAFT-ACCEPT normal home/OFFLINE/physical E preparation,not a different context.
+
+**Clocks and closure.** Existing general runner gives arm READY≤300s and each
+resume≤300s,killwait15s/owned-child cleanup15s;engineer Xvfb startup15s then
+terminate15s/kill15s. It has NO generic overall transaction deadline. For a newly
+selected nonplanet two-process ordinary/installed group,first-engineering target
+600s all-in with independent660s outer;implement/observe whole-group guard in
+existing runner/launch owner while preserving every original leg/local limit.
+Do not claim that guard already exists. Breach keeps accepted300s child/1000s
+transaction;Ember first-relay keeps300s child/660s original outer;WORLD-SAVE keeps
+4500/4560. These are distinct scopes,no old failed mode gets a longer wrapper.
+
+Freeze one candidate/member/package/profiles/output/absolute≤90min assignment
+clock before editing. First unexpected failure stops;one correction only after
+cumulative-cost GO,then failure/deadline PARKED+cleanup. Headless/Dummy or private
+Xvfb/explicitx11/Dummy with independent abort/input release;no active desktop.
+Verify exact owned PID before kill,distinct PID on every restart,actual exit0/
+zero diagnostics on every non-killed leg,owned installed files unchanged and
+no surviving children/displays. Preserve unique raw results/failed cases before
+removing owned scratch. Existing Main17/300s resume-suite failure and all parked
+ordinary trials remain attached;no accepted rerun selected. Windows installed
+checker supports only its existing admitted activities/contexts and120000ms
+handshakes;standalone Convoy checker is not installed-world proof. Existing
+owner exclusion/native-Windows/target-GPU/human/final release gates remain open.
+All new installed/ordinary qualifications are NOT_RUN.
+
 ### Activity recovery — progress, player state and uncovered capabilities
 
 RECOVERY-ACTIVITY-DEFINE is DONE as a source map on470aa24c4, not runtime or
@@ -15101,8 +15246,9 @@ installed active-assist and busy-exit cuts. Existing startup loader,
 [interruption probe](../scripts/diagnostics/in_world_interruption_probe.gd) and
 [package runner](../tools/release/run_package_probes.sh) admit pilot/cabin/rest/
 crew/engineer/on_foot, plus docking+Convoy in packaged311df73. The one actual assist cut is delivered;
-busy-exit remains unsupported. Extend the existing path only for a separately
-frozen cut; no new validator family. Ordinary-input setup/continuation
+busy-exit accepted/refused cuts are delivered on24774c04. Reuse their installed
+binding above;extend the existing path only for a separately frozen uncovered
+cut,no new validator family. Ordinary-input setup/continuation
 needs its own frozen complete journey and is not established by scripted setup.
 Original docking/recovery promises and native/device/human gates remain open.
 

@@ -189,6 +189,10 @@ the opt-in rendered observer remains implementation work.
 now bind the nine craft's real cabin/exit/clear-reboard owners and clearance
 observations. Accepted reuse is retained;large-craft egress and uncovered
 ordinary geometry/continuation work remain open.
+[Installed recovery cuts](docs/ROADMAP_BACKLOG.md#installed-recovery-exact-cuts)
+now specify nine context selectors,activity/world cuts,exact final installation
+identity and restart/data/control outcomes. Existing probes are reused;missing
+ordinary callers and four owner policy decisions remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
