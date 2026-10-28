@@ -241,6 +241,13 @@ now binds game/setup/uninstaller members,signing order,expected identity and
 applicable trust verification. Credential/context inputs and signed-package
 reader/repackaging support remain open;native Windows stays excluded/NOT_RUN.
 
+[Current craft LOD goals](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)
+now distinguish real whole-ship switching from partial detail culling. Torrent
+retains its existing policy;Zenith needs its modern airframe integrated,while
+seven craft need whole-craft LOD capability. Exact initial implementation
+thresholds,budgets,authority invariants and proof limits are defined;no new
+LOD implementation or visual acceptance is claimed.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
