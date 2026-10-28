@@ -253,6 +253,12 @@ now fixes actual nine-craft debris counts,lifetime/cooling/fade,receipt fencing
 and world-root cleanup. Generic fragments are distinguished from real ship
 loss/recovery;ordinary rendered observation remains open.
 
+[Arrow core contact/repair](docs/ROADMAP_BACKLOG.md#arrow-core-header-contact-contract)
+now specifies an existing obstacle,finite input stages,two measured nonfatal
+hits,actual targeting consequences and strict repaired return/reuse. The
+analytical trajectory is checked;ordinary controller/receipt implementation
+and execution remain open. Zenith's parked startup failure stays untouched.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
