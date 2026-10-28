@@ -173,6 +173,10 @@ explicit production gaps;normal Quit evidence cannot qualify an OS kill.
 now name actual peers/targets,cuts,retained state and terminal/fresh-flight
 endpoints. Internal lifecycle tests are distinguished from ordinary controls;
 missing independent callers and the parked full play trial remain open.
+[Convoy actor goals](docs/ROADMAP_BACKLOG.md#convoy-actor-lifecycle-goals) now
+bind the actual tender/raider,current/late death/reset observations and retained
+solo restoration. Ordinary escort and missing tender-death network proof remain
+implementation work;the parked full Convoy trial stays closed.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings

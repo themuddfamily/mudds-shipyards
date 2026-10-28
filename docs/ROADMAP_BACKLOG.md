@@ -7491,7 +7491,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | Qualification | DONE scoped ordinary three-peer Linux journey63186dc80. Complete accepted passenger prefix, original pilot authored exit and1.255m supported walk; exact old authority/source/queue/seat/body/publication retired, both clients consume release, passenger chair and strict occupied home lease retained. PASS153.310s/3actualOS0/cleanlogs. Initial impossible pose-header check corrected with fresh same-hull retirement-boundary comparison; original failure retained. Runtime unchanged49bc7b7; owned scratch removed, main sole branch. [Delivery](history/ROADMAP_DELIVERIES.md#jovian-original-pilot-exit--accepted--2026-10-20). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | Qualification | DONE07ec703c7; full physical reuse and actual retired-stream refusal | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | Qualification | DONEbc7f9f9c4; full ordinary pilot/co-pilot reuse journey, actual berth release and stopped peer convergence | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | Definition | BLOCKED definition — Codex must map existing Convoy live/dead/reset/late/disconnect cases to actual tender/threat owners, participant actions, retirement and usable solo-restoration endpoints; no additional actor catalogue. | Finite uncovered Convoy live/dead/reset/late/disconnect cases with actual tender/threat owner, participants/action/retirement/solo-restoration; no new actor catalogue. |
+| CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | Definition | Source-bound [finite two-actor lifecycle goals](#convoy-actor-lifecycle-goals):current/late live,raider death/late dead,tender death,current-generation reset/start,unavailable actor and living/dead retained-solo Disconnect. Actual Torrent escort,authenticated actor/bolt identities,normal versus internal actions,terminal/no-replay/usable restore outcomes and first600/660 case target fixed. Codex must implement missing tender-death network observations and normal independent caller;on-foot/manual-clock fixture is not ordinary gameplay. PLAY-CONVOY parked shutdown/cost/caps preserved;all new qualifications NOT_RUN. | Finite uncovered Convoy live/dead/reset/late/disconnect cases with actual tender/threat owner, participants/action/retirement/solo-restoration; no new actor catalogue. |
 | TORPEDO-AUTH-DEFINE | Actual projectile authority, retained solo restoration and pilot/target loss | 23 | Definition | DONE source definition only;[ten concrete authority cases](#torpedo-authority-executable-goals) bind current/late flight,join failure/cancel,Disconnect/server loss,same-Main reentry,same-target pilot loss,destruction/removal and phase exit. Actual actors/actions/internal versus ordinary scope,currentness/retirement/usable endpoints and new600/660 case cap fixed;missing native/independent/same-target callers are Codex implementation. Existing source scopes and parked PLAY-TORPEDO preserved;all ten ordinary qualifications NOT_RUN. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | Definition | BLOCKED definition — Codex must bind existing Picket live/dead/reset/late/disconnect cases to actual travelling actor/moving crew, exact command/cut and no-replay/no-double-hit/usable-restoration endpoint. | Finite uncovered Picket live/dead/reset/late/disconnect cases using actual travelling actor and moving-crew owner; named participants/result. |
 | EMBERLINE-ACTOR-DEFINE | Uncovered Emberline flight/hit/miss/expiry/late/dead/reset/disconnect cases | 24 | Definition | BLOCKED definition — Codex must bind existing flight/hit/miss/expiry/late/dead/reset/disconnect cases to actual actors/participants, exact command and retirement/usable-continuation endpoint; original failed baseline remains PARKED. | Finite uncovered flight/hit/miss/expiry/late/dead/reset/disconnect cases in actual Emberline; failed original baseline retained. |
@@ -9846,7 +9846,7 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | NET-LAND-DIAG[intermittent second landing] | [Halyard second-dock source/predicate bound](#second-landing-witness-contract); original failing run/command/global cap still unlocated | NET-SECOND-LAND owns this one historical case. Do not rerun the broad remote-helm suite or substitute Jovian first-return proof while the exact original failure input is missing; no speculative clock rewrite. |
 | NET-DOCK[one craft] | GATED on relevant fix if needed | Remote landing/dock, ordinary disembarkation, reboard and repeat departure succeed. Stop at one craft's existing route. |
 | NET-DAMAGE[one craft/role scenario] | ELIGIBLE; existing damage/respawn integration tests | Peer presents hull/component damage, repair, destruction and regeneration coherently, then returns to usable role/craft. Stop at one scenario; preserve authority and ownership. |
-| NET-ACTOR[one channel/lifecycle] | ELIGIBLE for implemented channel | Convoy, Torpedo Run, Picket or Emberline instance covers its named travelling actor/projectile live/dead/reset, late join, disconnect or solo-restoration boundary. Use existing authority/Emberline tests. Stop at one lifecycle case, then schedule uncovered cases separately. |
+| NET-ACTOR[one channel/lifecycle] | ELIGIBLE for implemented channel | Convoy, Torpedo Run, Picket or Emberline instance covers its named travelling actor/projectile live/dead/reset, late join, disconnect or solo-restoration boundary. Convoy uses its [finite tender/raider contract](#convoy-actor-lifecycle-goals);other channels retain their own definitions. Use existing authority/Emberline tests. Stop at one lifecycle case, then schedule uncovered cases separately. |
 | NET-BROWSER[one ordinary menu flow] | ELIGIBLE; discovery/binding tests | Discover/refresh/select/join/disconnect/retry from normal menus. Separate stale, full, unreachable, cancel and controller cases into individual instances; stop at selected flow. |
 | NET-BUDGET[all-nine forced-full snapshot] | Aggregate contract DONE on330a39ce3; new-candidate/native/ordinary scope separate | Existing `network_craft_pose_station_frame_test.gd::_assert_snapshot_envelope` uses actual Main nine-craft publication, forces full encoding and measures live delta; both fragment and decode to the exact complete snapshot within12000 bytes (fragment payload900, maximum16). Retained full suite PASS382 in172.837s; all-nine full/live4656/4656. No CPU/throughput threshold is specified. Do not rerun or add a budget-only selector merely to duplicate this accepted result; ordinary multiplayer and final/native/endurance gates remain open. |
 | NET-ENDURANCE[one supported profile] | DEFINE exact independent-process command, then GATED on stable baseline | Run original 30-minute two-client moving-interior session with declared latency/profile and no ownership/state leaks. `network_moving_interior_latency_test.gd` is an anchor, not an invented substitute command. Stop after original duration and clean closure. |
@@ -9855,6 +9855,108 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
 
 <a id="remote-presentation-contract"></a>
+
+<a id="convoy-actor-lifecycle-goals"></a>
+### Convoy actor lifecycle: two actors and finite live/retired boundaries
+
+CONVOY-ACTOR-DEFINE / parent22,source binding2026-10-28 00:04:54→00:29:54UTC
+including source review,checks,commit/push and cleanup. Root owns documents;
+one read-only high-effort agent binds actor/network owners. No engine,trial,
+profile preparation or parked retry. Literal prerequisites:PLAY-CONVOY genuine
+ordinary route/entry and BROWSER-JOIN/BROWSER-DISCONNECT for the network actions.
+PLAY-CONVOY84222cbea remains PARKED at its exact shutdown errors,original
+CAP300/outer360 and cumulative reopening boundary;this definition neither
+resumes that run nor accepts its partial facts as complete qualification.
+HUD-CONVOY owns its existing normal reset/select/start/save fields once.
+
+**Closed roster and ordinary start.** Exactly the existing
+emberline_supply_tender and emberline_raider in the Convoy host/threat;no third
+actor or general actor catalogue. Ordinary H pilots the same healthy departed
+Torrent in FREE_FLIGHT with current Cinder/ship sample. Select Convoy through
+normal Nearby Activity UI and enter actual4m activation sphere at
+Cinder-local(84,-48,-724). Tender route begins(84,-68,-724);escort safe lane
+is20m above it. Preserve24m/s tender movement,42m proximity/3s separation and90s
+activity timeout. H cannot stand on foot and still claim ordinary escort:
+GameFlow._convoy_lifecycle_accepts_sample requires that actual piloted craft.
+Independent C/current,L/late and D/dead-state-late observers join through real
+browser input,stay on foot and own no convoy combat source. Only the peers
+needed for the selected finite member need launch;late cases keep the current
+peer present so one late observer cannot replace current-peer proof.
+
+**Identity and authority.** Capture process-qualified Main/Player/craft/host/
+threat/tender/raider IDs,host activity generation G and entity generation,network
+convoy_epoch/entity_generation/pose_tick/owner_peer_id=1. Both authenticated
+movement rows use mode=emberline_actor;their positions are station-relative and
+must reexpress through each peer's actual station origin. Current poses compare
+at observed sample ticks,not simultaneous unsampled transforms. Tender maximum
+health75,raider35;record actual resolver-produced health,not fixture-injected
+65/25. NetworkEmberlineActorPresenter clones two collision-free visuals only:
+no local Damageable,AI,source registration,damage or activity/payment authority.
+Actual raider source2141/weapon emberline_raider_pulse owns48m/s,0.875s bolts,
+30damage,1.5s cadence/3s first delay through the existing resolver.
+
+| Existing lifecycle member | Exact action and observation |
+| --- | --- |
+| Current live actors | H's real piloted escort starts G and moves the actual tender/raider;current C consumes authenticated pose/health rows for those identities. Observe host actual route movement and same sampled replicated poses/health,exactly two reused visual owners,no client AI/damage/credit. Current visible actor is not proven by a synthetic consume_movement_section call. |
+| Late live admission | L normal joins while those same G actors are still alive. Its first current snapshot adopts actual current host pose/health,not route start or wall-clock extrapolated muzzle travel;no retroactive launch/charge/destruction cue. Prepare L's Main/browser before admission and retain real elapsed90s escort clock. Existing network fixture freezes/manual-steps that clock and therefore cannot pass ordinary late arrival. |
+| Raider death with surviving tender | H's actual Torrent weapon hits the real35-health raider through current authority until0. Observe destroyed row,present=false,hidden/disabled collider,source retirement and abandonment of its actual in-flight bolts once. Tender remains alive/present and escort may continue;raider death is not safe-arrival/payment. Current already-live observers may receive one destruction cue,never repeated on restatement. Do not inject Damageable.apply_damage or count requested shots as hits. |
+| Late admission after raider death | D joins only after that same G raider is neutralized while tender survives. First admitted snapshot must show live tender and hidden destroyed raider,zero historical destruction/launch replay and no old raider bolts. It cannot silently revive on a later healthy hidden/present row of the same generation. Existing dead-role source fixture covers this shape;ordinary death/admission caller remains missing. |
+| Tender death | Keep actual healthy raider and valid piloted escort;do not shoot the raider or shield tender. Let real source2141 resolver bolts strike actual tender75→45→15→0 when full30damage applies,retaining actual contact/flight/health readback. Current host generation must fail reason convoy_destroyed once,retire threat/bolts/actor presence,no completion/payment. Current observers and a newly admitted dead-state observer must consume final tender destruction/retirement without resurrection or historical cue replay. No nominal hit count can substitute for measured damage. Existing production fixture proves real unopposed bolts but network tender-death current/late proof is missing. |
+| Accepted reset then real start | From actual failed G with no owed reward,normal Nearby RESET uses reset_with_persistence and must commit before publishing G+1. Pending rows at G+1 are not present/not destroyed/not retired,health reset to75/35,old G death/retirement/bolt fences cannot leak. Normal family selection/re-rendezvous Start advances G+2;only then fresh actual actors/bolts appear. Keep exact host/entity generations and real-file payload from HUD-CONVOY. Repeated old G snapshots cannot revive actors/damage;no payment from reset/start. Refused persisted reset preserves live/disk/actor generation and existing state;reuse HUD-CONVOY refusal scope rather than create another fault matrix. |
+| Actor unavailability,distinct from destruction | Existing internal fixture removes the live raider node from its parent while tender/current Main remain. Publish available=false/retired=true,present=false for that actor only;hide its visual and retire source/bolts without fabricating a destruction cue or hiding surviving tender. Retain actual reference/parent for owned cleanup. This is not an ordinary player action;actual whole-stream unload has its own activity-failure owner and cannot be relabelled selective actor removal. |
+| Disconnect and retained solo restoration | C first has its own genuine solo Torrent escort/actual retained host/threat state,then normal joins H. Observe client suspension hides local tender/stops local threat/bolts/AI,freezes actual escort progress/elapsed/health and denies local Start. Normal browser DISCONNECT→ui_disconnect/Back/Resume clears remote actor/projectile presenters and resumes that same local G/state. Preserve observed hull/route/elapsed/attack clock/counters;old bolts never return. For an actually living retained raider,real current caller clock permits fresh distinct bolts;for an actually neutralized retained raider,health0 stays dead and cannot fire. Both existing alive/dead restoration shapes are required,not synthetic17/0/60 fixture values as ordinary health targets. Actual valid escort/flight control must resume within unchanged proximity/separation/timeout rules. |
+
+**Existing source scope and exact missing implementation — Codex.**
+tests/network_emberline_bolt_test.gd already launches independent host/current/
+late/dead Main processes through real ENet and actual movement/projectile
+channels,including translated station frames and missing/reset/disconnect
+states. It starts the host while on foot through direct host.start/threat.start,
+mutates damage,disables/manual-steps physics and holds flight travel for late
+peers;its internal source/package probe scope is retained,not ordinary Convoy.
+It also remove/readds the retained Main to verify deferred solo rebind;that
+internal lifecycle proof is not a new ordinary restart/cold-load promise.
+The retained combined-matrix FAIL waits for the dead peer before reset,then
+pending-generation errors follow. Isolated e026cf620 diagnostic154 passes do not
+establish root cause or a repair;keep that matrix failure and its next-combined-
+matrix boundary,no unchanged isolated rerun. Existing source support command
+is tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot
+--audio-driver Dummy --mode headless --jobs 1 --scope
+tests/network_emberline_bolt_test.gd,at default300s/45s peer barriers/4s child exit.
+It is not selected for execution here or a runnable ordinary Convoy route.
+
+Extend that existing network fixture for missing tender-death current/late
+observations and owned cleanup;extend tools/release/run_native_sortie.py and
+scripts/diagnostics/native_sortie_observer.gd for actual normal Convoy selection,
+4m start,physical escort/weapon/reset/browser controls and passive sampled
+actor/bolt/health/terminal/payment/restore observations. Main currently has no
+accepted ordinary Convoy route selector;the five-file parked candidate remains
+unmerged. A proposed route name is not an executable command or a passing run.
+Reuse CinderConvoyEscortHost/CinderConvoyThreat,GameFlow's
+_build_network_emberline_actor_entries/_on_network_snapshot_applied and
+_resume_cinder_convoy_solo_threat,NetworkEmberlineActorPresenter and existing
+NetworkRemoteProjectileReplicator;do not add a parallel presenter/actor stream.
+
+**Finite time and output.** New first-engineering complete selected-case ceiling
+600s internal/660s independent outer from first process Boot through actual
+cut/continuation/all normal OS0 and cleanup. This is not an extension of the
+parked ordinary CAP300/outer360 or source fixture's original limit. Retain
+90s escort/42m/3s,4m start,0.875s bolt lifetime,existing45s per-peer fixture waits,
+all original packet/fragment/row budgets and normal UI/input limits concurrently.
+Never pause/manual-step physics or extend lifetime just to admit a late peer;
+normal menu actions retain their actual production pause behavior,with no
+subtraction from the complete-case wall clock. Source raw default/source-probe
+limits stay with their existing command;no old failed mode gets a longer wrapper.
+
+Freeze one selected member/package/profiles/actual output path and absolute
+all-in deadline before editing;production assignments≤90min including checks,
+required checkpoint and cleanup. First unexpected failure stops;one correction
+only after cumulative-cost GO,then failure/deadline PARKED. Run headless checks
+or private Xvfb/x11,Dummy audio,independent abort/input release. Existing native
+runner --output directory retains actual per-peer stage/identity/sample/health/
+flight/cue/terminal/reward/file/control operands,normal actual OS0/zero diagnostics
+and owned process/display closure. No source fixture/full ordinary/native/final
+qualification is newly passed;all new executions remain NOT_RUN. Parent22,
+PLAY-CONVOY and broader repeat/save/actor channels remain OPEN in their scopes.
 
 ### Remote engine, throttle, motion and landing — remaining presentation boundary
 
