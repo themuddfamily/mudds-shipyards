@@ -210,6 +210,15 @@ now bind real markers/signs,cameras,images and door/gantry/berth comparisons.
 Accepted standalone Freight and Zenith flights stay scoped;ordinary integrated
 framing and missing room arrival remain implementation work.
 
+[Annex/Observation](docs/ROADMAP_BACKLOG.md#annex-observation-normal-view-contracts),
+[Salvage/VIP](docs/ROADMAP_BACKLOG.md#salvage-vip-normal-view-contracts) and
+[four service views](docs/ROADMAP_BACKLOG.md#service-normal-view-contracts) now
+bind the remaining station candidates,actual text/controls,camera/image and
+live-motion/clearance predicates. Salvage lower inspections and elevated pad
+are distinct;VIP retains its exact stair failure and reopening prerequisite.
+All13 station subject definitions are source-bound;ordinary continuation,
+capture/inspection and final qualification remain open.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain

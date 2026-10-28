@@ -6283,14 +6283,14 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-SALVAGE-ACCESS | Hub→three inspection positions→hub by same supported Player | 7,9 | Qualification | DONE9749f742c: all29outbound/29reverse goals and retained hub spawn;64assertions/103.697s/exit0, clean logs and unchanged inspection state. Two added existing-floor waypoints clear Annex roof columns; every original destination/.20arrival/240loops/4settle/300s retained. Source merged/pushed, owned scratch cleaned; prior121.841868s failures preserved. Source qualification via InputEvent/held actions, not OS-XTest/nativeGPU or publication/revisit. [Acceptance](history/ROADMAP_DELIVERIES.md#existing-salvage-access-round-trip-qualified--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WALK-SALVAGE-INSPECT | Ordinary three components and manifest publication after actual approach | 7,9 | Qualification | DONE5189436f1: full normal hub approach, all3 actual inspections/authored grades and manifest via ordinary controls, independent real-file primary loads/exact slot/unrelated-data conservation, repeat console adds no transaction, all29reverse goals/retained spawn.92assertions/103.609s/OS0/cleanlogs; original .20/240loops/4settle/300s retained. Reviewed/merged/pushed, owned scratch cleaned. Source qualification only; fresh-process REVISITf7abac379 accepted separately. [Acceptance](history/ROADMAP_DELIVERIES.md#existing-salvage-inspection-and-publication-qualified--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WALK-SALVAGE-REVISIT | Durable fresh-process physical revisit without duplicate transaction | 7,9 | Qualification | DONEf7abac379: exact accepted writer real XDG profile in distinct Godot process; primary3IDs/manifest read before Main; fresh normal Main restores them, normal recovery exit directly confirmed, ordinary walk back to retained hub then all29out/4physical repeats/29reverse/spawn. Every repeat preserves actualprimary payload/generation/grades; finalslot conserved.94assertions/107.025s/OS0/cleanlogs/.20/240loops/4settle/300s unchanged. First36.348s failure retained; one source-supported caller correction, no profile/recovery bypass. Reviewed/merged/pushed, owned scratch cleaned. Source qualification, broader Boot/native/final gates separate. [Acceptance](history/ROADMAP_DELIVERIES.md#existing-salvage-durable-physical-revisit-qualified--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| WALK-VIP | VIP reception | 7,9 | Qualification | PARKED; BLOCKED definition (Codex): recover the retained failed reception caller/source/result, exact first failed predicate and causal reopening condition; bind normal hub → actual reception interaction → same supported hub return/normal UI exit, existing route/caps, current candidate and locked boundaries. Any missing historical permission needs its actual source owner identified; no new access entitlement or unchanged rerun. | The retained complete physical reception route passes its original interaction, floor/support/motion, locked-boundary and normal-exit predicates within its original limits. Before selection Codex records the exact archived command/route/result and reopening cause here; an absent artifact/value keeps this row PARKED/BLOCKED. “Evidence-permitted” alone is not an acceptance predicate. |
+| WALK-VIP | VIP reception | 7,9 | Qualification | PARKED/unqualified. [Recovered exact caller,route,result and reopening prerequisite](#salvage-vip-normal-view-contracts):57fc1122a parse failure;sole repair64c74dd46 fails out/stair-base horizontal motion≈.400m versus .177m monitor limit at46.816s,actual stair support/collision retained. Door CLOSED;no reception/seat/return. Codex must establish source-supported step-assistance movement contract before any separately selected repair/probe;normal route/door/seat/return and900s cap unchanged. No missing historical entitlement invented;actual measured arrival/capture NOT_RUN. | The retained complete physical reception route passes its original interaction, floor/support/motion, locked-boundary and normal-exit predicates within its original limits. Before selection Codex records the exact archived command/route/result and reopening cause here; an absent artifact/value keeps this row PARKED/BLOCKED. “Evidence-permitted” alone is not an acceptance predicate. |
 | LIFE-TOW | Central tow during nearby walking/boarding | 9 | Qualification | DONE in packaged9162fac/caller11c2332 ordinary scope:43.086m supported walking/five goals, actual Torrent boarding and90seatedframes; same service/seven movers advance clock/poses,745 consecutive samples, zero diagnostics. Rendered readability/native hardware/whole-station remain separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | Qualification | DONE packaged2df8c31 ordinary scope:127.445m/13 settled goals,12.509m local walk/max10.297m from gantry, actual Jovian boarding/90seatedframes; same two movers clock/poses, home berth/OFFLINE/parked,1,668 consecutive samples/no diagnostics. Seat is distant; rendered/full-station/final remain separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | Qualification | DONE packagedf2bf35a:15 settled goals/108.091m,18.303m local walk/max11.711m arm distance, actual Zenith boarding/90seated;1642 consecutive samples/three actual movers/current home/OFFLINE/parked. One actual controller step proof replaces unsupported blanket-speed assumption without changing ordinary bound/physics. [Original failures and accepted full result](history/ROADMAP_DELIVERIES.md#aft-service-arm--actor-proven-ordinary-route-accepted) retained; rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | Qualification | DONE packaged ea8fe43:22 settled goals/171.602m,17.302m local/max9.944m origin distance, actual same-door candidate/E/OPEN-clear/return and distinct Torrent E→BOARDING/90seated. Same two actual drone roots/seed/defaults/home/OFFLINE/parked,2428 consecutive samples; all77Python/package/startups/audit/ONEroute PASS first attempt. [Frozen contract/full result](history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted). Rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | Definition | [Eleven existing topology IDs plus ladder/scale/version gaps](#station-relationships-exact-gaps) now have exact registered anchors or preidentified unregistered intervals,confidence/modern-wording boundaries and evidence/access owner. B3 room/C1 VIP/traversal contradictions corrected without new anchors. OPEN Codex bounded exact-artifact locator/inspection/registration;availability is unestablished,not assumed unavailable. User supplies actual missing access/dimension/build/continuity artifact or named modern-interpretation decision only after the stated boundary. No historical/runtime authentication or new topology claim. | One finite record of unresolved adjacency/elevation/scale/version/ladder claims, each with source anchors or exact missing evidence/interpretation decision. |
 | STATION-CENTRAL-VIEW | One fixed current Central operational-view review and any resulting repair | 9,12 | Qualification | [One fixed supported directory/operational-view contract](#central-standing-operational-view) binds actual first-person measured-eye camera,finite existing route candidates,atlas CENTRAL BERTH text/direction,live tow/cargo phase,2560×1440 High PNG/passive frame metadata and out/back clearance comparison. Existing300s/outer360 and accepted WALK-CENTRAL/LIFE-TOW scopes retained. Codex implements normal camera/sign/cargo/image correlation;old capture stall remains PARKED without known cause,no unchanged retry. Actual image/inspection/repair NOT_RUN. | Inspect that one frozen view: close as explicit inspected no-finding, or name and repair its actual defect with same-view before/after and unchanged walk/flight/collision clearance. Either result closes this view only; no capture-timeout exemption or new sweep. |
-| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | Definition INCOMPLETE for remaining existing subjects. [Central](#central-standing-operational-view),[Aft/Habitat](#aft-habitat-normal-view-contracts) and [Freight/Fleet views](#freight-fleet-normal-view-contracts) now bind actual camera/route/text/image/phase/clearance fields;their observer/ordinary arrival/capture code and parked stops remain open. [Existing13-subject table](#station-presentation--finite-review-boundaries) owns remaining Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol exact view fields;no new roster or survey. Reuse accepted scopes. Actual inspected no-finding/repair and native/final gates NOT_RUN beyond recorded acceptance. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
+| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | Definition source-bound for all13 existing station subjects: [Central](#central-standing-operational-view),[Aft/Habitat](#aft-habitat-normal-view-contracts),[Freight/Fleet](#freight-fleet-normal-view-contracts),[Annex/Observation](#annex-observation-normal-view-contracts),[Salvage/VIP](#salvage-vip-normal-view-contracts),[four services](#service-normal-view-contracts). Exact ordinary candidates/camera/text/control/image/live-phase/clearance predicates and missing Codex implementation are fixed in those contracts;actual visibility/support/readability require execution. [Existing13-subject table](#station-presentation--finite-review-boundaries) remains sole roster. Accepted scopes stay closed;parked failures/reopening/caps retained. New ordinary arrivals/capture/inspection and native/final gates remain open;source definition is not outcome acceptance. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | Definition | DONE; pilot/payload implemented, additional crew/Nav semantics missing | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | Decision | WAITING; precise interpretation needed, no approved scope reduction | Recorded exact additional role/count/action/physical-access contract; pilot-only runtime is not scope reduction. |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -9536,10 +9536,276 @@ same-view repair must preserve accepted walking/boarding/landing/transfer scope.
 New view/clearance/ordinary arrival/native/final qualification remains NOT_RUN;
 source definitions do not close full STATION-FINDINGS.
 
+<a id="annex-observation-normal-view-contracts"></a>
+### Annex and Observation — supported arrival views
+
+Reuse the [Freight/Fleet normal-player camera and frame proof](#freight-fleet-normal-view-contracts):
+actual current unsuspended first-person Player camera, measured eye/report,
+ordinary toggle/mouse look, authored72°/near.08 and actual effective settings,
+2560×1440 High/Forward+/Vulkan/UI1, honest HUD. Save the following PNGs and
+same-basename frame-correlated JSON under existing `--output/presentation/`.
+Source1.7525m standing eye is an expectation, not measured arrival proof.
+No camera/body teleport, FOV widening, new perch or automatic route retry.
+
+**Annex: `annex-service-aisle.png`.** Use the accepted
+`tests/ship_service_console_production_test.gd` full hub/Annex route and its
+finite aisle candidates, in order: Annex-local(0,.15,4.8), (0,.15,9.5),
+(4.5,.15,9.5), (4.5,.15,7.55). First actually readable supported view wins;
+normal look target is Annex-local(5.24,1.25,7.55), not a camera position.
+`FabricationAnnex` origin(72,.38,38), yawPI/2; its marker cue heights do not
+establish support. Keep the z9.5 crossing that avoids the roof column, not the
+failed sideways z4.8 crossing. The same supported Player reverses the original
+route to retained hub spawn; unfinished south gate is excluded.
+
+Resolve the actual world-owned `FabricationShipServiceConsole` at
+(79.55,1.650837962,31.450947871), via the world accessor/current candidate.
+Its depth-tested single-sided `ShipServiceReadability/ShipServiceHeader` and
+`ShipServiceStatus` must be front-facing, unoccluded and readable at full image
+size: `SHIP SERVICES`, initial `READY // LAND & EXIT ENGINEER CRAFT`,
+`[ E ]  RESTOCK ACTIVE SHIP REPAIR KITS`. Record actual status rather than
+forcing READY. Where the accepted restock fixture is selected, ordinary E on
+that current console must produce kits5→6, Annex presentation_sequence+1,
+Aft unchanged and actual `RESTOCKED // <CRAFT> // KITS 6/6` status. This does
+not prove ordinary craft selection or repair: accepted9af57671d disclosed its
+active-Jovian/damage/engineer-kit-spend setup. Its81.387s supported walk remains
+accepted, not rescheduled. Retain240 physics frames/leg,.20m arrival,four
+settled/support frames,CAP300/outer360. No StationDoor exists on this aisle;
+door comparison is N/A, actual capsule/column/floor clearance still required.
+
+**Observation: `observation-cross-landing.png`.** Member remains
+`observation-pad`, not Logistics. Live Spur origin(92.5,.38,38), yawPI/2;
+use archived ordinary callerbae551d5836ed5d17bb0752e109313b3a5fa4fd9's unchanged
+hub/Annex prefix and Annex-local(0,.15,4.8)→(0,.15,9.5)→(0,.15,18.5)→
+world(91,.38,38)→Spur-local(0,0,0)→(0,0,11)→(0,0,24)→(−6.75,0,24)→
+(−6.75,0,32)→(−8,0,31.4). Finite cross-landing view candidates are only
+(0,0,24) then(−6.75,0,24), with normal mouse look toward Observation.
+First readable actual view wins; failure at both is a framing failure, not
+permission to move the camera or omit the route. Retain actual lens endpoint
+look toward `Structure/Dressing/ObservationLens02`,60 physics viewing frames
+and full supported reverse return separately from the cross-landing image.
+
+Resolve atlas row`observation_pad`, literal`OBSERVATION PAD`, target
+`observation-pad` from source`cross-landing` via the wayfinding report/emitted
+mesh. It is not a Label3D. Also read the real depth-tested physical labels:
+`←  LOGISTICS    |    OBSERVATION  →` at Spur-local(0,3.18,21.82), and
+`Structure/Dressing/ObservationArraySign` text`OBSERVATION  //  SURVEY ARRAY`
+at(−6.75,3.18,26.08). Record actual projected quad/front-face/occlusion and
+readable full-size pixels, not just matching source strings. Compare current
+capsule/support/contacts through Annex's enabled static4m rear opening,
+Spur connector3.44m and threshold5.66m at localz26.30; these authored widths
+are not measured clearance proof. No E-controlled StationDoor exists here.
+
+The archived private route passed54 goals/345.753m/60-frame view/home/normal
+Exit0, but original visible TooltipPanel repair remains INCONCLUSIVE, source
+unmerged. WALK-OBSERVATION stays unqualified; preserved source/results at
+`/srv/mudds-work/branch-closeouts-20261020/results/exit-tooltip-order/` are
+not accepted integration. Retain CAP300/outer330,15s/goal,.30m arrival/.35m
+stopped,60 viewing frames,15s pause/exit and12s orderly process exit. Missing
+original hover owner/pointer/window/foreground/visible-tooltip bindings remain
+the causal reopening boundary; no capture name resets it.
+
+**Missing Codex implementation:** ordinary Annex frame-bound camera/control/
+sign/PNG readback and integrated ordinary Observation caller/observer in the
+existing native-sortie owners. Bind source/package/PID/Main/Player/support/
+capsule, actual camera/viewport/FOV/eye, chosen waypoint, real label geometry/
+text/target, console candidate/status/resources or static-opening contacts to
+the same rendered frame. Neither subject has a declared frame in the required
+13 registered sets; these ordinary images do not expand that registry.
+Actual image inspection, new clearance qualification and final/native gates
+remain NOT_RUN. Source ownership is `scripts/world/fabrication_annex.gd`,
+`scripts/interaction/ship_service_console.gd`, `scripts/world/shipyard_world.gd`,
+`scripts/world/observation_logistics_spur.gd` and
+`scripts/world/station_wayfinding_signage.gd`.
+
+<a id="salvage-vip-normal-view-contracts"></a>
+### Salvage and VIP — inspection row and reception arrival
+
+Both reuse the [normal first-person camera/frame proof](#annex-observation-normal-view-contracts):
+actual supported current Player/camera/report,2560×1440 High/Forward+/Vulkan/UI1,
+ordinary input and honest HUD, PNG plus same-basename JSON under existing
+`--output/presentation/`. Authored1.7525m eye/72°/.08near are not measured proof.
+No free camera, new perch, widened FOV or hidden walls. At the first qualifying
+existing candidate record actual projected geometry/front-face/occlusion and
+full-size readable pixels; if none qualifies, name that failure and stop.
+
+**Salvage: `salvage-lower-inspection.png`.** The accepted ordinary route reaches
+the LOWER three-component row, not the elevated waypoint named Inspection Pad.
+`SalvageTerrace` and sibling `SalvageInspectionStation` share origin(84,.38,52.91).
+Reuse all29 approach/reverse goals and retained spawn from
+`tests/salvage_terrace_test.gd`; the finite lower-row candidates are its terrace
+Connector→local(0,0,7)→(−8,0,7)→(−16,0,7), then the existing inspection/revisit
+positions(−14.4,0,7),(−12.8,0,7),(−9.5,0,7). Normal mouse look targets the
+actual readout, not a constructed camera pose. Preserve the Annex roof-column
+dogleg and actual support throughout.
+
+`scripts/world/salvage_terrace.gd` owns depth-tested generated Label3D
+`SalvageTerraceIdentity`, text`SALVAGE\nINSPECTION <`,local(−4,2.1,−.64),yawPI.
+`scripts/world/salvage_inspection_station.gd` owns `FieldCoil`, `RelayBoard`,
+`CrackedCoupling`, `ManifestConsole` at localx−16/−14.4/−12.8/−9.5,y1.05,z8.25.
+Each actual `InspectionReadout` is target-local(0,.55,−.30),yawPI,depth-tested.
+Read current text: `FIELD COIL`, `RELAY BOARD`, `CRACKED COUPLING`, each with
+`UNINSPECTED` or its actual `GRADE A // USABLE`, `GRADE B // USABLE`,
+`GRADE D // RECYCLE`; retain actual `SAVE PENDING` when present. Manifest text
+is `SALVAGE INSPECTION\n%d/3 INSPECTED\n%s\nMODERN INTERPRETATION`, not a
+forced completed display. Restored accepted state has3/3/`MANIFEST PUBLISHED`.
+The selected image proves only readouts actually legible in it; one source
+string or readout never proves the entire three-component view. Any uncovered
+readout uses its already-listed corresponding inspection position under the
+same image contract, not another route.
+
+The distinct atlas row`inspection_pad`,text`INSPECTION PAD`,target
+`inspection-pad` resolves through the real wayfinding report/sign mesh to
+elevated `RouteInspectionPad`local(23,5.55,16). It cannot substitute for the
+lower bench label or claim accepted elevated arrival. That existing wayfinding
+label remains an explicit uncovered presentation member: ordinary ascent via
+`RouteMainRampBase`(6,.15,5), `RouteUpperPad`(18,3.75,5),
+`RouteInspectionRampBase`(23,3.75,10) and `RouteInspectionPad` is not in the
+accepted lower-row caller. Codex must implement supported ordinary continuation
+and first qualifying marker-bound camera/atlas readback before claiming it;
+source marker heights are cues, not measured floor/eye coordinates. Use
+`salvage-elevated-pad.png` with the same camera/output and original300/360
+ceiling, not a new qualification allowance or invented direct diagonal.
+
+For lower-row access retain actual nearby/current target and2.35m reach from
+the interaction origin, ordinary E through
+`scripts/interaction/salvage_inspection_interactable.gd`, resource/disk state
+and same-player return. No door exists here. Compare actual capsule/support/
+contacts against benchlocal(−14.4,.82,8.25),size(4.8,.14,.7), and manifest
+pedestallocal(−9.5,.45,8.25),size(.85,.9,.7); no observed non-support solid
+penetration or unsupported route is accepted. Source sizes are not clearance
+measurements. Accepted ACCESS9749f742c(103.697s),INSPECT5189436f1(103.609s),
+REVISITf7abac379(107.025s) remain closed in recorded source/InputEvent/disk/
+distinct-process-restore scope, with .20m arrival,240 loops/four settle frames,
+300s inner/360s outer. Boot/OS-XTest/render/native/final scopes remain open.
+Current native-sortie owners have no ordinary Salvage selector/frame observer;
+that integration is Codex work, not unavailable external evidence.
+
+**VIP: `vip-reception-arrival.png`.** Preserve the full32-leg
+`tests/vip_reception_round_trip_test.gd` hub/Aft stair/upper bypass route,
+door/reception/chair/stand/reverse/spawn outcome. Finite image candidates are
+only original `vip-approach`world(−5.15,4.35,68.9),suite`ThresholdAnchor`
+local(0,.15,1.5),then`ReceptionAnchor`(−1.3,.15,4.6). Suite origin is
+(−5.15,4.2,70.6). `ViewAnchor`(−1.3,.15,12.6) is not in this caller and cannot
+be silently added for framing. Current actual reception arrival is unqualified.
+
+Actual `AftJunctionStack/VIPAccess` is Aft-local(−5.15,4.2,22.08),.65s
+motion,normal label`VIP RECEPTION`. Production defaults are unlocked/nondeferred;
+normal current-candidate E must change initial CLOSED/blocked→OPEN/unblocked
+before crossing. `CLEARANCE REQUIRED` is the real locked prompt, not evidence
+that new permission is required. If locked/deferred, preserve production refusal;
+never grant invented access. Normal E SIT/STAND belongs to
+`VipReceptionSuite/Structure/Fitout/Armchair03/StationSeatInteraction`,label
+`RECEPTION ARMCHAIR 03`, original local entry(1.99,0,7.49).
+
+Actual signage is mesh geometry, not Label3D: Aft
+`Structure/VIPLandmark` facade `VIP RECEPTION  //  MODERN INTERPRETATION`,
+local(−5.15,7.75,19.64),yawPI,scale.22, generated Sign_ name; interior
+`Structure/Threshold/Sign_MODERN_INTERPRETATION`local(−1.72,.74,2.389),scale.13,
+and `Sign_NO_SOURCE_DESCRIBES_THIS_ROOM`local(−1.72,.54,2.389),scale.085,
+both yawPI. Actual geometry/text must be readable at the selected arrival
+candidates; inability to see all required literals is a named framing finding,
+not permission to see through a wall. Compare actual door/capsule/body contacts,
+support and control handoffs with authored4.5m threshold width/3.54m headroom,
+4.6m room headroom and current .76m×1.94m capsule; dimensions alone do not pass.
+Authenticity remains modern_interpretation/confidence none.
+
+**VIP original failure recovered, still PARKED.** Historical command and results
+are in [the retained VIP contract](history/ROADMAP_DELIVERIES.md#vip-round-trip-contract--parked-after-one-repair).
+Source57fc1122a failed parsing before Boot; sole repair64c74dd46 then failed
+`out/stair-base` at46.816s,exit1/no success. Actual displacement
+(−.339476,.29875,−.211555),horizontal≈.400m exceeded .177m monitor limit;
+vertical limit.360m. Player(−4.211639,.299632,51.36559),floor=true,support
+`AftJunctionStack/Structure/LowerOpenDeck/StairBaseLanding`,slide collision
+`Structure/Circulation/ContinuousStairRamp`. Door remained CLOSED; no reception,
+seat or return ran. This does not establish a rescue or runtime obstruction.
+Raw `/srv/mudds-work/vip-round-trip-20261018/results/`,matrices
+20261018T010823Z/20261018T010923Z. Reopening needs a bounded source-supported
+movement contract for production step assistance, whose current owner is
+`scripts/player/player_controller.gd:_resolve_step_up`/STEP_UP_MAX_HEIGHT.30,
+before another probe. This definition does not supply or authorize that repair.
+Retain900s route/separate600s import,40s/leg/5s progress watchdog,60s Boot,
+5s UI/interaction,.16m arrival,hub return≤.5m horizontal/≤.25m vertical,same
+supported Player,exactly one SIT/STAND,usable movement≥.5m and normal UI exit.
+No renamed view or isolated probe resets the original failure/repair budget.
+
+Missing Codex work for VIP is that movement-contract prerequisite, actual
+ordinary arrival and passive first-person/sign-mesh/door/capsule/frame capture
+in the existing native-sortie owners. Neither Salvage nor VIP has a frame in
+the original13 registered sets; ordinary images do not grow that registry.
+No image, new walk, retry, historical authentication or native/final acceptance
+is claimed by these source definitions.
+
+<a id="service-normal-view-contracts"></a>
+### Four service views — actual arrival phase and clearance
+
+These are the four existing STATION-FINDINGS service subjects, not another
+route or capture matrix. Reuse the [Central](#central-standing-operational-view),
+[Aft/Habitat](#aft-habitat-normal-view-contracts) and
+[Freight](#freight-fleet-normal-view-contracts) normal-camera contracts: same
+supported, controlled, unseated Player; normal first-person toggle and mouse
+look; actual current Player camera/report/eye, effective72° FOV at16:9,
+near.08, High/Forward+/Vulkan, UI1 and honest HUD. No synthetic eye or service
+clock seek/pause/reset. Measured camera and actual pixels remain NOT_RUN.
+
+Use the following finite existing route feet in their recorded order. At the
+first candidate with a front-facing, unoccluded service view, record one second
+of consecutive ordinary physics observations, ending with the PNG and matching
+JSON in the existing `--output/presentation/` directory. This interval is part
+of the original route/stage deadline, not an extra allowance. If no candidate
+qualifies, report that named framing/access failure and stop; do not invent a
+perch or widen FOV. These source-defined selection rules do not assert that the
+service is actually visible from a candidate.
+
+| Existing subject | Existing finite feet candidates / image | Actual production activity |
+| --- | --- | --- |
+| Tow | `LifeTowPilot.OUTBOUND`: (0,0,12.5), (6,0,12.5), (6,0,13.5); reuse `central-standing-directory.png` only if that same image also shows the service; otherwise `central-tow-arrival.png`,2560×1440 | `OperationalLattice/Activities/CentralTowServiceActivity`, origin(6.8,0,14), yaw−PI/2, profile`full`, seed1103;7 original drawn movers |
+| Gantry | `GANTRY_GOALS`: `gantry_near_start`(−53,.38,27.5), `gantry_near_middle`(−53,.38,33.5), `gantry_near_end`(−53,.38,40); reuse `freight-boarding-approach.png` if it qualifies, otherwise `freight-gantry-arrival.png`,2560×1440 | `OperationalLattice/Activities/FreightApproachGantry`, origin(−53,.38,29.7), yaw−PI/2, profile`gantry`, seed4409; `_gantry_carriage`, `_gantry_tool` |
+| Arm | `ARM_GOALS`: `aft_stair_top`(−5.7,4.2,61.2), `aft_upper_gate`(−3.5,4.2,61.5), `aft_upper_floor`(−3.5,4.2,64.2); reuse `aft-upper-workpost.png` if it qualifies, otherwise `aft-arm-arrival.png`,2560×1440 | `OperationalLattice/Activities/AftOperationsActivity`, origin(5.8,4.99,61.2), yawPI, profile`service_arm`, seed2207; `_service_arm_shoulder`, `_service_arm_elbow`, `_service_arm_tool` |
+| Patrol | `PATROL_GOALS`: `patrol_inner_threshold`(50.5,0,15.5), `patrol_center`(59.15,0,15.5), `patrol_common`(67.8,0,15.5); reuse `habitat-common-entry.png` if it qualifies, otherwise `habitat-patrol-arrival.png`,1400×900 | `OperationalLattice/Activities/HabitatServicePatrol`, origin(59.15,4.88,15.5), yaw−PI/2, profile`drone_patrol`, seed3301; `PresentationRoot/AnimatedServiceDrone01` and `AnimatedServiceDrone02` |
+
+**Literal phase/proof.** These activities have continuously computed poses,
+not a discrete named phase to invent. Bind the image to actual
+`StationOperationsActivity.get_activity_state()` elapsed/enabled/paused/advancing/
+visible, profile/seed and actual mover global transforms/drawn mesh identities
+on the image frame. Over the one-second interval require the same current Main,
+Player, activity and mover IDs, enabled/unpaused/advancing/visible, strictly
+increased clock and changed actual drawn mover transform using existing
+`LifeTowPilot.require_service_interval`; do not accept clock-derived expected
+poses as measured geometry. Record every mover's pose and which are in the
+frustum/unoccluded. Pass the presentation only when actual full-size pixels show
+recognizable operating equipment without a visible route/camera/body intrusion.
+Do not require every articulated child to fit one frame. Service-specific text
+is N/A: these owners have no required textual display; branch wayfinding text
+retains its own linked contract and is never substituted for moving equipment.
+
+**Access comparison and limits.** Reuse accepted life-tow/gantry/arm/patrol
+9162fac/2df8c31/f2bf35a/ea8fe43 in their exact scope:7/2/3/2 movers,
+CAP300/outer360, >10m nearby walk for tow; the other three >11m nearby walk,
+every local sample≤12m from origin,15s/walking goal,12s boarding,90 seated
+frames. Compare actual supported capsule geometry/contacts, completed movement,
+service solids and mover visibility through the original ordinary nearby walk
+and boarding; no body teleport, blocked-floor rescue or removed collision.
+Patrol additionally retains the actual `HabitatSpine/MainAccess` candidate,
+normal E→open/unblocked crossing and return; the Arm view stays upstairs, not
+through the lower-room ceiling. Actual minimum separations/contact owners must
+be measured, not inferred from authored origin or the screenshot.
+
+**Missing Codex implementation, not an external dependency:** extend existing
+`scripts/diagnostics/native_sortie_observer.gd:_life_observation()` and
+`tools/release/run_native_sortie.py:LifeTowPilot` with passive current-camera,
+phase/frame-bound PNG/readback and same-frame metadata at the selected existing
+candidate. Current observation already reads support/capsule/actual drawn
+movers and clock; it does not capture the camera/pixels. No such new view CLI is
+claimed to exist. Operations' paused/tableau cameras cannot pass this contract.
+Accepted access stays closed; Central/Aft/Habitat parked capture failures retain
+their original causal reopening and cumulative budgets. Changing the view name
+or selecting the service does not authorize retrying those capture paths.
+
 ### Station presentation — finite review boundaries
 
-**Capture binding pass, 2026-10-26, source0383848bf: BLOCKED definition — Codex.**
-The existing13 subjects below are now mapped once to declared harness frames;
+**Original capture binding pass, 2026-10-26, source0383848bf; source fields
+completed by the linked contracts, actual view qualification still OPEN.**
+The existing13 subjects below are mapped once to declared harness frames;
 this is neither a visual review nor a new capture requirement. Reuse this map
 instead of repeating the source survey. Registry:
 `tools/release/graphical_harness_registry.json` (existing13 sets/143 PNGs).
@@ -9559,14 +9825,14 @@ Names are declared frames, not evidence that an image exists or passed review.
 | Habitat | Operations `04_habitat_service_access.png`; Scenes `habitat_exterior.png`, `habitat_common_room.png` | [Common-entry/bunk-wake/garden-observation contract](#aft-habitat-normal-view-contracts) fixes measured first-person camera,actual wayfinding versus room labels,1400×900 normal outputs and door/support/reservation comparisons. Accepted loop does not prove branch arrival;ordinary branch/camera capture remains missing implementation. y2.55 stage/no-image180.842s stop stays parked. |
 | Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | [Freight service/boarding normal-view contract](#freight-fleet-normal-view-contracts) binds live marker candidates,measured Player camera,atlas versus physical legends,2560×1440 image/metadata,real ServiceAccess and gantry/capsule comparison. Normal room arrival/door/image observer remains missing implementation;accepted689e2ed0e standalone pair stays scoped,no recapture. |
 | Fleet | Scenes `fleet_overview.png` is overview context only | [Zenith threshold normal-view contract](#freight-fleet-normal-view-contracts) binds the three existing approach feet candidates,measured current Player camera,actual atlas DOCK 01 ZENITH row,2560×1440 PNG/metadata and current capsule/berth/landing predicates. Door N/A/open dock,not invented E. Observer/actual pixels remain missing;accepted reuse stays scoped and overview is not this image. |
-| Annex | No explicit frame in the required13 sets | Console literals fixed: `SHIP SERVICES`, initial `READY // LAND & EXIT ENGINEER CRAFT`, `[ E ]  RESTOCK ACTIVE SHIP REPAIR KITS`. Still supply central-aisle arrival image/camera/eye height/FOV and interaction/clearance comparison. Unfinished south gate remains excluded. |
-| Observation | No explicit frame in the required13 sets | Member fixed to `observation-pad`; literals `OBSERVATION PAD`, `OBSERVATION  //  SURVEY ARRAY`, `←  LOGISTICS    \|    OBSERVATION  →`. Existing connector/threshold openings3.44m/5.66m remain. Still supply supported cross-landing camera/eye height/FOV/image and return comparison. |
-| Salvage | No explicit frame in the required13 sets | Literals fixed: `INSPECTION PAD`; `FIELD COIL`, `RELAY BOARD`, `CRACKED COUPLING`; `GRADE A // USABLE`, `GRADE B // USABLE`, `GRADE D // RECYCLE`. Reuse accepted WALK-SALVAGE access/inspection/revisit scopes. Still supply supported arrival camera/eye height/FOV/image/access comparison; native/final gates remain separate. |
-| VIP | No explicit frame in the required13 sets | Literals fixed: `VIP RECEPTION`, `MODERN INTERPRETATION`, `NO SOURCE DESCRIBES THIS ROOM`. Still supply supported reception-arrival camera/eye height/FOV/image and access comparison. Parked VIP walk remains parked. |
-| Tow | Operations `02_central_berth_operations.png` | `CentralTowServiceActivity`: ordinary nearby walking/boarding view, exact presentation phase, text if present and service/route clearance comparison. Paused tableau is not ordinary acceptance. |
-| Gantry | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png` | `FreightApproachGantry`: ordinary nearby walking/boarding view and exact operating phase/clearance comparison. Operations includes the real gantry envelope but does not prove that route. |
-| Arm | Operations `03_aft_operations_route.png` | `AftOperationsActivity`: dedicated service-arm phase/player pose and ordinary nearby walking/clearance comparison. Existing Aft failure boundary remains. |
-| Patrol | Operations `04_habitat_service_access.png` | `HabitatServicePatrol`: patrol phase/player-eye pose and ordinary access/clearance comparison. Existing Habitat failure boundary remains. |
+| Annex | No explicit frame in the required13 sets | [Supported aisle contract](#annex-observation-normal-view-contracts) fixes accepted route candidates,actual console/header/status/current-candidate E,kits5→6 and frame-bound measured Player camera/2560×1440 image. Accepted9af57671d route stays scoped/closed;passive camera/readback missing;unfinished south gate excluded. |
+| Observation | No explicit frame in the required13 sets | [Cross-landing contract](#annex-observation-normal-view-contracts) fixes observation-pad,original finite route feet,atlas versus actual physical labels,2560×1440 measured-camera PNG and static-opening/capsule comparison. Archived bae551d58 caller remains unmerged/unqualified;original tooltip/reopening and300/330 limits retained;integrated arrival/capture missing. |
+| Salvage | No explicit frame in the required13 sets | [Lower-row versus elevated-pad contract](#salvage-vip-normal-view-contracts) binds actual readouts/positions/controls/2560×1440 Player-camera proof. Accepted lower-row access/inspection/revisit stays scoped/closed;INSPECTION PAD points to distinct elevated marker whose ordinary continuation is missing,not accepted lower-row arrival. Capture/native/final remain open. |
+| VIP | No explicit frame in the required13 sets | [Reception arrival and recovered parked failure](#salvage-vip-normal-view-contracts) binds original candidates,mesh-sign literals,unlocked door/current E,chair/return,2560×1440 camera/capsule proof.64c74dd46 stair-base movement-monitor failure and source-supported step-assistance prerequisite now explicit;900s original route/no retry retained. Actual arrival/capture missing. |
+| Tow | Operations `02_central_berth_operations.png` | [Live service-view contract](#service-normal-view-contracts): original three OUTBOUND candidates,Central image reuse only if service visible,one-second actual advancing interval,7 movers,same-frame camera/pixels and capsule/access comparison. Original300/360/access acceptance and parked capture boundary retained. |
+| Gantry | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png` | [Live service-view contract](#service-normal-view-contracts): three original gantry-near candidates,conditional Freight image reuse,one-second actual elapsed/pose interval,2 movers,same-frame camera/pixels and capsule/boarding comparison;original route/caps/accepted coexistence retained. |
+| Arm | Operations `03_aft_operations_route.png` | [Live service-view contract](#service-normal-view-contracts): three existing upper-stair/gate/floor candidates,conditional upper-workpost image reuse,one-second actual elapsed/pose interval,3 movers,same-frame camera/pixels and upstairs access comparison;lower-room/parked failures not bypassed. |
+| Patrol | Operations `04_habitat_service_access.png` | [Live service-view contract](#service-normal-view-contracts): three original corridor/common candidates,conditional1400×900 common-entry image reuse,one-second actual elapsed/pose interval,2 drones,same-frame camera/pixels and real MainAccess/capsule comparison. Accepted access/parked capture/caps retained. |
 
 Literal bindings above were filled from existing production owners2026-10-27:
 `station_wayfinding_signage.gd`, `jovian_freight_berth.gd`,
@@ -9581,8 +9847,9 @@ real enabled advancing service identity/drawn pose and mover counts7/2/3/2 stay
 fixed. Gantry/arm/patrol retain15s per walking goal,12s boarding,90seated frames,
 >11m nearby walk and every local sample≤12m from its activity origin; tow retains
 its>10m nearby walk. Those accepted access/coexistence results are not rendered
-player-eye evidence. What is still missing for each service is the ordinary-view
-phase/time interval, supported camera metadata and actual matching image/readback.
+player-eye evidence. The [live service-view contract](#service-normal-view-contracts) now fixes the
+ordinary-view interval and finite camera candidates. Actual supported camera
+metadata and matching image/readback remain missing implementation/execution.
 
 Further source surveying cannot supply the missing measured arrival cameras or
 rendered artifacts. The next capture capability must use the existing ordinary
@@ -9614,12 +9881,12 @@ claim. Scenes/Operations registry source and image stages remain pending;
 `08_wayfinding_pylon_player_eye.png` is outside required143 and cannot replace
 the parked Central view.
 
-Codex owns the missing view bindings above: supported player pose/eye height,
-exact state and readable strings, source-bound renderer/quality/scale/image
-conditions, and literal access/clearance endpoints. Existing settings can be
-reused where valid; do not infer measured clearance or readable text from source
-anchors. The definition and product container remain BLOCKED until these fields
-are supplied. This pass ends here; no automatic successor survey or capture.
+The linked contracts now supply source-resolvable candidates,controls,text,
+render settings,image/phase predicates and clearance endpoints for all13
+subjects. Codex owns their named missing ordinary continuation/observer/capture
+capabilities. Actual measured eye/support/clearance/readability is execution
+proof,not a source field to resurvey. Product acceptance remains OPEN;source
+definition does not close any unperformed view. No automatic capture is selected.
 Parked views require their recorded causal reopening evidence first. Review of
 required minimum/ultrawide/comfort cells retains the original scope and cannot
 be replaced by these overview mappings.
