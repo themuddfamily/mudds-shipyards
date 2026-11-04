@@ -275,6 +275,11 @@ now binds its nested craft identity,hostile loss,natural Dock06 reset,live
 markers and recovered repeater consumer. The original unproved codec fixture
 and parked-attempt limits remain prerequisites;no new run or correction is selected.
 
+[Cinder Light failed-engine capture/repair](docs/ROADMAP_BACKLOG.md#light-failed-engine-capture-repair-contract)
+now defines a controlled failed pose, finite hostile-contact endpoints, zero
+manual propulsion, normal landing and same-ledger repair/restored second flight.
+The ordinary caller and retained codec prerequisite remain open; no run is claimed.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain
