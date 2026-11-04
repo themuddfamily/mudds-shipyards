@@ -436,6 +436,19 @@ now specifies the existing ledger/result inputs, candidate build-note inventory
 and exact blocking verdict. Actual candidate review and the remaining breakdown
 are open; zero known bugs alone cannot pass unfinished release journeys.
 
+[Torrent remaining damage](docs/ROADMAP_BACKLOG.md#torrent-remaining-contact-repair-contract)
+now fixes hit budgets and actual component consumers. It also identifies the
+missing legitimate return path after wing/engine failure: the defender phase
+blocks landing, so those cases cannot yet be selected for execution.
+
+Existing [docking recovery](docs/ROADMAP_BACKLOG.md#installed-recovery-exact-cuts),
+[Halyard engineer](docs/ROADMAP_BACKLOG.md#halyard-engineer-moving-return),
+[Zenith contact/repair](docs/ROADMAP_BACKLOG.md#zenith-remaining-contact-repair-contract)
+and [caption episode](docs/ROADMAP_BACKLOG.md#caption-ordinary-episode-contract)
+contracts already define their acceptance fields. Their remaining work is the
+named implementation and qualification, with parked prerequisites preserved;
+do not restart those definition surveys from stale status wording.
+
 ## Current work and next selection
 
 ## Selecting work after the breakdown
