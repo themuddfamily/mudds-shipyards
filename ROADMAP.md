@@ -70,6 +70,12 @@ now names the procedural source, complete snapshot, clean import/scoped checks
 and handoff outputs. Archive assembly/comparison and actual reproduction remain
 open; no missing Blender prerequisite or new visual-review roster is introduced.
 
+[Zenith hostile loss/recovery](docs/ROADMAP_BACKLOG.md#zenith-hostile-loss-recovery-contract)
+now binds actual H68/lethal receipts, natural same-craft reset/canopy-wing cleanup
+and fresh pilot operation. Its earlier incoming-startup crash still needs an
+actionable symbolized callsite/causal correction; no new attempt is selected.
+Accepted Zenith pilot/hit/reuse/Main/handback results retain their exact scopes.
+
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
 Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller)
