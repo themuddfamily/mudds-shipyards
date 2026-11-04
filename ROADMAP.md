@@ -280,6 +280,12 @@ now defines a controlled failed pose, finite hostile-contact endpoints, zero
 manual propulsion, normal landing and same-ledger repair/restored second flight.
 The ordinary caller and retained codec prerequisite remain open; no run is claimed.
 
+[Current-fleet audio acceptance](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
+already has nine finite cases and [literal output criteria](docs/ROADMAP_BACKLOG.md#audio-native-output-contract).
+The expanded-fleet gate now references them: missing ordinary callers are Codex
+implementation; device, authorization, mix and numeric targets are named owner
+inputs. Audio definition no longer calls for another grammar/source survey.
+
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
 comparisons. Missing production-camera observation and solar/weather feed remain

@@ -949,10 +949,15 @@ runtime resources, tests, final17 balance and starter acceptance remain OPEN.
 
 - **Any handling value as a recommendation.** The trade-off rule constrains
   relationships between craft; it prescribes no numbers.
-- **Audio.** `audio_profile_id` is fleet data (`standard_fighter`,
-  `efficient_twin_recon`, `heavy_quad_freighter`) but no measured audio grammar
-  has been established, and inventing one here would be exactly the unevidenced
-  assertion this document argues against.
+- **Audio.** Acceptance belongs to the [nine existing fleet MIX cases](../COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
+  and [native-output contract](../ROADMAP_BACKLOG.md#audio-native-output-contract).
+  Their current profile/weapon exceptions, ordinary route owners, actual-output
+  and retirement checks are already defined; source gains or profile names do
+  not prove audible output. Missing ordinary caller/playback observations remain
+  Codex implementation; device/session, audible authorization, mix vectors and
+  numeric output targets remain the exact owner inputs recorded there. This
+  visual reference does not require another audio grammar or source survey.
+  Eight absent craft retain their SPEC-owned audio choices.
 - **LOD triangle budgets.** Zenith's 47,274 / 5,412 authored levels are its own
   frozen contract, not a fleet target; complete-current-craft targets now live in the existing
   [LOD contract](../ROADMAP_BACKLOG.md#current-craft-lod-contract).
