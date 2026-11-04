@@ -431,6 +431,11 @@ Parents 3/27 share the same 21 world cases; 6/35 share one final matrix; 11/21
 share the damage work. Breach/Torpedo combat and activity journeys are reused,
 not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes).
 
+[Final defect reconciliation](docs/ROADMAP_BACKLOG.md#final-candidate-defect-inventory)
+now specifies the existing ledger/result inputs, candidate build-note inventory
+and exact blocking verdict. Actual candidate review and the remaining breakdown
+are open; zero known bugs alone cannot pass unfinished release journeys.
+
 ## Current work and next selection
 
 ## Selecting work after the breakdown
