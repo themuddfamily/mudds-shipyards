@@ -449,6 +449,11 @@ contracts already define their acceptance fields. Their remaining work is the
 named implementation and qualification, with parked prerequisites preserved;
 do not restart those definition surveys from stale status wording.
 
+[Packaged Ember abandonment](docs/ROADMAP_BACKLOG.md#ember-packaged-physical-abandon-contract)
+now names the real pause-menu action, incomplete checkpoint/data checks and
+physical home/reuse endpoint. Its normal Save integration and complete input
+caller remain missing; the parked outbound gate remains a prerequisite.
+
 ## Current work and next selection
 
 ## Selecting work after the breakdown

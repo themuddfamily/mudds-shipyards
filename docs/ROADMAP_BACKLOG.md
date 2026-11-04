@@ -9134,7 +9134,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-SOURCE-ABANDON | Integrated physical Ember abandonment/home return | 1,14 | Qualification | DONE; e85157b4d, MemoryFilesystem, original exact31 | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | EMBER-OBSERVER | Native package observer production capability | 1 | Capability | DONE; 4270d71 source capability and startup-qualified checkpoint | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | Qualification | PARKED; failed fixture/repair and priority review retained | Original frozen observer/window-close route exits normally with exact fixture/cleanup and zero diagnostics; failed fixture not retried unchanged. |
-| EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | Qualification | GATED; supported OS-input route, old external-driver path UNSUPPORTED. The [ordinary outbound driver member](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27) is PARKED at the approach-command handoff after corrected UI and8,010km actual transit; its unmerged candidate supplies no accepted complete outward/landing caller. Do not rename that failed owner check as a fresh abandonment trial. BLOCKED definition — Codex: bind supported packaged OS-input caller/command, craft/profile, exact physical abandonment trigger, protected survey/progress/debt fields and complete reboard/ascent/strict-home/exit/reuse endpoints with original limits. The unsupported old external-driver path supplies no command. Reuse pending-abandon cold-restart/ordinary-Quit component proofs only in their recorded scope; record an unavailable caller/artifact before selection. | [World](#proof-world): supported packaged OS-input outbound/physical abandonment/reboard/ascent/home dock/exit/reuse; source/memory-store pass insufficient. |
+| EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | Qualification | GATED; supported OS-input route, old external-driver path UNSUPPORTED. The [ordinary outbound driver member](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27) is PARKED at the approach-command handoff after corrected UI and8,010km actual transit; its unmerged candidate supplies no accepted complete outward/landing caller. Do not rename that failed owner check as a fresh abandonment trial. The [physical abandonment contract](#ember-packaged-physical-abandon-contract) now binds the existing ordinary pause button, first-relay Save dependency, exact decline/pending/surface-clear/Host-reset/abandoned-return receipts, protected disk/reward fields, physical home/fresh Arrow reuse and concurrent limits. Missing ordinary Save production integration and complete packaged caller/readbacks remain Codex implementation; the unsupported old external-driver path supplies no command. Reuse pending-abandon cold-restart/ordinary-Quit component proofs only in their recorded scope; record an unavailable caller/artifact before selection. | [World](#proof-world): supported packaged OS-input outbound/physical abandonment/reboard/ascent/home dock/exit/reuse; source/memory-store pass insufficient. |
 | WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | Definition | Finite source cases bound in the [abandonment and next-visit contract](#world-abandonment-and-next-visit-binding). Aurora/Rime survey abort, airborne approach abort, ordinary surface return and lifecycle rescue are distinct; tree-detach interruption is separate. Full physical Ember return/home/exit/reuse and remaining disk-restart boundaries remain unqualified; accepted component and pending-abandon cuts are listed below. Execution GATED on the named ordinary/package callers and exact original route/kill/restart limits; Codex owns these missing executable bindings. Earned-but-unpaid end-visit loss is reproduced and fixed in checkpointf51e02a: [real-file/fresh-Main and once-only retry proof](history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026); ordinary physical return/distinct OS restart/full-world qualification remain open. One source pass complete; no unchanged survey or new matrix.  Ember explicit-abandon saved-checkpoint component is accepted in34f60da, with controlled-Host/MemoryFilesystem and staged return proof; remaining disk boundaries and full ordinary journeys remain open.  Exact pending-abandon exported real-file kill/cold-restart cut accepted on Gameb30a9ea93/Driver7337dc543 ([proof](history/ROADMAP_DELIVERIES.md#ember-pending-abandon-native-cold-restart-accepted-20261026)); full physical return/debt and other quit/detach cases remain open.  Ordinary application-Quit capture accepted on8e74c40 ([proof](history/ROADMAP_DELIVERIES.md#ember-ordinary-quit-checkpoint-capture-accepted-20261026)): actual Main/production collector saves current incomplete on-foot route/pose once; exported final real file has fresh index0 and passive original index1. Arbitrary Main removal/streaming and untested phases remain open. | Finite list of applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts, each phase/caller/reboard-or-safe-return/debt/next-visit endpoint fixed. |
 | WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Definition | Source-bound [finite exact disk boundaries](#world-save-exact-boundaries):Ember unpaid completion,paid-CAS/terminal failure,unsupported paid reboard/return,physical-home retirement and cold declined next visit;Aurora/Rime active,unpaid retirement,paid reboard,Quit/kill while restoring and accepted/refused Start Fresh. Exact records/cuts/recovery/payment/home outcomes and new4500/4560 complete-group target fixed;original constituent caps and accepted923/611,b30/733,8e74,f51 scopes preserved. Codex still implements normal save/native caller,Ember terminal-write retry/return continuation and crash-safe Aurora/Rime restore retirement;NOT_RUN beyond accepted scopes. | List actual uncovered per-world survey/earned-unpaid/paid/reboard/visit disk boundaries; expected recovery/protected state/real-file action fixed, no blanket grid. |
 | WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Qualification | DONE on exact archive923d7b326/caller6112944d0: saved unpaid relay, real SIGKILL/reap-9, distinct Boot Resume0, exact runtime boundary, safe yard/fresh boarding/attachment1→2/original completion and once-only receipt0→1, zero diagnostics. Correctly staged external metadata; no gameplay/predicate change/tolerance. Original300s/game/660s outer and317.447268s failed costs retained; new wall interval308.992s. [Accepted result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20). Canonical outbound/normal controls/native GPU NOT_RUN, standing-pose restore NOT_SUPPORTED; current/final-package and broader world gates remain open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -19041,6 +19041,152 @@ Stop this definition pass here. A next assignment must choose one literal
 uncovered executable boundary above and fix its missing command/fixture/limits;
 no repeat source inventory is selected. WORLD-ABANDON, WORLD-SOLO, WORLD-SAVE and
 EMBER-PACKAGE-ABANDON remain open in their original complete scopes.
+
+<a id="ember-packaged-physical-abandon-contract"></a>
+### Ember packaged abandonment: saved incomplete survey and physical home/reuse
+
+This supplies EMBER-PACKAGE-ABANDON's missing ordinary-action/data/endpoint
+fields. It selects no execution or archived source restoration. Reuse the
+[canonical Ember surface/return contract](#solo-ember-surface-return-contract)
+and [existing abandonment owners](#world-abandonment-and-next-visit-binding);
+this is one physical incomplete-survey abandonment, not a new world×phase matrix.
+The original full world goals, completed-unpaid debt, next-world-visit and cold
+restart members retain their existing owners and are not passed by this case.
+
+**Prerequisites and ownership.** The ordinary outbound caller remains PARKED on
+8219fa013 at the approach-source assertion. Its expected default input conflicts
+with the real Host takeover, but the actual replacement pointer was unlogged;
+source review does not retroactively pass the failed run. Reopening requires
+the original causal/source-readback and cumulative-cost decision, with original
+1800s/1860s and all spent corrections/costs preserved. The old external-script
+route remains UNSUPPORTED. No new abandonment selector may bypass that gate.
+
+Use the same physical Arrow/Player/Main and canonical 8,000km Ember body,
+caldera region/pad, normal UI and authored rates as the outbound contract.
+Capture original LocalShipInputSource/provider/stream and boarding reservation
+before departure, then the EXACT attached Host command source during approach.
+Bind current Host/session/attachment/source/origin-frame generations and actual
+rebase receipts; neither “always default” nor “any nondefault” is acceptable.
+Freeze one clean compiled Linux candidate's full source/ELF SHA-256, private
+XDG profile, default settings, isolated X11/Dummy display and fresh result path
+before selection. Final installed/final-release bytes keep their separate gates.
+
+**Actual on-foot entry and save dependency.** Complete the real outbound,
+caldera landing/OFFLINE and Host automatic disembark. Walk the existing egress
+and first relay legs to checkpoint1/2, next_objective_id=ember_return_beacon,
+complete=false, same positive activity_generation and supported Player. No
+second-relay completion or optional errand is required for this incomplete case.
+Fresh reward baseline for ember_beacon_data, ember_lava_tube_sounding_data and
+ember_lander_wreck_salvage_log is0/0/0; preserve all actual other data/debt.
+
+The [ordinary Ember Save Progress repair](#ember-ordinary-save-paid-errands)
+is a prerequisite: normal Save must commit this incomplete checkpoint without
+quitting or replacing Main. Settings Save is not that action; the current
+probe's direct save_interrupted_ember_journey call is not ordinary input.
+Required accepted/binding_reason=active_journey_saved and visible Progress saved.
+precede abandonment. Independently read primary/backup/store generation and the
+whole active `ember_relay_survey_completion` envelope: payload_kind=
+ember_relay_survey_active_journey, outer/inner receipt hashes, completion session/
+attachment/checkpoint/phase/journey-phase, route_identity, optional_progress,
+detached/no-replay flags. Missing ordinary Save integration is Codex runtime
+work, already bounded by that contract; do not create another save namespace.
+
+**One real abandonment press.** In normal Pause main, require the actual enabled
+PlanetaryCruiseToggleButton, text EMBER CRUISE  //  DISENGAGE and status
+EXPEDITION — ABANDON. A native click/focus-confirm emits the next bounded serial
+through HUD planetary_cruise_toggle_requested to GameFlow's existing handler,
+which calls abandon_ember_surface_journey(player_abandoned). Copy actual serial,
+button geometry/state, Host/actor/source identities and every result operand
+before a combined assertion. Do not invoke the signal, handler or helper from
+the driver, force-enable the button or use a caldera errand's abandon instead.
+
+| Bound point | Literal observation |
+| --- | --- |
+| Accepted durable decline | Primary-loaded store/current observed inner receipt, one successful CAS: active slot absent; ember_relay_survey_completion_declined equals the ENTIRE saved active record; store generation advances by1 and backup equals the immediately preceding primary. Allow no intervening unrelated commit when asserting this exact rotation. Independently retain both file reads and digest/generation/commit metadata. |
+| Pending physical return | Actual accepted ember_surface_abandon_pending_return; Host abandon requested=true/reason=player_abandoned, unchanged commit_count. Coordinator pending=true; genuine relay activity is aborted and cannot advance/pay. Same live supported on-foot Player, craft and composition remain available. Actual HUD says walk back and board to leave. |
+| Protected authority | All actual foreign payloads/settings/cargo and game_flow_reward_store receipt_serial/total_receipts/reward_counts/last_receipt match the before-decline snapshot. The three selected reward counts stay0. Completed-unpaid obligations are preserved by existing debt rules, not fabricated by a test fixture or claimed qualified by this fresh case. |
+
+**Physical return to the craft.** From actual first relay, reverse the existing
+return route's applicable suffix: x41.5 at z-44 → z.5 → x18.5 → z8 → x-9 → z.5,
+resolved through current region/body/rebase transforms with actual support.
+No position/basis write or fixed old world coordinate supplies walking. Host's
+next normal ON_FOOT observation sets surface_route.return_complete because
+abandon_requested is true; it does not mean the survey was completed or paid.
+Require that real flag plus actual nearby same ShipBoardingArea, then fresh E.
+Coordinator legitimately bypasses the paid-survey return gate while pending;
+physical proximity, reservation and Host's normal0.6s boarding still apply.
+Observe BOARDING→REBOARDED with exact seated pilot/reservation and takeoff with
+landed=false. Stay neutral during Host-owned takeoff/ascent.
+
+**Commit and handback are different from paid completion.** Capture accepted
+travel-session ascent evidence surface_clear_confirmed=true with actual orbital
+coordinate/speed/frame after altitude≥15m, BEFORE abandonment resets visit
+samples. Subscribe read-only through Host.get_travel_session_observation_source()
+to the real session phase_changed snapshot and COPY its accepted ascent sample
+before later reset signals. There is no public surface_clear_submitted snapshot
+field; do not fabricate one or invoke session mutations from the observer.
+After that evidence, require commit_count+1 and the real Host abandon receipt:
+retired_generation/new generation/attachment_generation, new generation greater
+than retired, exact actor IDs, ship_piloted/player_seated, berth_lease_released,
+host_attached and IDLE phase.
+Original input source/provider is restored under its current stream; seated
+Player retains its ordinary boarding token. Host rebuilds its own new command
+source for a later visit; that child must not be mistaken for the ship's source.
+Coordinator clears pending/journey/request/survey context, retires composition
+and queues its actual abandoned return. Never require the paid-loop
+runtime_ownership_returned/COMPLETED receipt here.
+
+Once the source is returned, normal W/attitude clears local terrain as required,
+then release actual flight controls for the production return approach. Observe
+real cruise participation and current terrain/coordinate/attachment acceptance,
+not merely return_approach metadata admission. MAX_ABANDON_RETURN_ARM_ATTEMPTS
+remains900; held manual departure does not spend that counter and a refused
+terminal cannot be reset by the driver. Require physical return >7,800km with
+>700 committed rebases, unloaded Ember and actual accepted
+abandoned_return_handed_to_station_lifecycle. That branch sets RETURN_TO_YARD
+and has no paid-loop station physical-arrival requirement; nevertheless actual
+normal default-source navigation/L/strict occupied ARROW HOME is mandatory.
+
+**Home, reuse and disk endpoint.** Same arrow_recon_berth, actual reservation/
+occupant/token/strict parked transform,90fresh neutral ticks/OFFLINE, physical E
+exit and supported walk. Clear >7m/reboard lockout normally, return to the live
+boarding marker, fresh E/current pilot/new consumed input stream, second actual
+short departure/free lease and second strict own home/OFFLINE/physical exit/walk.
+Reuse Arrow's accepted ordinary reuse predicates, not a second canonical Ember
+flight. Full next-world admission and cold-retired-checkpoint proof remain with
+WORLD-ABANDON/WORLD-SAVE. Record exact active-slot absence/passive saved record,
+zero selected rewards and protected payloads at decline, Host commit, home,
+second home and normal HUD Quit. Legitimate journal headers/clean markers may
+advance; every allowed payload change must be named and observed. Require real
+OS0, both clean markers, zero unexpected diagnostics and owned input/process/
+Xvfb cleanup; no SceneTree.quit or teardown-only pass.
+
+**Missing caller, limits and proof.** Codex extends existing native-sortie
+pilot/passive observer, startup-loader privacy and focused native-driver tests;
+normal Save production ownership stays in its separate existing runtime card.
+Main has no complete outward/abandon/home/reuse selector. Any proposed new CLI
+is not a runnable command. Required raw input/observer/stdout/stderr plus exact
+before/after durable documents belong under a fresh
+`/srv/mudds-work/ember-abandon-home/<selection>/` via existing --output; create
+nothing for this definition. Capture transient ascent/decline/handback operands
+before assertions and before owners reset them. No observer control/save/lease/
+reward calls or externally supplied --script override.
+
+First engineering whole-case ceiling2700s/outer2760s reuses the defined native
+Ember ceiling and includes both homes/reuse/UI exit; it is not measured success.
+The parked outbound1800s/1860s runs concurrently FROM ORIGINAL PROCESS START;
+no new wrapper extends it or resets its costs. Preserve original walking-leg
+allowances,10s UI/reboard,240s ascent and42000return/48000home/900exit+20walk ticks.
+For the abandoned branch,240s spans reboard through genuine return-cruise entry,
+including Host surface-clear and any ordinary manual clearance. Second short
+Arrow reuse has a300s engineering sublimit inside the same whole-case clock;
+all its existing tighter local limits remain. Original7200s staged source proof
+is not this native route. Freeze ≤90min implementation/check/build/integration/
+cleanup selection and its absolute stop before editing; first unexpected failure
+stops under the existing correction/cumulative rules. Definitions grant no
+outbound retry, new runtime policy, hardware/human qualification or whole-world
+acceptance. Implementation, real Save, complete caller and physical proof remain
+OPEN behind the existing prerequisites.
 
 ### Ordinary packaged Ember outbound driver — frozen 2026-10-27
 
