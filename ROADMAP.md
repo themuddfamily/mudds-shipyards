@@ -88,6 +88,11 @@ now bind offset-aim pose targets, completed-fan damage bands, real wing/engine
 consumers and same-life repaired use. Its existing Header core recipe is unchanged;
 ordinary control/readbacks and actual physical qualification remain open.
 
+[Jovian hostile loss/recovery](docs/ROADMAP_BACKLOG.md#jovian-hostile-loss-recovery-contract)
+now binds H260/lethal receipts, natural frame/access/ramp/tool cleanup and fresh
+650m/70-damage pilot operation. Its affected native departure motion/source-pin
+cause remains a prerequisite; no cargo refill or remote engineer pass is inferred.
+
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
 Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller)
