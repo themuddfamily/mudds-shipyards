@@ -18,40 +18,27 @@ containers, decisions and definitions; **337 is not a count of coding tasks left
 [Completed and parked work](docs/history/ROADMAP_DELIVERIES.md#roadmap-front-page-status-snapshot-archived-2026-10-27)
 is history, not the next work queue.
 
-## Current planning goal: finish the executable breakdown
+<a id="current-planning-goal-finish-the-executable-breakdown"></a>
 
-**PLAN-NEXT is OPEN.** Listing a missing acceptance field has not resolved it.
-This task finishes only when every source-resolvable field in all 337 records is
-supplied and each remaining external dependency names its exact input and owner.
-The [existing gap table](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
-is the finite scope; do not start another inventory or invent new planning IDs.
+## Executable breakdown complete
 
-For each unfinished contract, amend that same row or its linked section:
+**PLAN-NEXT is DONE as a definition task.** The337 existing records now have
+finite cases, prerequisite rules, actions/endpoints, limits and proof contracts,
+or exact owner-controlled inputs/artifacts. Three disjoint reviews checked the
+records; the [closure and dependencies](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
+record the result. All36 product parents and ten phase exits remain OPEN.
 
-1. Name the finite cases and literal prerequisite IDs, or explicitly none.
-2. Bind the starting state, ordinary actions or executable command, and expected
-   values at the endpoint. Each included case needs a pass/fail observation.
-3. Bind the existing time limits, proof environment and required output location.
-   If a command does not exist, name the exact missing production capability;
-   proposed syntax is not an executable command or a passing test.
-4. Separate a missing implementation from a missing decision/resource. Name the
-   unavailable answer/artifact and its owner; keep unresolved Codex work open.
-5. Reuse accepted results in their stated scope. Keep failed attempts and their
-   causal reopening conditions attached to the same goal.
+This does not mean every task is ready to run. Missing production capabilities
+and ordinary callers remain implementation work. Owner decisions, unavailable
+artifacts/access and actual qualification retain their named gates. Proposed
+commands are not executable support; accepted results and failed attempts keep
+their source scopes, costs and reopening conditions.
 
-**Acceptance for PLAN-NEXT:** all five checks hold for every record; each
-container names its complete finite membership; no unresolved Codex-owned
-acceptance field remains. Preserve all 337 identities/order, the 36 parents,
-ten phase exits, original full-journey limits and existing accepted results.
-A documentation check proves this breakdown only; it cannot pass a game goal.
-
-Definition work supplies one named missing field at a time within the existing
-15–30 minute allocation and stops at its answer or exact unavailable input.
-Do not resurvey a completed source map or create a successor to continue an
-expired attempt. An unresolved field keeps PLAN-NEXT open. The priority in this
-session is this requested breakdown; it does not reopen parked gameplay trials.
-Titan and the other missing-craft proposals still require their recorded design
-choices before implementation.
+Select a bounded capability from its existing contract. Freeze exact source/
+package, owned files, input/profile, expected result, proof output, original
+limits and cleanup before editing. Split implementation that cannot close within
+90minutes; complete journeys/soaks retain their full clocks. Do not repeat the
+completed source maps or create another roadmap inventory.
 
 [Bulwark pilot handling/combat](docs/ROADMAP_BACKLOG.md#bulwark-pilot-combat-contract)
 now binds zero-lift departure, finite input/camera observations, one real50-point
@@ -407,8 +394,8 @@ physical-device and native-hardware checks stay open until actually performed.
 Report **goal → visible result → status → proof → remaining blocker → elapsed
 time → next action**. Definitions, validators, tests and commits are not a project
 percentage. The inventory has337 records, including definitions and containers;
-that is not a remaining implementation count. PLAN-NEXT stays open until every
-source-resolvable acceptance field is supplied. Exact current gaps remain in the
+that is not a remaining implementation count. PLAN-NEXT's definition is accepted;
+actual implementation, qualification and exact owner dependencies remain in the
 [existing contracts](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
 
 ## What finishing means
@@ -460,6 +447,16 @@ two-client acceptance contract. The accepted source harness remains narrower;
 production launch and packaged participation still need implementation.
 
 ## Current work and next selection
+
+Next implementation candidate: [ordinary Ember Save Progress and paid-errand
+acknowledgement](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands).
+The visible result is a working Save Progress action for a legitimate on-foot
+Ember visit, with paid errands preserved from durable reward authority. The
+contract owns four runtime files and existing focused tests; its75minute
+all-in estimate includes a fresh clean Windows checkpoint and validation.
+Preflight required tools/templates and freeze the absolute deadline before
+selection. Ordinary surface qualification retains the parked outbound gate;
+focused integration proof cannot close the full Ember journey.
 
 ## Selecting work after the breakdown
 
