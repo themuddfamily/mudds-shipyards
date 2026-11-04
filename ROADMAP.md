@@ -53,10 +53,13 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-[Bulwark hostile loss/recovery](docs/ROADMAP_BACKLOG.md#bulwark-hostile-loss-recovery-contract)
-now binds H300/lethal receipts, natural Dock03 reset/cabin cleanup and actual
-recovered pilot fire. Its missing ordinary caller and original parked access/
-gunner prerequisites remain open; the definition selects no retry or run.
+[Bulwark pilot handling/combat](docs/ROADMAP_BACKLOG.md#bulwark-pilot-combat-contract)
+now binds zero-lift departure, finite input/camera observations, one real50-point
+DRONE-01 hit and strict home/exit, preserving gunner DRONE-03's baseline.
+[Hostile loss/recovery](docs/ROADMAP_BACKLOG.md#bulwark-hostile-loss-recovery-contract)
+binds H300/lethal receipts, natural Dock03 reset/cabin cleanup and recovered
+pilot fire. Missing ordinary callers and original parked access/gunner
+prerequisites remain open; these definitions select no retry or run.
 
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
