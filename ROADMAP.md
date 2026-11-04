@@ -78,6 +78,10 @@ Accepted Zenith pilot/hit/reuse/Main/handback results retain their exact scopes.
 The [parked core/repair recipe](docs/ROADMAP_BACKLOG.md#zenith-parked-core-repair-contract)
 was already specified; its exact fields and unproved generation/Picket/failure-
 path checks are now linked. It stays unaccepted behind the same startup gate.
+[Remaining Zenith contact/repair fields](docs/ROADMAP_BACKLOG.md#zenith-remaining-contact-repair-contract)
+now bind fixed-patch pose targets, stage budgets and real repaired consumers;
+engine restoration requires actual airborne thrust. Solver/readbacks and physical
+qualification remain open, with no new incoming trial or relaxed core recipe.
 
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
