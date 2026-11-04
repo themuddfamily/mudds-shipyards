@@ -278,7 +278,10 @@ and parked-attempt limits remain prerequisites;no new run or correction is selec
 [Cinder Light failed-engine capture/repair](docs/ROADMAP_BACKLOG.md#light-failed-engine-capture-repair-contract)
 now defines a controlled failed pose, finite hostile-contact endpoints, zero
 manual propulsion, normal landing and same-ledger repair/restored second flight.
-The ordinary caller and retained codec prerequisite remain open; no run is claimed.
+[Non-engine contact/consumer/repair](docs/ROADMAP_BACKLOG.md#light-nonengine-contact-consumer-repair)
+now binds front localized damage, weak-wing fire refusal and failed-core manual
+aiming, with actual exposed faces, finite damage and restored-use predicates.
+Ordinary callers and the retained codec prerequisite remain open; no run is claimed.
 
 [Current-fleet audio acceptance](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 already has nine finite cases and [literal output criteria](docs/ROADMAP_BACKLOG.md#audio-native-output-contract).
