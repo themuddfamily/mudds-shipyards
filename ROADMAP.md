@@ -65,6 +65,10 @@ pilot fire. [Home and fresh reuse](docs/ROADMAP_BACKLOG.md#bulwark-home-reuse-co
 now binds supported clear/reapproach, a fresh input stream, second no-FIRE flight
 and second strict home/exit. Missing ordinary callers and original parked
 access/gunner prerequisites remain open; these definitions select no retry or run.
+[Editable source/cold reconstruction](docs/ROADMAP_BACKLOG.md#bulwark-editable-source-handoff)
+now names the procedural source, complete snapshot, clean import/scoped checks
+and handoff outputs. Archive assembly/comparison and actual reproduction remain
+open; no missing Blender prerequisite or new visual-review roster is introduced.
 
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
