@@ -83,6 +83,11 @@ now bind fixed-patch pose targets, stage budgets and real repaired consumers;
 engine restoration requires actual airborne thrust. Solver/readbacks and physical
 qualification remain open, with no new incoming trial or relaxed core recipe.
 
+[Arrow's remaining contact/repair fields](docs/ROADMAP_BACKLOG.md#arrow-remaining-contact-repair-contract)
+now bind offset-aim pose targets, completed-fan damage bands, real wing/engine
+consumers and same-life repaired use. Its existing Header core recipe is unchanged;
+ordinary control/readbacks and actual physical qualification remain open.
+
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
 Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller)
