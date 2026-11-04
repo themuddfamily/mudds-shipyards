@@ -75,6 +75,9 @@ now binds actual H68/lethal receipts, natural same-craft reset/canopy-wing clean
 and fresh pilot operation. Its earlier incoming-startup crash still needs an
 actionable symbolized callsite/causal correction; no new attempt is selected.
 Accepted Zenith pilot/hit/reuse/Main/handback results retain their exact scopes.
+The [parked core/repair recipe](docs/ROADMAP_BACKLOG.md#zenith-parked-core-repair-contract)
+was already specified; its exact fields and unproved generation/Picket/failure-
+path checks are now linked. It stays unaccepted behind the same startup gate.
 
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
