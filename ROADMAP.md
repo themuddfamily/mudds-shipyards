@@ -92,6 +92,10 @@ ordinary control/readbacks and actual physical qualification remain open.
 now binds H260/lethal receipts, natural frame/access/ramp/tool cleanup and fresh
 650m/70-damage pilot operation. Its affected native departure motion/source-pin
 cause remains a prerequisite; no cargo refill or remote engineer pass is inferred.
+[Engineer stand/release](docs/ROADMAP_BACKLOG.md#jovian-engineer-stand-retirement-contract)
+now distinguishes the detached crew ledger from retained repair stock, and names
+each required observation before an assertion. Its two failed trials remain
+parked; the correction and full return route are still unproved.
 
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
