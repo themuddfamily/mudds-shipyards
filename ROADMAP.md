@@ -61,8 +61,10 @@ binds actual solid shell patches, bounded damage, pilot/gunner consequences and
 same-ledger repair; damaged gunner proof uses an airborne handoff before repair.
 [Hostile loss/recovery](docs/ROADMAP_BACKLOG.md#bulwark-hostile-loss-recovery-contract)
 binds H300/lethal receipts, natural Dock03 reset/cabin cleanup and recovered
-pilot fire. Missing ordinary callers and original parked access/gunner
-prerequisites remain open; these definitions select no retry or run.
+pilot fire. [Home and fresh reuse](docs/ROADMAP_BACKLOG.md#bulwark-home-reuse-contract)
+now binds supported clear/reapproach, a fresh input stream, second no-FIRE flight
+and second strict home/exit. Missing ordinary callers and original parked
+access/gunner prerequisites remain open; these definitions select no retry or run.
 
 Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
 binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
