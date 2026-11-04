@@ -420,8 +420,8 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 [Final defect reconciliation](docs/ROADMAP_BACKLOG.md#final-candidate-defect-inventory)
 now specifies the existing ledger/result inputs, candidate build-note inventory
-and exact blocking verdict. Actual candidate review and the remaining breakdown
-are open; zero known bugs alone cannot pass unfinished release journeys.
+and exact blocking verdict. Actual candidate review and implementation/qualification
+remain open; zero known bugs alone cannot pass unfinished release journeys.
 
 [Torrent remaining damage](docs/ROADMAP_BACKLOG.md#torrent-remaining-contact-repair-contract)
 now fixes hit budgets and actual component consumers. It also identifies the
@@ -448,15 +448,20 @@ production launch and packaged participation still need implementation.
 
 ## Current work and next selection
 
-Next implementation candidate: [ordinary Ember Save Progress and paid-errand
-acknowledgement](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands).
-The visible result is a working Save Progress action for a legitimate on-foot
-Ember visit, with paid errands preserved from durable reward authority. The
-contract owns four runtime files and existing focused tests; its75minute
-all-in estimate includes a fresh clean Windows checkpoint and validation.
-Preflight required tools/templates and freeze the absolute deadline before
-selection. Ordinary surface qualification retains the parked outbound gate;
-focused integration proof cannot close the full Ember journey.
+[Ember Save Progress candidate is PARKED](docs/history/ROADMAP_DELIVERIES.md#ember-save-progress-candidate-parked-20261105).
+The HUD/Cinder button checks pass, but the required lifecycle refusal aggregate
+fails after the sole correction. Its operands were unlogged; the source fixture
+captures storage before a legitimate tutorial write. The candidate is archived
+unmerged, with its branch/worktree removed. No new playable build or runtime
+acceptance is claimed. Reopening needs the recorded causal/member proof and
+cumulative review; the original outbound gate remains parked separately.
+
+Verified official editor and Windows/Linux release templates are available in
+`/srv/mudds-work/toolchains/godot-4.7.1-official/`. Next independent candidate:
+[exported dedicated authority startup](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract),
+selecting its bounded launch/lifecycle capability before packaged participation.
+Freeze its own contract/deadline before implementation; do not reopen Ember by
+renaming or splitting its failed candidate.
 
 ## Selecting work after the breakdown
 

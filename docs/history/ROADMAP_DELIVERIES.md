@@ -4,6 +4,72 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+<a id="ember-save-progress-candidate-parked-20261105"></a>
+## Ember Save Progress candidate parked 20261105
+
+The existing ordinary Save/paid-errand capability is **PARKED/NOT_ACCEPTED**.
+Candidate4221ad72df57bd77fce3de7c1156687f15b5b517 remains archived unmerged;
+main runtime is unchanged. Base5275495efa77d58c3bcf882af8e64cdb2938c034 is in
+pushed main. The75minute card started2026-11-04 23:13:28UTC, hard stop2026-11-05
+00:28:28UTC, one correction. No full/outbound Ember trial was selected.
+
+Preflight restored the missing official4.7.1 editor and selected Windows/Linux
+release templates in `/srv/mudds-work/toolchains/godot-4.7.1-official/`.
+Downloads matched official SHA512 and template archive SHA256
+86409db6200b6f8fd3230989c2d2002851f3dd18acf11d7bdbafddf5a0dd0f72;
+actual version4.7.1.stable.official.a13da4feb. Global defaults/userdata were not
+changed. Initial isolated import exits0/20.582s/no diagnostics; authored export
+input preflight exits0. This retained cache is tooling, not a gameplay build.
+
+Planned RED: actual HUD context/button test exits1/2.392s with exactly three
+expected Ember context failures; actual Cinder Save/Load button test exits1/
+15.959s with exactly two expected dispatch/feedback failures. First GREEN
+attempt instead hits a HUD bool-inference parse error before assertions; root
+stops its exact owned supervisor, actual143/95.850s. Independent cumulative GO
+permits the single correction batch: explicit bool annotation and the final
+fixture's actual Begin Shift button rather than direct GameFlow start, which
+left HUD._started false. Scope/assertions/deadline remain unchanged.
+
+Corrected HUD exits0/2.226s/9assertions/one marker/no diagnostics. Corrected
+Cinder dispatch exits0/15.935s/7assertions/one marker/no diagnostics. Independent
+semantic review passes context fencing, existing intent compatibility, validated
+paid-only acknowledgements, active-errand refusal and refresh-stable feedback.
+The real-file lifecycle then exits1/131.479s,206assertions/one failing aggregate:
+“ordinary Save visibly refuses unsupported unpaid partial progress without
+dropping counters or writing”. Its feedback/generation/snapshot/files/caldera
+operands were NOT individually logged. Direct save-boundary refusal and the
+preceding actual-partial-route assertions pass; they do not pass this aggregate.
+Normal first-relay Save/quit observations are retained only in that failed,
+staged-outbound fixture scope. Its final OS1 cannot establish normal Exit/OS0.
+
+Source inspection shows the storage baseline was captured BEFORE starting the
+errand; accepted start legitimately persists tutorial seen-state before Save.
+That is a concrete source mismatch path, not observed individual failed-member
+values or a confirmed runtime defect. The missing operand logging is retained
+as an observation failure. No further patch/probe/rerun: the sole correction is
+spent. Legacy follow-up checks, export, EXE/ZIP/startup/checkpoint are NOT_RUN.
+No failed candidate or partial runtime result was merged merely to close it.
+
+Source, binary patch, thin Git bundle, all seven full changed files, raw logs/
+emitted final-document JSON and command/profile records are verified in
+`/srv/mudds-work/ember-save-progress-20261105/records.tar.gz`:
+3779706bytes/64members, SHA256
+62cc0c76de09885f16c93c3178ca1b4e8a3ac37b4781fa1ce921533775e6aa7f.
+Bundle verifies against retained base; every archived regular-file hash matches.
+Fresh remote/ownership checks confirm no owned remote branch. Exact-tip local
+branch and its clean worktree are removed after archive verification; no owned
+engine/supervisor survives. Only records.tar.gz/closeout.json remain in the case
+folder. Cleanup observed23:33:55UTC:20.45minutes on the card, plus4.15minutes
+prior tool restoration; final notes/push remain charged to this closure.
+
+Reopening first needs copied preassert member values, a baseline taken after
+legitimate start/publication, demonstrated causal correction and independent
+cumulative-priority review under the original full capability/costs. This record
+selects no new allowance or retry. Full normal surface/outbound/paid-errand,
+native/hardware/final candidate gates remain open; latest playable checkpoint
+remains f0d6796.
+
+
 
 
 
