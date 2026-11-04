@@ -454,6 +454,11 @@ now names the real pause-menu action, incomplete checkpoint/data checks and
 physical home/reuse endpoint. Its normal Save integration and complete input
 caller remain missing; the parked outbound gate remains a prerequisite.
 
+[Exported dedicated authority](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract)
+now has a concrete Boot/CLI, listening, orderly one-session exit and packaged
+two-client acceptance contract. The accepted source harness remains narrower;
+production launch and packaged participation still need implementation.
+
 ## Current work and next selection
 
 ## Selecting work after the breakdown
