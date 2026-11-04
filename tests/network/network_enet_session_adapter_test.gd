@@ -7,6 +7,63 @@ const ProjectileIntent := preload("res://scripts/network/network_projectile_inte
 const LandingIntent := preload("res://scripts/network/network_landing_intent.gd")
 const MovingInteriorRelationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
+const DedicatedRuntime := preload("res://scripts/network/dedicated_server_runtime.gd")
+
+class CapturingDedicatedRuntime extends DedicatedRuntime:
+	var exit_codes: Array[int] = []
+
+	func _request_process_exit(exit_code: int) -> void:
+		exit_codes.append(exit_code)
+		stop_requested.emit(exit_code)
+
+class DedicatedPlayer extends Node:
+	func is_control_enabled() -> bool:
+		return false
+
+	func is_seated() -> bool:
+		return false
+
+class DedicatedMain extends Node:
+	var phase: int = 0
+	var player: DedicatedPlayer = DedicatedPlayer.new()
+	var adapter: Node
+	var host_calls: int = 0
+	var shutdown_calls: int = 0
+	var orderly_calls: int = 0
+	var remaining_bodies: int = 0
+
+	func _init() -> void:
+		add_child(player)
+
+	func host_network_session(port: int, max_clients: int) -> Dictionary:
+		host_calls += 1
+		var result: Dictionary = adapter.call(&"host", port, max_clients)
+		return result
+
+	func get_network_session() -> Node:
+		return adapter
+
+	func get_network_host_boarding_seat() -> Dictionary:
+		return {}
+
+	func get_solo_crew_seat_status() -> Dictionary:
+		return {"seated": false, "assignment": {}}
+
+	func get_network_remote_body_audit() -> Dictionary:
+		return {"bodies": remaining_bodies}
+
+	func get_network_remote_pilot_audit() -> Dictionary:
+		return {"pilots": []}
+
+	func shutdown_network_session(reason: StringName) -> Dictionary:
+		shutdown_calls += 1
+		var result: Dictionary = adapter.call(&"shutdown", reason)
+		return result
+
+	func mark_orderly_shutdown() -> Dictionary:
+		orderly_calls += 1
+		return {"accepted": true}
+
 var _failures: Array[String] = []
 var _server: Adapter
 var _client: Adapter
@@ -508,6 +565,7 @@ func _initialize() -> void:
 		"server shutdown leaves no admitted peer records"
 	)
 	await _test_late_join_migration_epoch()
+	await _test_dedicated_server_lifecycle()
 	for branch in _branches:
 		var branch_root := branch.get("root") as Node
 		var branch_path: NodePath = branch.get("path")
@@ -580,6 +638,137 @@ func _test_late_join_migration_epoch() -> void:
 		"delayed admission cannot roll back the epoch or grant a seat or server authority")
 	host.shutdown()
 	client.shutdown()
+
+
+func _test_dedicated_server_lifecycle() -> void:
+	var adapters: Array[Adapter] = []
+	for label: String in ["DedicatedServer", "DedicatedGuestA", "DedicatedGuestB"]:
+		var branch: SubViewport = SubViewport.new()
+		branch.name = label
+		root.add_child(branch)
+		set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+		var adapter: Adapter = Adapter.new()
+		adapter.name = "NetworkSession"
+		branch.add_child(adapter)
+		adapters.append(adapter)
+		_branches.append({"root": branch, "path": branch.get_path()})
+	var host: Adapter = adapters[0]
+	var guest_a: Adapter = adapters[1]
+	var guest_b: Adapter = adapters[2]
+	var main: DedicatedMain = DedicatedMain.new()
+	main.adapter = host
+	host.get_parent().add_child(main)
+	var runtime: CapturingDedicatedRuntime = CapturingDedicatedRuntime.new()
+	runtime.port = _reserve_udp_port()
+	runtime.max_clients = 2
+	runtime.exit_after_guests = 2
+	host.get_parent().add_child(runtime)
+	runtime.on_startup_completed(main)
+	runtime.on_startup_completed(main)
+	_dedicated_observe("fresh", runtime, main, host)
+	_check(main.host_calls == 1 and host.is_server() and runtime.exit_codes.is_empty(),
+		"normal dedicated handoff hosts exactly once and a fresh empty listener keeps serving")
+	var joined: Dictionary = guest_a.join("127.0.0.1", runtime.port)
+	print("DEDICATED_TEST early_join accepted=%s status=%s" % [joined.get("accepted"), joined.get("status")])
+	await _pump_until(func() -> bool: return host.get_admitted_peer_ids().size() == 1, 3.0)
+	_dedicated_observe("one_guest", runtime, main, host)
+	_check(host.get_admitted_peer_ids().size() == 1 and not runtime._armed,
+		"one real authenticated guest cannot arm a two-guest lifecycle")
+	guest_a.shutdown(&"early_guest_left")
+	await _pump_until(func() -> bool: return host.get_admitted_peer_ids().is_empty(), 3.0)
+	await process_frame
+	_dedicated_observe("early_guest_left", runtime, main, host)
+	_check(host.is_server() and not runtime._armed and runtime.exit_codes.is_empty(),
+		"empty admission after an early guest leaves cannot stop an unarmed server")
+	var joined_a: Dictionary = guest_a.join("127.0.0.1", runtime.port)
+	var joined_b: Dictionary = guest_b.join("127.0.0.1", runtime.port)
+	print("DEDICATED_TEST concurrent_joins a_accepted=%s a_status=%s b_accepted=%s b_status=%s" % [
+		joined_a.get("accepted"), joined_a.get("status"), joined_b.get("accepted"), joined_b.get("status")])
+	await _pump_until(func() -> bool: return host.get_admitted_peer_ids().size() == 2, 3.0)
+	_dedicated_observe("two_guests", runtime, main, host)
+	_check(host.get_admitted_peer_ids().size() == 2 and runtime._armed and runtime._admitted_tuples.size() == 2,
+		"two concurrent real hello admissions arm distinct production peer-generation tuples")
+	var peer_id: int = guest_a.multiplayer.get_unique_id()
+	var registered_frame: Dictionary = host.register_moving_interior_frame(&"dedicated-frame", 1)
+	var registered_body: Dictionary = host.register_avatar(peer_id, &"dedicated-avatar", 1)
+	var registered_moving: Dictionary = host.register_moving_interior_occupancy(peer_id, &"dedicated-avatar", 1, &"dedicated-frame", 1)
+	var registered_ship: Dictionary = host.register_owned_ship(&"dedicated-ship", 1)
+	var claimed_ship: Dictionary = host.claim_ship_for_peer(peer_id, &"dedicated-ship", 1, 0)
+	var registered_seat: Dictionary = host.register_crew_seat(&"dedicated-seat", &"dedicated-ship", &"pilot", &"dedicated-frame", 1)
+	var claimed_seat: Dictionary = host.claim_crew_seat(peer_id, &"dedicated-avatar", &"dedicated-seat", &"pilot", 0)
+	var generation: int = 0
+	for peer: Dictionary in (host.get_snapshot().lifecycle as Dictionary).get("peers", []) as Array:
+		if int(peer.get("peer_id", 0)) == peer_id:
+			generation = int(peer.get("peer_generation", 0))
+	var claimed_role: Dictionary = host.accept_crew_role_intent(peer_id, generation, &"dedicated-avatar", &"pilot", 1)
+	print("DEDICATED_TEST ownership frame=%s body=%s moving=%s ship=%s ship_claim=%s seat=%s seat_claim=%s role=%s generation=%d" % [
+		registered_frame.get("accepted"), registered_body.get("accepted"), registered_moving.get("accepted"),
+		registered_ship.get("accepted"), claimed_ship.get("accepted"), registered_seat.get("accepted"),
+		claimed_seat.get("accepted"), claimed_role.get("accepted"), generation])
+	_check(bool(registered_frame.get("accepted", false)) and bool(registered_body.get("accepted", false))
+		and bool(registered_moving.get("accepted", false)) and bool(registered_ship.get("accepted", false))
+		and bool(claimed_ship.get("accepted", false)) and bool(registered_seat.get("accepted", false))
+		and bool(claimed_seat.get("accepted", false)) and bool(claimed_role.get("accepted", false)),
+		"lifecycle fixture owns actual movement, frame occupancy, ship, crew seat and role receipts")
+	# Main's body retirement may finish after the adapter's mutation callback.
+	# Retain that readback briefly to prove empty transport/admission is insufficient.
+	main.remaining_bodies = 1
+	var stopped_in_callback: Array[bool] = []
+	var observe_disconnect: Callable = func(_peer: int, _receipt: Dictionary) -> void:
+		stopped_in_callback.append(main.shutdown_calls > 0 or not runtime.exit_codes.is_empty())
+	host.peer_disconnected.connect(observe_disconnect)
+	guest_a.shutdown(&"dedicated_guest_left")
+	guest_b.shutdown(&"dedicated_guest_left")
+	await _pump_until(func() -> bool: return host.get_admitted_peer_ids().is_empty(), 3.0)
+	await process_frame
+	_dedicated_observe("ledger_empty_body_retained", runtime, main, host)
+	print("DEDICATED_TEST callback_shutdown=%s moving=%s seat=%s role_count=%s ship_owner=%s avatars=%s" % [
+		stopped_in_callback, host.get_moving_interior_occupancy(&"dedicated-avatar"),
+		host.get_crew_assignment(peer_id, &"dedicated-avatar"), host.get_crew_role_snapshot().get("role_count"),
+		host.get_owned_ship(&"dedicated-ship").get("owner_peer_id"), host.get_movement_authority_audit().get("registered_avatar_count")])
+	_check(host.is_server() and runtime.exit_codes.is_empty() and main.shutdown_calls == 0
+		and stopped_in_callback.size() == 2 and not stopped_in_callback.has(true),
+		"ordinary disconnect callbacks retire ledgers without synchronous shutdown or premature body retirement")
+	main.remaining_bodies = 0
+	await _pump_until(func() -> bool: return not runtime.exit_codes.is_empty(), 3.0)
+	_dedicated_observe("orderly_stop", runtime, main, host)
+	_check(runtime.exit_codes == [0] and main.shutdown_calls == 1 and main.orderly_calls == 1 and not host.is_session_active(),
+		"deferred post-retirement stop performs one existing shutdown, clean marker and successful process-exit intent")
+	host.peer_disconnected.disconnect(observe_disconnect)
+	runtime.free()
+	main.free()
+	# Omitting exit-after-guests keeps the listener available after real use.
+	var serving_main: DedicatedMain = DedicatedMain.new()
+	serving_main.adapter = host
+	host.get_parent().add_child(serving_main)
+	var serving: CapturingDedicatedRuntime = CapturingDedicatedRuntime.new()
+	serving.port = _reserve_udp_port()
+	serving.max_clients = 1
+	host.get_parent().add_child(serving)
+	serving.on_startup_completed(serving_main)
+	guest_a.join("127.0.0.1", serving.port)
+	await _pump_until(func() -> bool: return host.get_admitted_peer_ids().size() == 1, 3.0)
+	_dedicated_observe("keep_serving_admitted", serving, serving_main, host)
+	_check(host.get_admitted_peer_ids().size() == 1, "keep-serving mode admits an ordinary real guest")
+	guest_a.shutdown()
+	await _pump_until(func() -> bool: return host.get_admitted_peer_ids().is_empty(), 3.0)
+	await process_frame
+	_dedicated_observe("keep_serving_empty", serving, serving_main, host)
+	_check(host.is_server() and serving.exit_codes.is_empty() and serving_main.shutdown_calls == 0,
+		"omitted exit-after-guests continues serving after a real guest leaves")
+	serving.free()
+	serving_main.free()
+	host.shutdown()
+
+
+func _dedicated_observe(label: String, runtime: CapturingDedicatedRuntime, main: DedicatedMain, host: Adapter) -> void:
+	var lifecycle: Dictionary = host.get_snapshot().get("lifecycle", {}) as Dictionary
+	var tuples: Array[Dictionary] = []
+	for peer: Dictionary in lifecycle.get("peers", []) as Array:
+		tuples.append({"peer_id": peer.get("peer_id"), "peer_generation": peer.get("peer_generation"), "connected": peer.get("connected")})
+	print("DEDICATED_TEST %s host_calls=%d server=%s capacity=%s armed=%s tuples=%s selected=%s bodies=%d shutdown=%d orderly=%d exits=%s" % [
+		label, main.host_calls, host.is_server(), host.get_session_capacity_snapshot(), runtime._armed,
+		tuples, runtime._admitted_tuples, main.remaining_bodies, main.shutdown_calls, main.orderly_calls, runtime.exit_codes])
 
 
 var _assertions := 0

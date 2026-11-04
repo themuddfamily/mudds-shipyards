@@ -92,6 +92,7 @@ var _display_settings_report: Dictionary = {}
 var _startup_graphics_profile := RuntimeSettings.DEFAULT_GRAPHICS_PROFILE
 var _early_cli_exit_code := 0
 var _reflection_reentry_requested := false
+var _dedicated_server_requested: bool = false
 ## The scene resource load has one explicit owner. Keeping this handle on Boot
 ## lets `_exit_tree()` join it even if Boot is cancelled while the worker is in
 ## ResourceLoader, so no thread or returned Resource can outlive the scene that
@@ -103,7 +104,38 @@ var _startup_textures: Array[Texture2D] = []
 
 
 func _ready() -> void:
-	var command_line := OS.get_cmdline_args()
+	var command_line: PackedStringArray = startup_command_line()
+	# Terminal information remains independent of every gameplay launch mode.
+	var early_cli_mode: StringName = cli_mode(command_line)
+	if early_cli_mode == &"support_export":
+		_run_early_support_export(cli_support_export_path(command_line))
+		return
+	if not early_cli_mode.is_empty():
+		print(format_cli_output(early_cli_mode))
+		call_deferred("_quit_after_cli_output")
+		return
+	var dedicated: Dictionary = dedicated_server_request(command_line,
+		DisplayServer.get_name(), AudioServer.get_driver_name())
+	if bool(dedicated.requested):
+		if not bool(dedicated.accepted):
+			print("DEDICATED_SERVER_REJECTED: explicit bounded arguments, headless display and Dummy audio required")
+			_early_cli_exit_code = 2
+			call_deferred("_quit_after_cli_output")
+			return
+		_dedicated_server_requested = true
+		var dedicated_script: GDScript = load("res://scripts/network/dedicated_server_runtime.gd") as GDScript
+		if dedicated_script == null or not dedicated_script.can_instantiate():
+			print("DEDICATED_SERVER_FAILED: runtime unavailable")
+			_early_cli_exit_code = 1
+			call_deferred("_quit_after_cli_output")
+			return
+		var dedicated_runtime: Node = dedicated_script.new() as Node
+		dedicated_runtime.name = "DedicatedServerRuntime"
+		dedicated_runtime.set(&"port", int(dedicated.port))
+		dedicated_runtime.set(&"max_clients", int(dedicated.max_clients))
+		dedicated_runtime.set(&"exit_after_guests", int(dedicated.exit_after_guests))
+		add_child(dedicated_runtime)
+		startup_completed.connect(Callable(dedicated_runtime, &"on_startup_completed"))
 	var preferences := settings_restart_probe_request(command_line, DisplayServer.get_name(),
 		AudioServer.get_driver_name(), _has_private_settings_restart_profile(command_line))
 	if bool(preferences.requested):
@@ -159,14 +191,6 @@ func _ready() -> void:
 		observer.set("_ember", "--native-sortie-observer=ember" in command_line)
 		add_child(observer)
 		startup_completed.connect(observer.on_startup_completed)
-	var early_cli_mode := cli_mode(command_line)
-	if early_cli_mode == &"support_export":
-		_run_early_support_export(cli_support_export_path(command_line))
-		return
-	if not early_cli_mode.is_empty():
-		print(format_cli_output(early_cli_mode))
-		call_deferred("_quit_after_cli_output")
-		return
 	if "--frame-capture" in command_line:
 		var capture := load("res://scripts/diagnostics/frame_capture.gd").new() as Node
 		capture.name = "FrameCapture"
@@ -212,6 +236,72 @@ func _apply_display_stretch_policy() -> void:
 
 func _quit_after_cli_output() -> void:
 	get_tree().quit(_early_cli_exit_code)
+
+
+## Godot keeps arguments following `--` in a separate array. Both forms remain
+## supported for existing startup checks and the exported dedicated interface.
+static func startup_command_line() -> PackedStringArray:
+	var arguments: PackedStringArray = OS.get_cmdline_args()
+	arguments.append_array(OS.get_cmdline_user_args())
+	return arguments
+
+
+static func dedicated_server_request(
+		args: PackedStringArray, display_name: String, audio_name: String
+	) -> Dictionary:
+	var requested: bool = false
+	var selectors: int = 0
+	var values: Dictionary = {}
+	var malformed: bool = false
+	var conflicting: bool = false
+	for argument: String in args:
+		if argument.begins_with("--dedicated-server"):
+			requested = true
+			selectors += 1
+			malformed = malformed or argument != "--dedicated-server"
+		elif argument.begins_with("--network-port") or argument.begins_with("--network-max-clients") \
+				or argument.begins_with("--exit-after-guests"):
+			requested = true
+			var key: String = argument.get_slice("=", 0)
+			if key not in ["--network-port", "--network-max-clients", "--exit-after-guests"] \
+					or argument.count("=") != 1 or values.has(key):
+				malformed = true
+				continue
+			var digits: String = argument.get_slice("=", 1)
+			if digits.is_empty() or digits.lstrip("0").length() > 5:
+				malformed = true
+				continue
+			for index: int in digits.length():
+				if digits.unicode_at(index) < 48 or digits.unicode_at(index) > 57:
+					malformed = true
+			values[key] = digits.to_int()
+		elif argument in [CLI_STARTUP_CHECK, CLI_VERSION, CLI_SUPPORT_INFO, CLI_SUPPORT_EXPORT,
+				"--help", "-h"] or argument.begins_with("--frame-capture") \
+				or argument.begins_with("--reflection-reentry") \
+				or argument.begins_with("--native-sortie") \
+				or argument.begins_with("--in-world-interruption") \
+				or argument.begins_with("--settings-restart"):
+			conflicting = true
+	if not requested:
+		return {"requested": false, "accepted": false}
+	var selected_port: int = int(values.get("--network-port", 0))
+	var capacity: int = int(values.get("--network-max-clients", 0))
+	var guests: int = int(values.get("--exit-after-guests", 0))
+	var accepted: bool = not malformed and not conflicting and selectors == 1 \
+		and selected_port >= 1 and selected_port <= 65535 and capacity >= 1 and capacity <= 32 \
+		and (not values.has("--exit-after-guests") or (guests >= 1 and guests <= capacity)) \
+		and display_name == "headless" and audio_name == "Dummy"
+	return {"requested": true, "accepted": accepted,
+		"port": selected_port, "max_clients": capacity, "exit_after_guests": guests}
+
+
+func _finish_checked_startup_failure(reason: String) -> void:
+	if _dedicated_server_requested:
+		print("DEDICATED_SERVER_FAILED: " + reason)
+		get_tree().quit(1)
+	elif CLI_STARTUP_CHECK in startup_command_line():
+		print("STARTUP_MENU_READY_FAILED: " + reason)
+		get_tree().quit(1)
 
 
 ## Returns the one supported early-start information mode, or an empty name.
@@ -492,9 +582,7 @@ func run_startup() -> Node:
 		_finish_startup(startup_generation)
 		# Like the other failure branches: a package check must fail, not hang
 		# until the harness deadline.
-		if CLI_STARTUP_CHECK in OS.get_cmdline_args():
-			print("STARTUP_MENU_READY_FAILED: main scene unavailable")
-			tree.quit(1)
+		_finish_checked_startup_failure("main scene unavailable")
 		return null
 
 	# Resolving GameFlow/ShipyardWorld while this script compiles pulls their
@@ -507,9 +595,7 @@ func run_startup() -> Node:
 			"MUDDS SHIPYARDS", "Startup interrupted", 1, 1
 		)
 		_finish_startup(startup_generation)
-		if CLI_STARTUP_CHECK in OS.get_cmdline_args():
-			print("STARTUP_MENU_READY_FAILED: startup handoff unavailable")
-			tree.quit(1)
+		_finish_checked_startup_failure("startup handoff unavailable")
 		return null
 	var handoff: RefCounted = handoff_script.new()
 	_main = packed.instantiate()
@@ -540,9 +626,7 @@ func run_startup() -> Node:
 				"MUDDS SHIPYARDS", "Startup interrupted", 1, 1
 			)
 			_finish_startup(startup_generation)
-			if CLI_STARTUP_CHECK in OS.get_cmdline_args():
-				print("STARTUP_MENU_READY_FAILED: incomplete shipyard construction")
-				tree.quit(1)
+			_finish_checked_startup_failure("incomplete shipyard construction")
 			return null
 		_note_stage("construction", "Shipyard ready")
 
@@ -572,7 +656,7 @@ func run_startup() -> Node:
 	startup_completed.emit(_main)
 	if _reflection_reentry_requested:
 		_check_retained_reflection_reentry.call_deferred(startup_generation)
-	elif CLI_STARTUP_CHECK in OS.get_cmdline_args():
+	elif CLI_STARTUP_CHECK in startup_command_line():
 		_check_presented_menu.call_deferred(startup_generation)
 	return _main
 

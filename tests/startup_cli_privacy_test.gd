@@ -13,6 +13,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_dedicated_server_admission()
 	_test_settings_restart_admission()
 	for route: String in ["crew-recovery", "zenith-torrent-handback", "zenith-return-reuse", "hauler-supply", "patrol-relay-home", "race-home", "heavy-breach", "courier-withdraw-distance", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-escape", "courier-intercept", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement", "beacon-home"]:
 		var life_args := PackedStringArray(["--native-sortie-observer=" + route])
@@ -512,6 +513,65 @@ func _run() -> void:
 		return
 	print("STARTUP_CLI_PRIVACY_TEST_FAILED: ", "; ".join(_failures))
 	quit(1)
+
+
+func _test_dedicated_server_admission() -> void:
+	var loader: Node = StartupLoaderType.new()
+	loader.set("auto_start", false)
+	# Dynamic dispatch keeps the pre-implementation RED a behavioral failure,
+	# rather than a parser failure for a method that has not been introduced yet.
+	if not loader.has_method(&"dedicated_server_request"):
+		_check(false, "normal Boot must expose dedicated server argument admission")
+		loader.free()
+		return
+	var valid: PackedStringArray = PackedStringArray(["--dedicated-server", "--network-port=29124", "--network-max-clients=2", "--exit-after-guests=2"])
+	var request: Dictionary = loader.call(&"dedicated_server_request", valid, "headless", "Dummy")
+	print("DEDICATED_CLI_TEST bounded=%s" % request)
+	_check(request.get("accepted", false) and request.get("requested", false)
+		and request.get("port") == 29124 and request.get("max_clients") == 2
+		and request.get("exit_after_guests") == 2, "dedicated mode admits explicit bounded endpoint and lifecycle")
+	var ordinary: Dictionary = loader.call(&"dedicated_server_request", PackedStringArray(), "headless", "Dummy")
+	print("DEDICATED_CLI_TEST ordinary=%s" % ordinary)
+	_check(not ordinary.get("requested", true), "ordinary offline Boot does not request a listener")
+	var serving: Dictionary = loader.call(&"dedicated_server_request", PackedStringArray(["--dedicated-server", "--network-port=1", "--network-max-clients=32"]), "headless", "Dummy")
+	print("DEDICATED_CLI_TEST keep_serving=%s" % serving)
+	_check(serving.get("accepted", false) and serving.get("exit_after_guests", -1) == 0, "omitted guest exit keeps serving")
+	var upper_port: Dictionary = loader.call(&"dedicated_server_request", PackedStringArray(["--dedicated-server", "--network-port=65535", "--network-max-clients=1", "--exit-after-guests=1"]), "headless", "Dummy")
+	print("DEDICATED_CLI_TEST upper_port=%s" % upper_port)
+	_check(upper_port.get("accepted", false) and upper_port.get("port") == 65535
+		and upper_port.get("max_clients") == 1 and upper_port.get("exit_after_guests") == 1,
+		"dedicated mode accepts exact upper port and minimum guest bounds")
+
+	for arguments: Array in [
+		["--dedicated-server"], ["--network-port=29124"],
+		["--dedicated-server=true", "--network-port=29124", "--network-max-clients=2"],
+		["--dedicated-server", "--network-port=29124"],
+		["--dedicated-server", "--network-port=", "--network-max-clients=2"],
+		["--dedicated-server", "--network-port=29124", "--network-max-clients=2=3"],
+		["--dedicated-server", "--network-port=29124", "--network-max-clients=2.0"],
+		["--dedicated-server", "--network-port=0", "--network-max-clients=2"],
+		["--dedicated-server", "--network-port=65536", "--network-max-clients=2"],
+		["--dedicated-server", "--network-port=+29124", "--network-max-clients=2"],
+		["--dedicated-server", "--network-port=29124x", "--network-max-clients=2"],
+		["--dedicated-server", "--network-port=29124", "--network-max-clients=0"],
+		["--dedicated-server", "--network-port=29124", "--network-max-clients=33"],
+		["--dedicated-server", "--network-port=29124", "--network-max-clients=2", "--exit-after-guests=0"],
+		["--dedicated-server", "--network-port=29124", "--network-max-clients=2", "--exit-after-guests=3"],
+	]:
+		var rejected: Dictionary = loader.call(&"dedicated_server_request", PackedStringArray(arguments), "headless", "Dummy")
+		print("DEDICATED_CLI_TEST malformed arguments=%s result=%s" % [arguments, rejected])
+		_check(rejected.get("requested", false) and not rejected.get("accepted", true), "dedicated arguments reject missing or malformed bounds")
+	for conflict: String in ["--dedicated-server", "--network-port=29125", "--network-max-clients=2", "--exit-after-guests=1", "--startup-check", "--frame-capture", "--reflection-reentry-check", "--native-sortie-observer", "--in-world-interruption-stage=arm", "--settings-restart-stage=writer", "--version", "--support-info", "--support-export", "--help"]:
+		var arguments: PackedStringArray = valid.duplicate()
+		arguments.append(conflict)
+		var rejected: Dictionary = loader.call(&"dedicated_server_request", arguments, "headless", "Dummy")
+		print("DEDICATED_CLI_TEST conflict=%s result=%s" % [conflict, rejected])
+		_check(not rejected.get("accepted", true), "dedicated mode rejects duplicate or competing startup mode")
+	for drivers: Array in [["X11", "Dummy"], ["headless", "PulseAudio"]]:
+		var rejected: Dictionary = loader.call(&"dedicated_server_request", valid, drivers[0], drivers[1])
+		print("DEDICATED_CLI_TEST drivers=%s result=%s" % [drivers, rejected])
+		_check(not rejected.get("accepted", true), "dedicated mode requires actual headless display and Dummy audio")
+	loader.free()
 
 
 func _test_settings_restart_admission() -> void:
