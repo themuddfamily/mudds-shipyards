@@ -56,6 +56,9 @@ choices before implementation.
 [Bulwark pilot handling/combat](docs/ROADMAP_BACKLOG.md#bulwark-pilot-combat-contract)
 now binds zero-lift departure, finite input/camera observations, one real50-point
 DRONE-01 hit and strict home/exit, preserving gunner DRONE-03's baseline.
+[Nonfatal contact/repair](docs/ROADMAP_BACKLOG.md#bulwark-nonfatal-contact-repair-contract)
+binds actual solid shell patches, bounded damage, pilot/gunner consequences and
+same-ledger repair; damaged gunner proof uses an airborne handoff before repair.
 [Hostile loss/recovery](docs/ROADMAP_BACKLOG.md#bulwark-hostile-loss-recovery-contract)
 binds H300/lethal receipts, natural Dock03 reset/cabin cleanup and recovered
 pilot fire. Missing ordinary callers and original parked access/gunner
