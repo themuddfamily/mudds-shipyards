@@ -15857,6 +15857,20 @@ This early landing window is an unexecuted pass condition,not a measured timing.
 It is an engineering proof window derived from existing passive repair,not a
 new player-facing timed mechanic or permission to change repair policy.
 
+**Latest attempt2026-11-05: PARKED/unaccepted.** Candidate00e48191b
+implements the shared route but its actual three-peer source check stops at
+B's first continuity predicate after accepted disembark: the original Player
+is at exact station spawn, not the Halyard exterior. Supported15-tick settling,
+20-tick walking and fresh reboard are unproved. The sole parser-typing correction
+was consumed; no further correction/trial, runtime merge or checkpoint follows.
+Accepted operation-sample and exterior transition branch operands were not
+captured, so normal fallback versus craft-loss recovery is unresolved; do not
+infer a gate cause from the endpoint alone. Future causal work must bind those
+actual operands and preserve the complete existing route/ownership/limits plus
+cumulative cost. Verified source/raw archive and exact cleanup are in the
+[terminal delivery record](history/ROADMAP_DELIVERIES.md#halyard-physical-egress-parked-20261105).
+Full engineer/moving/paid-repair and other crew qualifications remain OPEN.
+
 **Named production repair — physical Halyard passenger exterior exit.** Current
 GameFlow `_release_network_client_boarding_presentation` selects its physical
 passenger path only for Jovian;Halyard falls through to

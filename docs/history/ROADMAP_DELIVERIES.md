@@ -33498,3 +33498,68 @@ archive preservation. Temporary reopening case removed. Cleanup completed by
 01:55UTC within the original02:00:05 deadline; final commit/push follows within
 that same allowance. Only terminal documentation is integrated. Unaccepted
 implementation is not merged merely for cleanup; GitHub Actions stays disabled.
+
+
+<a id="halyard-physical-egress-parked-20261105"></a>
+### Halyard physical crew exit repair — PARKED at station-spawn jump, 2026-11-05
+
+Unaccepted candidate00e48191bcf7b54b0064d4ad388a0a39f7905048 from
+669779465d109851544c4a566e28f78779e01e7f; three files only:GameFlow,
+HalyardCrewTransport and existing network passenger fixture. It admits Halyard
+into the existing authenticated physical passenger route, adds its authored
+port hatch/airstair points and passenger endpoint, keeps Jovian/pilot paths
+separate, and uses that endpoint on intact-craft cancellation. Independent
+source review GO was conditional on execution. No candidate runtime was merged.
+
+Selection01:56:41UTC, estimate60min/hard90min03:26:41 including closure,
+source-ready cutoff02:21:41, one total correction. New selected
+--ordinary-two-client-egress reuses the existing normal-spawn BOARD prefix,
+private host plus A pilot/B passenger,300s whole/360s outer and existing helper
+limits. No pose/damage/repair/stock staging; untouched six kits, retained exact
+A helm/home and B role-stand/hatch/continuous exit/15 supported ticks/20 walking
+ticks/fresh reboard are this capability. Full moving/paid-engineer role is
+separate and remains OPEN; its five-kit endpoint is not this intact egress case.
+
+Initial import20.599s/OS0/zero diagnostics. First selected invocation fails
+before peer launch16.814s/OS1:three test locals cannot infer static types.
+Cumulative review at about9min authorizes the sole correction, explicit
+CrewSeatRoleAuthority/WeakRef/Dictionary annotations; no behavior/assertion/limit
+change. Corrected script parse16.948s/OS0/zero diagnostics. Source-review aim
+adjustment before the first invocation preserves the exact no-toggle-intercept
+predicate; it changes no input routing or departure authority.
+
+Corrected actual three-peer run134.924317s/OS1, no success marker. All normal
+station/hatch/chair admission and retained A/B ownership prefix reaches host
+seats_confirmed; B stands and host verifies supported current body/retired chair,
+then B reaches the port threshold and host emits depart_go. Earliest failure is
+B's continuity check at wall1793844536.64448/tick2963: original Player
+265700772452 is now at world(-8.5,.18,11), exact station spawn,
+craft-local(-45.5,-5.1,-42.3). Boarding confirmations2/last_statusdisembarked,
+claim empty, body source unbound, phaseAPPROACH_SHIP, transition_busyfalse.
+This does not prove continuous Halyard exit, supported exterior or reboard.
+
+Current local z is outside the frozen route bound. The immediately preceding
+point/step delta and accepted operation sample/exterior transition owner were
+not logged, so exact jump magnitude and which gate/branch failed are unknown.
+Source normal nonphysical fallback and craft-loss recovery can both use station
+spawn; snapshot does not distinguish them. No runtime cause or weakened check
+is inferred. Host/client dependent barrier failures and terminal-handshake
+errors follow B's abort; root log retains12 errors and all three actual actor
+OS exits1. All three recorded PIDs absent after cleanup. Independent terminal
+review NO-GO/PARK. No third correction/trial; Jovian/destruction regressions,
+exports/startups/checkpoint remain NOT_RUN. Main gameplay/playable52820a9 unchanged.
+
+Verified /srv/mudds-work/halyard-physical-egress-20261105/records.tar.gz:
+79regular members/3,893,689bytes, all extracted stream hashes verified;
+SHA2569830145f334919835df7a0e4da2fce01b537eeaad01ec8cadcf416ad03f4dc0e.
+Contains exact full three source files/final patch, verified incremental Git
+bundle, raw parser/corrected logs, actual peer receipts/profiles and retained
+selection/failure/correction clocks. closeout.json records member hashes,
+excluded durable-template symlink and completed cleanup. Remote branch absent;
+owned worktree removed and local feat/halyard-physical-egress CAS-deleted at exact
+00e48191b after archive verification. Only records.tar.gz/closeout.json remain
+in the case. Cleanup by02:12UTC, well within original03:26:41; notes/commit/push
+remain in that same budget. Future causal selection retains this elapsed cost,
+full route and limits; it needs actual operation/branch ownership observations,
+not an unchanged replay. GitHub Actions and native Windows/GPU/human gates remain
+unperformed. No parent or phase exit is closed by this failed attempt.

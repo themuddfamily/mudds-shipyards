@@ -458,20 +458,24 @@ production launch and packaged participation still need implementation.
 
 ## Current work and next selection
 
-[Ember Save Progress candidate is PARKED](docs/history/ROADMAP_DELIVERIES.md#ember-save-progress-candidate-parked-20261105).
-The HUD/Cinder button checks pass, but the required lifecycle refusal aggregate
-fails after the sole correction. Its operands were unlogged; the source fixture
-captures storage before a legitimate tutorial write. The candidate is archived
-unmerged, with its branch/worktree removed. No new playable build or runtime
-acceptance is claimed. Reopening needs the recorded causal/member proof and
-cumulative review; the original outbound gate remains parked separately.
+No implementation assignment is currently running. The latest bounded
+[Halyard physical passenger exit repair](docs/history/ROADMAP_DELIVERIES.md#halyard-physical-egress-parked-20261105)
+is **PARKED/unaccepted**: the real three-peer check receives departure confirmation,
+then observes the same Player at station spawn before continuous hatch/airstair
+exit. Exact fallback/recovery gate cause is not established. Unique source/raw
+are verified archived and the task branch/worktree removed; no runtime merge,
+checkpoint or further trial. Its original costs and reopening boundary remain.
 
-Verified official editor and Windows/Linux release templates are available in
-`/srv/mudds-work/toolchains/godot-4.7.1-official/`. Next independent candidate:
-[exported dedicated authority startup](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract),
-selecting its bounded launch/lifecycle capability before packaged participation.
-Freeze its own contract/deadline before implementation; do not reopen Ember by
-renaming or splitting its failed candidate.
+Ember Save Progress, Arrow atmospheric guidance and exported dedicated startup
+are delivered in their recorded source/package scopes; do not select them again
+as missing implementations. Latest playable remains52820a9. Ember outbound is
+parked separately at its planetary-gravity caller comparison.
+
+Select one independent ready production capability from its existing contract.
+A parked task needs its recorded causal reopening condition and cumulative-cost
+review; a changed name or automatic continuation does not clear a terminal stop.
+Verified official editor and Windows/Linux release templates remain available in
+`/srv/mudds-work/toolchains/godot-4.7.1-official/`.
 
 ## Selecting work after the breakdown
 
