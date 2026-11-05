@@ -227,205 +227,47 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active qualification/handoff: Bulwark complete editable source and cold
-reconstruction.** Existing [literal contract](docs/ROADMAP_BACKLOG.md#bulwark-editable-source-handoff).
+**No gameplay implementation or qualification is selected.** The requested
+roadmap clarification is documentation work. Select the next delivery only by
+filling the task card above; OPEN in the inventory does not mean ready to start.
 
-- **Result:** a complete tracked source.tar, exact commit/engine checksums and
-  editing/reproduction notes, backed by successful empty-cache reconstruction of
-  the existing procedural Bulwark through both named source suites. No model,
-  gameplay, renderer, evidence format or validator is added.
-- **Start/owners:** clean main46d083b21; freeze the exact full committed source
-  after this card, pinned Godot4.7.1/a13da4feb/SHA32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde.
-  Output `/srv/mudds-work/bulwark-source-art/20261105-124033`; fresh REPRO=`output/repro`.
-  Root owns git archive/full input comparison/notes/docs/cleanup; one execution
-  agent owns only the existing scoped matrix runs and their external results.
-  No Git branch, production edit, external publication or parked retry is selected.
-- **Dependencies:** procedural sources/material/import inputs and both existing
-  suites exist. Existing matrix uses filesystem manifests and supports a source
-  archive without .git. No exact prior cold-handoff PARK was found in the bounded
-  history check. Captures/gunner/ordinary/full-craft/native gates remain unchanged.
-- **Action:** git archive the full frozen commit, extract into unused REPRO with
-  no .git/.godot; compare every archived regular byte and symlink target. Fresh
-  external private XDG/TMPDIR/profile, no inherited display/editor/cache; actual
-  version invocation includes headless/Dummy. Run existing matrix headless/Dummy,
-  jobs1/timeout300/import-gate always/scope bulwark_heavy_gunship_test. Only its
-  actual PASS/clean import and suite/source/cache checks permit the second command:
-  import-gate never/scope bulwark_production_integration_test. Preserve the literal
-  contract's sequential commands and complete raw outputs; no combined scheduler.
-- **Pass:** successful fresh import produces global_script_class_cache.cfg; both
-  actual matrix/suite exits0, positive BULWARK_HEAVY_GUNSHIP and
-  BULWARK_PRODUCTION_INTEGRATION summaries with0failures; zero raw engine/script/
-  fatal/leak diagnostics, source_manifest_match and godot_cache_stable true.
-  Compare every archived source byte/symlink again after both runs, independently
-  of the matrix's post-import baseline. Retain any protected-configuration restore
-  diff. No staged component result qualifies ordinary controls, rendered art,
-  whole-craft LOD, native Windows/GPU/audio or the complete craft.
-- **Proof/end:** source.tar, source-engine-sha256.txt, engine-version.txt, concise
-  notes and existing raw results retained under output. Archive/verify raw records,
-  then remove owned REPRO/profile/cache/helpers and reap processes; preserve source
-  inputs. Update the existing member/state only after full pass; otherwise retain
-  failure without a green subset. No playable checkpoint follows test-only work.
-- **Budget/stop:** original assessment2026-11-05 12:40:33UTC; estimate30–45minutes,
-  hard stop14:10:33UTC (90minutes including all preparation/checks/closure). Existing
-  import≤1200s plus two300s suites≤1800 total; independent outer1860s/subreaper.
-  First failure stops dependent admission. One total cause-bound correction only
-  for an established in-scope assembly/invocation issue; no source change may make
-  the frozen snapshot pass. Failed final correction/deadline parks the handoff.
+**Latest closed member: Bulwark editable-source handoff — PASS.** Frozen source
+155cea002 supplies a complete editable archive and reproduction notes. A fresh
+empty-cache import and both named source suites pass (158 and31 checks,
+zero failures/diagnostics), with all12,011 archived files unchanged afterward.
+[Artifact, exact results and proof limits](docs/history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105).
+Owned reconstruction/profile/process cleanup is complete. This closes only the
+source handoff; full Bulwark gameplay, art, LOD and native acceptance stay open.
+Latest playable remains **5bc9a17**, linked above.
 
+These are selection constraints, **not a list of tasks running in parallel**:
 
-**Exported Jovian first kit-delivery caller: PARKED/unaccepted.** Candidates
-8cf04f491→5e50a997e are archived unmerged. First run stops before input because
-the observer conflates the cargo destination module with its physical ShipBerth;
-the sole correction checks both real identities and their registered relationship.
-The corrected run reaches actual Begin Shift/Cargo selection/Resume, then stops
-on a motion-observation epoch discontinuity across pause: global frame826 retains
-motion frame548; frame827 reports motion frame826. The player and motion endpoints
-stay unchanged. No walking, boarding, delivery, payment or normal Quit is qualified;
-no movement/teleport defect is established. Both runs have zero engine diagnostics
-and release/reap all inputs/processes. Green source/startup checks do not accept a
-subset. Latest playable remains5bc9a17; no new checkpoint or runtime merge.
-[Exact proof, archive and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105).
+| Existing goal/member | Current result or blocker | Condition before further work |
+| --- | --- | --- |
+| [Titan specification](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | BLOCKED input: prepared proposal awaits the user's design decision | Record adoption or exact revisions; no construction before approval |
+| [Halyard fresh-Main re-entry](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105) | PARKED: off-tree cabin-transform errors during actual HUD Restart Shift; no complete re-entry pass | Focused repair/retry request unanswered; original12:47:51UTC deadline expired. Requires explicit reprioritization, retaining cost and exhausted allowance |
+| [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
+| [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
+| [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
+| [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED: typed mesh-array membership fails on Node3D | Type-safe correction and explicit reprioritization retaining exhausted allowance |
+| [Zenith whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105) | PARKED: ArrayMesh-only method called on BoxMesh | Concrete mesh-type correction and explicit reprioritization retaining exhausted allowance |
+| [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
+| [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
+| [Landed-crew browser entry](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105) | PARKED: failed before admission; no joining feature accepted | Satisfy its recorded reopening conditions; no subset pass |
 
-Owned branch/worktree/profiles/unaccepted exports/scratch are removed after verified
-archival. The full [first journey](docs/ROADMAP_BACKLOG.md#hud-cargo-contract)
-and larger HUD-CARGO reset/cold sequence remain open in their distinct scopes.
-Reopening this caller needs a concrete pause/freshness correction and later explicit
-user reprioritization retaining prior cost/exhausted allowance; no renamed retry.
-No new implementation is active. The prepared Titan design decision and focused
-Halyard repair request remain unanswered; neither is assumed approved.
+Every parked source/result remains recoverable from its linked delivery record.
+Owned branches/worktrees/scratch for the closed attempts are cleaned up. Their
+complete routes, failures, original budgets and correction limits stay binding;
+a new label or automatic continuation cannot reset them.
 
-**Halyard fresh-Main re-entry: PARKED/unaccepted.** Candidatecfcb7fae4 is
-archived unmerged. The actual three-process run reaches BOARD/seven MOVING,
-strict dock/both consumed arrivals and B's real HUD Restart Shift. Production
-cleanup then queries cabin transforms after their nodes leave the tree and emits
-seven transform errors; the supervisor aborts. One further B diagnostic follows
-forced display shutdown. Fresh Main/retirement/rejoin/
-physical reboarding/renewed flight and all3normalOS0 remain unproved. The single
-correction was spent on an earlier compile annotation; no subset is accepted.
-[Exact record and cleanup](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105),
-[production defect](bugs.md#net-halyard-restart-detach).
-
-A focused production repair has been requested from the user: skip off-tree pose
-recovery AND cabin rebinding while preserving seat/input/claim cleanup, then
-repeat the same full case once. **No approval received; no repair/retry selected.**
-Original11:17:51 start,12:47:51UTC deadline, prior cost and exhausted allowance
-remain recorded. Owned worktree/ref/profiles/processes are cleaned; source/raw
-remain recoverable from the verified archive. No runtime change was merged.
-
-**Guided flight-observation caller: PARKED/unaccepted.** Candidates9401d65c5
-and ca5a49c17 remain unmerged. The first actual run stops at launch-deck clearance;
-the single correction reaches the same range centre with clearance intact. The
-corrected run then stops when one requested120px OS impulse produces about150px
-of observed motion, exceeding the fixed120px consumed-input requirement. Its
-exact cause is unmeasured. Both runs have zero diagnostics and release/reap all
-owned inputs/processes. Only departure/stop observations were reached; neutral
-settling, views/zoom/sight, combat/home/normal Quit and two default regressions
-remain unproved. No accepted subset or new playable checkpoint.
-[Exact source, failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105).
-The [complete original contract](docs/ROADMAP_BACKLOG.md#vertical-slice-flight-observations)
-and motion prerequisite remain open. The correction allowance is exhausted;
-reopening needs an actual input-unit cause/correction and later explicit user
-reprioritization retaining prior cost. No renamed retry is selected.
-
-**Cinder Light whole-craft LOD: PARKED/unaccepted.** Candidate8dc9b6496 is
-archived unmerged. Focused256/full317 and canopy6/damage7/silhouette9 source
-checks pass; far static geometry measures6022/39142triangles (15.385%) and38/64
-submissions. Required Forward+ capture times out at110s with no image or frame
-marker; its exact stalled stage is unmeasured. No new checkpoint or smaller
-accepted subset. The declared90s internal watchdog was not implemented; only
-outer110s enforcement is proved. [Exact stop and archive](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105).
-
-A single bounded capture retry has been requested from the user, with phase
-logs/watchdog, proposed300s internal/330s outer, unchanged LOD code and original
-11:12:11UTC all-in deadline/prior cost. **No approval has been received; no retry
-is selected or authorized.** Its original11:12:11UTC deadline has now expired;
-a later approval must explicitly reprioritize that expired boundary and prior
-cost. The exhausted correction limit and render stop
-remain in force. Owned worktrees/branch/scratch are cleaned up; a later explicit
-reprioritization can recover the verified source archive.
-
-**Shared Rime arrival guidance: DELIVERED on5bc9a1705.** Both the host objective
-and blocked repeat-action toast use the existing contract’s correct shared-survey
-message. STAND IN CABIN, Aurora/solo/other-phase guidance and survey/authority/
-reward state are preserved. Focused26/shared-survey77 checks, clean exports,
-three strict startups and paired package audit pass. The checkpoint is linked
-above; full baseline/native gates remain open. Accepted source is pushed and
-owned branch/worktree/scratch cleanup is complete.
-[Exact scope and closure](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-guidance-delivered-20261105).
-
-**Arrow whole-craft LOD: PARKED/unaccepted.** Candidate75a413ec8 is archived
-unmerged. Corrected scripts parse cleanly, but the first focused runtime check
-fails during far-exterior construction: an ancestor Node3D is searched in a
-typed mesh array. Only API existence passed; geometry budget, switching,
-authority/re-entry, captures and packaging remain unproved. The single correction
-round is exhausted. No build was made; latest playable remains6474bda.
-[Failure, archive and cleanup](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105).
-Reopening requires explicit user reprioritization retaining prior cost and the
-exhausted limit, plus type-safe membership during ancestor traversal. The full
-existing acceptance contract remains binding; no renamed retry is selected.
-
-**Roadmap clarification delivered (documentation only).** The front page now
-distinguishes product outcomes, bounded deliveries and qualification, and fixes
-the readiness/proof/closure rules. All337 canonical rows are unchanged; local
-roadmap links resolve and independent review checked the selection rules. No
-gameplay result or qualification is claimed by this documentation change.
-
-**Cinder retained-cabin standing readmission: PARKED/unaccepted.** Candidate
-5982bafd0 is archived unmerged. The old-runtime run reached the intended first
-rejoined E failure, but the candidate stopped earlier: initial Navigator chair E
-did not confirm. Its disconnect/rejoin/readmission result remains unproved.
-The shared Halyard regression passes34 assertions; that does not qualify Cinder.
-The frozen correction allowance is exhausted. No checkpoint was built; latest
-playable remains6474bda. Owned worktrees, branch and scratch are cleaned up.
-[Exact results, archive and reopening conditions](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105).
-
-Do not select a renamed retry. Reopening requires an actionable diagnosis of the
-actual initial chair rejection, preservation of the authoritative landing guard,
-and explicit user reprioritization retaining the prior cost and exhausted limit.
-Other independent ready goals remain selectable under the rules below.
-
-The
-[Cinder physical guest exit attempt](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105)
-is **PARKED/unaccepted** at host home-ramp eligibility, before any guest process
-launched. The candidate passes 97 Hauler component and 334 codec assertions,
-but physical exit/walk/reboard is unproved. Source is preserved unmerged; no
-checkpoint was built. Fresh-session admission and remote cargo transfer remain
-separate open capabilities.
-
-The
-[retired-world residency capability](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
-is **DELIVERED** on 6474bda with the checkpoint linked above. Actual source/Main
-checks prove both worlds' normal coordinator unload and deferred scene/terrain
-free after staged cancelled approaches leave the envelope; full shared/ordinary
-cancellation journeys and native qualification remain open.
-
-The bounded
-[Zenith modern LOD attempt](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105)
-is **PARKED/unaccepted**: its new census calls an ArrayMesh-only method on
-BoxMesh. The sole correction was spent on an earlier null-index assumption.
-No complete modern LOD sequence, rendered pair or checkpoint passed; the
-candidate is preserved unmerged. Existing full Zenith qualification stays open.
-
-Earlier [Ember passive shared progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
-on **d525554** remains included. A fresh observer receives the
-host's real survey progress; the exterior HUD presentation has a separately
-staged focused check. Physical late admission and full ordinary journeys remain
-unproved. The subsequent [landed-crew browser-entry attempt](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105)
-is PARKED/unaccepted: it failed before admission, so no new crew-joining feature
-or checkpoint is claimed.
-
-Aurora/Rime settled resume retirement, Ember Save Progress, Arrow guidance and
-exported dedicated startup retain their accepted source/package scopes. Do not
-select them again as missing implementations. Halyard physical egress remains
-PARKED at its station-spawn jump; Ember outbound stays PARKED at its planetary-
-gravity caller comparison. Their source/raw, failures, costs and reopening gates
-are preserved; neither is qualified by this checkpoint.
-
-Select a ready delivery or qualification goal from its existing contract.
-Parked work retains the causal reopening and explicit reprioritization rules
-above; a changed name or automatic continuation does not clear a terminal stop.
-Verified official editor and Windows/Linux release templates remain available in
-`/srv/mudds-work/toolchains/godot-4.7.1-official/`.
+Previously accepted [Rime arrival guidance](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-guidance-delivered-20261105),
+[retired-world residency](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
+and [Ember passive progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
+remain closed in their recorded scopes. Aurora/Rime settled resume retirement,
+Ember Save Progress, Arrow guidance and exported dedicated startup also retain
+their accepted scopes. Halyard physical egress and Ember outbound remain parked
+at their previously recorded station-spawn and planetary-gravity caller failures.
+Do not reselect accepted components or use them to pass an unperformed full journey.
 
 ## Selecting work after the breakdown
 

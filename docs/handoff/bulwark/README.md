@@ -1,5 +1,12 @@
 # Bulwark folder retirement and remaining work
 
+Current editable-source handoff: frozen **155cea002**, accepted 2026-11-05.
+The complete source archive, editing entrypoints, pinned engine and successful
+cold-reconstruction results are in the
+[dated delivery record](../../history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105).
+This is separate from the historical branch/evidence retirement below. It closes
+only source reproducibility; ordinary gameplay, art, LOD and native gates remain.
+
 Assessed 2026-10-13 against main `5266aa53b56cee1af236b6b5f6e76a860ea2581b`.
 
 ## Decision

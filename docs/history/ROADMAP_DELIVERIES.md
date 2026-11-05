@@ -34887,3 +34887,85 @@ unaccepted exports, profiles/caches/helpers/scratch removed; only archive/closeo
 remain. Cleanup2026-11-05T12:36:45.541386+00:00, 78.909minutes from original
 assessment; final documentation/review/push is charged to the same card. No task
 branch/worktree/process is retained; unique unaccepted source stays in the archive.
+
+
+<a id="bulwark-editable-source-handoff-accepted-20261105"></a>
+## Bulwark complete editable source and cold reconstruction — accepted 2026-11-05
+
+**PASS only for the editable-source handoff member.** Frozen committed source
+`155cea002b67febec96dc196062c849bf3c9e2be` is delivered as a complete tracked
+snapshot, with procedural editing entrypoints, dependencies, notices and exact
+reproduction instructions. No production behavior was changed. Full Bulwark
+ordinary controls/gunner/flight, art views/clearance, whole-craft LOD, audio,
+native hardware and human qualification remain OPEN/PARKED in their existing
+contracts. These staged source tests do not pass those journeys. No checkpoint
+is required for this source-only handoff; latest playable remains5bc9a17.
+
+Artifacts retained at `/srv/mudds-work/bulwark-source-art/20261105-124033/`:
+
+- [source.tar](/srv/mudds-work/bulwark-source-art/20261105-124033/source.tar):
+  208,168,960bytes; SHA256
+  `ff49022409903da011ff5a44b1353b3503b775a3e73f17829ddc57e4dd99bb2e`.
+- [notes.txt](/srv/mudds-work/bulwark-source-art/20261105-124033/notes.txt):
+  editable builders/scene/resource, scope and reproduction steps.
+- `source-engine-sha256.txt`, `engine-version.txt`, `records.tar.gz`,
+  `closeout.json`. Raw records contain the frozen task card, literal command,
+  import and both matrices, full-source comparisons, outer status/cleanup and
+  superseded roadmap selection text; no duplicate full source/cache is included.
+
+Actual engine `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`,
+4.7.1.stable.official.a13da4feb, SHA256
+`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`.
+All runs headless with Dummy audio, fresh private external XDG/TMPDIR, no
+inherited display/editor/cache. No synthetic input or desktop display was opened.
+
+| Frozen pass condition | Actual observation |
+| --- | --- |
+| Complete tracked source; no inherited .git/.godot | All12,011 regular files, zero symlinks; complete comparison before import passes |
+| Fresh import exits0 and creates script-class cache | PASS,21.535s; global_script_class_cache.cfg created |
+| Existing heavy-gunship suite, OS0/positive checks/zero failures | BULWARK_HEAVY_GUNSHIP:158 checks,0failures;6.763s |
+| Only after first full PASS, existing production-integration suite in fresh process | BULWARK_PRODUCTION_INTEGRATION:31 checks,0failures;24.221s/OS0; no second import |
+| Raw diagnostics0, source/cache guards true | Both matrices PASS; import and suites have zero warnings/errors/fatal/leak diagnostics; no protected-root rewrites |
+| Every archived source byte identical after import/tests | All12,011 files match independently of matrix's post-import baseline |
+| Independent outer abort/reap | FINISHED/exit0;12:49:39–12:50:43UTC; exact owner PID/start absent, no owned descendant remains |
+
+No source edits, correction or engine retry. Snapshot assembly, full-byte
+comparison, notes and cleanup were included in the original12:40:33UTC assessment,
+30–45minute estimate and14:10:33UTC hard stop. Existing import1200s plus two300s
+suites/outer1860s unchanged. REPRO/profile/cache/helpers/raw loose results removed
+at12:59:50UTC (19.288minutes); source inputs and the six handoff deliverables
+remain. All30 regular records archive members were hash-verified before cleanup:
+5,524,778bytes/SHA256
+`7179dcac50cf7394280bef06cf6dee4b38b42f538af7181bd4c1bba95e73c295`.
+No task branch/worktree was created or retained. Documentation/integration/push
+closure is charged to the same card, with final time recorded in closeout.json.
+The source includes current notices and unresolved project-release terms;
+internal reproducibility does not supply public redistribution permission.
+
+<a id="roadmap-selection-clarity-20261105"></a>
+## Roadmap selection clarified — documentation only, 2026-11-05
+
+The user's requested result is a roadmap where a goal has an observable result,
+a frozen action/pass condition, named prerequisites and an endpoint. Existing
+PLAN-NEXT's accepted337-record definition is reused; this is not another full
+inventory audit or a gameplay milestone. ROADMAP.md keeps the existing mandatory
+card and≤90minute implementation/closure bound, and now explicitly states that
+no gameplay task is selected. A compact table separates blocked decisions and
+parked attempts from accepted results; their full failures, costs and causal
+reopening conditions remain in this history and their original contracts.
+The Halyard request's expired12:47:51UTC boundary is explicit. No unanswered
+request is treated as approval.
+
+A bounded independent review found a contradictory Bulwark selection label,
+selection/history mixing and inconsistent readiness vocabulary. The historical
+parked gunner member is now labelled accordingly; the source handoff is closed
+only in its own scope. One shared readiness legend distinguishes READY,
+BLOCKED definition/input, GATED, PARKED and UNSCHEDULED/OPEN from result and Kind.
+Broad product/container headings remain unselectable. Missing runtime/callers
+remain implementation work; blocked decisions/devices remain explicit inputs.
+
+Documentation acceptance: all337 canonical identities, names, parents, Kinds,
+order and Done-means cells preserved; only Bulwark's State changes to reflect
+its actual source-member result. Changed local links/anchors resolve and
+`git diff --check` passes. No engine/test suite, new validator, goal ID,
+requirement reduction or checkpoint is selected for this documentation work.
