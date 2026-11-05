@@ -210,10 +210,13 @@ func _test_whole_main_reentry_paused(
 		return
 	paused = true
 	var lod_hauler := _ship_by_id(all_craft, &"cinder_cargo_hauler") as CinderCargoHauler
+	var lod_bomber := _ship_by_id(all_craft, &"cinder_long_range_bomber") as CinderLongRangeBomber
+	_check(lod_bomber != null, "Bomber LOD cut resolves the exact production craft")
 	_check(lod_hauler != null, "Hauler LOD cut resolves the exact production craft")
-	if lod_hauler == null:
+	if lod_hauler == null or lod_bomber == null:
 		return
-	_test_hauler_lod_epoch(lod_hauler, "healthy settled initial epoch", game, world_owner, authority)
+	_test_craft_lod_epoch(lod_hauler, "healthy settled initial epoch", game, world_owner, authority)
+	_test_craft_lod_epoch(lod_bomber, "healthy settled initial epoch", game, world_owner, authority)
 	if not _prepare_component_cut(game, world_owner, authority, all_craft, component_cut):
 		return
 
@@ -382,7 +385,8 @@ func _test_whole_main_reentry_paused(
 		await _await_settled_roster(game)
 		if not _compare_component_cut(game, component_cut, authority, cycle, true):
 			return
-		_test_hauler_lod_epoch(lod_hauler, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
+		_test_craft_lod_epoch(lod_hauler, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
+		_test_craft_lod_epoch(lod_bomber, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
 
 		var restored_audio := audio.get_synthesis_report()
 		var restored_resource_ids := restored_audio.resource_instance_ids as Dictionary
@@ -1263,25 +1267,25 @@ func _finish() -> void:
 		quit(1)
 
 
-func _test_hauler_lod_epoch(craft: CinderCargoHauler, epoch: String, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> void:
+func _test_craft_lod_epoch(craft, epoch: String, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> void:
 	var before := {"craft": _lod_retained_snapshot(craft), "external": _lod_main_external(craft, game, world, authority)}
-	var source_id := (craft.get_command_source()).get_instance_id()
+	var source_id: int = (craft.get_command_source()).get_instance_id()
 	for item: Array in [[20.0, 0], [120.0, 0], [120.001, 1], [110.0, 1], [100.0, 1], [99.999, 0]]:
 		craft.update_exterior_lod_distance(float(item[0]))
-		var report := craft.get_exterior_lod_report()
+		var report: Dictionary = craft.get_exterior_lod_report()
 		var actual := {"craft": _lod_retained_snapshot(craft), "external": _lod_main_external(craft, game, world, authority)}
 		var difference := _lod_first_difference(before, actual)
 		if not difference.is_empty():
-			print("MAIN_HAULER_LOD_FIRST_DIFFERENCE: epoch=", epoch, " distance=", item[0], " ", difference)
+			print("MAIN_CRAFT_LOD_FIRST_DIFFERENCE: craft=", craft.get_ship_id(), " epoch=", epoch, " distance=", item[0], " ", difference)
 		_check(report.valid and report.active_lod == int(item[1]) and difference.is_empty()
 			and craft.get_command_source().get_instance_id() == source_id,
-			"Hauler complete exterior switch retains exact owned resources and authority within %s at %s" % [epoch, item[0]])
+			"%s complete exterior switch retains exact owned resources and authority within %s at %s" % [craft.get_ship_id(), epoch, item[0]])
 
 
 # Snapshot actual owned resources, not duplicate-returning definition getters.
 # Prime normal lazy discovery before walking IDs so the first comparison has
 # exactly the same ownership universe as all later ones.
-func _lod_retained_snapshot(craft: CinderCargoHauler) -> Dictionary:
+func _lod_retained_snapshot(craft) -> Dictionary:
 	craft.get_command_source()
 	craft.get_weapon_component_emitter_snapshot()
 	craft.get_exterior_lod_report()
@@ -1295,6 +1299,10 @@ func _lod_retained_snapshot(craft: CinderCargoHauler) -> Dictionary:
 			row["transform"] = (node as Node3D).transform
 		if node is GeometryInstance3D and shared.has(node as GeometryInstance3D):
 			row["shared_visible"] = (node as GeometryInstance3D).visible
+		if node is Camera3D:
+			row["cull_mask"] = (node as Camera3D).cull_mask
+		if node is GeometryInstance3D:
+			row["layers"] = (node as GeometryInstance3D).layers
 		if node is CollisionObject3D:
 			row["rid"] = (node as CollisionObject3D).get_rid()
 			row["layer"] = (node as CollisionObject3D).collision_layer
@@ -1306,11 +1314,14 @@ func _lod_retained_snapshot(craft: CinderCargoHauler) -> Dictionary:
 			if int(property.usage) & PROPERTY_USAGE_STORAGE:
 				_lod_collect_resource_ids(node.get(property.name), resources)
 	_lod_collect_resource_ids(craft.ship_definition, resources)
-	_lod_collect_resource_ids(craft.get("_weapon_definition"), resources)
-	var source := craft.get_command_source()
+	if craft is CinderCargoHauler:
+		_lod_collect_resource_ids(craft.get("_weapon_definition"), resources)
+	var source: ShipCommandSource = craft.get_command_source()
 	return {"nodes": nodes, "resources": resources, "source": source.get_instance_id(),
 		"stream": source.get_stream_id(), "sequence": source.get_next_sequence(),
-		"anchors": craft.get_cargo_transfer_anchors().map(func(anchor: Marker3D) -> int: return anchor.get_instance_id()),
+		"anchors": (craft.get_payload_hardpoints() if craft is CinderLongRangeBomber else craft.get_cargo_transfer_anchors()).map(func(anchor: Marker3D) -> int: return anchor.get_instance_id()),
+		"payload": craft.get_payload_authority_snapshot() if craft is CinderLongRangeBomber else {},
+		"payload_owner": craft.get("_payload_authority").get_instance_id() if craft is CinderLongRangeBomber else 0,
 		"definition": craft.ship_definition.get_instance_id(), "hull": craft.get("_hull"),
 		"ledger": craft.get_component_damage().get_ledger_snapshot(),
 		"generation": craft.get_component_damage().get_ledger_generation()}
@@ -1361,10 +1372,10 @@ func _lod_first_difference(expected: Variant, actual: Variant, path: String = "o
 	return ""
 
 
-func _lod_main_external(craft: CinderCargoHauler, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> Dictionary:
+func _lod_main_external(craft, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> Dictionary:
 	var home := world.get_berth_node(craft.get_home_berth_id())
 	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
-	var role := craft.get_crew_role_authority()
+	var role = craft.get_crew_role_authority() if craft is CinderCargoHauler else null
 	return {"world": world.get_instance_id(), "player": game.player.get_instance_id(),
 		"source": authority.get_source_id(craft), "source_count": game.get_combat_resolver().get_registered_source_count(),
 		"home": home.get_instance_id(), "home_id": craft.get_home_berth_id(),

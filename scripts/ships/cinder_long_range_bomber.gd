@@ -122,6 +122,17 @@ var _ship_perspective_audio_binding: RefCounted
 var _payload_audio_binding: Node
 var _component_damage_cue: Node3D
 
+# Retain the authored hierarchy. Only these renderer objects belong to the
+# static switch; authority ancestors and shared consumer-owned cues never do.
+var _exterior_lod_static: Array[GeometryInstance3D] = []
+var _exterior_lod_shared: Array[GeometryInstance3D] = []
+var _exterior_lod_members: Dictionary = {}
+var _exterior_lod_close_visibility: Dictionary = {}
+var _exterior_lod_far: Node3D
+var _exterior_lod_index := 0
+var _exterior_lod_ready := false
+
+
 
 func _init() -> void:
 	_payload_authority = PayloadAuthority.new(
@@ -196,6 +207,8 @@ func _ready() -> void:
 	_sync_component_damage_cue()
 	_build_payload_presentation()
 	_build_payload_audio_binding()
+	_exterior_lod_ready = true
+	_set_exterior_lod(0)
 
 
 func _exit_tree() -> void:
@@ -249,6 +262,7 @@ func _physics_process(delta: float) -> void:
 		_payload_authority.advance(maxf(delta, 0.0))
 	if is_instance_valid(_payload_presentation):
 		_payload_presentation.advance_simulation(maxf(delta, 0.0))
+	_update_exterior_lod_from_current_camera()
 
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
@@ -281,7 +295,212 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	_build_payload_hardpoints(visual)
 	_build_component_damage_cue(visual)
 	_consolidate_bomber_fitout()
+	_build_exterior_lod()
 	return true
+
+
+## Register every actual renderer once, retaining stateful consumer subtrees.
+## Only renderer visibility changes at a switch; all nodes/resources stay owned.
+func _build_exterior_lod() -> void:
+	_exterior_lod_static.clear()
+	_exterior_lod_shared.clear()
+	_exterior_lod_members.clear()
+	_exterior_lod_close_visibility.clear()
+	_exterior_lod_index = 0
+	var visual := get_variant_visual_root()
+	for node: Node in visual.find_children("*", "GeometryInstance3D", true, false):
+		var renderer := node as GeometryInstance3D
+		var shared := node is Label3D
+		for retained: Node in [_cockpit_root, _canopy_pivot, _component_damage_cue]:
+			shared = shared or (is_instance_valid(retained) and (node == retained or retained.is_ancestor_of(node)))
+		for plume: MeshInstance3D in _engine_glows:
+			shared = shared or node == plume or plume.is_ancestor_of(node)
+		if shared:
+			_exterior_lod_shared.append(renderer)
+		else:
+			_exterior_lod_static.append(renderer)
+			_exterior_lod_close_visibility[node.get_instance_id()] = renderer.visible
+		_exterior_lod_members[node.get_instance_id()] = &"shared" if shared else &"close"
+	_exterior_lod_far = Node3D.new()
+	_exterior_lod_far.name = "DistantExterior"
+	visual.add_child(_exterior_lod_far)
+	# Keep the formed pressure body, swept twin wings, canted empennage,
+	# propulsion mouths and targeting assembly. Small service fittings drop out.
+	const MACRO_NAMES := ["LongRangeHull", "OrdnanceSpine", "CockpitSupportFairing",
+		"StrikeWingBatch", "LongRangeTailplane", "PortBomberFin", "StarboardBomberFin",
+		"LongRangeSensor", "SensorProtectiveCowl", "PortPressureShoulder", "StarboardPressureShoulder",
+		"PortWingRootFairing", "StarboardWingRootFairing", "PortTurbineCase", "StarboardTurbineCase",
+		"PortExhaustBell", "StarboardExhaustBell", "PortRecessedThroat", "StarboardRecessedThroat"]
+	for source: GeometryInstance3D in _exterior_lod_static:
+		if not String(source.name) in MACRO_NAMES:
+			continue
+		var copy: GeometryInstance3D
+		if source is MultiMeshInstance3D:
+			var batch := MultiMeshInstance3D.new()
+			var original := (source as MultiMeshInstance3D).multimesh
+			batch.multimesh = original.duplicate() as MultiMesh
+			batch.multimesh.mesh = _formed_aero_mesh(STRIKE_WING_SIZE, false, true)
+			copy = batch
+		else:
+			var original := source as MeshInstance3D
+			var mesh_copy := MeshInstance3D.new()
+			mesh_copy.mesh = original.mesh
+			var source_name := String(source.name)
+			match source_name:
+				"LongRangeHull":
+					mesh_copy.mesh = _formed_pressure_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null, true, 0.0, true, true)
+				"PortPressureShoulder", "StarboardPressureShoulder":
+					var side := -1.0 if source_name.begins_with("Port") else 1.0
+					mesh_copy.mesh = _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), null, true, -side * 1.12, false, true)
+				"PortWingRootFairing", "StarboardWingRootFairing":
+					mesh_copy.mesh = _formed_wing_root_mesh(-1.0 if source_name.begins_with("Port") else 1.0, null, true)
+				"LongRangeTailplane":
+					mesh_copy.mesh = _formed_aero_mesh(AFT_TAILPLANE_SIZE, false, true)
+				"PortBomberFin", "StarboardBomberFin":
+					mesh_copy.mesh = _formed_aero_mesh(AFT_FIN_SIZE, true, true)
+				"PortExhaustBell", "StarboardExhaustBell":
+					var bell := CylinderMesh.new()
+					bell.top_radius = 1.0
+					bell.bottom_radius = 0.70
+					bell.height = 0.70
+					bell.radial_segments = 16
+					bell.rings = 1
+					bell.cap_top = false
+					bell.cap_bottom = false
+					bell.material = original.mesh.surface_get_material(0)
+					var surface := SurfaceTool.new()
+					surface.append_from(bell, 0, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO))
+					mesh_copy.mesh = surface.commit()
+			copy = mesh_copy
+		copy.name = source.name
+		copy.transform = visual.global_transform.affine_inverse() * source.global_transform
+		copy.material_override = source.material_override
+		copy.layers = source.layers
+		copy.cast_shadow = source.cast_shadow
+		_exterior_lod_far.add_child(copy)
+		_exterior_lod_members[copy.get_instance_id()] = &"far"
+	_exterior_lod_far.visible = false
+
+
+func _set_exterior_lod(index: int) -> void:
+	if index == _exterior_lod_index:
+		return
+	_exterior_lod_index = index
+	for renderer: GeometryInstance3D in _exterior_lod_static:
+		renderer.visible = index == 0 and bool(_exterior_lod_close_visibility[renderer.get_instance_id()])
+	if is_instance_valid(_exterior_lod_far):
+		_exterior_lod_far.visible = index == 1
+
+
+## Explicit-distance seam is source coverage; normal runtime always supplies the
+## actual current viewport camera. Invalid samples leave the retained state alone.
+func update_exterior_lod_distance(distance: float) -> void:
+	if not _exterior_lod_ready or not is_finite(distance) or distance < 0.0:
+		return
+	if distance > 120.0:
+		_set_exterior_lod(1)
+	elif distance < 100.0:
+		_set_exterior_lod(0)
+
+
+func _exterior_lod_camera_forces_close(camera: Camera3D) -> bool:
+	if camera == _cockpit_camera:
+		return true
+	var ancestor := camera.get_parent()
+	while ancestor != null and not ancestor is PlayerController:
+		ancestor = ancestor.get_parent()
+	var actor := ancestor as PlayerController
+	if actor == null or actor.get_camera() != camera:
+		return false
+	# Resolve the real Player/camera/seat/frame binding, never a cached ship flag.
+	var state := int(actor.get("_embodiment_state"))
+	var transition := state in [PlayerController.EmbodimentState.BOARDING, PlayerController.EmbodimentState.DISEMBARKING]
+	var frame := actor.get("_transition_frame") as Node3D
+	var seat := actor.get("_seat_anchor") as Node3D
+	var own_seat := is_instance_valid(seat) and is_ancestor_of(seat)
+	var exterior_exit := state == PlayerController.EmbodimentState.DISEMBARKING \
+		and not (actor.get("_transition_waypoints") as Array).is_empty()
+	# GameFlow's exterior pilot handoff keeps the exact retained seat but
+	# supplies no moving frame. Cabin handoffs supply this craft as their frame.
+	if transition and own_seat and (frame == null or frame == self):
+		return true
+	if transition and exterior_exit and frame == self:
+		return true
+	var cabin := actor.get("_cabin_frame") as Node3D
+	return is_instance_valid(cabin) and (cabin == self or is_ancestor_of(cabin)) \
+		and actor.is_first_person_active()
+
+
+func _update_exterior_lod_from_current_camera() -> void:
+	if not _exterior_lod_ready or not is_inside_tree():
+		return
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	if _exterior_lod_camera_forces_close(camera):
+		_set_exterior_lod(0)
+	else:
+		update_exterior_lod_distance(camera.global_position.distance_to(get_variant_visual_root().global_position))
+
+
+## Generic Mesh surface APIs include PrimitiveMesh stock. Zero-surface resources
+## remain registered with zero geometry; no empty SurfaceTool is ever committed.
+func _exterior_lod_renderer_census(renderer: GeometryInstance3D) -> Dictionary:
+	var mesh: Mesh
+	var copies := 1
+	var allocated_copies := 1
+	if renderer is MeshInstance3D:
+		mesh = (renderer as MeshInstance3D).mesh
+	elif renderer is MultiMeshInstance3D:
+		var multi := (renderer as MultiMeshInstance3D).multimesh
+		if multi != null:
+			mesh = multi.mesh
+			allocated_copies = multi.instance_count
+			copies = multi.instance_count if multi.visible_instance_count < 0 else mini(multi.instance_count, multi.visible_instance_count)
+	var triangles := 0
+	var vertex_count := 0
+	var surfaces := mesh.get_surface_count() if mesh != null else 0
+	for surface in surfaces:
+		var arrays := mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		vertex_count += vertices.size()
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := indices.size() if not indices.is_empty() else vertices.size()
+		var primitive := (mesh as ArrayMesh).surface_get_primitive_type(surface) if mesh is ArrayMesh else Mesh.PRIMITIVE_TRIANGLES
+		match primitive:
+			Mesh.PRIMITIVE_TRIANGLES:
+				triangles += count / 3
+			Mesh.PRIMITIVE_TRIANGLE_STRIP:
+				triangles += maxi(0, count - 2)
+	return {"triangles": triangles * copies, "submissions": surfaces if copies > 0 else 0,
+		"copies": copies, "allocated_copies": allocated_copies, "surfaces": surfaces, "vertices": vertex_count * copies, "mesh": mesh.get_instance_id() if mesh != null else 0}
+
+
+func get_exterior_lod_report() -> Dictionary:
+	var result := {"active_lod": _exterior_lod_index, "close_triangles": 0, "far_triangles": 0,
+		"close_submissions": 0, "far_submissions": 0, "renderers": [], "unknown": []}
+	for branch: Node in [get_variant_visual_root()]:
+		for node: Node in branch.find_children("*", "GeometryInstance3D", true, false):
+			var renderer := node as GeometryInstance3D
+			var counts := _exterior_lod_renderer_census(renderer)
+			var membership: StringName = _exterior_lod_members.get(node.get_instance_id(), &"unknown")
+			counts["node"] = node.get_instance_id()
+			counts["path"] = str(get_path_to(node))
+			counts["membership"] = membership
+			counts["visible"] = renderer.visible
+			counts["authored_visible"] = _exterior_lod_close_visibility.get(node.get_instance_id(), renderer.visible)
+			(result["renderers"] as Array).append(counts)
+			if membership == &"unknown" and (int(counts.vertices) > 0 or (node is Label3D and not (node as Label3D).text.is_empty())):
+				(result["unknown"] as Array).append(counts.path)
+			if membership in [&"close", &"far"]:
+				var prefix := String(membership)
+				result[prefix + "_triangles"] += counts.triangles
+				result[prefix + "_submissions"] += counts.submissions
+	result["valid"] = (result.unknown as Array).is_empty() \
+		and result.close_triangles > 0 and result.far_triangles > 0 \
+		and result.far_triangles * 4 <= result.close_triangles \
+		and result.far_submissions <= result.close_submissions
+	return result
 
 
 ## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
@@ -1217,15 +1436,17 @@ func _build_cockpit_support_fairing(visual: Node3D) -> void:
 ## Formed skins retain the authored planform while rolling continuously from
 ## a load-bearing crown into thin perimeter edges. Both wings still use one
 ## immutable mesh/batch; the canted fins share the same vertical section stock.
-func _formed_aero_mesh(size: Vector3, vertical: bool = false) -> ArrayMesh:
+func _formed_aero_mesh(size: Vector3, vertical: bool = false, distant: bool = false) -> ArrayMesh:
 	var stations := PackedFloat32Array([0.0, 0.06, 0.14, 0.22, 0.28, 0.36, 0.43, 0.5, 0.62, 0.74, 0.83, 0.91, 0.97, 1.0])
 	var rings: Array[PackedVector3Array] = []
-	const SEGMENTS := 32
+	if distant:
+		stations = PackedFloat32Array([0.0, 0.14, 0.28, 0.43, 0.5, 0.83, 1.0])
+	var segments := 8 if distant else 32
 	for t in stations:
 		var extent := _aero_section_extent(size, t, vertical)
 		var ring := PackedVector3Array()
-		for edge in SEGMENTS:
-			var angle := TAU * float(edge) / float(SEGMENTS)
+		for edge in segments:
+			var angle := TAU * float(edge) / float(segments)
 			var section := Vector2(sin(angle), cos(angle))
 			# Retain a narrow perimeter land for the rolled skin closure;
 			# a mathematically sharp ellipse would read as a paper edge.
@@ -1238,18 +1459,18 @@ func _formed_aero_mesh(size: Vector3, vertical: bool = false) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for bay in stations.size() - 1:
-		for edge in SEGMENTS:
-			var next := (edge + 1) % SEGMENTS
+		for edge in segments:
+			var next := (edge + 1) % segments
 			for corner in [Vector2i(edge, bay), Vector2i(next, bay), Vector2i(next, bay + 1), Vector2i(edge, bay), Vector2i(next, bay + 1), Vector2i(edge, bay + 1)]:
-				var around := rings[corner.y][(corner.x + 1) % SEGMENTS] - rings[corner.y][(corner.x + SEGMENTS - 1) % SEGMENTS]
+				var around := rings[corner.y][(corner.x + 1) % segments] - rings[corner.y][(corner.x + segments - 1) % segments]
 				var along := rings[mini(corner.y + 1, stations.size() - 1)][corner.x] - rings[maxi(corner.y - 1, 0)][corner.x]
 				surface.set_normal(along.cross(around).normalized())
-				var u := 1.0 if edge == SEGMENTS - 1 and corner.x == 0 else float(corner.x) / float(SEGMENTS)
+				var u := 1.0 if edge == segments - 1 and corner.x == 0 else float(corner.x) / float(segments)
 				surface.set_uv(Vector2(u, stations[corner.y]))
 				surface.add_vertex(rings[corner.y][corner.x])
 	for cap in [0, stations.size() - 1]:
-		for edge in SEGMENTS:
-			var next := (edge + 1) % SEGMENTS
+		for edge in segments:
+			var next := (edge + 1) % segments
 			for corner in ([-1, next, edge] if cap == 0 else [-1, edge, next]):
 				var point := Vector3(0, 0, rings[cap][0].z) if corner < 0 else rings[cap][corner]
 				surface.set_normal(Vector3.FORWARD if cap == 0 else Vector3.BACK)
@@ -1531,16 +1752,17 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 ## Broad crowns carry the existing access panels; formed shoulders roll down
 ## into the belly instead of ending in almost-square vertical walls. The main
 ## forebody also curves along its length, inside the existing maximum envelope.
-func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool = false, nose_sweep: float = 0.0, pressure_trunk: bool = false) -> ArrayMesh:
+func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool = false, nose_sweep: float = 0.0, pressure_trunk: bool = false, distant: bool = false) -> ArrayMesh:
 	var section := PackedVector2Array([Vector2(0, 1)])
 	var tangents := PackedVector2Array([Vector2.RIGHT])
 	# Elliptical shoulders meet the flat service crown and belly tangentially.
 	# Keep the original width, crown height and lower hardware landing intact.
+	var section_steps := 4 if distant else 16
 	for lower in [false, true]:
-		for step in 17:
+		for step in section_steps + 1:
 			if lower and step == 0:
 				continue
-			var angle := float(step) / 16.0 * PI * 0.5
+			var angle := float(step) / float(section_steps) * PI * 0.5
 			var center := 0.6 if not lower else 0.52
 			var radius := 0.4 if not lower else 0.48
 			var rise := 0.76 if not lower else 1.24
@@ -1563,13 +1785,13 @@ func _formed_pressure_mesh(size: Vector3, material: Material, forward_body: bool
 	for index in range(starboard_count - 1, 0, -1):
 		section.append(Vector2(-section[index].x, section[index].y))
 		tangents.append(Vector2(tangents[index].x, -tangents[index].y))
-	return _pressure_section_mesh(size, material, section, true, tangents, forward_body, nose_sweep, pressure_trunk)
+	return _pressure_section_mesh(size, material, section, true, tangents, forward_body, nose_sweep, pressure_trunk, distant)
 
 
 ## A cambered transition carries the nacelle's lower shoulder to the wing.
 ## Its outboard shelf still seats the ordnance covers at their authored height.
-func _formed_wing_root_mesh(side: float, material: Material) -> ArrayMesh:
-	var mesh := _formed_pressure_mesh(Vector3(2.7, 0.58, 7.7), material)
+func _formed_wing_root_mesh(side: float, material: Material, distant: bool = false) -> ArrayMesh:
+	var mesh := _formed_pressure_mesh(Vector3(2.7, 0.58, 7.7), material, false, 0.0, false, distant)
 	var arrays := mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -1593,7 +1815,7 @@ func _formed_wing_root_mesh(side: float, material: Material) -> ArrayMesh:
 	return surface.commit()
 
 
-func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, tangents: PackedVector2Array = PackedVector2Array(), forward_body: bool = false, nose_sweep: float = 0.0, pressure_trunk: bool = false) -> ArrayMesh:
+func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVector2Array, formed: bool = false, tangents: PackedVector2Array = PackedVector2Array(), forward_body: bool = false, nose_sweep: float = 0.0, pressure_trunk: bool = false, distant: bool = false) -> ArrayMesh:
 	var stations := [0.0, 0.28, 0.43, 0.83, 1.0]
 	# The trunk and nacelles use longitudinally formed bow skin. Keep the
 	# original flat service deck and afterbody stations; small accessory stock
@@ -1603,6 +1825,8 @@ func _pressure_section_mesh(size: Vector3, material: Material, section: PackedVe
 		stations = [0.0, 0.018, 0.045, 0.08, 0.12, 0.14, 0.18, 0.24, 0.28, 0.35, 0.43, 0.83, 1.0]
 	if pressure_trunk:
 		stations = [0.0, 0.0045, 0.009, 0.018, 0.03, 0.045, 0.08, 0.12, 0.14, 0.18, 0.24, 0.28, 0.35, 0.43, 0.83, 1.0]
+	if distant:
+		stations = [0.0, 0.045, 0.14, 0.28, 0.43, 0.83, 1.0] if forward_body else [0.0, 0.28, 0.43, 0.83, 1.0]
 	var extents: Array[Vector2] = []
 	var derivatives: Array[Vector2] = []
 	var offsets: Array[float] = []
