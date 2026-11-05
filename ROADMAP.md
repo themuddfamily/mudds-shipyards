@@ -4,14 +4,15 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **24ed6bc** — [Windows ZIP](builds/windows/MuddsShipyards-24ed6bc-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-24ed6bc-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-24ed6bc-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-24ed6bc-linux-notes.txt)).
-Production Boot now supports an explicitly configured nonplaying dedicated
-server and optional orderly shutdown after its authenticated guests leave.
-The actual exported Linux lifecycle passed with source-adapter guests; complete
-packaged multiplayer flight remains OPEN. [Exact delivery and remaining scope](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract).
+Latest playable checkpoint: **7e5276a** — [Windows ZIP](builds/windows/MuddsShipyards-7e5276a-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-7e5276a-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-7e5276a-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-7e5276a-linux-notes.txt)).
+Arrow's HUD and cockpit now show actual Aurora/Rime atmospheric entry load and
+radial descent advice, including live Reduced Flash updates. The source caller
+and lifecycle checks pass; full ordinary expeditions and family qualification
+remain OPEN. [Exact delivery](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations).
+The earlier dedicated-server lifecycle delivery retains its [24ed6bc package scope](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract).
 
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
 337 records, their IDs, parents, kinds and accepted proof scopes. These include

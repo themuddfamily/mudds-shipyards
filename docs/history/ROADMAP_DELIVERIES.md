@@ -33261,3 +33261,68 @@ helpers and exact upstream source excerpts are consolidated outside the repo in
 Only that archive and closeout.json remain in the owned case directory. Accepted
 artifacts were copied and hash-verified in the main repository before cleanup.
 No complete packaged flight or native Windows/GPU/audio/human pass is implied.
+
+
+<a id="arrow-atmospheric-guidance-delivered-20261105"></a>
+### Arrow atmospheric guidance delivered — 2026-11-05
+
+Source7e5276a6c69385d1dc59ff34a890253e7ca51f14. Named COMFORT-FLASH production
+capability: while locally piloting the selected Arrow, GameFlow's existing
+atmosphere-effects caller publishes actual Aurora/Rime sampler load, actual
+world ID and body-radial vertical speed to the retained HUD and physical
+cockpit strip. Watch/critical warnings observe current and newly enabled
+Reduced Flash. Leaving the seat, craft replacement/destruction, world retirement
+and Main reset clear owned guidance. The same Arrow later recreates its full
+airless Ember presenter with zero heat and landing wash. The existing generic
+fleet envelope, sampler and flight/damage authority are unchanged.
+
+The narrow guidance-only path reuses ArrowEntryPresentationBinding and its
+existing cockpit presenter. One per-craft WeakRef owner prevents duplicate
+strips; the HUD owner guard prevents stale detach from erasing a newer entry
+card. Retired visuals hide and release canonical names before queued deletion.
+Ember's retained reference detects a retired presenter and reacquires only after
+the atmospheric owner releases it. The new mode neither configures nor resets
+the permanent Arrow heat target; an already configured target's complete state,
+generation and material survive guidance attach/present/detach unchanged.
+
+Actual proof: pre-edit all-nine baseline75 checks/13.918s/OS0/zero diagnostics.
+The added actual-GameFlow caller fixture fails27 intended missing-behavior
+assertions on unchanged production (RED19.202s), without parse/runtime faults.
+First GREEN passed49/83 assertions but emitted11/2 missing-metadata diagnostics;
+those runs are unaccepted and retained. Godot's nullable metadata reads were
+corrected with explicit has_meta guards. Independent review also tightened the
+guidance-only heat reset guard and its exact configured-target regression.
+Clean caller52/20.206s, all-nine84/14.827s, presenter12/.631s and integrated Ember
+binding83/261.561s all actualOS0/zero diagnostics; the Ember test completes its
+physical survey/reboard/ascent/handback within the original300s cap. Existing
+checks are retained. Source/correction review GO. All automated Godot is
+headless/Dummy with private XDG/TMP profiles and inherited HOME unchanged.
+
+The caller fixture uses typed bootstrap getters, real loaded Aurora/Rime
+composition resources and staged craft position/velocity through the actual
+GameFlow method. Rotated-body descent proves radial speed rather than worldY;
+physical HUD labels and cockpit Label3D properties are read. Current/fresh ON,
+cold/climb updates, unchanged actor position/velocity/health, unselected-craft
+isolation, lifecycle cleanup and airless Ember handback are checked. This is
+production caller/component proof, not a complete ordinary expedition or native
+render/hardware qualification.
+
+Fresh clean-commit official pinned4.7.1 Windows/Linux exports and checkpoint
+7e5276a EXE/ZIP/notes plus matching Linux archive are retained in builds/.
+Three strict menu startups (Windows payload under Linux Godot, Linux direct,
+Linux archive) each actualOS0/one STARTUP_MENU_READY_OK/zero diagnostics.
+The existing paired artifact audit passes all nine predicates after ZIP/notes
+freeze: complete matching1531-entry Windows/Linux inventories, pinned Windows
+code section, exact Linux export/archive and Windows EXE+notes ZIP identities. All337 canonical
+IDs/names/parents/kinds/order and Done cells are unchanged; only COMFORT-FLASH
+State records this capability. All36 product parents/ten phase exits remain OPEN.
+Full ordinary Aurora/Rime/parked Ember journeys, native observer/episode
+qualification, all17 Reduced Flash families and applicable device/native/final
+gates remain OPEN/NOT_RUN. No parked route is resumed or renamed here, and
+GitHub Actions remains disabled.
+
+Owned records are retained outside the repository under
+/srv/mudds-work/arrow-atmospheric-guidance-20261105. Integration closure preserves
+those records, copies checked artifacts into main, pushes accepted changes and
+removes the owned branch/worktree/processes. The original00:13:41→01:28:41UTC
+75min clock includes implementation, proof, builds and cleanup.

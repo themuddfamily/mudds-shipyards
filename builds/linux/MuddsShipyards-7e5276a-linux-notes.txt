@@ -1,0 +1,10 @@
+Mudd's Shipyards Linux checkpoint 7e5276a
+Source: 7e5276a6c69385d1dc59ff34a890253e7ca51f14
+
+While piloting Arrow over Aurora or Rime, rising and critical atmospheric entry load now reaches both the HUD and physical cockpit strip. Descent advice follows the world's radial up direction. Reduced Flash updates current warnings and newly created warnings. Leaving the seat, changing or losing the craft, or unloading the world clears owned guidance. A later Ember visit retains airless zero heat and its landing wash.
+
+Actual validation
+Fresh isolated import; actual GameFlow caller fixture with real Aurora/Rime resources52 assertions; all-nine-craft entry regression84; integrated Ember surface binding83; guidance presenter12. All exit0/zero diagnostics; semantic and correction reviews GO. Fixtures stage positions/velocity and bootstrap getters: this is production caller/component proof, not a complete ordinary expedition. Existing source Ember regression completes survey/reboard/ascent/handback in261.561s. Clean-commit Windows/Linux exports use pinned official Godot4.7.1 templates. Strict Windows-payload/Linux-direct/Linux-archive menu startups each exit0/one STARTUP_MENU_READY_OK/zero diagnostics. All automated Godot uses Dummy audio. The paired package audit is retained separately after these notes and ZIP are frozen.
+
+Scope
+Windows payload smoke uses Linux Godot. Ordinary full Aurora/Rime/parked Ember journeys, all17 Reduced Flash family episodes, native Windows/GPU/physical input/audio/human and final-release qualification remain open. Flight, damage and the atmosphere sampler model are unchanged. The prior dedicated-server lifecycle result retains its original24ed6bc package scope.
