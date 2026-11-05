@@ -9,6 +9,9 @@ extends Node3D
 ## deliberately owns no berth, interaction, activity, audio, spawn, lease or
 ## network authority.
 
+## Only a world with a real supported continuation may enable this opening.
+@export var titan_extension_gate_open := false
+
 const SCHEMA_VERSION := 1
 const MODULE_ID: StringName = &"observation-logistics-spur"
 const CONTENT_CLASS: StringName = &"NEW"
@@ -508,8 +511,8 @@ func get_performance_contract() -> Dictionary:
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 8,
-		"static_bodies": 40,
-		"collision_shapes": 42,
+		"static_bodies": 41 if titan_extension_gate_open else 40,
+		"collision_shapes": 43 if titan_extension_gate_open else 42,
 		"labels": 4,
 		"lights": 6,
 		"process_loops": 0,
@@ -1205,9 +1208,9 @@ func get_visual_resource_contract() -> Dictionary:
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
-		descendant_nodes == VISUAL_DESCENDANT_NODE_COUNT
+		descendant_nodes == VISUAL_DESCENDANT_NODE_COUNT + (2 if titan_extension_gate_open else 0)
 		and renderer_nodes == RENDERER_NODE_COUNT
-		and drawn_copies == DRAWN_COPY_COUNT
+		and drawn_copies == DRAWN_COPY_COUNT + (2 if titan_extension_gate_open else 0)
 		and surface_submissions == SURFACE_SUBMISSION_COUNT
 		and mesh_resource_ids.size() == MESH_RESOURCE_COUNT
 		and material_resource_ids.size() == MATERIAL_RESOURCE_COUNT
@@ -1397,7 +1400,7 @@ func get_exposed_lattice_language_contract() -> Dictionary:
 		"negative_space_ratio": NEGATIVE_SPACE_RATIO,
 		"negative_space_preserved": is_equal_approx(1.0 - WALKABLE_AREA_M2 / FOOTPRINT_HORIZONTAL_AREA_M2, NEGATIVE_SPACE_RATIO),
 		"safety_rail_count": rail_count,
-		"safety_edges_complete": rail_count == SAFETY_RAIL_COUNT,
+		"safety_edges_complete": rail_count == SAFETY_RAIL_COUNT + (1 if titan_extension_gate_open else 0),
 		"owns_gameplay_authority": false,
 		"future_expansion_rule": "do not fill deliberate voids, widen decks, or infer historical adjacency from this module",
 	}.duplicate(true)
@@ -1694,7 +1697,16 @@ func _build_safety_rails(parent: Node3D) -> void:
 	# The far bridge itself has north/south rails and turns the two pad routes into
 	# a loop instead of two dead ends.
 	_safety_rail(parent, "FarBridgeSouthRail", Vector3(0.0, 0.62, 36.38), Vector3(5.7, 1.24, 0.16))
-	_safety_rail(parent, "FarBridgeNorthRail", Vector3(0.0, 0.62, 39.62), Vector3(6.2, 1.24, 0.16))
+	if titan_extension_gate_open:
+		# A 2.48 m visible opening (2.60 m collision opening) coincides with
+		# the production Titan connector. Both render and collision split here.
+		for side_index in 2:
+			var side := -1.0 + float(side_index) * 2.0
+			_safety_rail(parent, "TitanGateRail%02d" % (side_index + 1), Vector3(side * 2.2, 0.62, 39.62), Vector3(1.8, 1.24, 0.16))
+		_far_return.set_meta("connects_station_module", &"titan-transport-berth")
+		_far_return.set_meta("connection_status", &"supported_titan_extension")
+	else:
+		_safety_rail(parent, "FarBridgeNorthRail", Vector3(0.0, 0.62, 39.62), Vector3(6.2, 1.24, 0.16))
 	_multimesh_scaled_boxes(parent, "VisibleRailBars", _materials["rail"], _visible_rail_bar_transforms)
 	_multimesh_scaled_boxes(parent, "VisibleRailPosts", _materials["rail"], _visible_rail_post_transforms)
 
@@ -2054,7 +2066,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 		Color("8fe8ef")
 	)
 	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(6.75, 2.98, 27.82), Color("f4bf72"))
-	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.84, 37.70), Color("dbe8e4"))
+	_label(parent, "ReturnLoopSign", "TITAN BERTH  /  RETURN LOOP" if titan_extension_gate_open else "RETURN LOOP", Vector3(0.0, 2.84, 37.70), Color("dbe8e4"))
 
 
 func _build_observation_threshold(parent: Node3D) -> void:
