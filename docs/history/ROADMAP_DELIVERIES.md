@@ -35665,3 +35665,144 @@ SHA256 `a49e4c0d0efd04c1ae37450ee9d598f44342fbf56be8f6495e5569575c687ab9`.
 Every archived member hash was verified, including exact-source Git bundle,
 original card, raw commands/logs/source/import guards, originals, corrections and
 package maps/audit. No successor is selected automatically by this closure.
+
+
+<a id="bomber-whole-lod-delivered-20261105"></a>
+## Cinder Bomber whole-craft LOD runtime and checkpoint — delivered 2026-11-05
+
+**PASS:** bounded CRAFT-ACCEPT-CINDER-BOMBER static-exterior runtime/checkpoint
+member. Source `84bd54a796a1d986736da93244b25991dbb6bfb5`, merged and pushed on
+`530cfaad5773f65c3e1ec9325ff45b0a4090ecc8`. Frozen contract/ownership is in
+selection commit `731e6812d` and archived original card. This is a fresh capability;
+no parked candidate, role decision or expired retry was reopened.
+
+The actual current viewport camera selects one complete retained exterior:
+initial close, far strictly >120m, close strictly <100m; exact boundaries/dead band
+retain and invalid negative/nonfinite inputs are ignored. Exact own cockpit,
+aboard Player or real boarding/disembarking camera forces close; foreign
+camera/actor/seat/frame/craft ownership is rejected, including actual GameFlow
+null-frame pilot transitions. Normal chase-distance defaults are unchanged.
+
+The far representation retains19 macro parts, including complete pressure body,
+shoulders/wing roots, both swept wings, empennage, paired engines and sensor/cowl.
+Original cockpit/canopy, plumes, wing-damage cue and payload/damage owners remain
+shared consumers. Actual sensor/cowl layer1<<1 remains excluded by CockpitCamera
+and included by ShipCamera. Original close paths, geometry/batching/resources,
+collisions, hardpoints and authority are preserved. The port wing root remains
+merged in its existing close batch; the far part uses its actual authored-piece
+index placement/coating instead of unmerging or retaining its unique source mesh.
+
+Actual static triangles8,648/41,076 (21.05%), submissions21/61; real Mesh surfaces
+and visible MultiMesh copies are counted, including -1/all,0/none and partial.
+Empty geometry is retained without empty tangent construction, unknown nonempty
+renderers fail membership. Counts do not establish native GPU/FPS improvement.
+Only four existing source files changed: `scripts/ships/cinder_long_range_bomber.gd`,
+`tests/cinder_long_range_bomber_test.gd`, `tests/main_reentry_quality_test.gd`,
+`tests/capture_cinder_bomber_silhouette.gd`.
+
+| Complete source suite | Assertions | Seconds | Result |
+| --- | --- | --- | --- |
+| cinder_long_range_bomber_test | 137 | 7.92 | PASS |
+| cinder_bomber_component_damage_cue_test | 10 | 126.928 | PASS |
+| cinder_bomber_failed_wing_silhouette_test | 3 | 152.124 | PASS |
+| ship_fitout_batch_test | 35 | 0.732 | PASS |
+| cinder_bomber_hull_resource_sharing_test | 12 | 4.091 | PASS |
+| main_reentry_quality_test | 226 | 77.022 | PASS |
+| cinder_bomber_payload_integration_test | 25 | 3.854 | PASS |
+| game_flow_fleet_expansion_physical_switching_test | 35 | 33.917 | PASS |
+| fleet_expansion_production_binding_test | 20 | 5.447 | PASS |
+| cinder_bomber_sensor_resource_sharing_test | 14 | 4.03 | PASS |
+| game_flow_fleet_expansion_switching_test | 41 | 31.547 | PASS |
+| cinder_bomber_failed_wing_payload_gate_test | 5 | 30.918 | PASS |
+
+All twelve source suites pass563 assertions, each exit0/exactly one original
+marker/raw diagnostics0 with byte-identical source manifests and stable import
+cache. Modes match the actual catalog: ten headless, two private Xvfb/x11
+Forward+/llvmpipe graphical; jobs1/timeout300 throughout. Independent review
+checked original logs/hashes/markers/manifests and complete membership. Main226
+retains original Hauler checks and adds Bomber switches/resource/payload/authority
+comparisons in initial and all three retained-Main epochs, preserving original
+cross-epoch reset expectations. These are source/staged qualifications, not a
+complete ordinary journey or populated active-claim restart proof.
+
+**Actual capture:** existing default1600×900 custom chase mode is unchanged.
+Opt-in `--lod-review --output-dir=ABS` produces three native640×720 near/far/
+cockpit PNGs and an unscaled1920×720 strip. Original source pixels exactly match
+all three strip regions. Actual production ShipCamera43.099174/153.085861m FOV72
+and CockpitCamera3.360476m FOV78 select close/far/close; exterior envelopes8/8
+are in frame. Only this fixture extends requested chase ceilings to40/150m and
+freezes child camera-boundary processing after24 real physics frames.
+
+Root and independent reviewer viewed all four originals at native size: coherent
+matching gray pressure hull, both wings/roots, paired engines and canopy; distant
+silhouette complete with matching coating; readable SPD000, OFFLINE//HOLD,
+PAYLOADOFFLINE, AMMO0 and RELEASELOCKED with clear forward view. Portrait framing
+partly crops side gauges without obstructing the centre. Payload is intentionally
+inactive in this staged OFFLINE component fixture, not a claimed ordinary sortie.
+Capture exits0, one CINDER_BOMBER_LOD_REVIEW_OK, raw diagnostics0. All12,011 tracked
+source files and252 protected import/class/UID files match before/after via the
+existing source-manifest writer. Inner270s watchdog configured, expiry untested;
+outer300s independent supervision/reaping retained. No resized replacement,
+review camera, ordinary flight/LOD-transition or native performance claim.
+
+**Checkpoint:** clean-commit official4.7.1 Windows/Linux exports pass in
+26.571/25.632s. Windows PCK under Linux editor, direct Linux ELF and safely
+extracted Linux archive each pass `--startup-check`: exit0, exactly one
+STARTUP_MENU_READY_OK, raw diagnostics0 in26.372/22.163/22.521s. Exact archive
+has one directory/five regular files with expected names/types/modes; extracted
+ELF matches the packaged binary and starts from its extracted package directory.
+
+Existing unchanged nine-predicate paired audit PASS: all1,531 complete inventory
+entries and unchanged inputs, pinned PE text/template, exact source/helpers,
+Linux ELF/TAR/export-result and two-file Windows ZIP/notes identities. Comparison
+against acceptedc60face independently accounts for1,464 raw-identical entries,
+66 scene differences solely in typed PackedScene node_ids arrays (62 RSRC,
+four strict RSCC/zstd blocks), and only the intended compiled Bomber runtime.
+Every other decoded scene byte is identical; each scene span/hash is recorded.
+Windows/Linux complete RAW maps match. Expected map retains the independent
+prior map except individually proved scene entries and the reviewed intended
+Bomber.gdc tuple54,000 bytes/SHA256
+`21ee9987f5018e997300a024a1e74d8305133dd431f9b09f8e9f701d6f6ed097`.
+Task-local comparison reuses the existing inventory reader; no production
+validator/schema/evidence family was added or audit predicate weakened.
+
+Seven checkpoint files copied to repository builds with SHA256/mode equality:
+[Windows ZIP](../../builds/windows/MuddsShipyards-84bd54a-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-84bd54a-notes.txt),
+[Linux archive](../../builds/linux/MuddsShipyards-84bd54a-linux-x86_64.tar.gz),
+[Linux notes](../../builds/linux/MuddsShipyards-84bd54a-linux-notes.txt).
+
+**Corrections: two of the three frozen allowance used; no budget/case reset.**
+Initialcd435cc1f received pre-engine NO GO because four low-tess shoulder/root
+builders passed null while original coating lived on mesh surfaces. Correction1
+2801d0a8f preserves actual material identity with four focused checks. Its first
+complete focused run then exits1 in5.486s, marker0/diagnostics4: original close
+consolidation absorbs PortWingRootFairing, so direct-node construction omits the
+required far macro and material test dereferences missing nodes. No dependent
+suite/capture/export ran; raw first attempt remains archived.
+
+Correction2 reuses existing `ShipFitoutBatch.find_authored_piece` on registered
+close renderers, avoiding far same-name lookup. Real batch index ranges/coating,
+no retained original mesh, and exact far placement/layer/shadow/override are
+asserted; all19 macro assertions remain. Original close consolidation is intact.
+Corrected84bd54a79 received GO, then passed the complete frozen source, original
+image and package gates above. The third correction was unused.
+
+**Closure:** independent final GO. Original start17:41:06UTC; cleanup18:18:53UTC,
+37.79min, inside the original19:11:06UTC/90min all-in deadline. Final docs/push
+cost is recorded in closeout. Accepted tip contained in fresh pushed main; normal
+owned worktree removal and exact-CAS local branch deletion at84bd54a79 completed;
+remote task branch absent. Recorded supervisors/descendants are absent, generated
+profiles/extracted duplicate/scratch removed after verified archival. All engine
+calls use Dummy audio/headless or isolated Xvfb/x11; hosted CI remains disabled.
+
+Retained exceptions: only
+`/srv/mudds-work/bomber-whole-lod-20261105/records.tar.gz` and `closeout.json`.
+Archive163 regular members/16,537,376bytes/SHA256
+`7ebe8fefb29a4e8a3e77830324097899dff931b71a9e967126fc97b7d85bff73`;
+every member hash verified, including exact-source Git bundle, original card,
+actual commands/logs/manifests/guards, all original images, both correction
+records, initial failure, full package maps/audit and copy/review/process records.
+Accepted packages remain in repository builds. Ordinary full Bomber/payload/home/
+LOD-transition journeys, whole-craft art, native Windows/GPU/devices and original
+parent gates remain OPEN. No successor or parked retry is selected by closure.
