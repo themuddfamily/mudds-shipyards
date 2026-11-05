@@ -1,6 +1,8 @@
-# Vortex implementation proposal — UNAPPROVED
+# Vortex implementation proposal — APPROVED MODERN BASELINE
 
-Status: decision-ready planning proposal, 2026-10-25. **SPEC-VORTEX remains pending owner decision; Vortex remains unimplemented/frozen.** No runtime work is authorized by this document, no craft is accepted, and no parent outcome, phase gate or historical dependency is closed. This is one proposed modern interpretation, not a reconstruction specification. The proposal was prepared from repository sources without running Godot or tests.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+
+Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
 Root revision 2026-10-25: the earlier trial drag1.8 shared three axes with Cinder Bomber, leaving only13 differences against the existing minimum14. Proposed drag1.85 resolves that exact source-table conflict without changing an implemented craft. This remains an UNAPPROVED design revision, not runtime tuning or a passed controller check.
 

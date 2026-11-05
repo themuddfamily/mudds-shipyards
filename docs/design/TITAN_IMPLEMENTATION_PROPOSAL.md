@@ -1,6 +1,8 @@
-# Titan implementation proposal — UNAPPROVED
+# Titan implementation proposal — APPROVED MODERN BASELINE
 
-Status: decision-ready planning only, 2026-10-25. Titan remains **missing implementation + external evidence dependency**. This document neither authorizes runtime work nor delivers a craft, closes a phase, or approves a deferral. The owner must explicitly accept the interpretation before implementation starts. This revision fixes one trial baseline for root review; the interpretation decision remains pending. Preparation used local source reading only, with no engine, tests, exports or fresh external viewing.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+
+Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
 Revision note: the earlier unsupported phrase “existing repair-kit cargo” is corrected below to an explicitly proposed new inert parcel item. No such cargo item or runtime adaptation is delivered by this document. The original nine handling choices remain unchanged; the seven missing fields and physical/custody contracts now have finite trial values.
 

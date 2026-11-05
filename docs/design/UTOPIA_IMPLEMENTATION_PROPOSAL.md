@@ -1,6 +1,8 @@
-# Utopia implementation proposal — UNAPPROVED
+# Utopia implementation proposal — APPROVED MODERN BASELINE
 
-Status: decision-ready planning proposal, 2026-10-25. **SPEC-UTOPIA remains pending owner decision; Utopia remains unimplemented/frozen.** This document authorizes no runtime work, accepts no craft, and closes no source dependency, parent outcome or phase gate. The fleet remains nine implemented craft out of seventeen promised. Preparation used repository reading and static numeric comparison only; no engines, tests, exports, network calls or fresh historical research were performed.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+
+Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
 ## Supported facts and evidence boundary
 
