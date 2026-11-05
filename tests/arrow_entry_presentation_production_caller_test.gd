@@ -1,6 +1,9 @@
 extends SceneTree
 
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
+const FlightEffectsScript := preload("res://scripts/world/planetary_atmosphere_flight_effects.gd")
+const AURORA_COMPOSITION := preload("res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn")
+const RIME_COMPOSITION := preload("res://scenes/world/components/rime_glacial_atmosphere_composition.tscn")
 const BindingScript := preload(
 	"res://scripts/world/ember_surface_loop_production_binding.gd"
 )
@@ -15,6 +18,7 @@ const DENSITY_RAMP_AT_14_KM := (0.030197383422318501 - 0.011108996538242306) \
 	/ (0.0820849986238988 - 0.011108996538242306)
 
 var _failures := PackedStringArray()
+var _assertions := 0
 
 
 class ProductionProbe:
@@ -39,11 +43,38 @@ class AtmosphereProbe:
 	var atmosphere_profile: PlanetaryAtmosphereProfile
 
 
+class SeatedPilot:
+	extends CharacterBody3D
+	func is_seated() -> bool:
+		return true
+
+
+class AuroraSource:
+	extends AuroraTemperateStreamingBootstrap
+	var fixture_composition: PlanetaryAtmosphereComposition
+	var fixture_world: Node3D
+	func get_atmosphere_composition() -> PlanetaryAtmosphereComposition:
+		return fixture_composition
+	func get_loaded_instance() -> Node3D:
+		return fixture_world
+
+
+class RimeSource:
+	extends RimeGlacialStreamingBootstrap
+	var fixture_composition: PlanetaryAtmosphereComposition
+	var fixture_world: Node3D
+	func get_atmosphere_composition() -> PlanetaryAtmosphereComposition:
+		return fixture_composition
+	func get_loaded_instance() -> Node3D:
+		return fixture_world
+
+
 func _init() -> void:
 	call_deferred("_run")
 
 
 func _run() -> void:
+	await _test_live_atmospheric_caller()
 	var composition := Node3D.new()
 	composition.name = "EntryPresentationProductionRoot"
 	root.add_child(composition)
@@ -687,11 +718,31 @@ func _run() -> void:
 		"re-entry creates a clean envelope generation without inherited recovery",
 	)
 	entry_binding.call(&"detach")
+	await process_frame
+	# An unrelated, already configured permanent target remains untouched by
+	# the transient guidance owner, including its material and generation.
+	var heat_target := arrow.get_entry_heat_target()
+	var heat_presentation := heat_target.get_presentation()
+	heat_presentation.present_observation(10_000.0, 340.0, heat_presentation.get_generation())
+	var heat_before := heat_presentation.get_state_snapshot()
+	var heat_generation_before := heat_presentation.get_generation()
+	var heat_material_before: Variant = heat_target.get_material().get_shader_parameter(&"entry_effect_intensity_unitless")
+	var guidance_only := ArrowEntryPresentationBinding.new()
+	var guidance_attached := guidance_only.attach(arrow, hud, true)
+	var guidance_presented := guidance_only.present_atmospheric_source(&"rime_glacial_world", 6_000.0, -600.0, 1.0)
+	guidance_only.detach()
+	_check(bool(guidance_attached.get("accepted", false))
+		and bool(guidance_presented.get("accepted", false))
+		and heat_presentation.get_state_snapshot() == heat_before
+		and heat_presentation.get_generation() == heat_generation_before
+		and heat_target.get_material().get_shader_parameter(&"entry_effect_intensity_unitless") == heat_material_before,
+		"guidance-only attach/present/detach never changes a separately configured permanent heat target")
+	heat_presentation.reset_for_reuse(heat_presentation.get_generation())
 
 	composition.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 14 assertions")
+		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 		return
 	for failure in _failures:
@@ -699,7 +750,149 @@ func _run() -> void:
 	quit(1)
 
 
+## Real GameFlow caller and real profile/sampler, with fixture positions and
+## typed bootstrap getters. This proves the production feed, not a full journey.
+func _test_live_atmospheric_caller() -> void:
+	var fixture := Node3D.new()
+	root.add_child(fixture)
+	var hud := GameHUD.new()
+	hud.name = "HUD"
+	fixture.add_child(hud)
+	var arrow := ARROW_SCENE.instantiate() as ArrowReconShip
+	fixture.add_child(arrow)
+	var other := ARROW_SCENE.instantiate() as ArrowReconShip
+	fixture.add_child(other)
+	var pilot := SeatedPilot.new()
+	fixture.add_child(pilot)
+	await process_frame
+	arrow.set_physics_process(false)
+	other.set_physics_process(false)
+	var flow := GameFlow.new()
+	flow.active_ship = arrow
+	flow.hud = hud
+	flow.player = pilot
+	flow.set("_piloting", true)
+	var ember := ProductionProbe.new()
+	fixture.add_child(ember)
+	ember.set("_composition_root", fixture)
+	ember.set("_ship", arrow)
+	ember.set("_ship_instance_id", arrow.get_instance_id())
+	ember.set("_last_planetary_altitude_m", 100.0)
+	ember._present_entry_observation(340.0, -12.0, true)
+	var retired_ember := ember.get("_entry_presentation_binding") as RefCounted
+	var body := Node3D.new()
+	fixture.add_child(body)
+	body.rotation = Vector3(0.2, 0.4, 0.7)
+	var aurora := AuroraSource.new()
+	var rime := RimeSource.new()
+	var cases := [
+		[AURORA_COMPOSITION, aurora, 12_000.0, 10_000.0],
+		[RIME_COMPOSITION, rime, 8_000.0, 6_000.0],
+	]
+	for world_case: Array in cases:
+		var composition := (world_case[0] as PackedScene).instantiate() as PlanetaryAtmosphereComposition
+		body.add_child(composition)
+		var source := world_case[1] as PlanetaryStreamingBootstrap
+		source.set("fixture_composition", composition)
+		source.set("fixture_world", body)
+		flow.aurora_streaming_bootstrap = aurora if source == aurora else null
+		flow.rime_streaming_bootstrap = rime if source == rime else null
+		for reduced_flash: bool in [false, true]:
+			hud.set_reduced_flash(reduced_flash)
+			for hot: bool in [false, true]:
+				var altitude := float(world_case[3] if hot else world_case[2])
+				arrow.global_position = body.to_global(Vector3(120_000.0 + altitude, 0.0, 0.0))
+				arrow.velocity = body.global_basis * Vector3(-600.0, 0.0, 0.0)
+				var position_before := arrow.global_position
+				var velocity_before := arrow.velocity
+				var hull_before := float(arrow.get("_hull"))
+				flow._advance_planetary_atmosphere_flight_effects(0.0)
+				var result := flow.get_planetary_atmosphere_flight_effects_snapshot()
+				var guidance := (result.entry as Dictionary).get("arrow_guidance", {}) as Dictionary
+				var published := (guidance.get("last_result", {}) as Dictionary).get("source", {}) as Dictionary
+				var readout := arrow.get_arrow_visual_root().get_node_or_null(^"CockpitInterior/InstrumentCluster/EntryDescentReadout") as Label3D
+				var presentation := (hud.get("_entry_guidance_presenter") as RefCounted).call(&"get_snapshot") as Dictionary
+				var title := hud.get("_runtime_status_title") as Label
+				var detail := hud.get("_runtime_status_detail") as Label
+				_check(readout != null and readout.visible
+					and readout.text.contains("CRITICAL" if hot else "RISING")
+					and readout.modulate == ((Color("f4c879") if reduced_flash else Color("ff796f")) if hot else Color("ffd36a")),
+					"live %s physical cockpit severity/color reduced=%s critical=%s" % [composition.world_definition.world_id, reduced_flash, hot])
+				_check(published.get("world_id") == composition.world_definition.world_id
+					and is_equal_approx(float(published.get("vertical_speed_mps", 0.0)), -600.0)
+					and not is_equal_approx(arrow.velocity.y, -600.0)
+					and presentation.get("state") == (&"critical_entry" if hot else &"entry_watch")
+					and presentation.get("reduced_flash") == reduced_flash
+					and title.text == ("Critical Atmospheric Entry" if hot else "Atmospheric Entry Watch")
+					and detail.text.contains("STEADY ENTRY LOAD" if reduced_flash else "! ENTRY LOAD")
+					and detail.text.contains("600 M/S DOWN")
+					and other.get_arrow_visual_root().get_node_or_null(^"CockpitInterior/InstrumentCluster/EntryDescentReadout") == null
+					and arrow.global_position == position_before and arrow.velocity == velocity_before
+					and float(arrow.get("_hull")) == hull_before,
+					"live %s sampler reaches retained HUD with actual radial speed and no actor mutation" % composition.world_definition.world_id)
+				ember._present_entry_observation(340.0, -12.0, true)
+				_check((hud.get("_entry_guidance_presenter") as RefCounted).call(&"get_snapshot").state == presentation.state,
+					"Ember cannot overwrite active atmospheric guidance")
+		# Zero envelope intensity must still refresh sink advice and settings.
+		arrow.velocity = body.global_basis * Vector3(20.0, 0.0, 0.0)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		hud.set_reduced_flash(false)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		var cold := (hud.get("_entry_guidance_presenter") as RefCounted).call(&"get_snapshot") as Dictionary
+		_check(cold.get("descent_advisory_id") == &"climb_exit" and cold.get("reduced_flash") == false,
+			"cold settled entry still refreshes radial climb and accessibility")
+		# On foot stops local HUD ownership; re-entry honors an already ON setting.
+		flow.set("_piloting", false)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		_check(not (hud.get("_runtime_status_cards") as Dictionary).has(&"entry"), "on-foot clears atmospheric HUD guidance")
+		hud.set_reduced_flash(true)
+		flow.set("_piloting", true)
+		arrow.velocity = body.global_basis * Vector3(-600.0, 0.0, 0.0)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		var fresh_readout := arrow.get_arrow_visual_root().get_node_or_null(^"CockpitInterior/InstrumentCluster/EntryDescentReadout") as Label3D
+		_check(fresh_readout != null and fresh_readout.text.contains("CRITICAL")
+			and fresh_readout.modulate == Color("f4c879")
+			and (hud.get("_runtime_status_detail") as Label).text.contains("STEADY ENTRY LOAD CRITICAL"),
+			"new already-ON entry owner matches current reduced-flash critical guidance")
+		flow.active_ship = other
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		_check(arrow.get_arrow_visual_root().get_node(^"CockpitInterior/InstrumentCluster").get_node_or_null(^"EntryDescentReadout") == null,
+			"craft replacement retires old cockpit strip immediately")
+		flow.active_ship = arrow
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		arrow.set("_destroyed", true)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		_check(not (hud.get("_runtime_status_cards") as Dictionary).has(&"entry"), "destroyed active Arrow clears guidance")
+		arrow.set("_destroyed", false)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		source.set("fixture_world", null)
+		flow._advance_planetary_atmosphere_flight_effects(0.0)
+		_check(not (hud.get("_runtime_status_cards") as Dictionary).has(&"entry"), "world retirement clears guidance")
+		composition.queue_free()
+		await process_frame
+	# Same Arrow returns to its full ordinary Ember owner and landing wash.
+	ember._present_entry_observation(340.0, -12.0, true)
+	var ember_result := ember.get_snapshot().last_entry_presentation_result as Dictionary
+	var ember_source := ember_result.get("source", {}) as Dictionary
+	retired_ember.call(&"detach")
+	_check(ember_source.get("world_id") == &"ember_moon" and ember_source.get("branch_id") == &"airless"
+		and is_zero_approx(float(ember_result.get("entry_intensity", -1.0)))
+		and float(((ember_result.get("landing_wash", {}) as Dictionary).get("snapshot", {}) as Dictionary).get("intensity", 0.0)) > 0.0
+		and not bool(arrow.get_entry_heat_target().get_presentation().get_state_snapshot().get("configured", true))
+		and (hud.get("_runtime_status_cards") as Dictionary).has(&"entry"),
+		"same Arrow returns to zero-heat airless Ember wash; stale owner cannot erase new HUD")
+	flow._planetary_atmosphere_flight_effects.reset(&"test_session_exit")
+	flow.free()
+	aurora.free()
+	rime.free()
+	fixture.queue_free()
+	await process_frame
+	if _failures.is_empty():
+		print("ARROW_LIVE_ATMOSPHERIC_CALLER_OK: Aurora/Rime watch/critical radial feed, Reduced Flash, lifecycle and Ember return (fixture source/component proof)")
+
+
 func _check(condition: bool, message: String) -> void:
+	_assertions += 1
 	if not condition:
 		_failures.append(message)
 

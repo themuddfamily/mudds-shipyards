@@ -16,7 +16,10 @@ extends RefCounted
 ##    overlay is deliberately left alone: its adapter's configuration is
 ##    permanent, and a configured target is what makes the Arrow's Ember-owned
 ##    presenter treat a later descent as atmospheric, so configuring it for
-##    Aurora would light plasma over airless Ember.
+##    Aurora would light plasma over airless Ember. While locally piloting an
+##    Arrow, its retained HUD and physical cockpit strip instead consume this
+##    live sampler load through a transient guidance-only Arrow presenter. It
+##    retires on leaving the pilot seat, craft/world replacement or reset.
 ## 2. Weather wind response. Below a wind ceiling, a piloted craft in ordinary
 ##    flight receives a bounded lateral drift/buffet from the authored wind
 ##    vector, submitted through [method HeroShip.submit_atmospheric_wind_drift].
@@ -39,6 +42,9 @@ const COMPONENT_ID: StringName = &"planetary-atmosphere-flight-effects"
 const ENVELOPE_NAME: StringName = &"PlanetaryAtmosphereEntryEnvelope"
 const EnvelopeBindingScript := preload(
 	"res://scripts/ships/hero_atmospheric_entry_envelope_binding.gd"
+)
+const ArrowEntryBindingScript := preload(
+	"res://scripts/ships/arrow_entry_presentation_binding.gd"
 )
 const SamplerScript := preload(
 	"res://scripts/world/planetary_atmosphere_sampler.gd"
@@ -86,6 +92,7 @@ var _loaded_ref: WeakRef
 var _loaded_instance_id := 0
 var _profile: PlanetaryAtmosphereProfile
 var _profile_id: StringName = &""
+var _world_id: StringName = &""
 var _sampler: PlanetaryAtmosphereSampler
 var _body_radius_m := 0.0
 var _weather_scalar := 1.0
@@ -94,6 +101,8 @@ var _atmosphere_top_m := 0.0
 var _weather_clock_seconds := 0.0
 var _weather_clock_wrap_seconds := WEATHER_CLOCK_MAX_WRAP_SECONDS
 
+var _arrow_guidance_binding: RefCounted
+var _arrow_guidance_hud_instance_id := 0
 var _entry_binding: RefCounted
 var _entry_ship_ref: WeakRef
 var _entry_ship_instance_id := 0
@@ -182,7 +191,7 @@ func advance(
 			altitude_m = maxf(0.0, body_local.length() - _body_radius_m)
 	_last_altitude_m = altitude_m
 
-	_update_entry(live_craft, hud, craft_body_local)
+	_update_entry(live_craft, hud, craft_body_local, piloting)
 	var wind_sample := _sample_wind(altitude_m, body_local, reduced_motion)
 	_update_wind_drift(live_craft, piloting, loaded, wind_sample, delta)
 	_update_interior_blend(player, live_craft, delta)
@@ -209,6 +218,7 @@ func reset(reason: StringName = &"reset") -> void:
 	_loaded_instance_id = 0
 	_profile = null
 	_profile_id = &""
+	_world_id = &""
 	_sampler = null
 	_body_radius_m = 0.0
 	_weather_scalar = 1.0
@@ -237,6 +247,7 @@ func get_snapshot() -> Dictionary:
 		"component_id": COMPONENT_ID,
 		"active": _active,
 		"profile_id": _profile_id,
+		"world_id": _world_id,
 		"loaded_instance_id": _loaded_instance_id,
 		"altitude_m": _last_altitude_m,
 		"speed_mps": _last_speed_mps,
@@ -247,6 +258,8 @@ func get_snapshot() -> Dictionary:
 			"craft_instance_id": _entry_ship_instance_id,
 			"intensity_unitless": _entry_intensity,
 			"envelope_name": ENVELOPE_NAME,
+			"arrow_guidance": _arrow_guidance_binding.call(&"get_snapshot") \
+				if _arrow_guidance_binding != null else {"attached": false},
 			"binding": _entry_binding.call(&"get_snapshot") \
 				if _entry_binding != null else {"attached": false},
 			"last_result": _last_entry_result.duplicate(true),
@@ -323,6 +336,7 @@ func _bind_atmosphere(resolved: Dictionary) -> bool:
 	_sampler = sampler
 	_profile = profile
 	_profile_id = profile.profile_id
+	_world_id = composition.world_definition.world_id
 	_source_ref = weakref(source)
 	_loaded_ref = weakref(loaded)
 	_loaded_instance_id = loaded.get_instance_id()
@@ -337,7 +351,7 @@ func _bind_atmosphere(resolved: Dictionary) -> bool:
 # --- Entry heat / compression -----------------------------------------------
 
 func _update_entry(
-		craft: HeroShip, hud: GameHUD, body_local: Vector3
+		craft: HeroShip, hud: GameHUD, body_local: Vector3, piloting: bool
 	) -> void:
 	if craft == null or hud == null or not is_instance_valid(hud):
 		_detach_entry(&"craft_unavailable")
@@ -354,6 +368,7 @@ func _update_entry(
 			_entry_attach_cooldown = ENTRY_ATTACH_RETRY_TICKS
 			return
 	if not body_local.is_finite():
+		_detach_arrow_guidance()
 		return
 	var altitude := clampf(
 		body_local.length() - _body_radius_m, 0.0,
@@ -368,6 +383,9 @@ func _update_entry(
 	var intensity := clampf(
 		float(sample.get("entry_effect_intensity", 0.0)), 0.0, 1.0
 	) if bool(sample.get("accepted", false)) else 0.0
+	# The live HUD/cockpit feed must keep observing climb, sink and settings
+	# even after a cold generic envelope no longer needs visual updates.
+	_update_arrow_guidance(craft, hud, body_local, altitude, intensity, piloting)
 	# Slow flight low down is the common case: once the envelope has presented
 	# zero and shows nothing, keep it there without re-presenting every tick.
 	# A hot-to-zero drop arms a timed recovery hold that only counts down on
@@ -389,6 +407,46 @@ func _update_entry(
 		((presented.get("snapshot", {}) as Dictionary).get("envelope", {}) \
 			as Dictionary).get("visible", false)
 	)
+
+
+func _update_arrow_guidance(
+		craft: HeroShip, hud: GameHUD, body_local: Vector3,
+		altitude_m: float, intensity: float, piloting: bool
+	) -> void:
+	if not piloting or not craft is ArrowReconShip:
+		_detach_arrow_guidance()
+		return
+	if _arrow_guidance_binding != null and (
+			_arrow_guidance_hud_instance_id != hud.get_instance_id()
+			or not bool(_arrow_guidance_binding.call(&"is_attached"))):
+		_detach_arrow_guidance()
+	if _arrow_guidance_binding == null:
+		var binding := ArrowEntryBindingScript.new() as RefCounted
+		var attached := binding.call(&"attach", craft as ArrowReconShip, hud, true) as Dictionary
+		if not bool(attached.get("accepted", false)):
+			return
+		_arrow_guidance_binding = binding
+		_arrow_guidance_hud_instance_id = hud.get_instance_id()
+	var loaded := _loaded_ref.get_ref() as Node3D if _loaded_ref != null else null
+	if loaded == null or body_local.is_zero_approx():
+		_detach_arrow_guidance()
+		return
+	var radial_up_world := (loaded.global_basis * body_local.normalized()).normalized()
+	var vertical_speed_mps := craft.velocity.dot(radial_up_world) \
+		if craft.velocity.is_finite() else 0.0
+	var presented := _arrow_guidance_binding.call(
+		&"present_atmospheric_source", _world_id, altitude_m,
+		vertical_speed_mps, intensity
+	) as Dictionary
+	if not bool(presented.get("accepted", false)):
+		_detach_arrow_guidance()
+
+
+func _detach_arrow_guidance() -> void:
+	if _arrow_guidance_binding != null:
+		_arrow_guidance_binding.call(&"detach")
+	_arrow_guidance_binding = null
+	_arrow_guidance_hud_instance_id = 0
 
 
 func _attach_entry(craft: HeroShip, hud: GameHUD) -> bool:
@@ -415,6 +473,7 @@ func _attach_entry(craft: HeroShip, hud: GameHUD) -> bool:
 
 
 func _detach_entry(reason: StringName) -> void:
+	_detach_arrow_guidance()
 	if _entry_binding != null:
 		_entry_binding.call(&"detach")
 	_entry_binding = null

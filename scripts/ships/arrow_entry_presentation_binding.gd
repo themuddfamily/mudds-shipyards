@@ -7,6 +7,8 @@ extends RefCounted
 ## landing outcome.
 
 const COMPONENT_ID: StringName = &"arrow-entry-presentation-binding"
+const OWNER_META: StringName = &"_arrow_entry_presentation_owner"
+const HUD_OWNER_META: StringName = &"_arrow_entry_hud_owner"
 const LandingDustWashScript := preload(
 	"res://scripts/effects/arrow_landing_dust_wash_presentation.gd"
 )
@@ -25,13 +27,16 @@ var _cockpit_generation := 0
 var _exterior_envelope: Node3D
 var _exterior_generation := 0
 var _attached := false
+var _guidance_only := false
 var _atmospheric := false
 var _generation := 0
 var _observation_count := 0
 var _last_result: Dictionary = {}
 
 
-func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
+func attach(
+		arrow: ArrowReconShip, hud: GameHUD, guidance_only: bool = false
+	) -> Dictionary:
 	if _attached:
 		return _reject(&"already_attached")
 	if arrow == null or not is_instance_valid(arrow) \
@@ -49,6 +54,16 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 	) as Node3D
 	if cockpit_cluster == null:
 		return _reject(&"physical_cockpit_display_unavailable")
+	# Exactly one owner may publish this craft's cockpit strip. Atmospheric
+	# guidance takes over from Ember without configuring its permanent target;
+	# Ember resumes with a fresh full presenter when that guidance retires.
+	var owner_ref: Variant = arrow.get_meta(OWNER_META) if arrow.has_meta(OWNER_META) else null
+	var owner: Variant = owner_ref.get_ref() if owner_ref is WeakRef else null
+	if owner != null and owner != self:
+		if not guidance_only:
+			return _reject(&"atmosphere_guidance_owned")
+		owner.call(&"detach")
+	_guidance_only = guidance_only
 	var state := presentation.get_state_snapshot()
 	if bool(state.get("configured", false)):
 		if not bool(presentation.audit().get("valid", false)):
@@ -56,23 +71,28 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 		_atmospheric = true
 	_arrow_ref = weakref(arrow)
 	_hud_ref = weakref(hud)
-	_landing_wash = LandingDustWashScript.new() as Node3D
-	_landing_wash.name = "ArrowLandingDustWashPresentation"
-	arrow.get_arrow_visual_root().add_child(_landing_wash)
+	if not _guidance_only:
+		_landing_wash = LandingDustWashScript.new() as Node3D
+		_landing_wash.name = "ArrowLandingDustWashPresentation"
+		arrow.get_arrow_visual_root().add_child(_landing_wash)
 	_cockpit_readout = CockpitReadoutScript.new() as Label3D
 	_cockpit_readout.name = "EntryDescentReadout"
 	cockpit_cluster.add_child(_cockpit_readout)
 	_cockpit_generation = int(_cockpit_readout.call(&"get_generation"))
-	_exterior_envelope = ExteriorEnvelopeScript.new() as Node3D
-	_exterior_envelope.name = "ArrowEntryExteriorEnvelope"
-	arrow.get_arrow_visual_root().add_child(_exterior_envelope)
-	_exterior_generation = int(_exterior_envelope.call(&"get_generation"))
+	if not _guidance_only:
+		_exterior_envelope = ExteriorEnvelopeScript.new() as Node3D
+		_exterior_envelope.name = "ArrowEntryExteriorEnvelope"
+		arrow.get_arrow_visual_root().add_child(_exterior_envelope)
+		_exterior_generation = int(_exterior_envelope.call(&"get_generation"))
 	_attached = true
+	arrow.set_meta(OWNER_META, weakref(self))
 	_generation += 1
 	return _result(true, &"attached")
 
 
 func configure_atmosphere(profile: PlanetaryAtmosphereProfile) -> Dictionary:
+	if _guidance_only:
+		return _reject(&"sampler_guidance_only")
 	if not _attached:
 		return _reject(&"detached")
 	if profile == null or not profile.is_definition_valid():
@@ -86,7 +106,7 @@ func configure_atmosphere(profile: PlanetaryAtmosphereProfile) -> Dictionary:
 		if state.get("profile_id", &"") != profile.profile_id:
 			return _reject(&"atmosphere_profile_mismatch")
 		_atmospheric = true
-		if _landing_wash != null:
+		if is_instance_valid(_landing_wash):
 			_landing_wash.call(&"clear", &"atmospheric_branch_zero")
 		return _result(true, &"atmosphere_retained")
 	var configured := presentation.configure(
@@ -97,9 +117,41 @@ func configure_atmosphere(profile: PlanetaryAtmosphereProfile) -> Dictionary:
 			"presentation_reason": configured.get("reason", &"unknown"),
 		})
 	_atmospheric = true
-	if _landing_wash != null:
+	if is_instance_valid(_landing_wash):
 		_landing_wash.call(&"clear", &"atmospheric_branch_zero")
 	return _result(true, &"atmosphere_configured")
+
+
+## Consumes the live world's already-sampled load. This path deliberately
+## never configures or presents the permanent Arrow heat target, landing wash
+## or exterior envelope; the fleet atmosphere owner already owns its envelope.
+func present_atmospheric_source(
+		world_id: StringName, altitude_m: float,
+		vertical_speed_mps: float, intensity: float
+	) -> Dictionary:
+	if not _attached or not _guidance_only or _arrow() == null or _hud() == null:
+		return _reject(&"guidance_target_unavailable")
+	if world_id == &"" or not is_finite(altitude_m) or altitude_m < 0.0 \
+			or not is_finite(vertical_speed_mps) or not is_finite(intensity) \
+			or intensity < 0.0 or intensity > 1.0:
+		return _reject(&"invalid_observation")
+	var accessibility := _hud().get_accessibility_report()
+	var source := {
+		"world_id": world_id, "branch_id": &"atmospheric",
+		"altitude_m": altitude_m, "vertical_speed_mps": vertical_speed_mps,
+		"entry_intensity": intensity, "landing_supported": false,
+		"reduced_flash": bool(accessibility.get("reduced_flash", false)),
+		"reduced_motion": bool(accessibility.get("reduced_motion", false)),
+	}
+	var cockpit_result := _present_guidance(source)
+	if not bool(cockpit_result.get("accepted", false)):
+		return _reject(&"cockpit_guidance_rejected")
+	_observation_count += 1
+	_last_result = _result(true, &"atmospheric_guidance_presented", {
+		"source": source, "cockpit_readout": cockpit_result,
+		"entry_intensity": intensity,
+	})
+	return _last_result.duplicate(true)
 
 
 func present_observation(
@@ -108,6 +160,8 @@ func present_observation(
 	) -> Dictionary:
 	if not _attached:
 		return _reject(&"detached")
+	if _guidance_only:
+		return _reject(&"atmosphere_guidance_owned")
 	if not is_finite(altitude_m) or not is_finite(speed_mps) \
 			or not is_finite(vertical_speed_mps) \
 			or altitude_m < 0.0 or speed_mps < 0.0:
@@ -138,7 +192,7 @@ func present_observation(
 	var wash_result: Dictionary = {
 		"accepted": false, "reason": &"landing_wash_unavailable",
 	}
-	if _landing_wash != null:
+	if is_instance_valid(_landing_wash):
 		wash_result = _landing_wash.call(
 			&"present_observation", altitude_m, vertical_speed_mps,
 			not _atmospheric, landing_supported,
@@ -155,19 +209,11 @@ func present_observation(
 		"reduced_flash": bool(accessibility.get("reduced_flash", false)),
 		"reduced_motion": bool(accessibility.get("reduced_motion", false)),
 	}
-	hud.update_atmospheric_entry_status(source)
-	var cockpit_result: Dictionary = {
-		"accepted": false, "reason": &"cockpit_readout_unavailable",
-	}
-	if _cockpit_readout != null:
-		cockpit_result = _cockpit_readout.call(
-			&"present_source", source, _observation_count + 1,
-			_cockpit_generation
-		) as Dictionary
+	var cockpit_result := _present_guidance(source)
 	var exterior_result: Dictionary = {
 		"accepted": false, "reason": &"exterior_envelope_unavailable",
 	}
-	if _exterior_envelope != null \
+	if is_instance_valid(_exterior_envelope) \
 			and bool(cockpit_result.get("accepted", false)):
 		exterior_result = _exterior_envelope.call(
 			&"present_envelope", cockpit_result.get("snapshot", {}),
@@ -188,27 +234,53 @@ func present_observation(
 	return _last_result.duplicate(true)
 
 
+func _present_guidance(source: Dictionary) -> Dictionary:
+	var hud := _hud()
+	if hud == null or not is_instance_valid(_cockpit_readout):
+		return {"accepted": false, "reason": &"cockpit_readout_unavailable"}
+	hud.set_meta(HUD_OWNER_META, weakref(self))
+	hud.update_atmospheric_entry_status(source)
+	return _cockpit_readout.call(
+		&"present_source", source, _observation_count + 1,
+		_cockpit_generation
+	) as Dictionary
+
+
 func detach() -> Dictionary:
-	if _exterior_envelope != null:
+	var hud := _hud()
+	if hud != null:
+		var hud_owner: Variant = hud.get_meta(HUD_OWNER_META) if hud.has_meta(HUD_OWNER_META) else null
+		if hud_owner is WeakRef and hud_owner.get_ref() == self:
+			hud.clear_runtime_status(&"entry")
+			hud.remove_meta(HUD_OWNER_META)
+	var arrow := _arrow()
+	if arrow != null:
+		var owner: Variant = arrow.get_meta(OWNER_META) if arrow.has_meta(OWNER_META) else null
+		if owner is WeakRef and owner.get_ref() == self:
+			arrow.remove_meta(OWNER_META)
+	if is_instance_valid(_exterior_envelope):
 		_exterior_envelope.call(
 			&"clear", &"detached", _exterior_generation
 		)
+		_exterior_envelope.name = "RetiredArrowEntryExteriorEnvelope"
 		_exterior_envelope.queue_free()
 		_exterior_envelope = null
 	_exterior_generation = 0
-	if _cockpit_readout != null:
+	if is_instance_valid(_cockpit_readout):
 		_cockpit_readout.call(
 			&"clear", &"detached", _cockpit_generation
 		)
+		_cockpit_readout.name = "RetiredEntryDescentReadout"
 		_cockpit_readout.queue_free()
 		_cockpit_readout = null
 	_cockpit_generation = 0
-	if _landing_wash != null:
+	if is_instance_valid(_landing_wash):
 		_landing_wash.call(&"clear", &"detached_zero")
+		_landing_wash.name = "RetiredArrowLandingDustWashPresentation"
 		_landing_wash.queue_free()
 		_landing_wash = null
 	var presentation := _presentation()
-	if presentation != null and bool(
+	if not _guidance_only and presentation != null and bool(
 		presentation.get_state_snapshot().get("configured", false)
 	):
 		presentation.reset_for_reuse(presentation.get_generation())
@@ -216,6 +288,7 @@ func detach() -> Dictionary:
 	_hud_ref = null
 	_attached = false
 	_atmospheric = false
+	_guidance_only = false
 	_generation += 1
 	_last_result = {}
 	return _result(true, &"detached")
@@ -232,32 +305,37 @@ func get_audio_presentation_snapshot() -> Dictionary:
 			"source": (_last_result.get("source", {}) as Dictionary).duplicate(true),
 		},
 		"landing_wash": _landing_wash.call(&"get_snapshot") \
-			if _landing_wash != null else {
+			if is_instance_valid(_landing_wash) else {
 				"visible": false, "intensity": 0.0,
 				"last_reason": &"detached_zero",
 			},
 	}
 
 
+func is_attached() -> bool:
+	return _attached and _arrow() != null and _hud() != null
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"component_id": COMPONENT_ID,
-		"attached": _attached and _arrow() != null and _hud() != null,
+		"attached": is_attached(),
 		"generation": _generation,
-		"branch_id": &"atmospheric" if _atmospheric else &"airless",
+		"branch_id": &"atmospheric" if _atmospheric or _guidance_only else &"airless",
+		"guidance_only": _guidance_only,
 		"observation_count": _observation_count,
 		"last_result": _last_result.duplicate(true),
 		"landing_wash": _landing_wash.call(&"get_snapshot") \
-			if _landing_wash != null else {
+			if is_instance_valid(_landing_wash) else {
 				"visible": false, "intensity": 0.0,
 				"last_reason": &"detached_zero",
 			},
 		"cockpit_readout": _cockpit_readout.call(&"get_snapshot") \
-			if _cockpit_readout != null else {
+			if is_instance_valid(_cockpit_readout) else {
 				"visible": false, "text": "", "state": &"detached",
 			},
 		"exterior_envelope": _exterior_envelope.call(&"get_snapshot") \
-			if _exterior_envelope != null else {
+			if is_instance_valid(_exterior_envelope) else {
 				"visible": false, "visible_segment_count": 0,
 				"state": &"detached",
 			},

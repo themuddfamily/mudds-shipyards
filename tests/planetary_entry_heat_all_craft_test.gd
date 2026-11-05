@@ -170,6 +170,13 @@ func _exercise(craft_name: String, craft: HeroShip) -> void:
 			"Aurora never configures the Arrow's permanent heat overlay (no Ember plasma later)"
 		)
 
+	else:
+		_check(
+			visual.get_node_or_null(^"CockpitInterior/InstrumentCluster/EntryDescentReadout") == null
+				and not (_hud.get("_runtime_status_cards") as Dictionary).has(&"entry"),
+			"%s retains its existing envelope without Arrow cockpit or entry HUD ownership" % craft_name
+		)
+
 	_hud.set_reduced_flash(true)
 	effects.advance(TICK, craft, true, null, _hud, [_source])
 	var reduced := (
@@ -241,6 +248,12 @@ func _exercise(craft_name: String, craft: HeroShip) -> void:
 			and _source.cleared == cleared_before + 1,
 		"%s reset removes the envelope and clears the source state" % craft_name
 	)
+	if craft is ArrowReconShip:
+		_check(
+			not (_hud.get("_runtime_status_cards") as Dictionary).has(&"entry")
+				and visual.get_node_or_null(^"CockpitInterior/InstrumentCluster/EntryDescentReadout") == null,
+			"Arrow session reset also clears its owned HUD and physical cockpit strip"
+		)
 	_exercised.append(craft_name)
 	craft.queue_free()
 	await process_frame

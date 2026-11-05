@@ -2415,7 +2415,11 @@ func _configure_fleet_entry_envelope_atmosphere(
 ## presentation-local: travel, physics, landing, and damage continue unchanged.
 func _attach_entry_presentation() -> Dictionary:
 	if _entry_presentation_binding != null:
-		return {"accepted": true, "reason": &"entry_presentation_retained"}
+		if bool(_entry_presentation_binding.call(&"is_attached")):
+			return {"accepted": true, "reason": &"entry_presentation_retained"}
+		# A live atmospheric visit retired the former Ember presenter. Its
+		# guidance owner blocks attachment until the visit releases the craft.
+		_entry_presentation_binding = null
 	if not _ship is ArrowReconShip or _composition_root == null:
 		return {"accepted": false, "reason": &"entry_presentation_unavailable"}
 	var hud := _composition_root.get_node_or_null(^"HUD") as GameHUD
