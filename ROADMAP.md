@@ -196,6 +196,36 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+### Selected: bind the retained player-motion capture
+
+**Goal:** capture-player-motion, retained-source binding member of the existing
+[nine-frame contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract).
+Result: either verify the exact retained nine-image set's original source/run
+and diagnostic disposition,or name its exact missing artifact;no recapture or
+current-source/ordinary-character qualification is selected.
+
+**Start/owner:** main3d8dca616;artifacts/player_motion/evidence_manifest.json and
+its nine existing PNGs,documented sourceed359040c. Codex owns only this page,
+existing backlog/inventory/history text and existing registry metadata if every
+required fact is proved;one read-only reviewer checks source/image/log binding.
+No source edits,new evidence format,branch/worktree,engine/device/CI run.
+
+| Case/action | Fixed pass condition | Actual/proof |
+| --- | --- | --- |
+| Check existing manifest's nine declared frames against actual files | Exactly the original nine filenames,each2560×1440,bytes andSHA256 match;no replacement frame or resized image | NOT_RUN |
+| Compare all nine existing source-hash fields to ed359040c | Exact Player scene/controller,pilot wrapper scene/script,GLB,blend,asset manifest,generator and capture-harness bytes match that commit | NOT_RUN |
+| Recover the original run's raw log and integrity record | Actual complete terminal result,original marker/diagnostic disposition and source/import guards bind this exact image manifest;manifest self-description alone does not prove process exit/clean diagnostics | NOT_RUN |
+| Check recorded original-size inspection is bound to those same PNGs | Exact reviewed set/source and findings/disposition recoverable;no inferred human/current/native qualification and no repeated inspection of unchanged accepted frames | NOT_RUN |
+
+**Budget/stop:** start16:03:04UTC2026-11-05 (initial readiness reads included),
+estimate15–20minutes through checks/review/commit/push/cleanup;hard16:23:04UTC.
+One bounded read of the documented source/run references and local retained
+artifact locations;stop once a missing log/binding/artifact is established.
+No automatic filesystem-wide hunt,probe,recapture or evidence-chain successor.
+Every case must pass for retained binding acceptance;otherwise record the exact
+missing artifact and retain the existing GATED state. Product/phase/current-
+source gates remain open. A historical source binding delivers no new gameplay.
+
 **Bulwark whole-craft LOD runtime/checkpoint: PARKED/unaccepted.**
 Candidates28c54b642→a2ad76cfd are archived unmerged. Corrected source gates pass
 276focused/31production/176Main checks;static far3134/close35829 (35605 in Main)
