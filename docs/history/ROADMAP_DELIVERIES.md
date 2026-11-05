@@ -35456,3 +35456,101 @@ product decision to the user or launch an unchanged recapture/search. Existing
 registry source/image stages stay pending and all337 canonical identities/
 acceptance remain unchanged except this row's precise State blocker. The task
 ends with this contradiction and exact absent artifacts;no automatic successor.
+
+
+<a id="cinder-light-choice-card-fit-stop-20261105"></a>
+## Cinder Light role-choice card — parked at full-text fit, 2026-11-05
+
+**PARKED / NOT_ACCEPTED.** No runtime merge,screenshot,export or new playable
+checkpoint. Latest accepted playable remains5bc9a17. Selected result was one
+production Cinder registry/choice member with actual HUD fit and paired build
+gates,not full normalized budgets,other Cinder contracts or ordinary craft proof.
+The initial card incorrectly referenced completed CRAFT-GAPS-CINDER-LIGHT's
+Definition row. Its explicit scope/contract is CRAFT-ACCEPT-CINDER-LIGHT's role/
+choice implementation member;the authored-component map stays DONE. This owner
+reference correction changes no scope,cost,failure,allowance or reopening gate.
+
+Start16:12:07UTC,75–85min all-in estimate,hard17:42:07UTC90min. Original source
+and graphical300s bounds and one total correction retained. One medium implementer
+owned only registry,GameFlow boarding facts,presenter and their three existing
+tests;one medium independent reviewer. Root owned execution,actual visual/build
+admission,integration and cleanup. Base/pushedmain
+cb3034e48ff0f13bfe4d7d04400d6f4396a260c7.
+Draft6eef191c678a15e2f0f0d3b22cc10b49e18035e1;
+initial test candidate38b51455fb36f3dadf5ddb900b83e0c837e835ce;
+sole corrected candidate50134b4c21fa393524af2ae2b9a34a992ab32b90.
+
+**Candidate only.** Seventh Light contract,existing small-band102m/s signature,
+six unchanged global signature/non-dominance/14-of16 predicates;detached actual
+role/speed/drag source facts;exact “FAST RESPONSE // HIGH DRAG WHEN COASTING”
+line only in Light approach/available cards. GameFlow changes only three facts-
+bridge lines. Other craft/states,read-only authority and original facts/Interact
+remain covered. Diagnostic-only non-dominance message operands are corrected;
+the existing comparison predicate is unchanged. Before first engine admission,
+root review restored the existing --capture-choice Torrent/Zenith path and valid
+StringName input;the new two-size mode is --capture-light-choice. Same scope/
+budget,no source test ran on the draft. No schema/version/required capture set.
+
+Initial import20.493s passes. Registry suite exits0 in.779s and prints55positive/
+0failures,but raw SCRIPT ERROR at the first new negative fixture rejects it:
+Array(DEFINITIONS) aliases a read-only constant,so tied[1] assignment aborts the
+helper before later negative cases. Three such fixture constructors have the
+same source-proven cause. No dependent suite/capture/export ran on that failure.
+Independent causal/cumulative review approved the sole test-only correction:
+DEFINITIONS.duplicate() for those three arrays;no assertions,resource preparation,
+production code or policy predicates changed. Corrected import6.512s passes.
+
+| Actual corrected gate | Result |
+| --- | --- |
+| Registry |59checks/.723s/exit0/one FLEET_ROLE_REGISTRY/raw diagnostics0 |
+| Existing all-nine live differentiation |311checks/40.234s/exit0/one FLEET_ROLE_DIFFERENTIATION_TEST_OK/raw diagnostics0 |
+| Main boarding |59checks/36.699s/exit0/one BOARDING_CONFIRMATION_GAME_FLOW_TEST_OK/raw diagnostics0 |
+| Full default HUD,first actual graphical execution |FAIL/24.936s/exit1/marker0/287positive/six exact ERROR:FAIL diagnostics |
+
+Each admitted complete matrix has stable source/import guards. Main uses actual
+Light/definition/readonly bridge and a disclosed reservation/seated transition
+fixture;it does not establish ordinary station walk/boarding/flight. Counts and
+three source successes are not an accepted production subset.
+
+The first source wrapper incorrectly selected HUD under --mode headless. The
+existing catalog classifies the file as graphical because of its capture APIs;
+it prints NOT_RUN and exits2 before any HUD engine/assertion. Retained command
+error is not a qualifying HUD attempt. Independent catalog/runner inspection
+admitted the still-unperformed full default HUD suite once on unchanged50134b4,
+private Xvfb2560×1440/x11/Forward+/pinnedllvmpipe/Dummy,original300s,fresh profile.
+The passing three scopes were not repeated. No source correction,case drop or
+limit reset followed the invocation fix;the first actual HUD run failed.
+
+**Literal failure:** existing detail.size.y≤scroll.size.y+1 criterion reports
+body73px versus viewport63px at1280×720 AND1920×1080,each UI.75/1.0/1.6.
+All six exceed even the unchanged1px tolerance. The candidate's additional line
+cannot fit complete instruction+trade-off+role/speed/hull+state in the retained
+normal-font body. These are actual measured layout operands,not a guessed pixel
+finding. No screenshot was admitted after the failure. Raw HUD log SHA256:
+`fe6e7034f81371143090a6671e8acca1c02ec8a5e4053d1151c536495fdcf62c`.
+
+Reopening requires later explicit user reprioritization retaining all prior
+cost/spent correction and a concrete production text-packing proposal under
+all six original cases,normal fonts,complete current Interact/instruction/
+role/speed/hull/state and the exact trade-off. Do not silently enlarge the shared
+card,shrink fonts,drop text/state,loosen tolerance or narrow cases. Full four
+suites,both native-size image reviews,paired exports/startups/full package audit
+and integration/cleanup remain required. No automatic successor is selected.
+
+**Archive/cleanup.**
+`/srv/mudds-work/cinder-light-choice-20261105/records.tar.gz` contains176regular
+members/12,841,112bytes,SHA256
+`b9fe76d737b652999c6ef147b3c0ad088b0cd1e41240332de18ea08401540564`.
+All member bytes/types were verified against their preimage. It retains frozen
+card/ownership/cost decision/invocation disposition,all failed/corrected raw
+matrices/manifests/guards,profiles/commands/toolchain records,all six complete
+final source files and source.bundle containing all three source commits.
+Bundle tip50134b4 requires retained pushed-main ancestorcb3034e48 and was verified.
+
+Fresh HTTPS heads/registered ownership,exact clean localtip and absent owned
+engine/Xvfb/supervisor processes were checked before normal worktree removal
+and exact expected-tip branch deletion. No task branch existed remotely.
+Owned profiles/caches/helpers/loose source removed;only records.tar.gz and
+closeout.json remain. Cleanup16:37:35.519UTC,25.475min from original start;
+final docs/push stay charged to the same90min window. No rejected code was
+merged to make its branch deletable and no accepted role/choice subset claimed.

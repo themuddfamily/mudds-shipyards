@@ -713,6 +713,13 @@ Halyard/Bulwark. Extending that production policy to the three Cinder craft is
 still implementation work. Neither scope establishes the eight unbuilt
 originals' approved roles or the final seventeen-craft result.
 
+The [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
+is PARKED/unaccepted: registry/differentiation/Main source checks pass,but the
+added trade-off needs73px inside63px in every existing Light no-scroll fit case.
+Source is archived unmerged;the production registry still has six contracts.
+The sole fixture correction is spent. Exact text,normal fonts,all six cases and
+full checkpoint gates remain binding;no smaller policy/producer subset is accepted.
+
 ### The definition
 
 A craft's handling is a vector over **16 axes** (`handling_axis_count`) — the 12
