@@ -3174,10 +3174,10 @@ func _test_whole_exterior_lod(craft: JovianLightFreighter) -> void:
 	_check(craft.get_exterior_lod_report().active_lod == 1,
 		"foreign Player cabin binding does not force this craft close")
 	actor.clear_cabin_containment()
-	var started := actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_cockpit_seat_anchor(), 1.0, null)
+	var started := actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_pilot_seat_anchor(), 1.0, null)
 	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
 	craft.call("_update_exterior_lod_from_current_camera")
-	_check(started and actor.is_boarding_at(craft.get_cockpit_seat_anchor())
+	_check(started and actor.is_boarding_at(craft.get_pilot_seat_anchor())
 		and craft.get_exterior_lod_report().active_lod == 0,
 		"GameFlow exterior null-frame own-seat boarding with current Player camera forces close")
 	actor.call("_update_boarding", 1.1)
@@ -3188,19 +3188,19 @@ func _test_whole_exterior_lod(craft: JovianLightFreighter) -> void:
 	_check(leaving and craft.get_exterior_lod_report().active_lod == 0,
 		"GameFlow exterior null-frame own-seat disembark transition retains close")
 	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
-	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_cockpit_seat_anchor(), 1.0, foreign)
+	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_pilot_seat_anchor(), 1.0, foreign)
 	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
 	craft.call("_update_exterior_lod_from_current_camera")
 	_check(craft.get_exterior_lod_report().active_lod == 1,
 		"foreign real transition cannot force this craft close")
 	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
-	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_cockpit_seat_anchor(), 1.0, null)
+	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_pilot_seat_anchor(), 1.0, null)
 	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
 	craft.call("_update_exterior_lod_from_current_camera")
 	_check(craft.get_exterior_lod_report().active_lod == 1,
 		"foreign retained seat with GameFlow null frame cannot force this craft close")
 	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
-	actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_cockpit_seat_anchor(), 1.0, foreign)
+	actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_pilot_seat_anchor(), 1.0, foreign)
 	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
 	craft.call("_update_exterior_lod_from_current_camera")
 	_check(craft.get_exterior_lod_report().active_lod == 1,
