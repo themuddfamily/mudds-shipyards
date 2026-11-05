@@ -10,17 +10,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **6474bda** — [Windows ZIP](builds/windows/MuddsShipyards-6474bda-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-6474bda-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-6474bda-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-6474bda-linux-notes.txt)).
-Cancelled Aurora/Rime approaches now keep their resident world on normal
-streaming wind-down until the actor leaves its unload envelope. Actual Main
-integration passes both worlds' unload/free, fresh admission and current-origin
-checks. This is staged component proof; full ordinary/shared cancellation and
-native/hardware qualification remain OPEN.
-[Delivery and exact proof limits](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105).
-Earlier Ember passive progress, save/terminal retry, Aurora/Rime settled resume
+Latest playable checkpoint: **5bc9a17** — [Windows ZIP](builds/windows/MuddsShipyards-5bc9a17-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-5bc9a17-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-5bc9a17-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-5bc9a17-linux-notes.txt)).
+Shared Rime arrival guidance now correctly invites crew to follow the ice-core
+survey and reboard for the host’s return. Actual staged Main/HUD checks pass26
+assertions; the existing authenticated shared-survey regression passes77. Full
+canonical three-peer arrival/home and native qualification remain OPEN.
+[Delivery and exact proof limits](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-guidance-delivered-20261105).
+Earlier cancelled-world residency, Ember progress/save/retry, settled resume
 retirement, Arrow guidance and dedicated startup remain included in their
 recorded scopes.
 
@@ -221,53 +220,14 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active delivery: correct shared Rime arrival guidance.** Existing
-[shared-Rime production UI defect](docs/ROADMAP_BACKLOG.md#shared-rime-baseline-contract).
-
-- **Result:** the Rime host arrival objective and blocked repeat-action toast
-  tell crew they may follow the ice-core survey and must reboard for the host’s
-  return. Neither says the implemented shared survey is unavailable.
-- **Start/owner:** cleanc35383e7c; one implementer owns only
-  `scripts/game/planetary_surface_visit_expedition.gd` and existing
-  `tests/planetary_surface_visit_expedition_test.gd`. Root reviews and handles
-  validation, checkpoint, integration and cleanup.
-- **Dependencies:** existing Rime survey/host presentation and Main/HUD are
-  implemented. The named stale copy is present at both runtime sites. Reuse
-  existing component fixtures; no parked canonical Rime arrival, physical crew
-  egress or Cinder/Arrow retry is selected.
-- **Action:** replace both stale Rime copies with the existing contract’s exact
-  template: “[profile.display_name] arrival — crew may follow the ice-core
-  survey; reboard all crew for the host’s return to Mudds”. Add opt-in
-  `--shared-arrival-guidance-only` to the existing expedition suite, inspecting
-  actual Main/HUD objective, heading, interaction and toast labels. Use its
-  existing boarding/cleanup helpers and disclose staged owner/phase state.
-  Run the same test on old source for the two intended stale-copy failures,
-  then changed source. Run existing network landing integration
-  `--rime-shared-survey` as the shared-progress/participant regression.
-- **Pass:** actual shared-Rime labels contain the exact template; interaction
-  remains `[ E ]  STAND IN CABIN`; Aurora’s existing coastal/return guidance,
-  solo landed messages and outbound/corridor/landing/return messages remain
-  correct. Blocked request stays refused, with unchanged survey, craft, authority
-  and reward state. Existing authenticated shared-survey regression passes.
-  No survey/physics/network/persistence policy changes or new HUD layout.
-- **Proof:** real OS0/existing distinct suite marker/zero raw diagnostics; retain
-  old stale-copy failures. This is staged Main/HUD component proof plus the
-  existing ENet/memory-store survey scope, not full-client HUD or canonical
-  three-peer physical arrival/home qualification. Full baseline stays OPEN.
-- **Budget/stop:** original assessment start2026-11-05 09:13:48UTC; all-in
-  deadline10:43:48, including checks/build/push/cleanup. Before first behavior
-  run, at most two cause-bound syntax/readiness corrections; then one behavioral
-  correction, all on this original clock. Freeze source/action/pass criteria
-  before execution; no relabelled runtime failure as readiness, extra allowance
-  or parked reopening. Focused guidance and network regression each300s max;
-  existing whole-expedition900s and ordinary full-route limits stay unchanged.
-  First unexpected failure stops dependent checks; failed final correction or
-  hard stop parks unique source/results without merging an unaccepted subset.
-- **Close:** accepted source gets a clean-commit Windows/Linux checkpoint,
-  strict startup/package checks, merge/push and owned cleanup. All engines Dummy,
-  headless/private Xvfb explicit x11; hosted CI stays disabled. No native or
-  full-release claim follows from the checkpoint.
-
+**Shared Rime arrival guidance: DELIVERED on5bc9a1705.** Both the host objective
+and blocked repeat-action toast use the existing contract’s correct shared-survey
+message. STAND IN CABIN, Aurora/solo/other-phase guidance and survey/authority/
+reward state are preserved. Focused26/shared-survey77 checks, clean exports,
+three strict startups and paired package audit pass. The checkpoint is linked
+above; full baseline/native gates remain open. Accepted source is pushed and
+owned branch/worktree/scratch cleanup is complete.
+[Exact scope and closure](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-guidance-delivered-20261105).
 
 **Arrow whole-craft LOD: PARKED/unaccepted.** Candidate75a413ec8 is archived
 unmerged. Corrected scripts parse cleanly, but the first focused runtime check

@@ -34545,3 +34545,69 @@ registered ownership checked before worktree removal/exact local-ref deletion
 at75a413ec8; remote task branch absent. No owned process remains; only archive
 and closeout remain in the case folder. Cleanup09:11:18.568953UTC,24.926minutes
 from original start; all-in cost additionally includes closure review/push.
+
+
+<a id="rime-arrival-guidance-delivered-20261105"></a>
+## Shared Rime arrival guidance — delivered 2026-11-05
+
+**DELIVERED5bc9a17054df480c885e0c65a9d045f4eee7afea**, checkpoint5bc9a17.
+Existing SHARED-RIME-BASELINE production copy gap only: host landed objective
+and blocked repeat-action toast now say crew may follow the ice-core survey and
+must reboard for the host’s return. Exact contract template, STAND IN CABIN,
+Aurora coastal/return copy, solo and five other phases are preserved. No survey,
+return gate, physics, network or persistence policy changes. Only expedition
+runtime and its existing component-test file changed. Full Rime baseline remains
+PARKED/open; no canonical arrival or three-peer journey is claimed.
+
+Original assessment start09:13:48UTC/all-in deadline10:43:48; two permitted
+pre-behavior readiness corrections unused, sole behavioral correction used.
+First actual old/new runs failed second-case boarding (old143/46.899s/5diag;
+new143/46.702s/3diag). Both cases had shared a durable profile; second Main had
+session2 and saved Halyard pilot recovery context, and the helper ended with
+pilottrue/seatedfalse. This was not a clean old-RED/current-GREEN. The fixture
+now supplies distinct per-world real UserDataStores before Main tree entry,
+logs starting pilot/seat/ship operands, and stops if the complete boarding
+predicate fails. Production two-string change is unchanged. Teleport itself is
+not asserted to clear a seat. All original caps and cumulative cost retained.
+
+**Actual source acceptance:** unchanged copied test on old runtime now fails
+exactly the two stale Rime labels (24 passes/two target errors plus supervisor
+interrupt, marker0). Current runtime passes26 assertions, OS0/47.164s/one
+PLANETARY_SURFACE_VISIT_EXPEDITION_TEST_OK/zero diagnostics. Both fresh cases
+start pilotfalse/seatedfalse and obtain the real Halyard pilot seat. Actual HUD
+objective/kicker/interaction/toast labels match; survey, reward, bridge, craft
+pose/velocity/source/telemetry and seat state remain equal around presentation
+and blocked request. Existing Rime authenticated shared-survey regression passes
+77 assertions, OS0/169.836s/one exact marker/zero diagnostics, including participant
+retirement, heat/warmth, actual two observations, refused reward-write retry,
+once-only record and same-body hatch reboard/usable return manifest.
+
+Proof scope is staged Main/HUD: approach Player placement, shortened .01s
+canopy/boarding, explicitly selected expedition states, blocked inactive shared
+return gate. No actual shared admission/travel/client HUD is claimed by that
+fixture. Network regression retains its same-process ENet/memory-filesystem
+scope. Full-client HUD, canonical original three-peer outbound/survey/disk/home,
+parked landing attribution and native/hardware requirements remain unchanged.
+
+**Playable checkpoint:** clean-commit official4.7.1 Windows/Linux exports pass.
+Windows payload under Linux editor, direct Linux binary and extracted Linux
+archive each pass --startup-check: actual OS0, exactly one STARTUP_MENU_READY_OK,
+zero raw diagnostics. Paired package audit passes all nine predicates,1531 entries,
+unchanged inputs and source/template/header/inventory/ELF/TAR/ZIP identities.
+All seven checkpoint files copied to repository builds/ with SHA256/mode equality.
+All engine automation uses Dummy audio and private headless profiles; no native
+Windows or native GPU acceptance follows. [Windows ZIP](../../builds/windows/MuddsShipyards-5bc9a17-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-5bc9a17-notes.txt),
+[Linux archive](../../builds/linux/MuddsShipyards-5bc9a17-linux-x86_64.tar.gz).
+
+Verified records archive:
+`/srv/mudds-work/rime-arrival-guidance-20261105/records.tar.gz`
+(105 regular members,10,116,676bytes,SHA256
+`bb0e02ec0c7457f45b6e05816d6b918cf5917fb8c6e01a3854fd2448597b2b4b`).
+Every archived member hash and source bundle/base/tip verified before cleanup.
+Accepted tip was contained in fresh pushed main; registered owned worktrees
+removed and local task ref exact-CAS deleted at5bc9a1705. Remote task branch
+absent; no owned process remains. Only archive/closeout remain in the case folder;
+seven verified playable files remain in builds/. Cleanup completed
+2026-11-05T09:40:55.153579+00:00,27.119minutes from original start, within90minutes;
+closure documentation/push add to this same cost.
