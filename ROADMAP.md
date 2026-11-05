@@ -77,6 +77,14 @@ The six cases below are frozen in full, with these execution bindings:
   owns each launch/abort; no active-desktop input. First unexpected failure stops
   dependent work. Final failed correction or deadline means PARKED, archive and
   cleanup, never smaller-subset acceptance or automatic retry.
+- **Correction 1 (20:00:21UTC;32.6min cumulative):** independent review found
+  the initial exterior-owner guard rejects every later BOARD, regressing A's
+  existing pilot return. Preserve the exact same-A/same-craft supported hatch
+  BOARD path, retire exterior authority before confirmed helm binding and retire
+  client prediction before existing boarding presentation. Add that preserved
+  reboard/reclaim result to case4; no B route expansion. First candidate
+  7a356bd18 remains immutable until its running source suite terminates.
+  This spends one of three corrections; deadline and all original gates unchanged.
 - **Close:** all six cases NOT_RUN; no gameplay completion claimed. Report exact
   results, cumulative cost, immutable source, review, build, push and cleanup.
 
@@ -102,7 +110,7 @@ contract, **not a claim of execution or a completed start card**:
 | 1. Actual pilot exit | Actual Main, authenticated ENet A, exact current Hauler pilot grant and occupied attached Cinder berth; request ordinary confirmed departure | Exactly one host production Player starts at the actual host pilot anchor and follows existing seat-exit motion; collision restored and floor support established at the live exit. No fixture spawn at the exit or actor teleport. |
 | 2. Walk and publication | After physical completion, send fresh authenticated walking input | Same body moves≥1m under host simulation; publication advances with matching client/body generation. Host local Player/camera and stock/payment snapshots remain unchanged. |
 | 3. Physical eligibility | Try existing cargo actor authorization before and after completion | No authorization before completion; actual completed body qualifies only under the existing live source/lease/attachment and≤2.5m exit rule. This does not perform or prove a transfer. |
-| 4. Rejected ownership/replay | Submit foreign-peer input, duplicate departure and old body-generation/stream input | No second body, unauthorized movement, authorization, debit or reward. Replacement generation is authority-issued and retires the old input stream. |
+| 4. Rejected ownership/replay and preserved pilot return | Submit foreign-peer input, duplicate departure and old body-generation/stream input; then same A walks to the actual supported boarding hatch and requests normal pilot BOARD | No second body, unauthorized movement, authorization, debit or reward. Replacement generation is authority-issued and retires the old input stream. Legitimate same-A/same-craft reboard obtains one current pilot grant and usable helm; old exterior body/publication/client prediction retire once before the ordinary boarding presentation. |
 | 5. Retirement | Separately disconnect A, invalidate the berth lease and remove the current source/attachment | Each cut retires its body, movement authority and publication once; later packets cannot resurrect or authorize it. |
 | 6. Integration and delivery | Run complete existing Halyard remote-pilot/body regressions and the new Cinder cases, then clean-commit checkpoint export and isolated startup | Original regression cases pass; each required command exits0 with its exact success marker and zero diagnostics. Package startup exits0 with exactly one STARTUP_MENU_READY_OK. Accepted source is merged/pushed; build notes state the scoped result; owned cleanup completes. |
 
