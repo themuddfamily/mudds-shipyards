@@ -4,6 +4,12 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
+**A roadmap heading is not a work assignment.** Select only a bounded child
+with a filled [task card](#task-card-required-before-starting). Its result must
+be observable, its pass condition fixed before work starts, and its dependencies
+actually satisfied. Missing details mean blocked work, not permission to explore
+indefinitely. A completed specification does not count as a completed feature.
+
 Latest playable checkpoint: **d525554** — [Windows ZIP](builds/windows/MuddsShipyards-d525554-checkpoint.zip)
 ([notes](builds/windows/MuddsShipyards-d525554-notes.txt)) and
 [Linux archive](builds/linux/MuddsShipyards-d525554-linux-x86_64.tar.gz)
@@ -38,7 +44,7 @@ is history, not the next work queue.
 
 <a id="current-planning-goal-finish-the-executable-breakdown"></a>
 
-## Executable breakdown complete
+## Breakdown defined; readiness checked per task
 
 **PLAN-NEXT is DONE as a definition task.** The337 existing records now have
 finite cases, prerequisite rules, actions/endpoints, limits and proof contracts,
@@ -381,6 +387,41 @@ Every executable goal uses this short contract in its existing backlog row or
 linked section. Broad parents retain their finite child lists and close only
 when those children pass; they are never selected as one coding task.
 
+### Task card required before starting
+
+Fill this card in the current-work section before selecting an implementation.
+Link the existing contract rather than copying its full specification. Do not
+create a new planning file, validator or evidence format for the card.
+
+```text
+Goal: existing child ID / exact bounded member, with contract link
+Result: one sentence describing what the player or build can do afterward
+Start and owner: source/package, initial state, participants, owned files
+Dependencies: exact IDs/results already passed; missing input + owner if blocked
+Action: literal command or numbered ordinary player steps
+Pass: expected observations/values for each included case; preserved behavior
+Proof: output location and environment; what this check does and does not establish
+Budget: estimate through cleanup, start/deadline, existing test/correction limits
+Endpoint: deliver and close, or retain failure and park at the declared stop
+```
+
+No placeholder or unresolved adjective is an acceptance criterion. For example,
+“improve crew joining” is too broad; “a fresh client joins the landed host through
+the normal browser, takes a free berth, and can walk in that cabin” is an
+observable result. Its card must still bind the host/client setup, permitted
+identities, exact action sequence, deadlines and expected observations from the
+existing contract. This example selects no trial and reopens no parked task.
+
+If a result needs several independently deliverable behaviors, split those
+behaviors before starting and give each its own pass check. Keep the complete
+journey as a required integration gate. Do not split by research, validator,
+test-writing or commit count and call those pieces delivered features.
+
+Completion means the declared result actually passes its check. A component
+test proves only its component scope; a staged setup does not prove ordinary
+player access, and a silent Linux package probe does not prove native Windows
+behavior. Record missing integration, hardware and human checks explicitly.
+
 | Field | Required content |
 | --- | --- |
 | Goal | Existing ID and one observable player or build result |
@@ -475,14 +516,14 @@ production launch and packaged participation still need implementation.
 
 ## Current work and next selection
 
-No implementation assignment is currently running. The latest
-[Ember paid terminal-publication retry](docs/history/ROADMAP_DELIVERIES.md#ember-terminal-publication-retry-delivered-20261105)
-is **DELIVERED** ona01d0fba6/checkpointa01d0fb. A refused completion write keeps
-the same live caller and supported on-foot visit; normal Save Progress retries
-publication from its original committed payment. Pending return/reboard is
-refused before queue mutation. Actual source/Main/Host/HUD/disk checks establish
-this capability; native outward/physical home and packaged paid-CAS crash-cut
-qualification remain OPEN/NOT_RUN.
+No implementation assignment is currently running. The latest delivered
+capability is [Ember passive shared progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
+on **d525554** with the checkpoint linked above. A fresh observer receives the
+host's real survey progress; the exterior HUD presentation has a separately
+staged focused check. Physical late admission and full ordinary journeys remain
+unproved. The subsequent [landed-crew browser-entry attempt](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105)
+is PARKED/unaccepted: it failed before admission, so no new crew-joining feature
+or checkpoint is claimed.
 
 Aurora/Rime settled resume retirement, Ember Save Progress, Arrow guidance and
 exported dedicated startup retain their accepted source/package scopes. Do not

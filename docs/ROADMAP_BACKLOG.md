@@ -29,9 +29,16 @@ row statuses or acceptance:
   or external input. Its completion identifies actual uncovered capabilities or
   an exact blocker; it delivers no gameplay by itself.
 
-No row automatically schedules a successor. A new defect ends the selected
-attempt; any further work needs its own bounded selection and retained failure
-budget. Parked work requires its recorded reopening condition.
+No row automatically schedules a successor. The first unexpected failure stops
+dependent checks. An in-scope failure may receive a correction only under the
+existing causal-evidence, cumulative-cost, allowance and deadline rules. An
+unrelated defect ends the assignment and returns to its existing owner; it does
+not enlarge the task. Parked work requires its recorded reopening condition.
+
+Dated PLAN-NEXT-open statements below describe their historical checkpoints.
+The [current disposition](#remaining-contract-gaps--plan-next) and canonical row
+record its accepted 2026-11-05 definition closure. That closure delivers no
+gameplay and does not close the implementation or qualification goals.
 
 ## Owner decisions accepted2026-10-21
 
@@ -201,6 +208,12 @@ compound assertions retain operand values. Dependent commands launch only after
 their prerequisite exit/results pass. Missing observations leave the cause unknown.
 
 ### Ready means every acceptance input is fixed
+
+Use the [required task card](../ROADMAP.md#task-card-required-before-starting)
+to select one bounded member from these contracts. A populated Done means cell
+or completed definition is not a readiness verdict: the card must resolve its
+literal actions, observations, dependencies and stop before implementation.
+Keep the card in ROADMAP.md; do not grow a parallel task/evidence inventory.
 
 **Literal prerequisite convention for all337 records.** Parent numbers are
 coverage relationships, not prerequisite IDs. A pure Decision/Resource input
@@ -7045,8 +7058,9 @@ because the final candidate is not selected. No unchanged rerun is scheduled her
 
 One named qualification may have a long existing route; keep its original
 limits. An implementation expected to exceed 90 minutes must be split into
-named capabilities before starting. A new defect ends the current card and
-amends this inventory; it does not silently add steps to it.
+named capabilities before starting. An unexpected failure stops dependent checks;
+an in-scope correction must satisfy the existing frozen allowance and cost rules.
+An unrelated defect returns to its existing owner without enlarging the card.
 
 ### Finite execution and blocking inputs
 
@@ -7056,7 +7070,9 @@ worlds, EMBER-PACKAGE-ABANDON, BROWSER-CONTROLLER, installed crew/dock recovery,
 Windows package identity, rights and the final matrix are now stated in their
 existing rows as literal proof or exact missing fields with an owner. This is
 a contract-disposition pass, not a claim that all337 records are executable:
-PLAN-NEXT remains open until its source-resolvable definitions are actually fixed.
+At that checkpoint PLAN-NEXT remained open on its source-resolvable definitions;
+its definition was subsequently accepted on 2026-11-05. See the
+[current disposition](#remaining-contract-gaps--plan-next).
 A blocker inventory is complete planning disposition only; it is not an executable
 breakdown. An external dependency can remain blocked only with the exact missing
 answer/artifact and its named owner. A Codex-owned missing route, command, fixture,
@@ -17736,8 +17752,10 @@ retained-heavy run's actual clean-close output into the restored prior process.
 One implementation agent owns existing native-sortie driver/Python tests; root
 owns exact-package transaction,documentation/integration/cleanup; independent
 review checks output trust,protected payload,old defaults and actual leg results.
-No new validator/schema/gameplay or parked retry. Definition work elsewhere in
-PLAN-NEXT remains open; this supplies a concrete executable release handoff.
+No new validator/schema/gameplay or parked retry. At this 2026-10-27 checkpoint,
+definition work elsewhere in PLAN-NEXT remained open; its definition was later
+accepted on 2026-11-05. See the [current disposition](#remaining-contract-gaps--plan-next).
+This handoff supplies a concrete executable release capability only.
 
 One isolated owned root is `/srv/mudds-work/linux-rollback-handoff-20261027`;
 source worktree/branch and private install/results live there,never a real user
