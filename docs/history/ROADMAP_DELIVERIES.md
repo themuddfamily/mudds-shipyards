@@ -33652,3 +33652,100 @@ with expected35a4845d4 CAS after archive verification. Only records.tar.gz and
 closeout.json remain in the case. No owned engine remains. Cleanup completed at
 03:06:28UTC, within the original03:47:02 cutoff; final docs/commit/push
 follow within that same allowance. No retained branch/worktree exceptions.
+
+
+<a id="ember-terminal-publication-retry-delivered-20261105"></a>
+### Ember paid completion publication retries in the live visit — delivered 2026-11-05
+
+Accepted sourcea01d0fba61b40f7b2a4ba1be7d44e6015b31526a from
+47fac7bc9e1b47ce736c3fc3c3b8206baaaaca6d, integrated/pushed. WORLD-SAVE-DEFINE
+production capability only: the real reward CAS can commit while the following
+terminal publication is refused. The binding now retains that trusted paid
+obligation and keeps the current scheduler/Host ON_FOOT instead of failing the
+live caller. Completed state never auto-retries disk writes. Existing paused
+Save Progress dispatches an explicit save-only completed-generation publication;
+no reward authority is called. Existing current identity/topology/frame/location,
+Host audit/lease, actor/craft/session/generations, current runtime/original paid
+receipt and validated ledger floors gate it. Original grant-frame validation
+is unchanged; paused retry does not forge a fresh grant witness.
+
+Pending return issue/consume/admit and reboard queuing are refused before
+manifest/intent/serial mutation. Only accepted terminal publication builds the
+existing production completion receipt and enables current coordinator return
+admission. Successful Save updates the existing store/commit-serial view and
+reports saved through the existing HUD status. Unsupported unpaid caldera
+partial progress remains refused. Stale/foreign/duplicate requests mutate no
+payment or save. No schema, reward policy, boarding movement, physics tuning,
+new UI button or evidence family was added.
+
+Selection03:11:44UTC, estimate60min/hard04:41:44 all-in, source-ready03:36:44,
+one total correction. Initial four-file source frozen03:23:38; import20.654s/
+parse15.819s OS0/zero diagnostics. The first full lifecycle suite was stopped
+by its independent supervisor at94.233s/OS143 on the first new failed paused-Save
+check. All compound operands were logged. Only one_requested_attempt was false:
+actual terminal attempts1 versus expected2. Result was
+relay_terminal_publication_payment_not_current before I/O; failed feedback,
+files/backup/payload/generation15, runtime/claims and payment1 were all preserved.
+Pending/live cadence, reboard, unpaid-partial and all foreign-context fields
+had passed before this failure; they do not retroactively pass the failed suite.
+
+Causal review used actual native receipt IDs1 versus committed JSON floats1.0,
+otherwise identical seven fields. UserDataStore canonicalizes/install-parses the
+wire document; successful reward commit selects primary, and refused terminal
+write does not replace it. The sole correction normalizes ONLY the trusted
+receipt before full dictionary equality, after existing ledger validation.
+No live actor/session identity passes through JSON, and no field/guard/timeout
+is dropped. No additional diagnostic reproduction or hidden correction ran.
+Corrected parse15.819s and final import5.813s are clean. Original failure/cost,
+pre-correction patch and exact operands are preserved.
+
+Corrected full lifecycle229 assertions/206.115s/OS0/zero diagnostics under the
+original300s cap. New actual main.tscn/GameFlow/Host/scheduler/HUD Save button/
+disk-store fixture source-stages existing approach and route observations;
+real fresh physics evidence pays through the original shared authority once.
+It proves targeted terminal refusal keeps the same supported actor/Host/lease/
+caller, no per-frame retry, pending reboard leaves queue/serial unchanged,
+unpaid partial Save refusal, all foreign context fields, two paused refused
+Saves with file/payment/claim preservation, exact same-G accepted publication,
+duplicate/stale refusal and actual existing coordinator return admission.
+Original fresh-binding/MemoryFilesystem paid-CAS crash/debt guards remain;
+their faults now target the actual terminal commit, not a broad write counter.
+
+Other unchanged focused suites each OS0/zero diagnostics/original300s:
+relay GameFlow persistence18/16.435s, optional roundtrip11/16.437s,
+relay API16.237s, return manifest16.431s, nearby HUD9/2.611s and Cinder
+persistence7/16.440s. Independent initial/final source and sole-correction
+reviews GO. Full native canonical outward/physical reboard/ascent/home and
+distinct-process packaged paid-CAS/terminal-write crash qualification remain
+OPEN/NOT_RUN. The staged button signal/source setup is not physical KBM/controller
+navigation. Existing published-but-directory-sync-failed store semantics stay
+unmodified; no universal postpublication rollback or live recovery is claimed.
+
+Clean pinned official4.7.1 Windows export26.589s/Linux26.908s pass. Windows
+payload under Linux26.691s, Linux binary22.974s and Linux archive22.825s each
+actualOS0/exactly one STARTUP_MENU_READY_OK/zero diagnostics. All Godot used
+Dummy/headless/private profiles. Paired artifact audit PASS1531 entries with
+compiled source, official Windows text/template pin, complete matching inventory,
+Linux export/archive, exact two-member EXE+notes ZIP and unchanged input hashes.
+All seven audited public copies hash-match under builds/windows and builds/linux.
+Windows/GPU/device/human/final-release gates remain unperformed. Source/raw
+archive and exact completed branch/worktree cleanup are recorded below.
+All337 canonical IDs/kinds/parents/order/Done contracts remain; only the existing
+WORLD-SAVE-DEFINE State records this capability. No parent or phase exit closes;
+parked Ember outbound and Halyard egress are unchanged. GitHub Actions stays off.
+
+Verified source/raw archive:
+/srv/mudds-work/ember-terminal-publication-20261105/records.tar.gz,
+87regular members/9,039,009bytes, SHA256
+ce20a92db47e1489014fecae648cfdcf02b1b9a9d38082613bd183433e91377f.
+Every extracted member hash and the incremental source bundle verify. Original
+failed/corrected runs, exact first-failure operands, pre-correction/final source
+patches, actual private disk profiles and package/source results are retained.
+closeout.json records hashes and excluded durable-template symlinks. No owned
+engine remains; a01d0fba6 is contained in pushed main, current remote task branch
+absent, exact owned worktree removed and feat/ember-terminal-publication deleted
+with expecteda01d0fba6 CAS after archive verification. Only records.tar.gz and
+closeout.json remain in the case; durable template targets are not dereferenced
+or deleted. Cleanup completed at 03:56:11UTC, within the original04:41:44
+cutoff; final docs/commit/push follow in that same allowance. No retained branch/
+worktree exceptions.

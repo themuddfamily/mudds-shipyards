@@ -4,18 +4,18 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **35a4845** — [Windows ZIP](builds/windows/MuddsShipyards-35a4845-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-35a4845-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-35a4845-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-35a4845-linux-notes.txt)).
-Aurora and Rime now keep the original saved visit while Resume streams the
-world, retiring it only after the current craft, surface lease and supported
-on-foot player settle. Newer saves and stale contexts cannot retire the wrong
-record. Lifecycle/store and both visit-loop source checks pass; the full packaged
-kill/restart and canonical journeys remain OPEN.
-[Actual implementation, checks and limits](docs/history/ROADMAP_DELIVERIES.md#surface-resume-retirement-delivered-20261105).
-Earlier Ember Save Progress, Arrow guidance and server deliveries retain their
-recorded scopes.
+Latest playable checkpoint: **a01d0fb** — [Windows ZIP](builds/windows/MuddsShipyards-a01d0fb-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-a01d0fb-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-a01d0fb-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-a01d0fb-linux-notes.txt)).
+Ember now keeps the live on-foot journey after a paid survey's terminal
+publication is refused before publication. Existing Save Progress retries that
+write without paying again; return/reboard stays blocked until it succeeds.
+Actual Main/Host/HUD/disk and existing persistence/return checks pass. Full native
+travel/physical return and the packaged crash cut remain OPEN.
+[Actual delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#ember-terminal-publication-retry-delivered-20261105).
+Earlier Aurora/Rime settled resume retirement, Ember Save Progress, Arrow guidance
+and dedicated startup remain included in their recorded scopes.
 
 Latest Ember outbound trial remains **PARKED**: actual Host takeover and strict
 caldera/OFFLINE reached, but the driver incorrectly requires station gravity
@@ -209,9 +209,10 @@ conserved outcomes. Native callers and safe lifecycle-rescue settlement remain
 production work;durable/repeat aggregate inputs stay with their existing owners.
 [Exact world-save boundaries](docs/ROADMAP_BACKLOG.md#world-save-exact-boundaries)
 now bind saved records,exit/restart cuts,owed/paid outcomes and physical home.
-Ember terminal-write retry remains a production gap. Aurora/Rime settled resume
-retirement is delivered on35a4845d4; the actual packaged kill/restart caller and
-qualification remain open. Normal Quit evidence cannot qualify an OS kill.
+Ember live terminal-publication retry is delivered ona01d0fba6, alongside
+Aurora/Rime settled resume retirement35a4845d4. Actual packaged kill/restart
+callers and full physical qualification remain open; normal Quit cannot qualify
+an OS kill.
 [Ten Torpedo authority cases](docs/ROADMAP_BACKLOG.md#torpedo-authority-executable-goals)
 now name actual peers/targets,cuts,retained state and terminal/fresh-flight
 endpoints. Internal lifecycle tests are distinguished from ordinary controls;
@@ -461,19 +462,20 @@ production launch and packaged participation still need implementation.
 ## Current work and next selection
 
 No implementation assignment is currently running. The latest
-[Aurora/Rime settled resume retirement capability](docs/history/ROADMAP_DELIVERIES.md#surface-resume-retirement-delivered-20261105)
-is **DELIVERED** on35a4845d4 with a new playable checkpoint. The original receipt
-survives loading; exact physical settlement gates retirement, and current-parent
-CAS protects newer saves. Source/Main and staged visit-loop qualification is
-recorded; full packaged kill-during-restore/restart remains OPEN/NOT_RUN.
+[Ember paid terminal-publication retry](docs/history/ROADMAP_DELIVERIES.md#ember-terminal-publication-retry-delivered-20261105)
+is **DELIVERED** ona01d0fba6/checkpointa01d0fb. A refused completion write keeps
+the same live caller and supported on-foot visit; normal Save Progress retries
+publication from its original committed payment. Pending return/reboard is
+refused before queue mutation. Actual source/Main/Host/HUD/disk checks establish
+this capability; native outward/physical home and packaged paid-CAS crash-cut
+qualification remain OPEN/NOT_RUN.
 
-The independent [Halyard physical passenger exit repair](docs/history/ROADMAP_DELIVERIES.md#halyard-physical-egress-parked-20261105)
-remains PARKED/unaccepted at its station-spawn jump. Ember outbound is parked
-separately at its planetary-gravity caller comparison. Their unique source/raw,
-failed checks, original costs and reopening boundaries remain preserved; neither
-is closed by this checkpoint. Ember Save Progress, Arrow guidance and exported
-dedicated startup are also delivered in their stated scopes; do not select them
-again as missing implementations.
+Aurora/Rime settled resume retirement, Ember Save Progress, Arrow guidance and
+exported dedicated startup retain their accepted source/package scopes. Do not
+select them again as missing implementations. Halyard physical egress remains
+PARKED at its station-spawn jump; Ember outbound stays PARKED at its planetary-
+gravity caller comparison. Their source/raw, failures, costs and reopening gates
+are preserved; neither is qualified by this checkpoint.
 
 Select one independent ready production capability from its existing contract.
 A parked task needs its recorded causal reopening condition and cumulative-cost
