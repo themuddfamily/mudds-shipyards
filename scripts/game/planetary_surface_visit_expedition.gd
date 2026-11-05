@@ -239,7 +239,7 @@ func request(shared_admission := false) -> bool:
 					and bool(runtime_state().action_enabled):
 				_begin_return()
 				return state == &"return_cruise"
-			_flow.hud.toast("Shared %s arrival" % profile.display_name, ("Board all crew and take the pilot seat to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "Follow the marked icefall trail, reboard all crew and take the host pilot seat to return to Mudds; shared ice-core survey is unavailable"), 3.0)
+			_flow.hud.toast("Shared %s arrival" % profile.display_name, ("Board all crew and take the pilot seat to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — crew may follow the ice-core survey; reboard all crew for the host’s return to Mudds" % profile.display_name), 3.0)
 			return false
 		if not bool(runtime_state().action_enabled):
 			return false
@@ -616,7 +616,7 @@ func update_presentation() -> void:
 			_flow.hud.set_interaction("[ E ]  BOARD YOUR SHIP" if _near_ship() else survey.prompt())
 		&"landed":
 			if _shared_arrival:
-				_flow.hud.set_objective("Aurora arrival — crew may follow the optional coastal survey; reboard all crew to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — follow the marked icefall trail and reboard all crew for the host’s return to Mudds; shared ice-core survey is unavailable" % profile.display_name, heading)
+				_flow.hud.set_objective("Aurora arrival — crew may follow the optional coastal survey; reboard all crew to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — crew may follow the ice-core survey; reboard all crew for the host’s return to Mudds" % profile.display_name, heading)
 				_flow.hud.set_interaction("[ E ]  STAND IN CABIN")
 				_flow._sync_planetary_cruise_hud()
 				return

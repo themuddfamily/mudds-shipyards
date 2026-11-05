@@ -55,6 +55,11 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--shared-arrival-guidance-only" in OS.get_cmdline_user_args():
+		for world: Dictionary in WORLDS:
+			await _shared_arrival_guidance(world)
+		await _finish()
+		return
 	_residency_only = "--retired-world-residency-only" in OS.get_cmdline_user_args()
 	if _residency_only:
 		for world: Dictionary in WORLDS:
@@ -65,6 +70,109 @@ func _run() -> void:
 	for world: Dictionary in WORLDS:
 		await _visit(world)
 	await _finish()
+
+
+## Presentation component fixture: the existing helper places the player at
+## the Halyard approach, then uses real boarding input; _boot shortens canopy
+## and boarding motion to 0.01 seconds. Expedition states are explicitly staged.
+## This proves neither ordinary approach/full animation nor shared admission,
+## world travel, surface lease or client HUD. The seated pilot and inactive
+## network gate remain real. Distinct settings stores isolate the two staged
+## cases from each other's saved session/recovery context.
+func _shared_arrival_guidance(world: Dictionary) -> void:
+	var label: String = str(world.label)
+	var game: GameFlow = await _boot(UserDataStore.new("user://shared-guidance-%s.json" % label))
+	var craft: HeroShip = await _board_halyard(game)
+	if craft == null:
+		await _shut_down(game)
+		return
+	game.set_physics_process(false)
+	craft.set_physics_process(false)
+	var owner: RefCounted = game.get(world.owner)
+	var profile: RefCounted = owner.get("profile")
+	owner.set("_ship", craft)
+	owner.set("state", &"landed")
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	owner.update_presentation()
+	print("SHARED_GUIDANCE_SOLO world=", label, " objective_actual=", game.hud._objective_label.text,
+		" objective_expected=", "Explore %s, or open Esc → Destination Board to return to Mudds" % profile.display_name,
+		" interaction_actual=", game.hud._interaction_label.text, " interaction_excludes=STAND IN CABIN")
+	_check(game.hud._objective_label.text == "Explore %s, or open Esc → Destination Board to return to Mudds" % profile.display_name
+			and not game.hud._interaction_label.text.contains("STAND IN CABIN"),
+		"%s solo landed guidance remains profile-specific" % label)
+
+	owner.set("_shared_arrival", true)
+	var gate: StringName = game._network_planetary_journey.shared_surface_return_gate_reason(profile.world_id)
+	print("SHARED_GUIDANCE_GATE world=", label, " gate_actual=", gate,
+		" gate_expected=", StringName("shared_%s_return_unavailable" % label.to_lower()),
+		" enabled_actual=", owner.runtime_state().action_enabled, " enabled_expected=false",
+		" pilot_actual=", game._piloting, " seated_actual=", game.player.is_seated(), " pilot_seated_expected=true")
+	_check(gate == StringName("shared_%s_return_unavailable" % label.to_lower())
+			and not bool(owner.runtime_state().action_enabled)
+			and game._piloting and game.player.is_seated(),
+		"%s staged shared arrival retains its real pilot and naturally blocked return gate" % label)
+	var before: Dictionary = _guidance_runtime_snapshot(game, craft, owner)
+	var expected_objective: String = "Aurora arrival — crew may follow the optional coastal survey; reboard all crew to return to Mudds" if label == "Aurora" else "%s arrival — crew may follow the ice-core survey; reboard all crew for the host’s return to Mudds" % profile.display_name
+	var expected_detail: String = "Board all crew and take the pilot seat to return to Mudds" if label == "Aurora" else expected_objective
+	owner.update_presentation()
+	print("SHARED_GUIDANCE_HUD world=", label, " objective_actual=", game.hud._objective_label.text,
+		" objective_expected=", expected_objective, " kicker_actual=", game.hud._objective_kicker.text,
+		" kicker_expected=", "%s EXPEDITION" % profile.upper_name(),
+		" interaction_actual=", game.hud._interaction_label.text, " interaction_expected=[ E ]  STAND IN CABIN")
+	_check(game.hud._objective_label.text == expected_objective
+			and game.hud._objective_kicker.text == "%s EXPEDITION" % profile.upper_name(),
+		"%s shared landed actual HUD carries its current survey arrival guidance" % label)
+	_check(game.hud._interaction_label.text == "[ E ]  STAND IN CABIN",
+		"%s shared arrival retains STAND IN CABIN" % label)
+	var after_presentation: Dictionary = _guidance_runtime_snapshot(game, craft, owner)
+	if after_presentation != before:
+		print("SHARED_GUIDANCE_PRESENTATION_MUTATION world=", label, " before=", before, " after=", after_presentation)
+	_check(after_presentation == before,
+		"%s arrival presentation preserves survey, craft, authority and rewards" % label)
+	var requested: bool = owner.request()
+	print("SHARED_GUIDANCE_TOAST world=", label, " requested_actual=", requested, " requested_expected=false",
+		" title_actual=", game.hud._toast_title.text, " title_expected=", "SHARED %s ARRIVAL" % profile.upper_name(),
+		" detail_actual=", game.hud._toast_detail.text, " detail_expected=", expected_detail)
+	_check(not requested and game.hud._toast_title.text == "SHARED %s ARRIVAL" % profile.upper_name()
+			and game.hud._toast_detail.text == expected_detail,
+		"%s blocked shared request renders the actual current fallback toast" % label)
+	var after_request: Dictionary = _guidance_runtime_snapshot(game, craft, owner)
+	if after_request != before:
+		print("SHARED_GUIDANCE_REQUEST_MUTATION world=", label, " before=", before, " after=", after_request)
+	_check(after_request == before,
+		"%s fallback request preserves survey, craft, authority and rewards" % label)
+
+	for phase_copy: Array in [
+		[&"outbound", profile.outbound_objective],
+		[&"corridor", profile.corridor_objective],
+		[&"landing", profile.landing_objective],
+		[&"restoring", "Returning you to %s" % profile.display_name],
+		[&"return_cruise", "Returning to your registered berth at Mudds"],
+	]:
+		owner.set("state", phase_copy[0])
+		owner.update_presentation()
+		print("SHARED_GUIDANCE_PHASE world=", label, " phase=", phase_copy[0],
+			" objective_actual=", game.hud._objective_label.text, " objective_expected=", phase_copy[1])
+		_check(game.hud._objective_label.text == phase_copy[1],
+			"%s %s actual HUD keeps its existing phase guidance" % [label, phase_copy[0]])
+	owner.set("state", &"idle")
+	owner.set("_shared_arrival", false)
+	await _shut_down(game)
+
+
+func _guidance_runtime_snapshot(game: GameFlow, craft: HeroShip, owner: RefCounted) -> Dictionary:
+	var authority: RefCounted = game.get("_game_flow_reward_authority")
+	var survey: RefCounted = owner.get("survey")
+	return {
+		"survey": survey.capture().duplicate(true),
+		"reward": authority.get_snapshot().duplicate(true),
+		"network": game.get_network_planetary_journey_snapshot().duplicate(true),
+		"telemetry": craft.get_telemetry().duplicate(true),
+		"pose": craft.global_transform, "velocity": craft.velocity,
+		"source": craft.get_command_source(), "pilot": game.player.get_instance_id(),
+		"seated": game.player.is_seated(), "piloting": game._piloting,
+		"state": owner.get("state"), "shared": owner.get("_shared_arrival"),
+	}
 
 
 ## Bounded integration fixture, not a shared cancellation journey: ordinary
@@ -404,8 +512,10 @@ func _visit(world: Dictionary) -> void:
 # --- harness (the Rime visit loop's, parameterised by world) ------------------
 
 
-func _boot() -> GameFlow:
+func _boot(settings_store: UserDataStore = null) -> GameFlow:
 	var game := MAIN.instantiate() as GameFlow
+	if settings_store != null:
+		game.configure_runtime_settings_persistence(settings_store)
 	root.add_child(game)
 	await process_frame
 	await physics_frame
@@ -432,6 +542,8 @@ func _board_halyard(game: GameFlow) -> HeroShip:
 	if craft == null:
 		_check(false, "the production Main composes the Halyard crew transport")
 		return null
+	print("SURFACE_VISIT_BOARDING_PREPLACEMENT pilot=", game._piloting,
+		" seated=", game.player.is_seated(), " active_craft=", game.active_ship, " target_craft=", craft)
 	game.player.teleport_to(Transform3D(craft.global_basis,
 		craft.get_boarding_position() + craft.global_basis.y * 0.01))
 	for _i in range(6):
@@ -447,7 +559,7 @@ func _board_halyard(game: GameFlow) -> HeroShip:
 			break
 	_check(game._piloting and game.player.is_seated() and game.active_ship == craft,
 		"an ordinary boarding takes the Halyard's pilot seat")
-	return craft if game._piloting else null
+	return craft if game._piloting and game.player.is_seated() and game.active_ship == craft else null
 
 
 ## Real departure, then one bounded placement 70 km short of the world's
