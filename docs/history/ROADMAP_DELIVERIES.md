@@ -34340,3 +34340,79 @@ at 6474bda after fresh pushed-main ancestry and ownership checks. Remote task
 branch absent, no owned processes remain, and only records.tar.gz/closeout.json
 remain in the case folder. Cleanup completed 2026-11-05T07:14:11.139134+00:00;
 cumulative 30.819 minutes from the original start, within the 90-minute cap.
+
+
+<a id="cinder-guest-egress-home-gate-stop-20261105"></a>
+## Cinder physical guest exit — host eligibility stop, 2026-11-05
+
+Selected existing Cinder remote-crew capability 2 (physical guest exit/reboard),
+not complete moving roles, fresh-session admission, cargo transfer or a parked
+Halyard/Jovian trial. Task card pushed e990b0d78 before editing; original start
+07:15:37 UTC, source-ready deadline 07:50:37, all-in deadline 08:45:37. Existing
+caller 300s/outer 360s, host ready60s, client completion120s, UI8s, exit10s/walk15s,
+input240+3s support limits retained. Three corrections exhausted; no clock reset.
+
+Unaccepted candidate **076d8a1c056b8e553b4e7558743d1ceedadf9e85** changes only
+GameFlow, CinderCargoHauler, NetworkRemoteCraftPoseStream and their three existing
+component/codec/passenger test owners. Authored source adds guest-only waypoints,
+current read-only Dock04 eligibility, one optional typed operation fact, ramp
+presentation/support, capsule clearance and a selected two-peer caller. It
+preserves the solo/Jovian route. Source review corrected several lifecycle and
+route issues before acceptance, then gave GO; actual gameplay NO-GO supersedes it.
+These are unmerged authored changes, **not delivered runtime behavior**.
+
+Baseline standalone ramp test, with optional new policy seam only if present,
+parses cleanly and reproduces the actual retained-remote-helm ramp failure on
+old runtime e990b0d78: OS143/25.838s, exactly the target error plus supervisor
+interruption. This is staged component-policy RED, not authenticated home,
+physical guest departure or a completed passing baseline suite.
+
+The three frozen corrections were source readiness work:
+
+1. Preserve the original independent local/remote pilot exclusions in the parked
+   ramp branch. This was source review, not an observed unsafe runtime; the
+   public remote setter also sets the local pilot flag. No unsafe state is
+   inferred from this preservation change.
+2. Caller parser 0.805s/two diagnostics: multiline inline lambda returns needed
+   inner parentheses at the two new hatch waits; predicates/12s limits retained.
+3. Caller parser 16.822s/two diagnostics: dynamic assignment type was not inferable;
+   explicit Dictionary and PlayerController observations added. No behavior or
+   deadline change. Final caller parse 17.222s/exit0/zero diagnostics; all five
+   other changed scripts also parse exit0/zero diagnostics before acceptance.
+
+Candidate focused checks pass, in their unmerged source scope only:
+
+- Hauler component 97 assertions, OS0/28.100s/one marker/zero diagnostics, including
+  actual authored tread/support and staged replica absent/unsafe/destroy/clear facts.
+- Pose/codec 334 assertions, OS0/45.758s/one marker/zero diagnostics, including
+  direct/packed optional bools and malformed-value refusals. No schema bump.
+
+**Gameplay caller fails before guest launch.** Parent OS143/59.996103s, zero
+success markers; raw diagnostic monitor aborts on its owned host.log. Parent
+log has one supervisor interruption; host raw has two failures: first
+`strict occupied home OFFLINE publishes usable guest ramp beside A helm`, then
+selected scenario incomplete. host.done records 6 checks/two failures/completefalse.
+No host.ready, client PID or peer exit receipt exists. Actual host OS0 is not
+established. The exact rejected dock/engine/latch/pose/ownership operand was not
+logged; no particular cause is claimed. Guest authentication, capsule route,
+physical exit,15 supported ticks, apron walk,7m clearance, reboard/fresh FIRE
+and retained A helm through those stages all remain NOT_RUN/unproved.
+
+**PARKED/unaccepted.** No further correction or renamed retry. All six source
+changes stay unmerged; no subset is accepted from green components and no export
+or checkpoint was made. Latest playable remains 6474bda. Reopening requires
+an actionable diagnosis of the actual failed host-eligibility field and explicit
+cumulative-cost reprioritization preserving this terminal stop. Existing full
+ROLE/shared/native/hardware and Halyard/Jovian parked gates stay open. All engines
+used Dummy audio; gameplay peers use private Xvfb/explicit x11/input-only rendering.
+
+Verified archive: `/srv/mudds-work/cinder-guest-egress-20261105/records.tar.gz`
+(93 regular members, 7,250,695 bytes, SHA256
+`e3dd51a1c2d390b4e5214ae4e9432fc80c92b5ac65bfedafddf2557bd55701c8`). Source bundle/base/tip and every archived member hash
+verified before removal. No checkpoint artifacts were created by this attempt.
+
+Owned candidate/baseline worktrees removed; local ref CAS-deleted at 076d8a1
+after source archive, fresh remote-tip and registered ownership checks. No
+remote task branch or owned process remains. Only records.tar.gz/closeout.json
+remain in the case folder. Cleanup completed 2026-11-05T07:57:03.805978+00:00;
+cumulative 41.447 minutes from the original start, within the 90-minute cap.

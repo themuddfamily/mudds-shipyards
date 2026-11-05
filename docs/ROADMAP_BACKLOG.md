@@ -15286,6 +15286,12 @@ ping action and clear semantics remain separate from actual cargo delivery.
    15settled supported ticks and ≥1m ordinary supported walk toward the accepted
    apron(8.8,4.18,90),walk≤15s. Clear the actual7m boarding lockout by walking,
    reenter normally and claim the role freshly before final stand/cleanup.
+   The [2026-11-05 guest-egress attempt](history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105)
+   is PARKED/unaccepted at host strict-home ramp eligibility, before host.ready
+   or a guest process. Candidate component97/codec334 passes do not prove this
+   physical result. All three source corrections are spent; no runtime merge
+   or checkpoint. Exact failed eligibility operands remain unmeasured; retain
+   the recorded causal/cumulative-cost reopening gate, not an automatic retry.
 3. **Authoritative remote terminal actor/transfer handoff (Loadmaster only).**
    The current GameFlow cargo-terminal authorization passes its local player
    after nonpassenger disembark. CinderCargoAccess requires that exact actor,
