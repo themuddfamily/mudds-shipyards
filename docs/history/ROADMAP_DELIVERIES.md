@@ -33400,8 +33400,18 @@ Done cells are retained; only SOLO-EMBER and EMBER-PACKAGE-ABANDON State record
 the completed prerequisite. No product parent/phase gate is closed. Native/
 device/human/final qualification remains NOT_RUN; GitHub Actions stays disabled.
 
-Reopening raw records/source patch are retained outside the repo under
-/srv/mudds-work/ember-save-progress-reopen-20261105 until closure. Closure copies
-checked artifacts into main, preserves the original archive, consolidates the
-new records alongside it, pushes accepted changes and deletes the owned branch/
-worktree/processes. No failed branch is merged merely to make it deletable.
+Accepted work is merged/pushed throughb78b28159; all seven checked artifact
+copies in main retain exact hashes. The owned worktree and local branch are
+removed, with exact expected tip/current remote/worktree ownership checked and
+pushed main containment verified. No remote task branch, branch exception or
+owned engine process remains. The original records.tar.gz and closeout.json
+remain unchanged in /srv/mudds-work/ember-save-progress-20261105. Reopening
+records/source patch are consolidated alongside them in reopened-records.tar.gz:
+49 regular members/3,630,909bytes, verified SHA256
+fdce2363f1b7351d53a43739ffb1069d2437629af43da87359a712a597ebc185.
+The matching reopened-closeout.json records accepted identities and cleanup;
+the temporary reopening case directory was removed. Cleanup completed by
+00:56:12UTC, before the explicit01:16:01 reopening deadline. This accounts for
+20m11s reopening work through cleanup plus prior20m27s (40m38s cumulative active
+work); the closure commit/push follows within that same budget. No failed branch
+was merged merely to make it deletable; prior unique source remains archived.
