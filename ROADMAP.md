@@ -196,6 +196,52 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+### Selected: Bulwark whole-craft LOD runtime and checkpoint
+
+**Goal/contract:** CRAFT-ACCEPT-BULWARK, missing static-exterior LOD capability
+under the [current-craft contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
+This delivers retained close/far production geometry and a playable checkpoint;
+full ordinary LOD transition/art and whole-craft acceptance remain separate gates.
+Bulwark has no prior parked whole-craft LOD attempt. Halyard and other parked
+craft remain unselected; this task reuses none of their unaccepted source.
+
+**Start/owner:** main d2e278862, healthy settled OFFLINE Bulwark, no claims/damage.
+One implementer owns scripts/ships/bulwark_heavy_gunship.gd,
+tests/bulwark_heavy_gunship_test.gd and tests/capture_bulwark_camera_views.gd in
+one owned worktree; one independent reviewer. Root owns execution, actual image
+inspection, checkpoint, integration and cleanup. Dependencies: existing Bulwark
+presentation/editable-source handoff and accepted all-nine retained-Main source
+qualification54b11c70c; no fresh network/restart qualification inferred.
+
+| Case / action | Fixed expected result | Actual / proof |
+| --- | --- | --- |
+| Focused source: actual production-current camera plus boundary/invalid distance and own cockpit/interior/boarding cases | Far only>120m, close<100m; exact boundaries/dead band retain; negative/nonfinite ignored; initial close; actual own cockpit/aboard interior/transition force close; unrelated cameras/actors do not | NOT_RUN |
+| Exhaustive current visible-geometry classification and actual Mesh/MultiMesh census | Exactly one complete static exterior active; far triangles≤25% of close and submissions≤close; no unknown renderer silently excluded; preserve existing close-shell4800 ceiling and existing allocation/geometry tests | NOT_RUN |
+| Original focused suite plus the same switch/authority observations after detach/re-entry | Retain existing named paths/resources, canopy/interior/damage vane/engine/weapon cues and shared visibility; no far colliders/claims/authorities; body/shape/anchor/claim/home/component/source identities unchanged within each epoch | NOT_RUN |
+| Full Bulwark production integration and existing all-nine Main re-entry suites | All original cases pass with exit0, exactly one existing suite marker, zero raw diagnostics and stable source/import guards; no dropped assertions | NOT_RUN |
+| Existing three-panel production-camera capture, opt-in LOD review only | Near14m close; existing second chase panel requests150m only in LOD mode and observes actual>120m/far; cockpit close; retain default32m recipe and original cameras. Three actual640×720 panels and1920×720 strip; complete corresponding blue armored silhouette/engines/gun shoulders, readable cockpit, no missing/doubled hull or lost shared cues. Explicit image dimensions before success marker; no post-hoc resizing | NOT_RUN |
+| Clean-commit paired export and strict silent startup/package audit | Fresh Windows EXE/ZIP/notes in builds/windows and matching Linux ELF/archive; direct/archived/Windows-PCK startup each exit0+one STARTUP_MENU_READY_OK+raw diagnostics0. Existing full-inventory nine-predicate audit passes; only intended compiled Bulwark payload delta approved | NOT_RUN |
+
+**Commands/proof:** existing run_test_matrix.sh --mode headless --jobs1,
+scoped separately to bulwark_heavy_gunship_test,bulwark_production_integration_test
+and main_reentry_quality_test, Godot pinned4.7.1/Dummy, original300s each.
+Existing capture_bulwark_camera_views.gd under private Xvfb/x11/Forward+/llvmpipe
+with --lod-review and owned output path; original capture ceiling300s, inner
+watchdog270s, independent outer process-group abort/reap. Existing safe clean
+export helpers and tools/release/package_inventory.py only. Logs/raw images/
+source manifests/receipts in /srv/mudds-work/bulwark-whole-lod-20261105/;
+no native Windows/GPU/device/ordinary journey claim.
+
+**Budget/stop:** start15:22:38UTC2026-11-05; estimate80–85minutes all-in;
+hard16:52:38UTC (90minutes). Implementation ready15:57; source checks complete
+16:05; capture starts by16:12; checkpoint begins by16:27. One total correction
+allowance. First unexpected failure stops dependents; a correction needs literal
+cause, remaining allowance and explicit cumulative-cost review. Hard stop or
+failed final correction parks the full selected delivery, never a passing subset.
+No automatic successor. Close only after actual fixed cases, review, merge/push,
+required checkpoint and owned branch/worktree/process/scratch cleanup, or preserve
+unaccepted source/results and park with the failed predicate and reopening cause.
+
 **Closed: concrete-goal working plan — documentation PASS, 2026-11-05.**
 Independent review: GO. All337 canonical identities/order/kinds and the original
 36-parent/ten-phase tables are preserved. Only Scan's selection state and two
