@@ -58,9 +58,10 @@ func _run() -> void:
 	var eye := ship.get_node("TitanOriginalShell/PilotFixture/CockpitCamera") as Camera3D
 	_check(ship.to_local(eye.global_position).is_equal_approx(Vector3(0, 2.51, -6.05)), "exact root-local cockpit eye")
 	_check(ship.home_berth_id == &"" and not ship.call("_uses_inherited_primary_weapon")
-		and not ship.has_node("MovingInteriorFrame") and not ship.has_node("ShipBoardingArea"),
-		"standalone child has no berth, boarding, cabin carry or inherited combat composition")
+		and ship.has_node("MovingInteriorFrame") and not ship.has_node("ShipBoardingArea"),
+		"standalone access has a moving cabin frame, no berth/Main boarding or inherited combat composition")
 	_test_shell(ship)
+	await _test_access(ship)
 	await _test_flight(ship)
 	ship.set_piloted(false)
 	ship.queue_free()
@@ -79,6 +80,8 @@ func _test_shell(ship: HeroShip) -> void:
 	var valid := true
 	var outward := true
 	for node: CollisionShape3D in ship.find_children("*", "CollisionShape3D", false, false):
+		if str(node.name).begins_with("SternRamp"):
+			continue
 		shapes.append(node)
 		valid = valid and node.shape is ConvexPolygonShape3D and not node.disabled
 		var convex := node.shape as ConvexPolygonShape3D
@@ -130,6 +133,12 @@ func _test_shell(ship: HeroShip) -> void:
 	query.collision_mask = PhysicsLayers.SHIP
 	_check(ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(),
 		"actual physics leaves whole reserved 5.4m wide cabin void clear above 0.8m floor for 2.5m headroom")
+	var slot_shape := BoxShape3D.new()
+	slot_shape.size = Vector3(2.398, 2.99, 0.198)
+	query.shape = slot_shape
+	query.transform.origin = Vector3(0, 4.9, 7.9)
+	_check(ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(),
+		"physical roof/header contain a genuine empty channel for the entire vertical hatch stroke")
 	var stern := ship.get_node("ClosedSternBlankCollision") as CollisionShape3D
 	var stern_mesh := ship.get_node("TitanOriginalShell/ClosedSternBlank") as MeshInstance3D
 	_check(stern != null and stern_mesh.get_aabb().end.z <= 8.001
@@ -200,3 +209,200 @@ func _check(condition: bool, label: String) -> void:
 func _finish() -> void:
 	print("TITAN_MEDIUM_TRANSPORT: %d checks, %d failures" % [_checks, _failures])
 	quit(0 if _failures == 0 else 1)
+
+
+func _test_access(ship: HeroShip) -> void:
+	ship.set_canopy_open(true, 0.0)
+	await _frames(2)
+	_check(not ship.is_canopy_open(), "unsupported exterior access refuses through inherited canopy API")
+	var deck := StaticBody3D.new()
+	deck.name = "SupportedFixtureApron"
+	deck.collision_layer = PhysicsLayers.WORLD
+	var floor_collision := CollisionShape3D.new()
+	var floor_shape := BoxShape3D.new()
+	floor_shape.size = Vector3(16, 1, 32)
+	floor_collision.shape = floor_shape
+	floor_collision.position.y = -0.5
+	deck.add_child(floor_collision)
+	root.add_child(deck)
+	var player := preload("res://scenes/player/player.tscn").instantiate() as PlayerController
+	# The sole staged pose. All later player/ship displacement is real physics.
+	player.position = Vector3(0, 0, 14.5)
+	root.add_child(player)
+	await _frames(10)
+	_check(player.is_on_floor() and player.position.distance_to(Vector3(0, 0, 14.5)) < 0.02,
+		"one real Player starts supported once on fixture apron at (0,0,14.5)")
+	_check(ship.get_node("MovingInteriorFrame").get_interior_bounds().is_equal_approx(TITAN_SCRIPT.CABIN_VOID),
+		"existing MovingInteriorFrame uses exact approved walking bounds")
+	var closed_origin := ship.position
+	await _walk_to(player, 7.0, &"move_forward", 110)
+	_check(player.position.z > 8.2 and player.position.z < 9.1,
+		"real Player normal forward movement cannot pass the closed stern boundary")
+	await _walk_to(player, 14.5, &"move_back", 100)
+	_check(absf(player.position.z - 14.5) < 0.05 and absf(player.position.x) < 0.01, "same Player walks back to safe apron before ramp deployment")
+	ship.set_canopy_open(true, 1.2)
+	await _frames(35)
+	var fraction := float(ship.get("_access_fraction"))
+	_check(fraction > 0.1 and fraction < 0.9 and _access_collisions_match(ship),
+		"moving hatch and both folding ramp leaves retain matching visible/physical poses")
+	await _frames(45)
+	_check(ship.is_canopy_open() and is_equal_approx(float(ship.get("_access_fraction")), 1.0)
+		and _access_collisions_match(ship), "fully open hatch/ramp preserve actual matched collision")
+	var deployed := ship.get_landing_collision_report()
+	_check(deployed.valid and deployed.local_bounds.is_equal_approx(AABB(Vector3(-6, 0, -9), Vector3(12, 6.5, 22))),
+		"deployed collision envelope is exactly x±6,z−9..13,y0..6.5")
+	_check(_aisle_clear(ship), "actual aperture and continuous 1.4m aisle have 2.5m unobstructed headroom")
+	var control := ship.get_node("TitanOriginalShell/CabinHatchInteraction") as ShipCabinHatch
+	var safe_point := Vector3(1.9, 0, 10)
+	var safe_ray := PhysicsRayQueryParameters3D.create(safe_point + Vector3.UP * 0.2, safe_point - Vector3.UP * 0.2, PhysicsLayers.WORLD)
+	_check(control.is_available() and absf(safe_point.x) - 0.38 > 1.2
+		and not ship.get_world_3d().direct_space_state.intersect_ray(safe_ray).is_empty()
+		and (safe_point + Vector3.UP * 1.75).distance_to(control.global_position) < ShipCabinHatch.MAX_REACH,
+		"stern cheek control is normally reachable from supported apron outside ramp sweep")
+	var controls := FixtureCommands.new()
+	ship.add_child(controls)
+	ship.set_command_source(controls)
+	ship.set_piloted(true)
+	controls.throttle = 1.0
+	ship.request_engine_start()
+	await _frames(30)
+	_check(ship.position.is_equal_approx(closed_origin) and ship.velocity.length() < 0.001
+		and ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE,
+		"open access refuses timed start and actual throttle departure through inherited controller")
+	controls.throttle = 0.0
+	ship.set_piloted(false)
+	var inbound := await _walk_to(player, -4.2, &"move_forward", 280, ship)
+	_check(absf(player.position.z + 4.2) < 0.05 and absf(player.position.x) < 0.01 and absf(player.position.y - 0.8) < 0.02,
+		"normal uninterrupted locomotion climbs real ramp and reaches exact helm approach")
+	_check(inbound.supported == inbound.frames and inbound.clear == inbound.frames and inbound.ship_contacts > 150,
+		"every inbound movement frame has supported contact and clear actual Player capsule/head")
+	_check((ship.get_node("MovingInteriorFrame") as MovingInteriorFrame).is_occupant_registered(player) and not (ship.collision_mask & PhysicsLayers.PLAYER),
+		"real cabin traversal automatically registers Player with existing moving frame")
+	ship.set_canopy_open(false, 1.2)
+	await _frames(35)
+	ship.set_piloted(true)
+	controls.throttle = 1.0
+	ship.request_engine_start()
+	await _frames(5)
+	_check(not ship.is_canopy_open() and float(ship.get("_access_fraction")) > 0.0
+		and _access_collisions_match(ship) and ship.position.is_equal_approx(closed_origin)
+		and ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE,
+		"closing access still refuses actual timed start/throttle until physical stow completes")
+	controls.throttle = 0.0
+	ship.set_piloted(false)
+	await _frames(40)
+	_check(not ship.is_canopy_open() and is_zero_approx(float(ship.get("_access_fraction")))
+		and _access_collisions_match(ship), "closed hatch and stowed ramp restore matched collision")
+	_check(ship.get_landing_collision_report().local_bounds.is_equal_approx(AABB(Vector3(-6, 0, -9), Vector3(12, 5, 18))),
+		"sealed access restores exact original 12×18×5m collision envelope")
+	ship.set_piloted(true)
+	controls.brake = true
+	await _frames(5)
+	_check(ship.get("_engine_state") == HeroShip.ENGINE_ONLINE, "sealed fixture pilot intent wakes actual inherited propulsion")
+	controls.brake = false
+	await _frames(95)
+	_check(ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE and ship.position.is_equal_approx(closed_origin),
+		"actual inherited neutral shutdown completes before physical return outside")
+	ship.set_piloted(false)
+	ship.set_canopy_open(true, 1.2)
+	await _frames(80)
+	var outbound := await _walk_to(player, 14.5, &"move_back", 280, ship)
+	_check(absf(player.position.z - 14.5) < 0.05 and absf(player.position.x) < 0.01 and absf(player.position.y) < 0.02,
+		"same Player physically returns down ramp to original supported apron after shutdown")
+	_check(outbound.supported == outbound.frames and outbound.clear == outbound.frames,
+		"every outbound movement frame retains support and clear actual Player capsule/head")
+	_check(not (ship.get_node("MovingInteriorFrame") as MovingInteriorFrame).is_occupant_registered(player) and ship.collision_mask == PhysicsLayers.SHIP_BODY_MASK,
+		"walking outside releases automatic moving-frame occupancy")
+	print("TITAN_ACCESS: inbound=", inbound, " outbound=", outbound, " final=", player.position)
+	ship.set_canopy_open(false, 0.0)
+	await _frames(2)
+	player.queue_free()
+	deck.queue_free()
+	controls.queue_free()
+	await _frames(2)
+
+
+func _walk_to(player: PlayerController, target_z: float, action: StringName, limit: int, ship: HeroShip = null) -> Dictionary:
+	var report := {"frames": 0, "supported": 0, "clear": 0, "ship_contacts": 0}
+	Input.action_press(action)
+	for _index in limit:
+		await physics_frame
+		await process_frame
+		_observe_walk_frame(player, ship, report)
+		var distance := (player.position.z - target_z) if action == &"move_forward" else (target_z - player.position.z)
+		if distance <= 0.04:
+			break
+		# Release speed through the same ordinary analogue action input, so the
+		# controller's deceleration lands at the endpoint without any pose edit.
+		Input.action_press(action, 0.4 if distance < 0.8 else 1.0)
+	Input.action_release(action)
+	for _index in 12:
+		await physics_frame
+		await process_frame
+		_observe_walk_frame(player, ship, report)
+	print("TITAN_WALK: target=", target_z, " pose=", player.position, " operands=", report)
+	return report
+
+
+func _observe_walk_frame(player: PlayerController, ship: HeroShip, report: Dictionary) -> void:
+	report.frames += 1
+	if player.is_on_floor():
+		report.supported += 1
+	if ship != null:
+		var collision := player.get_node("PlayerCollision") as CollisionShape3D
+		var capsule := (collision.shape as CapsuleShape3D).duplicate() as CapsuleShape3D
+		capsule.radius -= 0.005
+		capsule.height -= 0.01
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = capsule
+		query.transform = collision.global_transform
+		query.collision_mask = PhysicsLayers.SHIP
+		query.margin = 0.0
+		if player.get_world_3d().direct_space_state.intersect_shape(query).is_empty():
+			report.clear += 1
+		for index in player.get_slide_collision_count():
+			if player.get_slide_collision(index).get_collider() == ship:
+				report.ship_contacts += 1
+				break
+
+
+func _access_collisions_match(ship: HeroShip) -> bool:
+	var pairs := [["ClosedSternBlankCollision", "TitanOriginalShell/ClosedSternBlank"],
+		["SternRampFirstCollision", "TitanOriginalShell/SternRampHinge/SternRampFirst"],
+		["SternRampToeCollision", "TitanOriginalShell/SternRampHinge/RampToeHinge/SternRampToe"]]
+	for pair in pairs:
+		var collision := ship.get_node(pair[0]) as CollisionShape3D
+		var mesh := ship.get_node(pair[1]) as MeshInstance3D
+		if collision.disabled or not collision.global_transform.is_equal_approx(mesh.global_transform):
+			return false
+		var query := PhysicsShapeQueryParameters3D.new()
+		var box := SphereShape3D.new()
+		box.radius = 0.015
+		query.shape = box
+		query.collision_mask = PhysicsLayers.SHIP
+		var points := (collision.shape as ConvexPolygonShape3D).points
+		var faces := mesh.mesh.get_faces()
+		for point in points:
+			if not _contains_point(faces, point):
+				return false
+		for point in faces:
+			if not _contains_point(points, point):
+				return false
+		var center := Vector3.ZERO
+		for point in points:
+			center += point / points.size()
+		query.transform.origin = collision.global_transform * center
+		if ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty():
+			return false
+	return true
+
+
+func _aisle_clear(ship: HeroShip) -> bool:
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.4 - 0.002, 2.5 - 0.002, 14.8 - 0.002)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = ship.global_transform * Transform3D(Basis.IDENTITY, Vector3(0, 2.05, 0.6))
+	query.collision_mask = PhysicsLayers.SHIP
+	query.margin = 0.0
+	return ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty()
