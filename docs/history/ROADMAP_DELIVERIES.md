@@ -34969,3 +34969,107 @@ order and Done-means cells preserved; only Bulwark's State changes to reflect
 its actual source-member result. Changed local links/anchors resolve and
 `git diff --check` passes. No engine/test suite, new validator, goal ID,
 requirement reduction or checkpoint is selected for this documentation work.
+
+
+<a id="rime-solo-outbound-alignment-stop-20261105"></a>
+## Rime solo access/outbound caller — parked at alignment, 2026-11-05
+
+**PARKED / NOT_ACCEPTED.** This selected the explicitly permitted access/outbound
+implementation member of SOLO-RIME,not the whole survey/return/cold container or
+the historical shared Halyard arrival. Result would have been an executable
+ordinary Boot→convoy Board choice→Arrow physical access/departure→canonical Rime
+cruise→strict pad/OFFLINE/exterior/supported walk→normal UI OS0 command in the
+existing native-sortie tool. The actual trial fails before Destination Board;
+no executable prefix is accepted. No candidate source was merged or checkpoint
+published; latest accepted playable remains5bc9a17.
+
+Original assessment13:03UTC,estimate60–80min,hard14:33UTC including all source,
+review,checks,private export,trial,integration/archive/cleanup. Readiness13:35 and
+latest13:43 launch gates; selected route2700s/independent2760s retain default300
+for all existing routes and every tighter source bound,including240+4 alignment
+and dot≥.995. These limits did not change after observations. One implementation
+agent owned five existing files;one independent high-effort reviewer checked
+production seams/source/terminal scope. Root owned card,execution and closure.
+
+Base/pushed main `e09e081aeca8bb9fe3d34f6a0d28bdb5f2552206`;
+initial candidate `e8635e4749689ce25106a7eb410ea50f97b10691`;
+corrected `6bd8712e575d740f2e1708583d6d5eaf1b5d3168`.
+Owned files: existing native Python runner/test,passive native_sortie_observer,
+StartupLoader private allowlist and existing startup/privacy test. No gameplay,
+actor pose,time/progress/reward,component policy or command-provider mutation.
+Source review's GO was conditional on actual execution,not a runtime pass.
+
+First full Python gate runs315tests/14.283s with one failure: an existing Zenith
+compatibility assertion requires `choices=('zenith-torrent-handback'`; the new
+route was prepended. No engine/dependent check launched. Independent cumulative
+review approved the sole exact correction: append Rime while preserving the old
+choice order/default. No test or acceptance change. That allowance is exhausted.
+
+Corrected315Python/14.304s pass; clean import20.434s/OS0; startup privacy3818
+assertions1.114s/OS0/diag0; source/cache guards true; observer check-only0/diag0.
+Clean official pinned Linux export0/diag0; actual archive-extracted ELF strict
+startup0/exactly1STARTUP_MENU_READY_OK/diag0. An initial nonterminal startup poll
+was followed on the same live handle; no restart or failed startup is inferred.
+These source/startup successes do not accept a subset of the declared journey.
+
+Actual ELF149,139,240bytes/SHA256
+`bbc68e80a073dc8a60c584b6c102a6874ea461b8a40cb55758089e74c52cf089`;
+package TAR95,546,177bytes/SHA256
+`8e132fd9cb8c75efd802c4084761dd44a949d9fd8094bfa56d60afbea4a92a0e`.
+The actual native command uses this ELF with Dummy audio,explicit x11,private
+Xvfb,dummy rendering and disable-render-loop. No user desktop/input/audio or
+native GPU/device/Windows/human qualification. Complete per-physics raw records
+use an owned separate /tmp tmpfs for capacity;no samples are removed or reduced.
+
+**Actual trial54.215s/driver+supervisor1/engine diagnostics0.** Reached normal
+Begin Shift,real convoy Activity Board selection/Back/Resume,supported station
+walking,physical Arrow boarding,90neutral seated ticks,real departure/released
+home lease and hulk clearance. Stages end at align_settle; retained receipts stop
+at convoy_selection,board_request,seated,neutral90,departure,hulk_clear.
+
+| Actual frame | Forward/navigation dot | Consumed look_pitch_delta |
+| --- | --- | --- |
+| 2153,entry into align_settle | .9989417044909916 | −1 |
+| 2154 | .9729220290673005 | −1 |
+| 2155 | .9239605646059326 | −.570252537727356 |
+| 2156–2157 | .9239605646059326 | 0 |
+
+First unmet predicate: `Rime physical alignment remains accepted after four
+neutral ticks`. The driver returns zero mouse at align_settle,while actual
+commands continue consuming look on two later frames. This establishes residual
+consumption across its stage change,not the exact OS impulse normalization/
+delivery cause or a game handling defect. Last frame2157 has requestserial0,
+Rimeidle/staging0/rebases0. Destination UI/cruise/canonical distance/approach/
+strict Rime landing/OFFLINE/E/supported surface walk/normal HUD OS0/clean final
+files remain NOT_RUN. Complete survey/home/cold fixture/qualification remain
+OPEN; no continuous parent journey clock is reset or accepted.
+
+All four final input-release/helper/game/Xvfb cleanup flags true; actual child
+PIDs378586/378578/378585 and exact outer378574 absent. Incomplete game_legs
+normal-exit fields are not final cleanup failure. Complete source/cache CSVs
+before/after are identical and exact ELF SHA unchanged. Full owned private
+profile retained as raw/run/rime-private-profile.tar.gz,SHA256
+`6cae7efe8ccf32db9c1ffb9cd9c469a1fab9e501b58a771f102724b4adda9ecc`.
+No production defect was added to bugs.md from this unproved cause.
+
+Verified [records archive](/srv/mudds-work/rime-solo-outbound-20261105/records.tar.gz):
+49 regular members/98,896,810bytes/SHA256
+`900bfddc0daea2fa0c66fb79a41aa144f78bed49ed258dd0286eea87cf567132`.
+Every member hash checked before removal. Includes raw frames/commands/results/
+profiles,all source/check/export/startup logs,guards,frozen card,all five complete
+changed source files,verified Git bundle with both candidate commits/base/tip and
+one exact private package solely for reproduction. Bundle prerequisite remains
+reachable in pushed main; no unaccepted instrumentation enters production.
+
+Fresh remote tips show only main/no task branch. Clean registered worktree/exact
+candidate tip,all source copies/archived package and both duplicate ELF hashes
+verified before normal worktree removal and exact-CAS local ref deletion. Owned
+private exports/caches/profiles/helpers/raw temporary staging removed at
+13:38:58.453060UTC,35.974minutes through cleanup; only records.tar.gz and
+closeout.json remain. Final documentation/review/push time stays charged to this
+card and is recorded in closeout.json. No owned branch/worktree/process retained.
+
+Reopening requires a measured native-look cause/bounded correction plus later
+explicit user reprioritization retaining prior cost and exhausted allowance.
+Keep the exact alignment/tick/deadline and complete prefix/parent requirements;
+no new label,tolerance reduction,game tuning or automatic retry is selected.

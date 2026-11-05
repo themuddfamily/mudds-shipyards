@@ -3539,6 +3539,28 @@ result,loop and independent alarm together. Freeze source/ELF/TAR/profile/raw
 inputs/readbacks/actual exits before each later selection; default one correction,
 first-failure stop. Native/rendered/device/final-package gates remain open.
 
+**SOLO-RIME access/outbound caller attempt2026-11-05: PARKED/unaccepted.**
+The explicitly permitted prefix was selected separately from the complete survey/
+return and from historical shared Halyard arrival. Candidatee8635e474→6bd8712e5
+passes corrected315Python,import/privacy/observer compile,clean private Linux
+export and exact archive startup,then actual ordinary OS-input trial fails54.215s
+at four-neutral-tick alignment. Entry frame2153 dot.99894170449/look_pitch_delta−1;
+2154 dot.97292202907/look−1;2155 dot.92396056461/look−.5702525377;2156–57 same
+low dot/look0. Required dot≥.995 remains unchanged. Residual consumed look after
+the caller's stage change is measured;exact OS impulse normalization/delivery
+cause remains unproved,no gameplay defect inferred. Normal convoy Activity Board selection,
+physical Arrow boarding/90neutral/depart/hulk clearance were reached;requestserial0,
+Rimeidle/staging0/rebases0. No destination/cruise/landing/exterior/surface/normalOS0
+or accepted prefix. Zero diagnostics/all4cleanupflags,true source/cache/ELF guards.
+The sole cause-bound correction was spent on an existing CLI choice-order test;
+no additional correction or run. Source/raw/exact private package are archived,
+owned refs/worktree/caches/raw staging cleaned;no code merged or checkpoint.
+Reopening needs measured native-look cause/bounded correction plus later explicit
+user reprioritization retaining original13:03–14:33UTC card,cost/exhausted allowance,
+240+4/.995 and2700/2760 limits. [Exact terminal record](history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105).
+The complete same-candidate journey and genuine cold-case fixture remain OPEN;
+this attempt supplies neither and cannot reset their clocks.
+
 <a id="rime-natural-cold-restart-member"></a>
 ##### Rime natural cold failure and distinct-process continuation
 
@@ -9623,7 +9645,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | Qualification | [Concrete Halyard contract](#solo-aurora-rime-ordinary-contracts) binds12Mm route,normal UI/boarding,physical observations/once-only disk reward/return/strict home/normal Quit and first native2700/2760s engineering limits. Existing source setup/tick limits retain their disclosed scope. Missing native caller/readback is Codex implementation; freeze source/package/profile at selection. No ordinary/final qualification claimed. | [Canonical physical round trip](#proof-world), Aurora: actual lookout/standing-stones observations and durable reward; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 9d2d467e0: no missing implementation identified within inspected authored-content scope; see boundary below. Qualitative adequacy and existing journey/visual/hardware acceptance unproven | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| SOLO-RIME | Rime canonical physical survey round trip | 14 | Qualification | [Concrete Arrow contract](#solo-aurora-rime-ordinary-contracts) binds10Mm route/extraction+gauge/reward/physical home/normal Quit with first native2700/2760s engineering limits. [Separate natural cold/restart](#rime-natural-cold-restart-member) binds120s heat/E restart/saved index1/distinct Boot/once-only return,genuine unpaid baseline fixture and1800/1860s group. Staged/time-injected source case remains narrower. Missing ordinary caller/fixture integration is Codex implementation,not an external policy input; no ordinary/final qualification claimed. | [Canonical physical round trip](#proof-world), Rime: beacon/drill/gauge/ice-core and actual cold failure/restart; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
+| SOLO-RIME | Rime canonical physical survey round trip | 14 | Qualification | [Ordinary access/outbound caller](history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) PARKED/unaccepted6bd8712e5: actual54.215s alignment/four-neutral mismatch before destination request; residual consumed look observed,no gameplay defect established. Sole CLI-order correction spent; source/raw/private package archived,owned branch/worktree/scratch cleaned,no merge/checkpoint. Reopening needs measured native-look cause/correction and explicit reprioritization retaining cost/original240+4/.995/2700/2760 limits. [Concrete Arrow contract](#solo-aurora-rime-ordinary-contracts) binds10Mm route/extraction+gauge/reward/physical home/normal Quit with first native2700/2760s engineering limits. [Separate natural cold/restart](#rime-natural-cold-restart-member) binds120s heat/E restart/saved index1/distinct Boot/once-only return,genuine unpaid baseline fixture and1800/1860s group. Staged/time-injected source case remains narrower. Missing ordinary caller/fixture integration is Codex implementation,not an external policy input; no ordinary/final qualification claimed. | [Canonical physical round trip](#proof-world), Rime: beacon/drill/gauge/ice-core and actual cold failure/restart; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 30968aeda: no missing implementation identified within inspected authored-content scope; see boundary below. Existing ordinary/shared/visual/hardware acceptance remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 
 ### Ember authored-content boundary
