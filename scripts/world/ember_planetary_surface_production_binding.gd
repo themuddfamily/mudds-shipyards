@@ -630,6 +630,22 @@ func commit_relay_survey_reward() -> Dictionary:
 	return result
 
 
+## Re-publishes only an already paid runtime completion. Reward authority is
+## deliberately absent from this path; the production owner retains its receipt.
+func save_completed_relay_survey_publication(expected_activity_generation: int) -> Dictionary:
+	if not _live() or _relay_survey_persistence == null:
+		return _result(false, &"survey_persistence_unavailable")
+	var runtime: Dictionary = get_activity_reward_snapshot()
+	if expected_activity_generation < 1 \
+			or StringName(runtime.get("state", &"")) != &"completed" \
+			or int(runtime.get("activity_generation", 0)) != expected_activity_generation:
+		return _result(false, &"survey_completion_not_current")
+	var next_store_generation: int = int(_relay_survey_persistence.call(&"get_store_generation")) + 1
+	return _relay_survey_persistence.call(
+		&"save", get_snapshot(), "ember-relay-survey-%010d" % next_store_generation
+	) as Dictionary
+
+
 func configure_relay_survey_persistence(
 		store: RefCounted, slot_id: StringName = &"ember_relay_survey_completion"
 	) -> Dictionary:

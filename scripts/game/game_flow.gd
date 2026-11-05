@@ -22970,7 +22970,11 @@ func _get_current_ember_save_context() -> Dictionary:
 			or int(bound_identities.get("host_instance_id", 0)) != ember_surface_loop_host.get_instance_id() \
 			or int(bound_identities.get("player_instance_id", 0)) != player.get_instance_id():
 		return {}
+	var activity: Dictionary = (binding.get("planetary_surface", {}) as Dictionary).get("adapter", {}).get("activity_reward", {}) as Dictionary
+	var session: Object = ember_surface_loop_host.get_travel_session_observation_source()
 	return {
+		"activity_generation": int(activity.get("activity_generation", 0)),
+		"session_instance_id": session.get_instance_id() if is_instance_valid(session) else 0,
 		"world_id": &"ember_moon",
 		"host_instance_id": ember_surface_loop_host.get_instance_id(),
 		"host_generation": int(host.generation),
@@ -22985,11 +22989,23 @@ func _save_ember_from_nearby_activity_intent(intent: Dictionary) -> Dictionary:
 	var current := _get_current_ember_save_context()
 	if current.is_empty() or intent.get("ember_save_context", {}) != current:
 		return {"accepted": false, "reason": &"ember_save_context_stale", "status": &"failed_write"}
-	var result := save_interrupted_ember_journey()
+	var result: Dictionary
+	if ember_surface_loop_production_binding.has_pending_relay_terminal_publication():
+		var caldera: Dictionary = get_ember_caldera_expedition_report()
+		if StringName(caldera.get("active_activity_id", &"")) != &"":
+			result = {"accepted": false, "reason": &"ember_active_caldera_progress_unsupported"}
+		else:
+			result = ember_surface_loop_production_binding.retry_relay_terminal_publication(current)
+			if bool(result.get("accepted", false)):
+				_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+				_sync_production_runtime_settings_state()
+		_ember_interrupted_journey_save_status = result.duplicate(true)
+	else:
+		result = save_interrupted_ember_journey()
 	# The existing persistence receipt keeps its binding_reason and atomic
 	# failure details; the presenter consumes its established status vocabulary.
 	result["status"] = &"saved" if bool(result.get("accepted", false)) \
-		and result.get("binding_reason") == &"active_journey_saved" else &"failed_write"
+		and result.get("binding_reason") in [&"active_journey_saved", &"terminal_publication_saved"] else &"failed_write"
 	return result
 
 

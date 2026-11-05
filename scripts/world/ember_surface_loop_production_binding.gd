@@ -127,6 +127,7 @@ var _active_relay_reward_evidence: Dictionary = {}
 var _relay_reward_authority_in_flight := false
 var _relay_reward_authority_receipt: Dictionary = {}
 var _relay_reward_commit_receipt: Dictionary = {}
+var _pending_relay_terminal_publication: Dictionary = {}
 var _last_relay_reward_commit_result: Dictionary = {}
 var _relay_reward_authority_commit_count := 0
 var _relay_reward_persistence_commit_count := 0
@@ -214,6 +215,7 @@ func _exit_tree() -> void:
 	_pending_envelope.clear()
 	_pending_intent.clear()
 	_active_relay_reward_evidence.clear()
+	_pending_relay_terminal_publication.clear()
 	_relay_reward_authority_in_flight = false
 	_clear_retained_return_context()
 	if _state == State.START_PENDING:
@@ -799,6 +801,8 @@ func retire_interrupted_relay_survey_journey(
 ## the reward authority/store, or selects a berth; the receipt only names the
 ## authored Mudds Shipyards destination.
 func issue_planetary_relay_survey_return_manifest() -> Dictionary:
+	if has_pending_relay_terminal_publication():
+		return _reject(&"relay_terminal_publication_pending")
 	if _planetary_composition == null or _relay_return_manifest == null:
 		return _reject(&"planetary_composition_unavailable")
 	var snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
@@ -826,6 +830,8 @@ func get_planetary_relay_survey_return_manifest_snapshot() -> Dictionary:
 func consume_planetary_relay_survey_return(
 		manifest_result: Variant, actor_instance_id: int, craft_instance_id: int
 	) -> Dictionary:
+	if has_pending_relay_terminal_publication():
+		return _reject(&"relay_terminal_publication_pending")
 	if _relay_return_travel == null or _host == null:
 		return _reject(&"planetary_composition_unavailable")
 	return _relay_return_travel.call(
@@ -845,6 +851,8 @@ func admit_planetary_relay_survey_return(
 		craft_instance_id: int,
 		travel_session: Object = null
 	) -> Dictionary:
+	if has_pending_relay_terminal_publication():
+		return _reject(&"relay_terminal_publication_pending")
 	if _relay_return_travel == null or _host == null:
 		return _reject(&"return_travel_session_unavailable")
 	var retained := travel_session == null
@@ -1709,6 +1717,7 @@ func _retire_completed_journey_for_repeat() -> void:
 	_relay_reward_authority_in_flight = false
 	_relay_reward_authority_receipt.clear()
 	_relay_reward_commit_receipt.clear()
+	_pending_relay_terminal_publication.clear()
 	_last_relay_reward_commit_result.clear()
 	_planetary_reward_authority = Callable()
 	_atmosphere_composition = null
@@ -2036,6 +2045,8 @@ func _queue_host_intent(
 	expected_host_phase: int,
 	expected_generation: int
 ) -> Dictionary:
+	if intent_id == &"reboard" and has_pending_relay_terminal_publication():
+		return _reject(&"relay_terminal_publication_pending")
 	if _mutation_active or _signal_dispatch_active:
 		return _reject(&"reentrant_call")
 	_mutation_active = true
@@ -2622,7 +2633,10 @@ func _physics_process(_engine_delta: float) -> void:
 			_fail_late(intent_rejection)
 			return
 	var relay_forward_rejection := _forward_active_relay_position(envelope)
-	if not relay_forward_rejection.is_empty():
+	if not relay_forward_rejection.is_empty() and not (
+		relay_forward_rejection == &"relay_reward_persistence_commit_rejected"
+		and has_pending_relay_terminal_publication()
+	):
 		_fail_late(relay_forward_rejection)
 		return
 	var expedition_rejection := _forward_active_caldera_expedition(envelope)
@@ -2847,6 +2861,8 @@ func _commit_pending_relay_reward(
 	) -> StringName:
 	if not _relay_reward_commit_receipt.is_empty():
 		return &"relay_reward_replayed"
+	if has_pending_relay_terminal_publication():
+		return &"relay_reward_persistence_commit_rejected"
 	if _relay_survey_persistence_store == null \
 			or _relay_survey_persistence_slot.is_empty():
 		return &"relay_reward_persistence_unavailable"
@@ -2866,14 +2882,29 @@ func _commit_pending_relay_reward(
 		return &"relay_reward_authority_receipt_missing"
 	var persistence := committed.get("persistence", {}) as Dictionary
 	if not bool(persistence.get("accepted", false)):
+		var completed: Dictionary = _get_activity_reward_snapshot()
+		if StringName(completed.get("state", &"")) == &"completed" \
+				and int(completed.get("activity_generation", 0)) == int(activity.get("activity_generation", -1)) \
+				and (completed.get("committed_reward", {}) as Dictionary).get("authority_result", {}) == _relay_reward_authority_receipt:
+			var payload: Dictionary = _relay_survey_persistence_store.call(&"get_snapshot")
+			_pending_relay_terminal_publication = {
+				"activity": completed.duplicate(true),
+				"authority": _relay_reward_authority_receipt.duplicate(true),
+				"ledger": (payload.get("game_flow_reward_store", {}) as Dictionary).duplicate(true),
+			}.duplicate(true)
 		return &"relay_reward_persistence_commit_rejected"
+	_publish_relay_production_commit(persistence, evidence, int(activity.get("activity_generation", -1)))
+	return &""
+
+
+func _publish_relay_production_commit(persistence: Dictionary, evidence: Dictionary, activity_generation: int) -> void:
 	_relay_reward_persistence_commit_count += 1
 	_relay_reward_commit_receipt = {
 		"commit_id": _relay_reward_authority_receipt.get("commit_id", ""),
 		"owner_generation": _generation,
 		"host_generation": _host.get_generation(),
 		"host_attachment_generation": _host.get_attachment_generation(),
-		"activity_generation": int(activity.get("activity_generation", -1)),
+		"activity_generation": activity_generation,
 		"actor_instance_id": int(evidence.get("actor_instance_id", 0)),
 		"session_instance_id": int(evidence.get("session_instance_id", 0)),
 		"authority": _relay_reward_authority_receipt.duplicate(true),
@@ -2882,7 +2913,92 @@ func _commit_pending_relay_reward(
 	_last_relay_reward_commit_result["production_commit"] = (
 		_relay_reward_commit_receipt.duplicate(true)
 	)
-	return &""
+	_pending_relay_terminal_publication.clear()
+
+
+func has_pending_relay_terminal_publication() -> bool:
+	return not _pending_relay_terminal_publication.is_empty() \
+		and _relay_reward_commit_receipt.is_empty()
+
+
+## A normal Save intent may retry publication while paused. Current lifecycle
+## and the retained paid receipt replace no original reward witness: that exact
+## physics witness was already consumed by the sole reward CAS.
+func retry_relay_terminal_publication(context: Dictionary) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return {"accepted": false, "reason": &"reentrant_call"}
+	if not has_pending_relay_terminal_publication():
+		return {"accepted": false, "reason": &"relay_terminal_publication_not_pending"}
+	if not _configured or _state != State.RUNNING:
+		return {"accepted": false, "reason": &"relay_reward_production_unavailable"}
+	var identity_rejection: StringName = _identity_rejection()
+	if not identity_rejection.is_empty():
+		return {"accepted": false, "reason": identity_rejection}
+	var host: Dictionary = _host.get_return_status_snapshot()
+	var session: Object = _host.get_travel_session_observation_source()
+	var authority: Dictionary = _pending_relay_terminal_publication.get("authority", {}) as Dictionary
+	var evidence: Dictionary = authority.get("evidence", {}) as Dictionary
+	var activity: Dictionary = _get_activity_reward_snapshot()
+	var current_context: Dictionary = {
+		"world_id": &"ember_moon", "host_instance_id": _host_instance_id,
+		"host_generation": _host.get_generation(),
+		"attachment_generation": _host.get_attachment_generation(),
+		"player_instance_id": _player_instance_id, "binding_instance_id": get_instance_id(),
+		"binding_generation": _generation,
+		"activity_generation": int(activity.get("activity_generation", 0)),
+		"session_instance_id": session.get_instance_id() if is_instance_valid(session) else 0,
+	}
+	if context != current_context or not bool(host.get("attached", false)) \
+			or StringName(host.get("phase_id", &"")) != &"on_foot" \
+			or not bool(_host.audit().get("valid", false)) \
+			or authority != _relay_reward_authority_receipt \
+			or activity != _pending_relay_terminal_publication.get("activity", {}) \
+			or StringName(activity.get("state", &"")) != &"completed" \
+			or int(evidence.get("owner_generation", 0)) != _generation \
+			or int(evidence.get("host_instance_id", 0)) != _host_instance_id \
+			or int(evidence.get("host_generation", 0)) != _host.get_generation() \
+			or int(evidence.get("host_attachment_generation", 0)) != _host.get_attachment_generation() \
+			or int(evidence.get("actor_instance_id", 0)) != _player_instance_id \
+			or int(evidence.get("craft_instance_id", 0)) != _ship_instance_id \
+			or not is_instance_valid(session) \
+			or int(evidence.get("session_instance_id", 0)) != session.get_instance_id():
+		return {"accepted": false, "reason": &"relay_terminal_publication_context_stale"}
+	var payload: Dictionary = _relay_survey_persistence_store.call(&"get_snapshot")
+	var ledger: Dictionary = payload.get("game_flow_reward_store", {}) as Dictionary
+	var original_ledger: Dictionary = _pending_relay_terminal_publication.get("ledger", {}) as Dictionary
+	var paid: Dictionary = authority.get("authority_result", {}) as Dictionary
+	var paid_receipt: Dictionary = paid.get("receipt", {}) as Dictionary
+	# Store commits expose JSON number variants; compare the full trusted
+	# receipt in that same representation without normalizing live identities.
+	var paid_receipt_wire: Dictionary = JSON.parse_string(JSON.stringify(paid_receipt, "", true, true)) as Dictionary
+	var validator := GameFlowRewardAuthority.new()
+	if not _relay_survey_persistence_store.has_method(&"get_loaded_source") \
+			or StringName(_relay_survey_persistence_store.call(&"get_loaded_source")) != &"primary" \
+			or not bool(validator.validate_record(ledger).get("accepted", false)) \
+			or not bool(validator.validate_record(original_ledger).get("accepted", false)) \
+			or original_ledger.get("last_receipt", {}) != paid_receipt_wire \
+			or not bool(paid.get("accepted", false)) \
+			or StringName(paid_receipt.get("activity_id", &"")) != &"ember_beacon_survey" \
+			or StringName(paid_receipt.get("reward_id", &"")) != &"ember_beacon_data" \
+			or not bool(paid_receipt.get("granted", false)) \
+			or bool(paid_receipt.get("replay_allowed", true)) \
+			or int(paid_receipt.get("activity_generation", 0)) != int(activity.get("activity_generation", -1)) \
+			or int(ledger.get("receipt_serial", 0)) < int(paid_receipt.get("receipt_id", 1)) \
+			or int((ledger.get("reward_counts", {}) as Dictionary).get("ember_beacon_data", 0)) < int((original_ledger.get("reward_counts", {}) as Dictionary).get("ember_beacon_data", 1)) \
+			or int(_relay_survey_persistence_store.call(&"get_generation")) < int(paid.get("store_generation", 0)):
+		return {"accepted": false, "reason": &"relay_terminal_publication_payment_not_current"}
+	_mutation_active = true
+	var persistence: Dictionary = _planetary_composition.call(
+		&"save_completed_relay_survey_publication", int(activity.get("activity_generation", 0))
+	)
+	_last_relay_reward_commit_result["persistence"] = persistence.duplicate(true)
+	if bool(persistence.get("accepted", false)):
+		_publish_relay_production_commit(persistence, evidence, int(activity.get("activity_generation", 0)))
+	_mutation_active = false
+	var result: Dictionary = persistence.duplicate(true)
+	result["binding_reason"] = &"terminal_publication_saved" if bool(persistence.get("accepted", false)) else &"store_rejected"
+	result["production_commit"] = _relay_reward_commit_receipt.duplicate(true)
+	return result
 
 
 func _build_relay_reward_evidence(

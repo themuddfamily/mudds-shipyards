@@ -22,7 +22,8 @@ class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
 	var ember_checkpoint_commits := 0
 	var reject_writes := false
-	var writes_until_refusal := -1
+	var reject_terminal_publication := false
+	var terminal_publication_attempts := 0
 	func file_exists(path: String) -> bool: return files.has(path)
 	func directory_exists(_path: String) -> bool: return false
 	func ensure_parent_directory(_path: String) -> Error: return OK
@@ -35,10 +36,13 @@ class MemoryFilesystem extends FilesystemScript:
 			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
 		}
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
-		if reject_writes or writes_until_refusal == 0:
+		var document: Dictionary = JSON.parse_string(bytes.get_string_from_utf8())
+		if str(document.get("commit", {}).get("id", "")).begins_with("ember-relay-survey-"):
+			terminal_publication_attempts += 1
+			if reject_terminal_publication:
+				return ERR_CANT_CREATE
+		if reject_writes:
 			return ERR_CANT_CREATE
-		if writes_until_refusal > 0:
-			writes_until_refusal -= 1
 		files[path] = bytes.duplicate()
 		return OK
 	func remove_path(path: String) -> Error:
@@ -59,9 +63,16 @@ class MemoryFilesystem extends FilesystemScript:
 ## Real files for the normal player Save/failed-write/Quit regression below.
 class DiskSaveFilesystem extends FilesystemScript:
 	var reject_writes := false
+	var reject_terminal_publication := false
+	var terminal_publication_attempts := 0
 	var ember_checkpoint_commits := 0
 	var target_path := ""
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Dictionary = JSON.parse_string(bytes.get_string_from_utf8())
+		if str(document.get("commit", {}).get("id", "")).begins_with("ember-relay-survey-"):
+			terminal_publication_attempts += 1
+			if reject_terminal_publication:
+				return ERR_CANT_CREATE
 		if reject_writes:
 			return ERR_CANT_CREATE
 		return super.write_bytes_and_flush(path, bytes)
@@ -199,6 +210,10 @@ func _init() -> void:
 func _run() -> void:
 	if OS.get_cmdline_user_args().has("--ember-save-refusal-only"):
 		await _exercise_ordinary_save_refusals()
+		_finish()
+		return
+	if OS.get_cmdline_user_args().has("--ember-terminal-retry-only"):
+		await _exercise_production_terminal_retry()
 		_finish()
 		return
 	var filesystem := MemoryFilesystem.new()
@@ -405,6 +420,10 @@ func _run() -> void:
 	await _exercise_explicit_abandon()
 	await _exercise_paid_caldera_restore()
 	await _exercise_ordinary_save_refusals()
+	await _exercise_production_terminal_retry()
+	if not _failures.is_empty():
+		_finish()
+		return
 	# Last: the actual production quit handler requests SceneTree shutdown. All
 	# assertions after that request are synchronous, before natural tree teardown.
 	await _exercise_production_orderly_quit()
@@ -586,6 +605,246 @@ func _decode_refusal_file(bytes: PackedByteArray) -> Variant:
 	var decoder := JSON.new()
 	return decoder.data if decoder.parse(bytes.get_string_from_utf8()) == OK \
 		else {"bytes": bytes.size(), "valid_json": false}
+
+
+## Real Main, Host, scheduler, HUD button, shared authority and disk store.
+## Approach admission uses the existing controlled staging helper; route samples
+## below are source-staged. This does not qualify native outward/return travel.
+func _exercise_production_terminal_retry() -> void:
+	var path := "user://ember-terminal-retry-%d.json" % Time.get_ticks_usec()
+	var filesystem := DiskSaveFilesystem.new()
+	filesystem.target_path = path
+	var store := StoreScript.new(path, filesystem)
+	store.load()
+	store.commit({"foreign": {"retained": 91}}, 0, "terminal-retry-seed")
+	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate() as GameFlow
+	_check(game.configure_runtime_settings_persistence(store), "terminal retry uses the real shared atomic store")
+	root.add_child(game)
+	if not await _wait_production(func(): return bool(game.get("_initialized")), 240):
+		_check(false, "terminal retry Main startup completes")
+		return
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	(game.hud.find_child("IntroBeginShiftButton", true, false) as Button).pressed.emit()
+	if not await _wait_production(func(): return game.phase != GameFlow.Phase.INTRO, 120):
+		_check(false, "terminal retry Begin Shift completes")
+		return
+	game._board_ship(craft)
+	var piloting := await _wait_production(func(): return (game.phase == GameFlow.Phase.START_ENGINES
+		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()), 240)
+	if not piloting:
+		print("EMBER_TERMINAL_RETRY_BOARD_OPERANDS: ", JSON.stringify({"phase": game.phase,
+			"expected_phase": GameFlow.Phase.START_ENGINES, "seated": game.player.is_seated_at(craft.get_pilot_seat_anchor()),
+			"piloted": craft.is_piloted(), "telemetry": craft.get_telemetry()}))
+		_check(false, "terminal retry boards the actual Ember-capable craft")
+		return
+	var entered := await _enter_production_ember_survey(game, craft)
+	if not entered:
+		print("EMBER_TERMINAL_RETRY_ENTRY_OPERANDS: ", JSON.stringify({"entered": entered,
+			"phase": game.phase, "host": game.ember_surface_loop_host.get_snapshot(), "telemetry": craft.get_telemetry()}))
+		_check(false, "terminal retry enters the existing staged production on-foot visit")
+		return
+	var wrapper := game.ember_surface_loop_production_binding
+	var host := game.ember_surface_loop_host
+	var hud := game.hud as GameHUD
+	var actor_id := game.player.get_instance_id()
+	var host_id := host.get_instance_id()
+	var lease := game.ember_surface_berth.get_reservation_token(craft)
+	var first: Dictionary = wrapper.submit_planetary_relay_survey_position(Vector3(180.0, 120009.0, -44.0))
+	filesystem.reject_terminal_publication = true
+	var last: Dictionary = wrapper.submit_planetary_relay_survey_position(Vector3(540.0, 120030.0, -210.0))
+	var became_pending := await _wait_production(func(): return wrapper.has_pending_relay_terminal_publication(), 30)
+	var runtime: Dictionary = wrapper.get_planetary_surface_snapshot().adapter.activity_reward
+	var authority: Dictionary = (wrapper.get("_relay_reward_authority_receipt") as Dictionary).duplicate(true)
+	var activity_generation := int(runtime.get("activity_generation", 0))
+	var caller_before := int(wrapper.get_caller_snapshot().last_caller_serial)
+	var pending_checks := {"first_observation": first.get("accepted", false), "last_observation": last.get("accepted", false),
+		"pending": became_pending, "running": wrapper.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
+		"on_foot": host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT,
+		"completed": runtime.get("state") == &"completed", "one_payment": _terminal_paid_count(store) == 1,
+		"one_authority_call": int(wrapper.get("_relay_reward_authority_commit_count")) == 1,
+		"one_publication_attempt": filesystem.terminal_publication_attempts == 1,
+		"no_terminal_record": not store.get_snapshot().has(String(SLOT)),
+		"no_production_receipt": (wrapper.get_caller_snapshot().relay_reward_commit.commit_receipt as Dictionary).is_empty()}
+	if not _terminal_check("paid refusal retains a live supported caller", pending_checks,
+		{"first": first, "last": last, "runtime": runtime, "authority": authority,
+		"caller": wrapper.get_caller_snapshot(), "store": store.get_snapshot(), "attempts": filesystem.terminal_publication_attempts}):
+		return
+	for _tick in 4:
+		await physics_frame
+		await process_frame
+	var manifest_before: Dictionary = wrapper.get_planetary_relay_survey_return_manifest_snapshot()
+	var refused_manifest: Dictionary = wrapper.issue_planetary_relay_survey_return_manifest()
+	var no_hammer_checks := {"caller_continues": int(wrapper.get_caller_snapshot().last_caller_serial) > caller_before,
+		"no_automatic_publication": filesystem.terminal_publication_attempts == 1,
+		"return_refused": not bool(refused_manifest.get("accepted", true)),
+		"manifest_generation_unconsumed": wrapper.get_planetary_relay_survey_return_manifest_snapshot() == manifest_before,
+		"actor_retained": game.player.get_instance_id() == actor_id, "host_retained": host.get_instance_id() == host_id,
+		"lease_retained": game.ember_surface_berth.get_reservation_token(craft) == lease}
+	if not _terminal_check("pending publication advances without retrying or granting return", no_hammer_checks,
+		{"caller_before": caller_before, "caller_after": wrapper.get_caller_snapshot(), "attempts": filesystem.terminal_publication_attempts,
+		"return": refused_manifest, "manifest_before": manifest_before, "manifest_after": wrapper.get_planetary_relay_survey_return_manifest_snapshot(),
+		"actor_id": game.player.get_instance_id(), "expected_actor": actor_id, "host_id": host.get_instance_id(),
+		"expected_host": host_id, "lease": game.ember_surface_berth.get_reservation_token(craft), "expected_lease": lease}):
+		return
+	game._sync_nearby_activity_hud()
+	hud.set_paused(true)
+	var save_button := hud.find_child("NearbyActivitySaveButton", true, false) as Button
+	_check(not save_button.disabled, "the existing Save Progress button remains enabled while paused")
+	var context: Dictionary = game._get_current_ember_save_context()
+	var intent_serial_before := int(wrapper.get("_last_intent_serial"))
+	var intent_consumes_before := int(wrapper.get("_intent_consume_count"))
+	var pending_intent_before: Dictionary = wrapper.get("_pending_intent")
+	var reboard_refused: Dictionary = wrapper.queue_reboard_intent(intent_serial_before + 1, wrapper.get_generation())
+	if not _terminal_check("pending terminal publication refuses reboard before queue mutation", {
+		"refused": not bool(reboard_refused.get("accepted", true)), "exact_reason": reboard_refused.get("reason") == &"relay_terminal_publication_pending",
+		"intent_serial_unchanged": int(wrapper.get("_last_intent_serial")) == intent_serial_before,
+		"intent_consumes_unchanged": int(wrapper.get("_intent_consume_count")) == intent_consumes_before,
+		"pending_intent_unchanged": wrapper.get("_pending_intent") == pending_intent_before,
+		"on_foot": host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT,
+		"running": wrapper.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
+		"same_lease": game.ember_surface_berth.get_reservation_token(craft) == lease},
+		{"result": reboard_refused, "intent_serial_before": intent_serial_before, "intent_serial_after": wrapper.get("_last_intent_serial"),
+		"intent_consumes_before": intent_consumes_before, "intent_consumes_after": wrapper.get("_intent_consume_count"),
+		"pending_intent_before": pending_intent_before, "pending_intent_after": wrapper.get("_pending_intent"),
+		"host_phase": host.get_phase(), "binding_state": wrapper.get_state(),
+		"lease_before": lease, "lease_after": game.ember_surface_berth.get_reservation_token(craft)}):
+		return
+	# The existing unpaid-errand guard also applies to terminal retry. These
+	# actual route counters remain volatile until explicitly abandoned here.
+	var errand_started: Dictionary = wrapper.start_caldera_expedition(&"ember_lava_tube_sounding")
+	var errand_reached: Dictionary = wrapper.submit_caldera_expedition_position(&"ember_lava_tube_sounding",
+		EmberCalderaExpeditionActivity.get_checkpoints_body_local(&"ember_lava_tube_sounding")[0])
+	var errand_before: Dictionary = game.get_ember_caldera_expedition_report()
+	var errand_payload := store.get_snapshot()
+	var errand_generation := store.get_generation()
+	save_button.pressed.emit()
+	var errand_save: Dictionary = game.get_ember_interrupted_journey_persistence_report().last_save_status
+	if not _terminal_check("terminal retry preserves the unpaid partial errand Save guard", {
+		"started": bool(errand_started.get("accepted", false)), "reached": bool(errand_reached.get("accepted", false)),
+		"refused": not bool(errand_save.get("accepted", true)), "exact_reason": errand_save.get("reason") == &"ember_active_caldera_progress_unsupported",
+		"feedback_failed": (hud.get("_nearby_activity_feedback") as Label).text == "Progress could not be saved.",
+		"generation_unchanged": store.get_generation() == errand_generation, "payload_unchanged": store.get_snapshot() == errand_payload,
+		"progress_unchanged": game.get_ember_caldera_expedition_report() == errand_before,
+		"no_terminal_attempt": filesystem.terminal_publication_attempts == 1},
+		{"started": errand_started, "reached": errand_reached, "save": errand_save,
+		"feedback": (hud.get("_nearby_activity_feedback") as Label).text, "generation_before": errand_generation, "generation_after": store.get_generation(),
+		"payload_before": errand_payload, "payload_after": store.get_snapshot(), "progress_before": errand_before,
+		"progress_after": game.get_ember_caldera_expedition_report(), "attempts": filesystem.terminal_publication_attempts}):
+		return
+	var abandoned: Dictionary = wrapper.abandon_caldera_expedition(&"ember_lava_tube_sounding")
+	_check(bool(abandoned.get("accepted", false)), "explicit errand abandon restores the supported terminal Save scope")
+	var generation := store.get_generation()
+	var payload := store.get_snapshot()
+	var primary := FileAccess.get_file_as_bytes(path)
+	var backup := FileAccess.get_file_as_bytes(path + ".bak")
+	var claims: Dictionary = (game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot")
+	for key: String in ["world_id", "host_instance_id", "host_generation", "attachment_generation", "player_instance_id", "binding_instance_id", "binding_generation", "activity_generation", "session_instance_id"]:
+		var foreign := context.duplicate(true)
+		foreign[key] = &"foreign_world" if key == "world_id" else int(foreign[key]) + 1
+		var rejected: Dictionary = wrapper.retry_relay_terminal_publication(foreign)
+		if not _terminal_check("foreign terminal context refused: " + key,
+			{"refused": not bool(rejected.get("accepted", true)), "generation_unchanged": store.get_generation() == generation,
+			"payload_unchanged": store.get_snapshot() == payload, "no_write_attempt": filesystem.terminal_publication_attempts == 1},
+			{"foreign": foreign, "result": rejected, "generation_before": generation, "generation_after": store.get_generation(),
+			"payload_before": payload, "payload_after": store.get_snapshot(), "attempts": filesystem.terminal_publication_attempts}):
+			return
+	for attempt: int in [2, 3]:
+		save_button.pressed.emit()
+		game._sync_nearby_activity_hud()
+		var refused: Dictionary = game.get_ember_interrupted_journey_persistence_report().last_save_status
+		if not _terminal_check("actual paused Save reports a refused terminal write", {
+			"feedback_failed": (hud.get("_nearby_activity_feedback") as Label).text == "Progress could not be saved.",
+			"receipt_failed": not bool(refused.get("accepted", true)), "one_payment": _terminal_paid_count(store) == 1,
+			"generation_unchanged": store.get_generation() == generation, "payload_unchanged": store.get_snapshot() == payload,
+			"primary_unchanged": FileAccess.get_file_as_bytes(path) == primary, "backup_unchanged": FileAccess.get_file_as_bytes(path + ".bak") == backup,
+			"claims_unchanged": (game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot") == claims,
+			"runtime_unchanged": wrapper.get_planetary_surface_snapshot().adapter.activity_reward == runtime,
+			"one_requested_attempt": filesystem.terminal_publication_attempts == attempt},
+			{"result": refused, "feedback": (hud.get("_nearby_activity_feedback") as Label).text,
+			"generation_before": generation, "generation_after": store.get_generation(), "payload_before": payload, "payload_after": store.get_snapshot(),
+			"primary_before": primary.hex_encode(), "primary_after": FileAccess.get_file_as_bytes(path).hex_encode(),
+			"backup_before": backup.hex_encode(), "backup_after": FileAccess.get_file_as_bytes(path + ".bak").hex_encode(),
+			"claims_before": claims, "claims_after": (game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot"),
+			"runtime_before": runtime, "runtime_after": wrapper.get_planetary_surface_snapshot().adapter.activity_reward,
+			"expected_attempts": attempt, "actual_attempts": filesystem.terminal_publication_attempts}):
+			return
+	filesystem.reject_terminal_publication = false
+	save_button.pressed.emit()
+	var saved: Dictionary = game.get_ember_interrupted_journey_persistence_report().last_save_status
+	var fresh := StoreScript.new(path)
+	var loaded: Dictionary = fresh.load()
+	var record: Dictionary = fresh.get_snapshot().get(String(SLOT), {})
+	var production: Dictionary = wrapper.get_caller_snapshot().relay_reward_commit.commit_receipt
+	if not _terminal_check("actual paused Save publishes the original paid completion", {
+		"accepted": bool(saved.get("accepted", false)), "exact_outcome": saved.get("binding_reason") == &"terminal_publication_saved",
+		"feedback_saved": (hud.get("_nearby_activity_feedback") as Label).text == "Progress saved.",
+		"disk_loaded": bool(loaded.get("accepted", false)), "primary_loaded": fresh.get_loaded_source() == &"primary",
+		"terminal_kind": record.get("payload_kind") == "ember_relay_survey_completion",
+		"same_generation": int(record.get("completion", {}).get("activity_generation", 0)) == activity_generation,
+		"same_authority": production.get("authority", {}) == authority, "same_actor": int(production.get("actor_instance_id", 0)) == actor_id,
+		"same_session": production.get("session_instance_id") == authority.get("evidence", {}).get("session_instance_id"),
+		"current_write": int((production.get("persistence", {}) as Dictionary).get("generation", -1)) == store.get_generation(),
+		"exactly_one_write": store.get_generation() == generation + 1, "exactly_one_payment": _terminal_paid_count(store) == 1,
+		"one_authority_call": int(wrapper.get("_relay_reward_authority_commit_count")) == 1,
+		"one_persistence_commit": int(wrapper.get("_relay_reward_persistence_commit_count")) == 1,
+		"runtime_unchanged": wrapper.get_planetary_surface_snapshot().adapter.activity_reward == runtime,
+		"foreign_retained": fresh.get_snapshot().get("foreign", {}).get("retained") == 91},
+		{"saved": saved, "feedback": (hud.get("_nearby_activity_feedback") as Label).text, "loaded": loaded,
+		"record": record, "production": production, "original_authority": authority, "original_actor": actor_id,
+		"generation_before": generation, "generation_after": store.get_generation(), "expected_activity_generation": activity_generation,
+		"runtime_before": runtime, "runtime_after": wrapper.get_planetary_surface_snapshot().adapter.activity_reward,
+		"authority_calls": wrapper.get("_relay_reward_authority_commit_count"), "persistence_commits": wrapper.get("_relay_reward_persistence_commit_count")}):
+		return
+	generation = store.get_generation()
+	payload = store.get_snapshot()
+	var duplicate: Dictionary = wrapper.retry_relay_terminal_publication(context)
+	var stale_context := context.duplicate(true)
+	stale_context["activity_generation"] = activity_generation + 1
+	var stale_save: Dictionary = game._save_ember_from_nearby_activity_intent({"ember_save_context": stale_context})
+	var coordinator: RefCounted = game.get("_planetary_journey")
+	var return_ready: Dictionary = coordinator.call(&"_advance_ember_survey_lifecycle", wrapper.get_caller_snapshot())
+	var return_manifest: Dictionary = coordinator.get("_ember_survey_return_manifest")
+	if not _terminal_check("published completion enables the existing current return manifest once", {
+		"duplicate_refused": not bool(duplicate.get("accepted", true)),
+		"stale_save_refused": not bool(stale_save.get("accepted", true)), "no_duplicate_write": store.get_generation() == generation,
+		"payload_unchanged": store.get_snapshot() == payload, "return_ready": bool(return_ready.get("accepted", false)),
+		"return_generation": int(return_manifest.get("manifest", {}).get("activity_generation", 0)) == activity_generation,
+		"return_attachment": int(return_manifest.get("manifest", {}).get("attachment_generation", 0)) == host.get_attachment_generation()},
+		{"duplicate": duplicate, "stale_save": stale_save, "stale_context": stale_context, "return": return_ready, "manifest": return_manifest, "payload_before": payload, "payload_after": store.get_snapshot(),
+		"generation_before": generation, "generation_after": store.get_generation(), "expected_activity": activity_generation,
+		"expected_attachment": host.get_attachment_generation()}):
+		return
+	caller_before = int(wrapper.get_caller_snapshot().last_caller_serial)
+	hud.set_paused(false)
+	for _tick in 4:
+		await physics_frame
+		await process_frame
+	_terminal_check("original production caller continues after publication", {
+		"caller_advanced": int(wrapper.get_caller_snapshot().last_caller_serial) > caller_before,
+		"running": wrapper.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING,
+		"same_actor": game.player.get_instance_id() == actor_id, "same_host": host.get_instance_id() == host_id,
+		"same_lease": game.ember_surface_berth.get_reservation_token(craft) == lease, "one_payment": _terminal_paid_count(store) == 1},
+		{"caller_before": caller_before, "caller_after": wrapper.get_caller_snapshot(), "actor_id": game.player.get_instance_id(),
+		"expected_actor": actor_id, "host_id": host.get_instance_id(), "expected_host": host_id,
+		"lease": game.ember_surface_berth.get_reservation_token(craft), "expected_lease": lease, "store": store.get_snapshot()})
+	game.queue_free()
+	await process_frame
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+
+
+func _terminal_paid_count(store: RefCounted) -> int:
+	return int((store.call(&"get_snapshot") as Dictionary).get("game_flow_reward_store", {}).get("reward_counts", {}).get("ember_beacon_data", 0))
+
+
+func _terminal_check(label: String, checks: Dictionary, operands: Dictionary) -> bool:
+	print("EMBER_TERMINAL_RETRY_OPERANDS: ", JSON.stringify({"label": label, "checks": checks, "actual": operands}, "", true, true))
+	var accepted := not checks.values().has(false)
+	_check(accepted, label)
+	return accepted
 
 
 func _exercise_production_orderly_quit() -> void:
@@ -1023,12 +1282,16 @@ func _exercise_completed_debt() -> void:
 		and store.get_generation() == generation
 		and (cold.binding.call(&"get_activity_reward_snapshot") as Dictionary).state == &"awaiting_reward",
 		"real evidenced payment rejection preserves archive, ledger and retryable completion")
-	# Permit exactly the reward CAS, then reject the later best-effort terminal
-	# presentation save: this is the crash window between those durable writes.
-	filesystem.writes_until_refusal = 1
+	# Refuse only the terminal publication commit, leaving the actual reward
+	# CAS untouched: this is the crash window between those durable writes.
+	filesystem.reject_terminal_publication = true
 	var interrupted_payment := await _pay_surface(cold)
-	filesystem.writes_until_refusal = -1
+	filesystem.reject_terminal_publication = false
 	var paid_payload: Dictionary = store.get_snapshot()
+	print("EMBER_COMPLETED_DEBT_TERMINAL_OPERANDS: ", JSON.stringify({"payment": interrupted_payment,
+		"archive_present": paid_payload.has(archive), "active_slot_present": paid_payload.has(String(SLOT)),
+		"paid_count": _terminal_paid_count(store), "payload": paid_payload,
+		"runtime": cold.binding.call(&"get_activity_reward_snapshot"), "terminal_attempts": filesystem.terminal_publication_attempts}))
 	_check(interrupted_payment == &"relay_reward_persistence_commit_rejected"
 		and not paid_payload.has(archive) and not paid_payload.has(String(SLOT))
 		and int(paid_payload.game_flow_reward_store.reward_counts.ember_beacon_data) == 2,
@@ -1061,9 +1324,13 @@ func _exercise_active_payment() -> void:
 		await _retire_surface(surface)
 		return
 	var returned: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0))
-	filesystem.writes_until_refusal = 1
+	filesystem.reject_terminal_publication = true
 	var payment: StringName = await _pay_surface(surface)
-	filesystem.writes_until_refusal = -1
+	filesystem.reject_terminal_publication = false
+	print("EMBER_ACTIVE_PAYMENT_TERMINAL_OPERANDS: ", JSON.stringify({"returned": returned, "payment": payment,
+		"active_slot_present": store.get_snapshot().has(String(SLOT)), "paid_count": _terminal_paid_count(store),
+		"payload": store.get_snapshot(), "runtime": binding.call(&"get_activity_reward_snapshot"),
+		"terminal_attempts": filesystem.terminal_publication_attempts}))
 	_check(returned.accepted and payment == &"relay_reward_persistence_commit_rejected"
 		and not store.get_snapshot().has(String(SLOT))
 		and int(store.get_snapshot().game_flow_reward_store.reward_counts.ember_beacon_data) == 1,
