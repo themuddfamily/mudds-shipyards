@@ -196,6 +196,53 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+### Selected: Cinder Light live role-choice card
+
+**Goal:** CRAFT-GAPS-CINDER-LIGHT,one of the existing missing Cinder registry/
+production-choice members in the [role-budget contract](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract).
+Result: approaching/available Cinder Light shows a concise role advantage/weakness
+from its production registry contract beside the existing live role/speed/hull
+and ordinary Interact instruction. This does not complete normalized full-role
+budgets,the other two Cinder contracts,ordinary craft/art or final fleet balance.
+
+**Start/owner:** main0e6ab989e;fresh healthy OFFLINE current Cinder Light,
+existing main boarding-confirmation bridge,definition and retained HUD card.
+One implementer owns scripts/ships/fleet_role_registry.gd,
+scripts/game/game_flow.gd (only boarding-confirmation definition facts),
+scripts/ui/boarding_confirmation_hud_presenter.gd,
+tests/fleet_role_registry_test.gd,tests/boarding_confirmation_game_flow_test.gd
+and tests/boarding_confirmation_cues_hud_test.gd in one owned worktree.
+Independent reviewer;root owns checks/capture/build/integration/cleanup.
+Dependencies: existing accepted nine-craft choice facts and boarding-card bridge;
+no parked Cinder LOD,readmission,egress or ordinary-flight attempt is reopened.
+
+| Case/action | Fixed expected result | Actual/proof |
+| --- | --- | --- |
+| Existing registry audit plus actual Cinder Light definition | Seven supported contracts;preserve all six original global signatures/non-dominance/≥14-of16 rules. Light's small-band base speed102 is its signature,with explicit scope limited to its existing small band;existing global signatures unchanged. Stable ID/tags/role/band;no invented crew/cargo/weapon authority | NOT_RUN |
+| Main's existing approach/available producer for actual Light,then reserved/boarding/seated/refused states and another craft | Only Light approach/available gains compact “FAST RESPONSE // HIGH DRAG WHEN COASTING”,sourced from its contract. Existing role102M/S/110hull and current Interact binding survive. Other states/craft messages and all seat/reservation/component/definition/weapon/save snapshots remain unchanged | NOT_RUN |
+| Existing full registry,live differentiation,Main boarding and HUD suites | All original cases plus exact new producer/consumer/negative cases pass,exit0/one original marker/zero diagnostics/stable source-import guards. Public detached contract mutation cannot change retained policy | NOT_RUN |
+| Existing HUD suite opt-in choice capture (HUD component setup disclosed) | Two actual1280×720 and1920×1080 available-card PNGs at UI1,Forward+/privateXvfb/x11/Dummy;exact literal title/instruction/facts/trade-off/state visible within safe/card bounds,normal fonts,no text crop/overlap. Required13registered sets unchanged;not ordinary station access or full-game render proof | NOT_RUN |
+| Clean paired checkpoint/export/startup/inventory | Fresh WindowsEXE/ZIP/notes and matching LinuxELF/archive. Three strict startup probes each exit0+oneSTARTUP_MENU_READY_OK+rawdiag0;existing full-map nine-predicate package audit passes,only intended compiled registry/GameFlow/presenter payload changes | NOT_RUN |
+
+**Commands/proof:** existing run_test_matrix.sh --mode headless --jobs1,
+separate scopes fleet_role_registry_test,fleet_role_differentiation_test,
+boarding_confirmation_game_flow_test,boarding_confirmation_cues_hud_test;
+original300s each,pinnedGodot4.7.1/Dummy/fresh private profiles. HUD opt-in mode
+in the existing suite uses the actual HUD/composition/current Light definition,
+exact output directory and image sizes,300s outer with independent abort/reap.
+Existing safe export helpers and package_inventory.py only;raw logs/PNG/source
+manifests in /srv/mudds-work/cinder-light-choice-20261105/. No new validator,
+schema/version or required capture set;no unsupported boarding-time/skill score.
+
+**Budget/stop:** start16:12:07UTC2026-11-05 (readiness included),estimate75–85min
+through build/integration/cleanup;hard17:42:07UTC90min. Source ready16:47,
+checks complete16:55,capture starts17:02,checkpoint begins17:17. One correction
+allowance,first unexpected failure stops dependents;literal cause/cumulative
+review required before correction. Failed final correction/deadline parks the
+whole selected result;no subset or automatic successor. Finish only with fixed
+checks,image review,merged/pushed code,checkpoint and owned cleanup,or preserve
+failed source/results and park with exact reopening conditions.
+
 **Retained player-motion binding: GATED; bounded check closed2026-11-05.**
 All nine original2560×1440 PNGs match their existing manifest's byte counts and
 SHA256. However,the recorded Player controller hash differs from documented
