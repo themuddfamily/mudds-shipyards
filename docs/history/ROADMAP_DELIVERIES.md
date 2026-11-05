@@ -34080,3 +34080,42 @@ in the case folder. Cleanup observed05:56:13UTC,29.933minutes from selection;
 final notes/push stay charged to this closure. All337 canonical records and
 their complete table cells remain unchanged. No product/parent/phase outcome
 is closed; accepted runtime and d525554 checkpoint remain unchanged.
+
+
+<a id="landed-crew-admission-cumulative-reopening-20261105"></a>
+## Landed-crew admission cumulative reopening decision 20261105
+
+Root explicitly selects one bounded reopening after independent read-only
+cumulative-priority review at05:59UTC. This meets the prior recorded reopening
+condition; it is not a new feature, a renamed retry or erasure of the failed
+05:51:18 source-readiness gate. Original start05:26:18UTC and hard stop06:56:18UTC
+remain the all-in90minute clock, including the prior31.423minute closeout and
+this review/restoration/checkpoint/integration/cleanup. Original archive
+bca4ee96ae8bfafff2cb270057c3b980aef2854d9901849e76219646efed0463 remains immutable.
+
+Only one additional source correction is authorized: replace bridge970's
+`var eligible :=` with `var eligible: bool =`, preserving the complete RHS,
+short-circuit order, request fields and guards. Cumulative correction count is
+**two**, including the prior fixture parentheses; it is not reset to zero.
+The exact archived five-file candidate is restored before this declaration
+edit. No other correction or scope expansion is authorized in this window.
+
+Before any live probe, all five changed scripts and their dependency chain
+must pass isolated direct check-only invocations with zero raw diagnostics,
+regardless of engine exit0. New reopening readiness checkpoint06:05UTC is a
+separately reviewed gate; the original failed checkpoint stays recorded.
+Any new diagnostic, unexpected failure or readiness miss parks the task with
+no further fix/retry. Do not launch a gate that cannot end before the original
+hard stop; reserve the final15minutes for required packages and owned cleanup.
+
+Substantive acceptance is unchanged: normal Manual Join and explicit join UI,
+authenticated exact current scene/frame/lease, physically safe host-chosen free
+berth, same-Player/current-body cabin walking, ordinary hatch departure, actual
+streamed-ground walk>.6m and15settled ticks; live-context rejection/duplicate/
+blocked-berth cases and preservation of host authority/progress/payment.
+Original300s whole/360s outer, client120s after Main-ready, host60s, ManualJoin20,
+view8/world60/request4/body8/walk15/hatch10/exit10 caps remain. Relevant legacy
+regressions, clean Windows/Linux exports, three strict startups, paired package
+audit, repository EXE/ZIP/notes, push and exact branch/worktree cleanup are still
+required. Full world/hardware/human/final gates stay OPEN. Selection is not a
+runtime pass and no completion state advances with this decision.
