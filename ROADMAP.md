@@ -47,134 +47,103 @@ blocked dependency, not an indefinite coding assignment.
 
 <a id="current-planning-goal-finish-the-executable-breakdown"></a>
 
-## Breakdown defined; readiness checked per task
+## One goal, one result, one stopping point
 
-**PLAN-NEXT is DONE as a definition task.** Reuse the existing
-[contracts and dependencies](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next);
-do not start another inventory or rewrite every contract before shipping work.
-Before selecting a child, resolve its contract into the short card below. If a
-field is missing, supply that field or name its blocker. Do not treat a broad
-heading or a linked document as an executable assignment.
+The existing [337-record backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
+retains the requirements and their acceptance contracts. Its definition pass is
+closed; do not repeat the inventory. The records include completed work, broad
+containers, implementation, qualification and owner decisions. They are not 337
+unfinished coding tasks. The eight delivery groups below organize that scope;
+none is an executable assignment.
 
-A ready delivery goal must answer all five questions:
-
-1. **What changes for the player?** One observable behavior, or one executable
-   build/release result. No standalone research or validator milestone.
-2. **What exactly do we do to prove it?** Fixed initial state, participants and
-   ordered actions or command; name every included case.
-3. **What observations pass or fail it?** Expected values, preserved behavior,
-   existing limits and the environment in which they are measured.
-4. **What must already work?** Exact dependencies with actual accepted results;
-   name any missing decision, artifact, caller or device and its owner.
-5. **Where does this assignment end?** Owned files, total estimate, deadline,
-   correction limit, deliverables and cleanup. No automatic successor task.
-
-If several behaviors can ship independently, give each its own card before
-implementation. Keep their complete journey as a separate required integration
-gate. Do not invent easier thresholds or replace ordinary player access with
-staged setup merely to make a small task pass.
+Select a bounded child or an explicitly named member of its existing contract.
+Give independently deliverable behaviors separate cards. Keep the complete
+ordinary journey as a required integration goal; smaller checks never replace
+it. No implementation may start from “finish the ship”, “improve multiplayer”
+or another broad heading.
 
 ## How we will work from this roadmap
 
-Each coding assignment delivers **one observable game or build result** and has a
-written pass/fail check before editing begins. Broad features below are completion
-containers; their existing children live in the [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
-A missing driver is an implementation task. An unanswered design choice or
-unavailable device names the exact input and owner. Neither counts as completion.
-
-Every executable goal uses this short contract in its existing backlog row or
-linked section. Broad parents retain their finite child lists and close only
-when those children pass; they are never selected as one coding task.
-
 ### Task card required before starting
 
-Fill this card in the current-work section before selecting an implementation.
-Link the existing contract rather than copying its full specification. Do not
-create a new planning file, validator or evidence format for the card.
+Keep the selected card in [Current work](#current-work-and-next-selection),
+using the existing goal ID and contract. Fill every field before editing code:
 
 ```text
-Goal: existing child ID / exact bounded member, with contract link
-Result: one sentence describing what the player or build can do afterward
-Start and owner: source/package, initial state, participants, owned files
-Dependencies: exact IDs/results already passed; missing input + owner if blocked
-Action: literal command or numbered ordinary player steps
-Pass: expected observations/values for each included case; preserved behavior
-Proof: output location and environment; what this check does and does not establish
-Budget: estimate through cleanup, start/deadline, existing test/correction limits
-Endpoint: deliver and close, or retain failure and park at the declared stop
+Goal / contract: existing ID and exact member; link to its acceptance contract
+Result: one observable player behavior or executable build/release result
+Candidate / start: source or package, initial state, location and participants
+Owner / files: implementer and exact files; reviewer when needed
+Dependencies: prerequisite IDs and accepted results; missing input + owner
+Cases: complete finite list, with ordered ordinary actions or literal commands
+Expected: observable endpoint/value for EACH case, including preserved behavior
+Proof: output location, environment and which scope it can establish
+Budget: all-in estimate, absolute start/deadline, original test limits
+Stop: correction allowance, independent abort, first-failure endpoint
+Close: actual versus expected, status, elapsed cost, merge/push/build/cleanup
 ```
 
-No placeholder or unresolved adjective is an acceptance criterion. For example,
-“improve crew joining” is too broad; “a fresh client joins the landed host through
-the normal browser, takes a free berth, and can walk in that cabin” is an
-observable result. Its card must still bind the host/client setup, permitted
-identities, exact action sequence, deadlines and expected observations from the
-existing contract. This example selects no trial and reopens no parked task.
+**A link alone does not fill a field.** Resolve the linked contract to its actual
+cases and expected observations on the card. Reuse its values and limits; do not
+invent numerical thresholds. A case should read “given this state, perform these
+actions, observe this result”. Words such as “polished”, “robust”, “usable” or
+“all applicable” need the literal observation that makes them pass or fail.
 
-Freeze the action and pass conditions before implementation. Record the actual
-observation beside each expected result at closure. A failed result cannot be
-made successful by weakening its threshold, dropping a case or substituting a
-component check. Changing an intended requirement is an explicit scope decision;
-retain the original failure and explain the change before selecting work under
-the revised requirement.
+Use this small table for the cases, then fill the last column at closure:
 
-If a result needs several independently deliverable behaviors, split those
-behaviors before starting and give each its own pass check. Keep the complete
-journey as a required integration gate. Do not split by research, validator,
-test-writing or commit count and call those pieces delivered features.
+| Case | Initial state and action | Expected result | Actual result and proof |
+| --- | --- | --- | --- |
+| Each named case | Exact setup and steps/command | Observable endpoint/value and preserved state | NOT_RUN until performed; then measured result and artifact |
 
-Completion means the declared result actually passes its check. A component
-test proves only its component scope; a staged setup does not prove ordinary
-player access, and a silent Linux package probe does not prove native Windows
-behavior. Record missing integration, hardware and human checks explicitly.
+### Missing information has an endpoint
 
-| Field | Required content |
-| --- | --- |
-| Goal | Existing ID and one observable player or build result |
-| Start | Exact source/package, saved state, location and participants |
-| Action | Literal command or ordered ordinary player steps |
-| Pass | Expected endpoint/value for every included case, fixed before work; actual observations at closure |
-| Proof | Actual log, screenshot, artifact or physical observation; identify its environment |
-| Prerequisites | Existing IDs and required results, or the exact missing answer/artifact and owner |
-| Budget and stop | Estimate, absolute deadline, original test limits, correction allowance and independent abort |
-| Close | PASS/FAIL/BLOCKED/PARKED; merge/push accepted work, checkpoint when required, owned cleanup |
+| Situation | Required next action | When that action ends |
+| --- | --- | --- |
+| Contract field missing | Codex supplies that exact field in its existing contract, using a 15–30 minute bounded definition pass | Finite answer recorded, or exact absent value/artifact, completed search boundary and owner recorded; no rolling research |
+| Product choice or external resource missing | State the exact question/artifact and its owner using the [existing input contracts](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources) | Answer/resource recorded; no inferred approval and no blocked implementation |
+| Runtime or ordinary caller missing, but behavior defined | Select its bounded implementation with a fixed check | Implemented result passes that check, or failure is parked; a caller/component check alone cannot qualify the ordinary journey |
+| Prerequisite unfinished | Name its existing ID and required result | Dependency actually passes before dependent work launches |
+| Earlier attempt parked | Retain its failure, source, cumulative cost and causal reopening condition | Reopen only under that condition; exhausted allowance/deadline also requires later explicit user reprioritization |
 
-An undefined action, endpoint or expected value makes the goal **BLOCKED
-definition**. An unavailable decision/device makes it **BLOCKED input**. Supply
-only that exact missing field in the same contract; do not expand into another
-roadmap audit. A missing implementation or test caller is different: building it
-can be a delivery goal once its intended behavior and acceptance are fixed.
-Qualification waits until that implementation and its caller actually work.
-“Improve”, “polish”, “finish” or “usable” without a linked literal check is not a
-ready assignment. Existing full-journey and hardware gates keep their limits.
+An undefined goal is **BLOCKED definition**; an unavailable choice/resource is
+**BLOCKED input**; an unfinished prerequisite is **GATED**. OPEN and UNSCHEDULED
+never mean READY. No missing field authorizes an open-ended assignment.
 
-Include owned files in the starting point and preserved state in the pass
-criteria. A repair must reproduce the old failure and pass after the change.
+### Fixed budget and failure boundary
+
 Estimate implementation, checks, required checkpoint, integration and cleanup
-together at no more than90minutes; split larger production capabilities before
-starting. Default correction allowance is one. Full journeys and soaks retain
-their original durations even when implementation is split.
+**together**, at no more than 90 minutes per implementation assignment. Split
+larger production capabilities before starting. Full journeys and soaks retain
+their original durations; do not shorten them to fit an implementation card.
+Default correction allowance is one; freeze it and the absolute deadline first.
 
-Stop at the first unexpected failure. A correction needs a demonstrated cause,
-remaining frozen allowance and explicit cumulative-cost decision; a failed final
-correction or hard deadline parks the task. New labels/branches never reset costs,
-limits or allowance. Preserve failed source/results. Reopening a parked task
-requires its recorded causal condition. An exhausted allowance or deadline also
-requires later explicit user reprioritization, retaining prior cost; neither a
-wording change nor automatic continuation authorizes a retry.
-Dependent checks launch only after prerequisites actually pass.
+Stop at the first unexpected failure and retain the actual operands/output.
+A correction needs a demonstrated cause, remaining frozen allowance and an
+explicit cumulative-cost decision. A failed final correction or hard deadline
+parks the task. New names, branches or smaller subsets never reset costs or
+allowance. Exhaustion also requires later explicit user reprioritization;
+automatic continuation cannot authorize a retry. No dependent check starts
+before its prerequisites pass. Unrelated defects return to their existing owner.
 
-Completed results stay closed in their stated source/package scope. New unrelated
-defects return to their existing owner instead of enlarging the assignment.
-Containers close only when every explicitly named member passes. Required human,
-physical-device and native-hardware checks stay open until actually performed.
+### What counts as finished
 
-Report **goal → visible result → status → proof → remaining blocker → elapsed
-time → next action**. Definitions, validators, tests and commits are not a project
-percentage. The inventory has337 records, including definitions and containers;
-that is not a remaining implementation count. PLAN-NEXT's definition is accepted;
-actual implementation, qualification and exact owner dependencies remain in the
-[existing contracts](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
+A goal is PASS only when **every frozen case passes in the declared scope**,
+accepted changes are merged and pushed, any required playable checkpoint is in
+`builds/windows/`, and owned branches/worktrees/processes/scratch are cleaned.
+Preserve unique rejected source and results before deleting their task refs.
+Report retained exceptions. An unfinished task closes as FAIL, BLOCKED or PARKED
+with the exact next input/reopening condition; do not quietly move to another
+branch. No automatic successor is scheduled by closing a card.
+
+Source tests establish their source scope; staged setup does not establish
+ordinary access, and Linux/software rendering does not establish native Windows
+or target-GPU performance. Required physical-device and human checks stay open
+until performed, subject to the recorded owner exclusions. A completed definition
+or child never closes an unperformed gameplay journey or its parent container.
+
+Progress reports use **goal → player/build result → status → proof → blocker →
+elapsed cost → next action**. Definitions, validators, test counts and commits
+are not a project percentage. Do not invent a finish date from the row count.
 
 ## What finishing means
 
@@ -227,6 +196,17 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Closed: concrete-goal working plan — documentation PASS, 2026-11-05.**
+Independent review: GO. All337 canonical identities/order/kinds and the original
+36-parent/ten-phase tables are preserved. Only Scan's selection state and two
+stale definition instructions changed in canonical rows; all17 added local links
+and whitespace checks pass. Scan now names its missing original failure record;
+the blocker register exposes seventeen unresolved travel maxima; final
+reconciliation uses its already-defined contract. Gameplay requirements remain
+unchanged. This closes the15:16UTC documentation selection within its20-minute
+budget/15:36UTC deadline; no gameplay, checkpoint or parked retry is selected.
+No task branch/worktree/process/scratch was created. **Implementation is unselected.**
+
 **Halyard whole-craft LOD runtime: PARKED/unaccepted.** Candidates
 8fc3d5d64→663649230 are preserved unmerged. Corrected Halyard541/Main176 source
 checks pass;static exterior is12928/51768triangles and70/83submissions. Actual
@@ -243,38 +223,12 @@ geometry,cameras,thresholds,300s capture and full checkpoint gates. Actual new
 images must meet the same dimensions;existing PNG resizing is not proof.
 **No further implementation or qualification is selected.**
 
-**Closed: shared retained-Main all-nine component/empty-claim/home source
-qualification — PASS.** Qualified00f801b1e,merged54b11c70c. All nine craft retain
-actual component/hull/model/shape/home identities and empty claims through the
-original three paused detach/re-entry cycles,then show normal eligible passive
-repair. Full existing suite exits0 in69.166s with one marker,176assertions,
-zero diagnostics and stable source/cache guards.
-[Exact scoped proof, first failure/correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#main-nine-component-claims-home-qualified-20261105).
-The fixture explicitly records the two unavailable Cinder legacy discovery-area
-retirement bits;it makes no active-role restoration claim. Ordinary input,
-OS restart,network,LOD and hardware/full-craft acceptance remain OPEN.
-**This source qualification stays closed;the separate Halyard runtime attempt above is parked.** Latest playable remains5bc9a17.
+Accepted recent results stay closed in their stated scopes:
 
-**Rime solo access/outbound caller: PARKED/unaccepted.** Candidates
-e8635e474→6bd8712e5 are preserved unmerged. Actual package trial stops54.215s
-at alignment after four neutral ticks: dot.99894 at entry falls to.92396 while
-residual look is consumed; fixed minimum.995. Destination request remains0;
-no canonical cruise,landing,exterior/surface or normal UI OS0 was reached.
-Zero diagnostics and full owned input/process cleanup; no game handling defect
-is established. The sole correction was spent preserving CLI choice order.
-[Exact proof, retained source and cleanup](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105).
-Reopening needs measured native-look cause/bounded correction and later explicit
-user reprioritization retaining prior cost/exhausted allowance and original limits.
-**The Rime attempt remains unselected.**
-
-**Earlier closed member: Bulwark editable-source handoff — PASS.** Frozen source
-155cea002 supplies a complete editable archive and reproduction notes. A fresh
-empty-cache import and both named source suites pass (158 and31 checks,
-zero failures/diagnostics), with all12,011 archived files unchanged afterward.
-[Artifact, exact results and proof limits](docs/history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105).
-Owned reconstruction/profile/process cleanup is complete. This closes only the
-source handoff; full Bulwark gameplay, art, LOD and native acceptance stay open.
-Latest playable remains **5bc9a17**, linked above.
+| Goal/member | Accepted result and proof | Still outside that result |
+| --- | --- | --- |
+| Shared retained-Main all-nine source qualification | [Actual identity/empty-claim/home retention and normal passive repair](docs/history/ROADMAP_DELIVERIES.md#main-nine-component-claims-home-qualified-20261105) | Ordinary input, OS restart, networking and whole-craft acceptance |
+| Bulwark editable-source handoff | [Complete editable archive and clean reproduction](docs/history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105) | Gameplay, art, LOD and native acceptance |
 
 These are selection constraints, **not a list of tasks running in parallel**:
 
