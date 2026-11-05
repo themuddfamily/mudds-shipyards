@@ -516,7 +516,46 @@ production launch and packaged participation still need implementation.
 
 ## Current work and next selection
 
-No implementation assignment is currently running. The bounded
+**Active task: retired Aurora/Rime world residency wind-down.** Existing
+[shared cancellation retirement capability](docs/ROADMAP_BACKLOG.md#shared-world-outbound-cancel),
+selected independently of full SHARED-*-CANCEL journeys and their baseline gates.
+
+- **Result:** after a travelling visit is cancelled, its already loaded world
+  keeps receiving current actor focus until normal streaming unloads it outside
+  its existing envelope; visit controls, approach/lease and survey stay retired.
+- **Start/owner:** clean `0ed1458d0`; implementation owns
+  `scripts/game/planetary_journey_coordinator.gd`, `scripts/game/game_flow.gd`
+  and `tests/planetary_surface_visit_expedition_test.gd`. One independent reviewer
+  checks lifecycle, actor sample ordering and authority preservation.
+- **Dependencies:** existing two streaming bindings/coordinators and the single
+  common-origin owner are present. Actual shared baseline, Aurora source artifact,
+  Rime native landing and physical crew home gates remain unchanged and unselected.
+- **Action:** import/direct parse; run existing surface-visit suite with new
+  `--retired-world-residency-only` selector on isolated private profiles. Freeze
+  a loaded, staged cancelled-approach fixture for each world; use production
+  cancellation and normal GameFlow ticks, not a test-driven manual unload.
+- **Pass:** old runtime reproduces missing unload; changed runtime keeps a loaded
+  retired world while current focus remains inside its envelope, unloads it
+  through its existing coordinator outside the envelope, clears loading/owned
+  records, expires scene/terrain weakrefs after deferred free, then stops its
+  retired cadence. Inactive cold worlds do not load. Fresh admission cancels
+  stale retirement ownership; another active world is not double-ticked or
+  unloaded. Actor/control/claim/command identities are preserved; only the one
+  common-origin owner commits translations. Test staging proves this runtime
+  capability, not ordinary outbound travel or the full shared cancellation case.
+- **Proof:** raw focused old/new logs and actual streaming generations, loaded
+  roots, weakrefs and current binding samples. New selector cap300s/outer360s;
+  the existing full suite retains its900s limit and is not selected unchanged.
+- **Budget:** start2026-11-05 06:43:22 UTC; source ready by07:08:22;
+  all-in deadline08:13:22. Up to three cause-bound corrections within this
+  original clock, each after stopping dependent checks and reviewing cumulative
+  cost; no reset or parked retry. Independent process abort owns every engine.
+- **Endpoint:** accepted behavior gets focused regressions, a clean commit,
+  safe Windows/Linux checkpoint with strict startup/package checks, merge/push
+  and owned cleanup. Failure at the deadline or exhausted allowance is retained
+  and parked; all full native/shared journeys remain open.
+
+The bounded
 [Zenith modern LOD attempt](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105)
 is **PARKED/unaccepted**: its new census calls an ArrayMesh-only method on
 BoxMesh. The sole correction was spent on an earlier null-index assumption.
