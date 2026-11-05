@@ -221,6 +221,54 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Active delivery: correct shared Rime arrival guidance.** Existing
+[shared-Rime production UI defect](docs/ROADMAP_BACKLOG.md#shared-rime-baseline-contract).
+
+- **Result:** the Rime host arrival objective and blocked repeat-action toast
+  tell crew they may follow the ice-core survey and must reboard for the host’s
+  return. Neither says the implemented shared survey is unavailable.
+- **Start/owner:** cleanc35383e7c; one implementer owns only
+  `scripts/game/planetary_surface_visit_expedition.gd` and existing
+  `tests/planetary_surface_visit_expedition_test.gd`. Root reviews and handles
+  validation, checkpoint, integration and cleanup.
+- **Dependencies:** existing Rime survey/host presentation and Main/HUD are
+  implemented. The named stale copy is present at both runtime sites. Reuse
+  existing component fixtures; no parked canonical Rime arrival, physical crew
+  egress or Cinder/Arrow retry is selected.
+- **Action:** replace both stale Rime copies with the existing contract’s exact
+  template: “[profile.display_name] arrival — crew may follow the ice-core
+  survey; reboard all crew for the host’s return to Mudds”. Add opt-in
+  `--shared-arrival-guidance-only` to the existing expedition suite, inspecting
+  actual Main/HUD objective, heading, interaction and toast labels. Use its
+  existing boarding/cleanup helpers and disclose staged owner/phase state.
+  Run the same test on old source for the two intended stale-copy failures,
+  then changed source. Run existing network landing integration
+  `--rime-shared-survey` as the shared-progress/participant regression.
+- **Pass:** actual shared-Rime labels contain the exact template; interaction
+  remains `[ E ]  STAND IN CABIN`; Aurora’s existing coastal/return guidance,
+  solo landed messages and outbound/corridor/landing/return messages remain
+  correct. Blocked request stays refused, with unchanged survey, craft, authority
+  and reward state. Existing authenticated shared-survey regression passes.
+  No survey/physics/network/persistence policy changes or new HUD layout.
+- **Proof:** real OS0/existing distinct suite marker/zero raw diagnostics; retain
+  old stale-copy failures. This is staged Main/HUD component proof plus the
+  existing ENet/memory-store survey scope, not full-client HUD or canonical
+  three-peer physical arrival/home qualification. Full baseline stays OPEN.
+- **Budget/stop:** original assessment start2026-11-05 09:13:48UTC; all-in
+  deadline10:43:48, including checks/build/push/cleanup. Before first behavior
+  run, at most two cause-bound syntax/readiness corrections; then one behavioral
+  correction, all on this original clock. Freeze source/action/pass criteria
+  before execution; no relabelled runtime failure as readiness, extra allowance
+  or parked reopening. Focused guidance and network regression each300s max;
+  existing whole-expedition900s and ordinary full-route limits stay unchanged.
+  First unexpected failure stops dependent checks; failed final correction or
+  hard stop parks unique source/results without merging an unaccepted subset.
+- **Close:** accepted source gets a clean-commit Windows/Linux checkpoint,
+  strict startup/package checks, merge/push and owned cleanup. All engines Dummy,
+  headless/private Xvfb explicit x11; hosted CI stays disabled. No native or
+  full-release claim follows from the checkpoint.
+
+
 **Arrow whole-craft LOD: PARKED/unaccepted.** Candidate75a413ec8 is archived
 unmerged. Corrected scripts parse cleanly, but the first focused runtime check
 fails during far-exterior construction: an ancestor Node3D is searched in a
