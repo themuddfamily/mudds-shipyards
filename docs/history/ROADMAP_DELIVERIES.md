@@ -33818,3 +33818,97 @@ folder; main is the sole local branch/worktree. Cleanup observed04:22:18UTC,
 21.153minutes from selection; final documentation/review/push stays charged to
 this closure. No evidence-only work is counted as product progress, and no
 parent/phase gate or canonical record is closed by this failed attempt.
+
+
+<a id="ember-passive-progress-delivered-20261105"></a>
+## Ember passive host survey progress delivered 20261105
+
+**Delivered production component**, source
+d5255545b2f0b53e07b365c501a8e8abb302dea0, based on
+56d219e7809a47690a7e44d0090f946ee1fd4819; source integrated/pushed main.
+Existing SHARED-EMBER-LATE-JOIN/RECONNECT gain this missing capability, not
+whole-case acceptance. All36 parent outcomes and ten phase exits remain OPEN.
+
+The existing authenticated journey bridge publishes a narrow Ember survey view
+from the actual production adapter/mandatory route, cross-checked against the
+host, composition, attachment and real Director generations/state/index/count.
+Current exterior crew's existing GameFlow/HUD displays host objective/progress,
+keeps hatch interaction priority and clears only its owned stale presentation.
+Reception grants no activity/save/reward/body/helm authority. State completion
+and payment remain distinct. The existing session/migration/recipient envelope,
+current journey/world/ship, monotonic same-visit progress and terminal retirement
+fence the readback; a new journey can legitimately restart its generations.
+No transport/schema version, parallel validator or reward source was added.
+
+Card start04:25:12UTC, source cutoff04:50:12UTC, estimate60min/cap90min and
+original hard stop05:55:12UTC. Source frozen04:36:02UTC; initial import exits0/
+20.823s, first parse0/17.616s, no diagnostics. Independent static review GO.
+First real probe stops143/186.755s on its client no-save aggregate: local
+Director stays empty, body source null and composition absent, but save7->8.
+The baseline was taken before accepted join's synchronous solo-safe-recovery
+withdrawal. Exact source and retained generation7 on-foot backup account for
+that setup write; inherited teardown removed the initial generation8 primary.
+No passive-save defect was established and no diagnostic rerun was needed.
+
+The sole reviewed correction changes only the fixture: capture prejoin payload,
+assert join changes exactly SOLO_SAFE_RECOVERY_SLOT to unavailable and adds one
+generation, then baseline full postjoin payload/generation before any await.
+Corrected client.join_setup records actual7->8 and both payloads. Every passive
+receipt/replay/fence keeps that full payload/generation unchanged. Production
+code stayed at its original frozen hashes; no timeout/assertion was weakened.
+Corrected parse0/17.815s/no diagnostics; source readiness precedes the cutoff.
+
+Five final suites, original limits, all exit0/one marker/no diagnostics:
+
+- New --ember-passive-progress continuation in the existing shared-cruise
+  fixture160.905s: independent host16/client22 checks, both OS0/raw diagnostics0.
+  Client connects only after genuine host ACTIVE/index1/count2/unpaid; receives
+  current return-beacon objective. Real authenticated RPC replay/old/foreign
+  envelopes, semantic epoch/world/ship/generation/session fences and retirement
+  pass; no local Director/save/reward/composition/body authority appears.
+- Existing shared-cruise198.752s: host/client/client_b/observer all OS0,102 peer
+  checks, combined raw diagnostics0. Preparation/rebase/supported cabin walking,
+  late observer and chair operations retain their existing component scope.
+- Existing session/HUD gate17checks/31.865s, relay production API16.232s, and
+  memory-filesystem GameFlow relay persistence18checks/16.634s all pass.
+
+The new fixture stages the initial approach and supported host egress/staging/
+tower positions. Landing, production Host/binding and Director progression are
+real and physics remains live. HUD proof separately invokes the actual consumer/
+HUD/hatch using the real received view but stages discovery/current-exterior
+predicates. It does not prove physical fresh landed admission or support. No
+full canonical outbound, shared late/reconnect/adoption/paid/home case, parked
+trial, native Windows/GPU/device/human review or final release is qualified.
+
+Official pinned4.7.1 clean-commit Windows/Linux exports pass. Windows-payload
+under Linux editor, direct Linux and extracted archive strict --startup-check
+all exit0/exactly one STARTUP_MENU_READY_OK/raw diagnostics0. Paired audit PASS,
+1531 entries/all nine predicates/inputs unchanged, including compiled source,
+pinned Windows template, matching full PCK and both archive/ZIP contents. All
+seven audited artifacts were copied without overwrite into repo builds/ and
+SHA-verified. Windows checkpoint ZIP contains exactly EXE and reviewed notes.
+Latest playable checkpoint is d525554; builds are local repository artifacts,
+not Git-hosted binaries. All automated engines used Dummy audio and headless
+or isolated Xvfb/x11 input-only environments. GitHub Actions stayed disabled.
+
+Verified source/bundle/raw-record archive:
+`/srv/mudds-work/ember-passive-progress-20261105/records.tar.gz`,
+192 regular members/7,373,967bytes, SHA256
+c583e7b86ab47a46f5c563cc73dd6cfccb503d2358213b4b3d57751e57195898.
+It retains all four complete source files, initial/corrected patches, verified
+incremental Git bundle against retained base, commands/results, failed and
+passing raw peer logs/receipts/full join payloads, package inventories/audit,
+reviewed notes, profile records and canonical before-state. Every archived
+regular-file hash was rechecked; durable template symlinks are recorded and
+excluded without following their targets.
+
+Fresh remote/tip/registered-worktree checks confirm source is contained in
+pushed main and no owned remote task branch exists. All seven main artifact
+hashes were rechecked before removing the clean task worktree and compare-and-
+swap deleting its exact local ref. No owned engine/supervisor/Xvfb remains.
+Only records.tar.gz and closeout.json remain in the case folder; main is the
+sole local branch/worktree. Cleanup observed04:58:16UTC,33.061minutes from
+selection; final documentation/push stays charged to this closure. All337
+canonical records keep IDs/parents/kinds/order/Done text; only the two matching
+State cells describe the delivered component. No parent, phase or full shared
+case is closed; latest playable checkpoint remains the accepted d525554.

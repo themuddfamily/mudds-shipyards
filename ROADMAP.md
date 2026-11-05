@@ -4,18 +4,18 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **a01d0fb** — [Windows ZIP](builds/windows/MuddsShipyards-a01d0fb-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-a01d0fb-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-a01d0fb-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-a01d0fb-linux-notes.txt)).
-Ember now keeps the live on-foot journey after a paid survey's terminal
-publication is refused before publication. Existing Save Progress retries that
-write without paying again; return/reboard stays blocked until it succeeds.
-Actual Main/Host/HUD/disk and existing persistence/return checks pass. Full native
-travel/physical return and the packaged crash cut remain OPEN.
-[Actual delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#ember-terminal-publication-retry-delivered-20261105).
-Earlier Aurora/Rime settled resume retirement, Ember Save Progress, Arrow guidance
-and dedicated startup remain included in their recorded scopes.
+Latest playable checkpoint: **d525554** — [Windows ZIP](builds/windows/MuddsShipyards-d525554-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-d525554-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-d525554-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-d525554-linux-notes.txt)).
+Shared Ember progress now comes from the host's real survey state through the
+existing authenticated journey. Current exterior crew's HUD shows that passive
+objective/progress with hatch priority and owned-text clearing. Fresh ENet
+observer proof and a separately staged HUD unit pass; physical late admission,
+full shared/ordinary journeys and native/hardware qualification remain OPEN.
+[Actual delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105).
+Earlier Ember save/terminal retry, Aurora/Rime settled resume retirement, Arrow
+guidance and dedicated startup remain included in their recorded scopes.
 
 Latest Ember outbound trial remains **PARKED**: actual Host takeover and strict
 caldera/OFFLINE reached, but the driver incorrectly requires station gravity
@@ -187,8 +187,9 @@ home endpoints. Missing ordinary callers and the original Aurora artifact/Rime
 landing-failure gates remain open;no existing two-peer component is broadened.
 [Three landed late-join cases](docs/ROADMAP_BACKLOG.md#shared-world-landed-late-join)
 now fix the late companion,checkpoint-one state and full continuation. Safe live
-late-berth admission is missing;Ember also lacks passive survey publication.
-Baseline/Aurora artifact/Rime parked gates remain intact;no late case has run.
+late-berth admission is missing. Ember passive publication is delivered in its
+fresh-observer/staged-HUD component scope; no physical late case is accepted.
+Baseline/Aurora artifact/Rime parked gates remain intact.
 [Three surface reconnect cases](docs/ROADMAP_BACKLOG.md#shared-world-surface-reconnect)
 now fix the transport cut,recovery and fresh crew handback. Safe exterior-loss
 recovery and Rime's conserved-checkpoint resume are missing production work;
