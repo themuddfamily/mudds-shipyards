@@ -1446,7 +1446,7 @@ func _aabb_separation(first: AABB, second: AABB) -> float:
 
 func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 	var result: Array[Node] = []
-	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace"]:
+	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth"]:
 		var module := world.get_node_or_null(NodePath(node_name))
 		if module != null:
 			result.append(module)
