@@ -25,8 +25,8 @@ included in their recorded scopes.
 
 ### Selected: Titan physical stern access and cabin walk
 
-Approved proposal child2; base **834cc50a3**. Start22:25:00UTC2026-11-05;
-**60min all-in, absolute23:25:00UTC**. One high-effort implementer owns the
+Approved proposal child2; base **834cc50a3**. Readiness starts22:22:07UTC2026-11-05;
+**60min all-in, absolute23:22:07UTC** (includes root card preparation). One high-effort implementer owns the
 existing Titan script/scene/definition and its focused test only; one independent
 reviewer checks access physics and proof. Root integrates/pushes/cleans up.
 No Main/GameFlow/station/shared-controller/cargo/passenger/combat/network edits.
