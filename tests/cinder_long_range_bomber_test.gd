@@ -526,11 +526,35 @@ func _test_whole_exterior_lod(craft: CinderLongRangeBomber) -> void:
 		_check(far.get_node_or_null(NodePath(macro)) is GeometryInstance3D,
 			"complete distant exterior retains bomber macro %s" % macro)
 	for macro in ["PortPressureShoulder", "StarboardPressureShoulder", "PortWingRootFairing", "StarboardWingRootFairing"]:
-		var original := craft.get_variant_visual_root().get_node(NodePath(macro)) as MeshInstance3D
-		var distant := far.get_node(NodePath(macro)) as MeshInstance3D
-		_check(original.mesh.surface_get_material(0) != null
-			and distant.mesh.surface_get_material(0) == original.mesh.surface_get_material(0),
+		var original: Dictionary = craft.call("_exterior_lod_source_piece", macro)
+		var distant := far.get_node_or_null(NodePath(macro)) as MeshInstance3D
+		_check(not original.is_empty() and distant != null
+			and original["materials"][0] != null
+			and distant.mesh.surface_get_material(0) == original["materials"][0],
 			"distant %s retains the original non-null authored surface coating" % macro)
+	var port_piece: Dictionary = craft.call("_exterior_lod_source_piece", "PortWingRootFairing")
+	var port_holder := port_piece.get("node") as MeshInstance3D
+	var port_far := far.get_node_or_null(^"PortWingRootFairing") as MeshInstance3D
+	var port_ranges: Array = port_piece.get("index_ranges", [])
+	var port_index_valid := not port_ranges.is_empty() and port_holder != null
+	for run: Dictionary in port_ranges:
+		var surface := int(run["surface"])
+		var index_start := int(run["index_start"])
+		var index_count := int(run["index_count"])
+		var arrays := port_holder.mesh.surface_get_arrays(surface)
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		port_index_valid = port_index_valid and index_start >= 0 and index_count > 0 \
+			and index_count % 3 == 0 and index_start + index_count <= indices.size() \
+			and port_holder.get_active_material(surface) == port_piece["materials"][0]
+	_check(port_index_valid and bool(port_piece.get("batched", false))
+		and not bool(port_piece.get("mesh_retained", true)) and not port_piece.has("mesh")
+		and (craft.get("_exterior_lod_static") as Array).has(port_holder),
+		"port wing root remains real indexed close-batch triangles with exact coating and no retained original mesh")
+	_check(port_far != null and port_holder != null
+		and port_far.global_transform.is_equal_approx(port_holder.global_transform * (port_piece["transform"] as Transform3D))
+		and port_far.layers == port_holder.layers and port_far.cast_shadow == int(port_piece["cast_shadow"])
+		and port_far.material_override == port_piece["material_override"],
+		"distant port wing root uses the actual merged source transform/layer/shadow/material policy")
 	var passive := true
 	for node: Node in far.find_children("*", "", true, false):
 		passive = passive and node is GeometryInstance3D and node.get_script() == null

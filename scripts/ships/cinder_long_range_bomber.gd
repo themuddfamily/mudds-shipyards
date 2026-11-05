@@ -379,7 +379,33 @@ func _build_exterior_lod() -> void:
 		copy.cast_shadow = source.cast_shadow
 		_exterior_lod_far.add_child(copy)
 		_exterior_lod_members[copy.get_instance_id()] = &"far"
+	# Consolidation retains the port root's exact authored-piece index while
+	# freeing its unique original mesh. Reuse that existing record, leaving the
+	# close batch and its resources untouched rather than protecting/unmerging it.
+	if not _exterior_lod_far.has_node(^"PortWingRootFairing"):
+		var piece := _exterior_lod_source_piece("PortWingRootFairing")
+		if not piece.is_empty():
+			var holder := piece["node"] as GeometryInstance3D
+			var copy := MeshInstance3D.new()
+			copy.name = "PortWingRootFairing"
+			copy.mesh = _formed_wing_root_mesh(-1.0, piece["materials"][0] as Material, true)
+			copy.transform = visual.global_transform.affine_inverse() * holder.global_transform * (piece["transform"] as Transform3D)
+			copy.material_override = piece["material_override"] as Material
+			copy.layers = holder.layers
+			copy.cast_shadow = int(piece["cast_shadow"])
+			_exterior_lod_far.add_child(copy)
+			_exterior_lod_members[copy.get_instance_id()] = &"far"
 	_exterior_lod_far.visible = false
+
+
+## Resolve the actual close source, including existing batch triangle indexes.
+## Searching only registered close renderers prevents a far name masking it.
+func _exterior_lod_source_piece(piece_name: String) -> Dictionary:
+	for renderer: GeometryInstance3D in _exterior_lod_static:
+		var piece := ShipFitoutBatch.find_authored_piece(renderer, piece_name)
+		if not piece.is_empty():
+			return piece
+	return {}
 
 
 func _set_exterior_lod(index: int) -> void:
