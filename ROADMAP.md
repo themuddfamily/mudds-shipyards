@@ -263,6 +263,18 @@ packaged gameplay participation and full qualification remain open.
   repair with corresponding ledger changes. Do not call tick_repair or suppress
   actual repair. Actual suite exit0/exactly1MAIN_REENTRY_QUALITY_TEST_OK/zero
   script,engine,leak or warning diagnostics;source/cache guards unchanged.
+- **Sole fixture correction,after first run:** the first detached comparison
+  found exactly two Cinder Hauler legacy discovery shapes disabled by its
+  clear_for_detach handlers. The original retained-Main contract freezes shape
+  references and physical/component state,not every descendant discovery bit.
+  Independent contract review permits exactly those two identified shape bits
+  disabled during detach AND re-entry while role authority stays null and both
+  interactions remain unavailable. Preserve their rawinitial/current values and
+  all IDs/resources/transforms/layers/masks;every other field,root-body collision,
+  ledger/hull/claims/home/source and original assertion remains strict. No active
+  role/discovery restoration is qualified and no runtime patch is selected.
+  Charge the first31.620s failure and original preparation to this same card;
+  this uses the sole correction. A further failure parks without another edit.
 - **Proof:** existing command
   `godot --headless --audio-driver Dummy --path CLEAN --script res://tests/main_reentry_quality_test.gd`
   through the existing matrix with fresh private XDG,import always,jobs1 and
