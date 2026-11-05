@@ -227,6 +227,61 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Selected: shared retained-Main / all-nine component,empty-claim and home qualification.**
+[Existing exact fixture/placement contract](docs/ROADMAP_BACKLOG.md#current-craft-handback-and-main).
+
+- **Result:** the existing Main lifecycle command proves all nine current craft
+  retain actual component/hull/model/shape/home state and empty pilot/role/boarding
+  claims through its original three retained-Main detach/re-entry cycles,then
+  resume normal eligible passive repair. This closes only that staged source
+  qualification dependency;ordinary player/network/OS-restart and LOD remain open.
+- **Start/ownership:** clean main8836d265c;freeze exact committed test candidate
+  before execution,pinned official4.7.1/a13da4feb. Root owns card,execution,
+  source/profile/raw preservation,docs,merge/push and cleanup. One implementation
+  agent owns only tests/main_reentry_quality_test.gd in its own worktree;one
+  independent lifecycle reviewer. No production edit,new suite/validator/schema,
+  capture/renderer/device/hosted-CI or parked trial selected.
+- **Dependencies:** existing nine-craft/thirteen-source composition and accepted
+  79dc473a5 resource/replay fixture;reuse its scope. The ledger/claims extension
+  is explicitly missing,not a failed/parked invocation. Halyard network restart,
+  Rime input and original recovery Main17 failures remain separate parked owners.
+- **Action:** keep the existing six-craft direct combat fixture and independently
+  census all nine live craft. Pause the real SceneTree for the declared on-foot/
+  own-home/empty-claim quiescent cut. Apply one staged .1H located port-wing hit
+  to each actual model before hero_receipt_id/initial hero-health baseline,after
+  accepted replay setup. Preserve original Torrent6.5 deferred damage,all receipt/
+  queue/audio/node identities and COMPLETE/targets7/activeArrow/guided sentinels.
+  Capture final actual baselines after all staging. Extend the same3cycles with
+  passive detached/re-entered model/ledger/hull/shape/Player/home/claim comparisons;
+  no reset/heal/rebuild creates a passing baseline. Restore prior pause on every
+  finish/failure path,then observe genuine normal-physics eligible repair.
+- **Pass:** all existing and new predicates,REENTRY_CYCLE_COUNT3 unchanged;
+  all9/13 actual census;exact same model/integrity/generation/revision and
+  declared ownership/identity invariants during pause,empty claims and correct
+  current home/source registration after re-entry,duplicate-free signal bindings;
+  observed paused repair advancement0 and actual post-resume eligible elapsed
+  repair with corresponding ledger changes. Do not call tick_repair or suppress
+  actual repair. Actual suite exit0/exactly1MAIN_REENTRY_QUALITY_TEST_OK/zero
+  script,engine,leak or warning diagnostics;source/cache guards unchanged.
+- **Proof:** existing command
+  `godot --headless --audio-driver Dummy --path CLEAN --script res://tests/main_reentry_quality_test.gd`
+  through the existing matrix with fresh private XDG,import always,jobs1 and
+  original300s suite cap;existing suite_process independent abort/reap. Raw
+  actual per-cycle snapshots go in the same suite log under
+  `/srv/mudds-work/craft-main-nine-20261105/`. No synthetic local expected report
+  can replace live observations. No ordinary combat,normal restart,rendered or
+  package/native pass follows from this source fixture.
+- **Budget/end:** all preparation charged from2026-11-05 13:43UTC;estimate40–45min,
+  hard15:13UTC (90min through check/review/integration/push/cleanup). Source
+  readiness14:13,leave full import/suite and closure reserve before any launch.
+  First unexpected failure stops dependent work. One total cause-bound fixture/
+  invocation correction only after independent cumulative-cost GO;no gameplay
+  repair selected by this card. Any demonstrated runtime defect returns to its
+  existing production owner. Failed final correction/deadline parks with unique
+  source/raw retained. PASS merges/pushes accepted test and scoped qualification;
+  verified archive precedes exact owned branch/worktree/process/profile cleanup.
+  Test-only qualification needs no duplicate playable checkpoint.
+
 **Rime solo access/outbound caller: PARKED/unaccepted.** Candidates
 e8635e474→6bd8712e5 are preserved unmerged. Actual package trial stops54.215s
 at alignment after four neutral ticks: dot.99894 at entry falls to.92396 while
@@ -237,7 +292,7 @@ is established. The sole correction was spent preserving CLI choice order.
 [Exact proof, retained source and cleanup](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105).
 Reopening needs measured native-look cause/bounded correction and later explicit
 user reprioritization retaining prior cost/exhausted allowance and original limits.
-**No further implementation or qualification is selected.**
+**The Rime attempt remains unselected;only the independent qualification above is active.**
 
 **Latest closed member: Bulwark editable-source handoff — PASS.** Frozen source
 155cea002 supplies a complete editable archive and reproduction notes. A fresh
