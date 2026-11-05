@@ -32,6 +32,13 @@ One high implementer owns new Titan berth module/script/test plus production
 only. Root reviews/integrates/packages/cleans; one independent reviewer checks
 clearance, topology and actual Player proof. No recursive agents, GameFlow,
 Titan hull/access, existing craft/berth retuning, cargo, weapons or network work.
+Narrow shared ownership expansion22:46UTC: `shipyard_world.gd` and existing
+`station_route_registry_integration_test.gd` must include the real eighth module,
+its world-owned hub endpoint at(132,.38,38), and10th production berth. Existing
+fixed7-module/9-berth cache checks otherwise reject legitimate new content. Reuse
+the current module→hub scheme and preserve the nine old placements/compatibility
+and six old feedback placements; no discovery bypass or new registry framework.
+Original deadline/site/physical proof remain unchanged.
 
 Candidate world-local Titan dock root **(154,.38,38), yaw−90°**. This puts the
 stern toward the observation spur and the nose/departure toward open east space.
