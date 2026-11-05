@@ -15424,6 +15424,17 @@ ping action and clear semantics remain separate from actual cargo delivery.
    after nonpassenger disembark. CinderCargoAccess requires that exact actor,
    current source/berth lease/attachment and distance≤2.5m from the live exit
    marker. A remote replica exit does not authorize A at the host terminal.
+   **Implementation prerequisite, verified2026-11-05:** GameFlow's remote
+   pilot `disembarked` branch only unbinds helm and returns; promotion to pilot
+   already retired its cabin walking body. Thus there is no retained host-side
+   A exterior actor to authorize. Codex must first implement the host-authoritative
+   A disembark/body handoff within this existing member, then terminal intent.
+   The [current local authorization owner](../scripts/game/game_flow.gd) passes
+   only its local `player`; the [access owner](../scripts/world/cinder_cargo_access.gd)
+   requires that exact actor within2.5m of the live exit. A secure terminal RPC
+   alone cannot satisfy the member; client positions or fixture teleport cannot
+   supply the missing actor. This is Codex-owned production work, not an external
+   input. Parked B guest egress/standing admission does not supply A's actor.
    Implement genuine host-consumed current A actor/disembark/terminal intent
    in the existing cargo/network owners,using real authority-issued operation
    identity and live physical eligibility;no client-supplied actor identity,
