@@ -227,66 +227,20 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active delivery: complete Guided flight-observation caller.** Existing
-[vertical-slice flight observations](docs/ROADMAP_BACKLOG.md#vertical-slice-flight-observations),
-also a prerequisite of the still-open motion startup caller.
-
-- **Result:** an opt-in ordinary Guided run records and checks actual mouse/
-  command/backlog, chase/cockpit/zoom/sight and same-frame HUD cue behavior, then
-  completes the unchanged combat/home/OFFLINE/physical exit/normal Quit route.
-  This supplies an executable release capability, not a new control scheme.
-- **Start/owner:** clean0acc2ae0d; implementation owns only existing
-  `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py` and
-  `scripts/diagnostics/native_sortie_observer.gd`. Before check/source freeze,
-  review identified that the actual decorated telemetry is temporary. Root also
-  owns the passive publication signal in `scripts/ui/hud.gd` so the observer can
-  read the real input separately from the cue's transformed output; no inferred
-  ingress or duplicate decoration substitutes for this predicate.
-  Root owns frozen package/
-  artifact preparation, export/checkpoint, integration/docs/cleanup. Independent
-  review covers passive readback, default-route preservation and safety gates.
-- **Dependencies:** accepted ordinary Guided driver/exit, actual flight/camera/
-  cue implementations and exact source contracts exist. No prior exact parked
-  flight-observation caller was found in bounded contract/history/ref checks.
-  Do not reopen the unrelated colour Guided, rollback or Cinder capture cases.
-- **Action:** add `--observe-flight` only for `--route guided`, retaining existing
-  private Boot observer admission and default input sampler. Old driver must
-  reject this missing option before launching. Build a clean candidate; run one
-  extended Guided and two unchanged Guided runs on its exact Linux package,
-  each fresh profile. Preserve original300s per process/330s outer throughout.
-- **Pass:** at actual TARGET_PRACTICE within5m of(0,8,-78),z<-66,ONLINE/intact/
-  airborne/free home lease/no assist or obstruction, hold brake until speed≤.8.
-  Deliver one120px OS mouse impulse and record actual event/command/backlog;
-  require physical attitude response and initial chase lag>.5°,then45 neutral
-  60Hz physics ticks with finite orthonormal poses,nose-locked optics,lag≤8.1°,
-  monotone decay within.05° tolerance and final<.25°. No provider/physics/time/
-  pose injection. Actual V switches require fresh edges/current camera and
-  lag≤.1°. Cockpit sight uses the existing five rays/near/alignment/panel/readout
-  requirements. One chase wheel step gives one sampled zoom command and1.5m
-  clamped9…24; cockpit wheel leaves stored chase zoom unchanged. Collision
-  retraction is not a stored-zoom failure. Same-frame actual velocity/camera/
-  decorated telemetry/HUD cue independently obey projection/safe ellipse/
-  visibility at departure/turn/stop/views; reticle remains fixed and both hide
-  after physical home exit. Then all original Guided combat/home/usable-exit/
-  UIOS0 predicates pass. Preserve actual final view/zoom via normal inputs only.
-- **Proof:** existing focused safety tests and affected flight source checks pass,
-  source/Python syntax clean. Three actual isolated Xvfb/x11/Dummy/dummy-renderer
-  ordinary runs exit0 with zero diagnostics, full results and input-release/
-  process-reap evidence. Numeric producer/consumer readbacks do not qualify
-  rendered pixels, physical mouse polling, native GPU or final-game GUIDED-FINAL.
-  Full three-stage motion Save/cold/Reset caller remains OPEN; this complete
-  prerequisite does not replace it or reduce original3/3 final requirements.
-- **Budget/stop:** original assessment start2026-11-05 10:36:22UTC; all-in deadline
- 12:06:22 (90minutes including mapping/code/checks/build/three routes/cleanup).
-  One cause-bound correction round total; source/action/checks freeze before
-  execution. First unexpected failure stops dependent checks; failed final
-  correction or hard stop parks source/results without an accepted subset.
-  Original source-suite300s and per-route300s/outer330s remain unchanged.
-- **Close:** accepted code gets clean-commit Windows/Linux checkpoint, three
-  strict startup checks and paired package audit, merge/push and owned cleanup.
-  All Godot Dummy; input automation private Xvfb explicit x11 with independent
-  abort/release/reap. No Forward+ capture, CI enablement or distribution is selected.
-
+**Guided flight-observation caller: PARKED/unaccepted.** Candidates9401d65c5
+and ca5a49c17 remain unmerged. The first actual run stops at launch-deck clearance;
+the single correction reaches the same range centre with clearance intact. The
+corrected run then stops when one requested120px OS impulse produces about150px
+of observed motion, exceeding the fixed120px consumed-input requirement. Its
+exact cause is unmeasured. Both runs have zero diagnostics and release/reap all
+owned inputs/processes. Only departure/stop observations were reached; neutral
+settling, views/zoom/sight, combat/home/normal Quit and two default regressions
+remain unproved. No accepted subset or new playable checkpoint.
+[Exact source, failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105).
+The [complete original contract](docs/ROADMAP_BACKLOG.md#vertical-slice-flight-observations)
+and motion prerequisite remain open. The correction allowance is exhausted;
+reopening needs an actual input-unit cause/correction and later explicit user
+reprioritization retaining prior cost. No renamed retry is selected.
 
 **Cinder Light whole-craft LOD: PARKED/unaccepted.** Candidate8dc9b6496 is
 archived unmerged. Focused256/full317 and canopy6/damage7/silhouette9 source
@@ -299,7 +253,9 @@ outer110s enforcement is proved. [Exact stop and archive](docs/history/ROADMAP_D
 A single bounded capture retry has been requested from the user, with phase
 logs/watchdog, proposed300s internal/330s outer, unchanged LOD code and original
 11:12:11UTC all-in deadline/prior cost. **No approval has been received; no retry
-is selected or authorized.** The exhausted correction limit and render stop
+is selected or authorized.** Its original11:12:11UTC deadline has now expired;
+a later approval must explicitly reprioritize that expired boundary and prior
+cost. The exhausted correction limit and render stop
 remain in force. Owned worktrees/branch/scratch are cleaned up; a later explicit
 reprioritization can recover the verified source archive.
 

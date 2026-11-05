@@ -7287,6 +7287,16 @@ deliver no game feature. Do not reopen completed surveys or create successor IDs
 <a id="vertical-slice-flight-observations"></a>
 ### Vertical-slice flight — literal source and packaged observations
 
+**Current implementation disposition2026-11-05: PARKED/NOT_ACCEPTED.** The
+Guided observation caller candidates9401d65c5→ca5a49c17 are archived unmerged.
+After the sole arrival-clearance correction, the actual package run observes
+about150px from the requested120px impulse and correctly stops before neutral
+settling/views/zoom/sight/combat/home/normal Quit. Exact input-unit cause is not
+established. Default regressions and full qualification are NOT_RUN. Reopening
+requires a concrete causal correction plus later explicit user reprioritization
+preserving prior cost/exhausted allowance; no renamed caller retry. The original
+contract below remains unchanged. [Terminal record](history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105).
+
 Definition2026-10-27, source2a1ffdeed,17:45–18:10UTC through source review,
 checks,commit/push/cleanup. This binds the existing Phase2 control/sampling/
 chase/sight/flight-path clauses. CONTROL-FINDINGS remains source-review DONE;

@@ -34674,3 +34674,84 @@ owned candidate/baseline worktrees removed and local ref exact-CAS deleted at
 closeout remain in the case folder. Cleanup2026-11-05T10:22:17.871896+00:00,
 40.115minutes from original start, including mapping/waiting and failure work;
 closure review/push adds to the same cumulative cost.
+
+<a id="guided-flight-observation-stimulus-stop-20261105"></a>
+## Guided flight-observation caller stopped at actual stimulus 20261105
+
+The complete existing [flight-observation caller](../ROADMAP_BACKLOG.md#vertical-slice-flight-observations)
+is **PARKED/NOT_ACCEPTED**. Source9401d65c5e1a36f7a55194f830b3696a2982816d
+and its correction ca5a49c174c0130a3c95fc12fcb72d92b9fb37b8 are unmerged.
+Pushed base e198132cee40df21d24578d302810de8d63f3e52 retains the selected card.
+Original assessment start2026-11-05 10:36:22UTC; all-in90minute deadline12:06:22;
+one cause-bound correction total. No accepted subset/new game feature is claimed.
+
+The four-file candidate adds Guided-only `--observe-flight`, ordinary OS mouse/
+wheel/view control, passive command/backlog/camera/sight readback, independent
+projection comparison and an actual detached HUD publication signal. That signal
+was explicitly added to ownership before source/check freeze because the actual
+decorated telemetry was temporary; consumer state alone cannot prove its input.
+Independent source review passed the final four hashes. No provider, physics,
+pose, camera-transform, time or telemetry injection was permitted.
+
+First frozen source:8focused/311full Python tests pass; source166quality,
+185flight-input and52cue assertions each exit0/one marker/zero diagnostics.
+Observer/HUD parse exit0 with zero raw diagnostics. Original driver rejects the
+missing option before launch. Clean Windows/Linux exports and all three strict
+startup checks pass: actual exit0, one STARTUP_MENU_READY_OK, zero diagnostics.
+Those tests establish their exact scopes, not the complete delivery.
+
+First actual extended Guided run exits driver1 after33.808s: at frame1114,
+position(0,7.5592694,-73.0557098), target distance4.9638945m/speed.7133334m/s,
+the unchanged12m safety sphere intersects LaunchArmDeck. Its nearest AABB distance
+is9.0941056m; no mouse stimulus was attempted. The sole correction makes only
+the opt-in ordinary approach reach within.5m of the SAME(0,8,-78) target. Default
+Guided retains exact5m arrival and stopping+5.75 arithmetic; safety still requires
+original5m/no-obstruction and the same12m query. Geometric lower bound is
+sqrt(8²+10²)-.5=12.306m. Final9focused/312full Python tests pass; unchanged
+Godot hashes reuse their already-passing focused checks. Clean corrected exports
+and all three strict startups again pass0+1+0.
+
+Corrected run exits driver1 after34.282s. Arrival now reaches(0,7.9504957,
+-77.5973053), distance.405726m, with no obstruction. The stop receipt at frame1125
+has raw horizontal total0; one requested native dx120 impulse is recorded.
+At frame1127 the actual consumed yaw1×divisor142.799666072263 corresponds to
+142.799666px, with pending horizontal7.200317px and observed raw149.999985px.
+Pitch is0 and chase lag8°. The fixed120.001px bound correctly rejects this
+naturally different stimulus before accepting a turn. No retained observation
+establishes the cause of the120→150 discrepancy; no scaling diagnosis is claimed.
+
+Only departure and stop receipts exist: zero neutral ticks, V/wheel observations,
+target kills or complete combat/home/physical exit/normal UI OS0. The two default
+regressions are NOT_RUN after terminal failure. Both attempts have zero engine
+diagnostics and true input-release/helper/game/Xvfb reap flags; all six recorded
+child PIDs are independently absent. Silent private Xvfb/x11 with Dummy rendering/
+audio was used; native GPU, physical devices, rendered pixels and final GUIDED
+qualification remain NOT_RUN. ZIP/notes/paired audit and accepted checkpoint are
+NOT_RUN; unaccepted exports are removed during owned cleanup. Latest playable
+remains5bc9a17.
+
+A source-freeze guard rejected an obsolete runner hash after the implementer's
+last prefreeze arithmetic grouping; root mistakenly launched a draft Python
+check after that rejected guard. It is not authoritative proof. Root retained
+the rejection, froze actual a52f78fd… plus unchanged test/observer/HUD hashes,
+received final independent GO and reran authoritative9/312checks successfully.
+No extra gameplay correction or candidate trial was granted. The initial raw-ID
+bundle command also refused an empty bundle; using its named branch range then
+verified against the retained pushed base. Neither failure removed source/refs.
+
+The exhausted correction allowance is terminal. Reopening needs an actual causal
+input-unit diagnosis/correction and later explicit user reprioritization retaining
+prior cumulative cost and this failure. Original stimulus, safety, full journey,
+three-run, package and cleanup requirements remain binding; no weaker threshold,
+synthetic input replacement or renamed caller is selected.
+
+Verified archive `/srv/mudds-work/guided-flight-observations-20261105/records.tar.gz`:
+258 regular members, 10,039,122 bytes, SHA256
+`361befce6caef3cc7abd6e4fc9342460b384b04caba9cb4cb746e2200f0f2608`. Every member hash and the named-branch bundle/base/tip
+verified before deletion. Both source commits remain recoverable from the bundle;
+base is retained in pushed main. Fresh remote tips show no task branch; registered
+ownership/tip and absent child PIDs checked. Owned worktree, unaccepted exports,
+exact-tip local ref and scratch removed; only archive/closeout remain. Cleanup
+2026-11-05T11:16:14.945480+00:00, 39.882 minutes from original assessment;
+final documentation/review/push remains charged to that same card. No task branch,
+worktree or owned process is retained. No runtime change is merged to obtain cleanup.
