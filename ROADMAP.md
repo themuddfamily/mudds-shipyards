@@ -23,6 +23,49 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan physical stern access and cabin walk
+
+Approved proposal child2; base **834cc50a3**. Start22:25:00UTC2026-11-05;
+**60min all-in, absolute23:25:00UTC**. One high-effort implementer owns the
+existing Titan script/scene/definition and its focused test only; one independent
+reviewer checks access physics and proof. Root integrates/pushes/cleans up.
+No Main/GameFlow/station/shared-controller/cargo/passenger/combat/network edits.
+No nested agents. Finish implementation/check by23:05 to leave closure time.
+
+Deliver the exact approved2.4m stern route: ramp x±1.2,z13→8 from decky0 to
+cabiny.8; hatch atz8 with2.4m clear width and2.5m clear height, sliding vertically
+within maxy6.5. Keep closed12×18×5m envelope and deployed x±6,z−9..13,y0..6.5.
+Provide continuous supported aisle x±1.3,z−6.8..8 atfloor.8, ≥1.4m clear width
+past fittings and ≥2.5m headroom. Reuse existing MovingInteriorFrame with exact
+approved walking bounds x±2.7,z−6.8..7.5,floor.8/height2.5. Keep exact pilot/eye,
+all16 handling fields, candidate identity and authored original design.
+
+Replace the current stern blank with real state-matched hatch/ramp collision;
+resolve the existing full deck's ramp intersection and actual roof slider pocket
+in Titan geometry. No hidden shell/floor clipping, doorway teleport, jump,
+enlarged interaction reach or pose rescue. Unsafe open-access departure and
+unsupported exit must refuse through existing production access/controller hooks;
+if those hooks cannot compose locally, stop with exact missing seam, not a shared
+controller rewrite. Production berth/ordinary Main interaction remains child5.
+
+Focused acceptance extends the current Titan fixture. One real Player starts
+once on a supported fixture apron at(0,0,14.5), walks via normal movement commands
+up the deployed ramp, through the open hatch to the helm approach(0,.8,−4.2),
+then physically returns outside after an actual inherited neutral shutdown.
+Only initial fixture pose is staged; no later Player/ship pose writes, jump or
+teleport. Fixture access/pilot intent may call existing APIs; do not call this
+ordinary production boarding. Check actual supported contacts, clear head/capsule,
+closed/open/moving access collision, exact deployed envelope and unsafe-departure/
+unsupported-exit refusal, alongside all40 existing foundation checks. Keep one
+focused suite; no validator/tool families or source-string-only replacements.
+
+Run pinned4.7.1 with Dummy audio/headless and existing matrix source/import guards.
+Rendered review uses privateXvfb/x11/Dummy, independent abort and cleanup. This
+remains standalone until Main composition;9/17 stays unchanged. No approved
+geometry/handling retuning, smaller endpoint, budget reset or automatic successor.
+Routine repairs stay within the same deadline; substantive changes need measured
+cause and unchanged approved contract. Preserve complete failed operands.
+
 ### Titan standalone hull and pilot fixture — DONE in standalone scope
 
 Source **834cc50a3**, merged and pushed in **dded94bda**. Actual focused fixture
