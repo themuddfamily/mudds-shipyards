@@ -519,7 +519,60 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-No implementation assignment is currently running. The
+**Active task: Cinder Hauler physical guest exit and reboard.** Existing
+[Cinder remote-crew capability 2](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback),
+not either complete moving-role/cargo-delivery journey.
+
+- **Result:** at authoritative secured Dock04 home/OFFLINE, a Hauler guest leaves
+  through its actual port aperture/sill/step/ramp, walks clear and boards again
+  while the original pilot keeps the helm. Reuse the authored ramp and current
+  departure/Player motion owners; no station-spawn placement supplies success.
+- **Start/owner:** clean `f9542db4e`; one implementation agent owns GameFlow,
+  CinderCargoHauler, NetworkRemoteCraftPoseStream, and existing
+  `cinder_cargo_hauler_test.gd`, `network_remote_craft_pose_test.gd` and
+  `network/halyard_network_passenger_route_test.gd`. One independent high-risk
+  reviewer checks host support/replica provenance, physics route and lifecycle.
+- **Dependencies:** current Hauler/chair/body/transport and authored ramp exist.
+  Use actual FleetExpansion Dock04 attachment/contract, not a fabricated legacy
+  berth lease. Fresh-session retained-cabin admission and Loadmaster remote
+  terminal transfer stay separate/open. Halyard/Jovian parked attempts stay closed.
+- **Action:** import/direct parse; extend focused existing suites and add opt-in
+  `--cinder-passenger-egress` to the existing two-process passenger caller.
+  Select one host pilot A and current authenticated Navigator guest B. Exterior
+  approach/setup may retain existing disclosed staging; exit, supported walk,
+  lockout clearance and reboard must use their production inputs/transitions.
+- **Pass:** current strict occupied Dock04/OFFLINE/no active landing permits
+  confirmed guest departure. Same B Player finishes the Hauler route within10s,
+  live capsule sweep/support matches its actual aperture/ramp, settles15 supported
+  ticks and walks at least1m toward apron(8.8,4.18,90) within15s. Walk beyond the
+  actual7m lockout, reboard through the normal hatch, claim the current chair and
+  FIRE with a fresh role receipt, then stand. A's original peer/body/seat/helm
+  source and current command consumption remain; no guest cargo/helm authority.
+  Existing exterior motion interpolates with body collision disabled: require
+  actual capsule clearance before that motion and real support afterward;
+  do not describe interpolation as collision locomotion.
+- **Safety/proof:** host eligibility uses read-only exact expansion ownership,
+  current pose/support and engine/landing/lifecycle state. Replica ramp visibility
+  and SHIP-layer support use accepted current host operation facts, never replica
+  local flight flags. One optional typed eligibility field may extend that real
+  consumer; absent/unsafe/retired facts fail closed. Airborne, active landing,
+  destruction/reset/loss retract/refuse without disturbing other owners. Preserve
+  existing unpiloted ramp behavior and original Jovian route. Raw two-peer logs,
+  actual operation/body/claim/route/support operands and focused regressions prove
+  this capability only; full moving roles/general exterior networking stay open.
+- **Budget:** start2026-11-05 07:15:37 UTC; source-ready deadline07:50:37;
+  all-in deadline08:45:37. Existing whole caller300s/outer360s, host ready60s,
+  client completion120s from actual Main ready, UI8s, exit10s/walk15s and existing
+  input240-iteration+3s support-settle limits retained. Up to three cause-bound
+  corrections within this original clock, stopping dependent checks and reviewing
+  cumulative cost first; no renamed retry or reset. Independent process abort;
+  all Godot Dummy, headless/private Xvfb with explicit x11.
+- **Endpoint:** prove the old failure and new result, merge/push accepted source,
+  fresh safe Windows/Linux checkpoint/strict startup/package checks, and owned
+  branch/worktree/process/scratch cleanup. Otherwise retain failure and park at
+  deadline/exhausted allowance. Full journeys and native/hardware gates stay open.
+
+The
 [retired-world residency capability](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
 is **DELIVERED** on 6474bda with the checkpoint linked above. Actual source/Main
 checks prove both worlds' normal coordinator unload and deferred scene/terrain
