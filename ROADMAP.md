@@ -50,10 +50,11 @@ blocked dependency, not an indefinite coding assignment.
 ## One goal, one result, one stopping point
 
 The existing [337-record backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
-retains the requirements and their acceptance contracts. Its definition pass is
-closed; do not repeat the inventory. The records include completed work, broad
-containers, implementation, qualification and owner decisions. They are not 337
-unfinished coding tasks. The eight delivery groups below organize that scope;
+retains the requirements and their acceptance contracts. The backlog inventory
+and goal classification are closed; do not repeat them. Missing acceptance
+fields and owner inputs remain blocked as recorded in their contracts. The
+records include completed work, broad containers, implementation, qualification
+and owner decisions. They are not 337 unfinished coding tasks. The eight delivery groups below organize that scope;
 none is an executable assignment.
 
 Select a bounded child or an explicitly named member of its existing contract.
@@ -224,8 +225,12 @@ inspection,paired checkpoint,integration/push and owned cleanup.
 | Opt-in production-camera review in existing console harness | Default1600×900console witness unchanged. New near20m/far150m/cockpit mode uses actual ShipCamera/CockpitCamera,fixture-only far maximum,three real640×720PNG panels plus1920×720strip;assert actual dimensions/layout before success. Complete matching cargo-hull/shoulder/engine silhouette and readable cockpit,no doubled/missing hull or lost stateful cues;no resized substitute or review camera | NOT_RUN |
 | Clean commit paired checkpoint and package startup/audit | Fresh WindowsEXE/ZIP/notes in builds/windows plus matching LinuxELF/TAR. WindowsPCK-underLinux,directLinux,extractedLinux startup each exit0+oneSTARTUP_MENU_READY_OK+rawdiag0. Existing full-map/nine-predicate audit passes;only intended compiled Hauler runtime payload difference | NOT_RUN |
 
-**Commands/proof:** existing run_test_matrix.sh --jobs1 --timeout300 with
-separate headless scopes cinder_cargo_hauler_test,cinder_cargo_hauler_hull_resource_sharing_test,
+**Commands/proof:** use `tools/release/run_test_matrix.sh` with
+`--godot /srv/mudds-work/toolchains/godot-4.7.1-official/godot` and
+`--audio-driver Dummy --jobs 1 --timeout 300 --mode headless --scope NAME`,
+substituting each exact scope below and using owned profiles/results. The full
+executed commands and environment are retained in `run-source-checks.sh` under
+the proof directory below. Headless scopes: cinder_cargo_hauler_test,cinder_cargo_hauler_hull_resource_sharing_test,
 cinder_cargo_hauler_damage_feedback_test,cinder_cargo_hauler_silhouette_test,
 main_reentry_quality_test. Actual catalog independently lists
 cinder_cargo_hauler_freight_frame_visual_test and
@@ -263,7 +268,7 @@ a concrete text-packing proposal preserving normal fonts,complete instructions/
 role/speed/hull/state,the exact trade-off and all original cases. This member
 belongs to CRAFT-ACCEPT-CINDER-LIGHT's production-choice contract;the initial
 card's CRAFT-GAPS definition ID was a mistaken ownership reference,not a reopened
-completed definition or a fresh task/budget. **No further work is selected.**
+completed definition or a fresh task/budget. **No further work on this member is selected.**
 
 **Retained player-motion binding: GATED; bounded check closed2026-11-05.**
 All nine original2560×1440 PNGs match their existing manifest's byte counts and
@@ -275,7 +280,7 @@ upgrade,pixel reinspection,engine run or gameplay change.
 [Exact mismatch and search boundary](docs/history/ROADMAP_DELIVERIES.md#player-motion-retained-binding-stop-20261105).
 Reopen this binding only with the actual source/run/inspection artifacts;do not
 repeat this search unchanged. This closes the16:03:04UTC selection within its
-20-minute/16:23:04UTC bound. **No further work is selected.**
+20-minute/16:23:04UTC bound. **No further work on this member is selected.**
 
 **Bulwark whole-craft LOD runtime/checkpoint: PARKED/unaccepted.**
 Candidates28c54b642→a2ad76cfd are archived unmerged. Corrected source gates pass
@@ -289,7 +294,7 @@ owned weapon-resource snapshots.
 [Exact failure, images, archived source and cleanup](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105).
 Reopening requires literal failed clearance operands and reconciliation with the
 original geometry/camera contract,plus explicit user reprioritization retaining
-prior cost/exhausted allowance and all remaining gates. No further work selected.
+prior cost/exhausted allowance and all remaining gates. No further work on this member selected.
 
 **Closed: concrete-goal working plan — documentation PASS, 2026-11-05.**
 Independent review: GO. All337 canonical identities/order/kinds and the original
@@ -300,7 +305,8 @@ the blocker register exposes seventeen unresolved travel maxima; final
 reconciliation uses its already-defined contract. Gameplay requirements remain
 unchanged. This closes the15:16UTC documentation selection within its20-minute
 budget/15:36UTC deadline; no gameplay, checkpoint or parked retry is selected.
-No task branch/worktree/process/scratch was created. **Implementation is unselected.**
+No task branch/worktree/process/scratch was created. That documentation task
+selected no implementation; the current Hauler assignment is recorded above.
 
 **Halyard whole-craft LOD runtime: PARKED/unaccepted.** Candidates
 8fc3d5d64→663649230 are preserved unmerged. Corrected Halyard541/Main176 source
