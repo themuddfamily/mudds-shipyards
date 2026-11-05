@@ -227,73 +227,21 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Selected: Halyard whole-craft LOD runtime implementation.**
-[Existing full LOD contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
-This selects the independently deliverable production capability,not the full
-ordinary journey/transition-image qualification. That complete LOD member and
-CRAFT-ACCEPT-HALYARD remain OPEN until their original ordinary views pass.
-
-- **Result:** actual current-camera separation switches the complete static
-  Halyard exterior to one retained far representation beyond120m and back below
-  100m;close geometry/cabin/cockpit/dynamic presentation remains authored and
-  functional. Far static triangles≤25%close and submissions≤close. No collision,
-  seat,berth,weapon,component,network or interaction authority moves into LOD roots.
-- **Start/ownership:** clean main94d800eb5;freeze exact clean candidate before
-  checks/exports. One implementer owns scripts/ships/halyard_crew_transport.gd,
-  tests/halyard_crew_transport_test.gd and tests/capture_halyard_camera_views.gd;
-  one independent high-risk reviewer. Root owns docs/execution/inspection/clean
-  exports/checkpoint/merge/push/owned cleanup. No other parked LOD/native trial.
-- **Dependencies:** existing Halyard model/finish/route/furniture contract and
-  all-nine retained-Main component/empty-claim/home source qualification00f801b1e
-  accepted/merged54b11c70c. No new lifecycle definition or actor/role prerequisite.
-  Preserve original named close geometry paths and existing furniture100±10m.
-- **Action/pass:** build far static pressure-body/nose/shoulders/roof/belly,
-  arch/yoke/engine housings/gear/flank-window macroforms once with existing
-  materials/builders. Classify EVERY actual exterior renderer close/far/shared;
-  preserve shared canopy/interior/hatches/damage vane/engine cores/plumes/lights
-  and their state/identity. Keep exact100/120/dead-band retention;negative/nonfinite
-  distances cannot mutate. Forceclose only for actual own current CockpitCamera,
-  aboard interior Player camera and actual own boarding/disembark transition;
-  unrelated camera/name/cached flag is insufficient. Generic Mesh/MultiMesh
-  census must cover actual geometry/copies/submissions;no ArrayMesh-only shortcut.
-  Exactly one complete static exterior per observation,no resource/node rebuild,
-  duplicate listener,authority/query/registration mutation. Keep quiet actual
-  source/stream/body/shapes/anchors/claims/home/component snapshots identical
-  within each lifecycle epoch,then repeat after the existing retained-Main cut.
-- **Focused proof:** extend existing Halyard suite,original300s/sentinel
-  HALYARD_CREW_TRANSPORT_TEST_OK/OS0/diag0;actual current-camera,threshold/boundary/
-  invalid inputs,own-camera/transition overrides,exhaustive membership,budget,
-  authority/resource retention and re-entry cases. Preserve old close allocation
-  census honestly;full new LOD/global cost includes far allocations. Run existing
-  all-nine Main suite300s after source PASS. Sequential admission,raw/source/cache
-  guards and fresh private headless/Dummy profiles;first failure stops.
-- **Staged image sanity:** existing four-panel production-camera harness keeps
-  default20/44/impaired44/cockpit behavior. An explicit --lod-review mode may
-  set ONLY its fixture far-panel maximum chase distance160m and request150m,
-  because production Halyard clamps at44m. Record actual current camera/distance/
-  selected representation;production camera limits never change. Same own
-  ShipCamera,no new beauty camera or registered image count. Save the strip+
-  four original-size panels to owned output;inspect all for hull holes/double
-  hull,material/clipping and retained canopy/engine/damage/cockpit cues. This is
-  staged/fixture-camera source sanity,not ordinary distance/pilot/native proof.
-  Add phase logs/270s internal watchdog and original300s independent outer;
-  isolated Xvfb,explicitx11/Dummy,Forward+software renderer/actual environment
-  recorded. All source/camera/capture staging and tighter limits remain disclosed.
-- **Deliver/close:** meaningful graphics change requires clean-commit paired
-  Windows/Linux checkpoint in repository builds/,relevant source checks,actual
-  archive strict startup OS0/exactly1STARTUP_MENU_READY_OK/diag0,existing package
-  identity/payload audit and concise player-visible/actual-validation notes.
-  No native Windows/GPU/device/human/release claim. Raw under
-  /srv/mudds-work/halyard-whole-lod-20261105/;verified archive before owned
-  branch/worktree/profile/cache/helper cleanup. Accepted runtime integrated/pushed;
-  no green subset if any declared source/image/package condition fails.
-- **Budget/stop:** original preparation2026-11-05 14:17UTC,estimate80–85min,
-  hard15:47UTC90min all-in. Source readiness14:52,checks14:58,capture by15:02,
-  checkpoint by15:22,closure reserve through15:47. Preserve source300/capture300
-  and ordinary900/960/other parked caps;no ordinary run selected. One total
-  demonstrated-cause correction after independent cumulative-cost GO. First
-  unexpected failure stops dependent checks;failed final correction/deadline
-  parks with unique source/raw preserved. No new label/budget or automatic retry.
+**Halyard whole-craft LOD runtime: PARKED/unaccepted.** Candidates
+8fc3d5d64→663649230 are preserved unmerged. Corrected Halyard541/Main176 source
+checks pass;static exterior is12928/51768triangles and70/83submissions. Actual
+Forward+/llvmpipe capture exits0/diag0 and selects far at154.1m,but the four
+standalone images are1280×900 and composite1280×720,cropping the four-view layout.
+The required panels1280×720/strip5120×720 were not produced. Root inspected all
+five originals;no source success accepts that visual assembly failure.
+No exports,checkpoint or runtime merge. The single correction was spent on
+classifying three exact late-created Loadmaster cabin cues.
+[Exact results,original cropped image and retained source](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105).
+Reopening requires explicit user reprioritization for a harness-only viewport/
+content-scale correction,retaining prior cost/exhausted allowance and unchanged
+geometry,cameras,thresholds,300s capture and full checkpoint gates. Actual new
+images must meet the same dimensions;existing PNG resizing is not proof.
+**No further implementation or qualification is selected.**
 
 **Closed: shared retained-Main all-nine component/empty-claim/home source
 qualification — PASS.** Qualified00f801b1e,merged54b11c70c. All nine craft retain
@@ -305,7 +253,7 @@ zero diagnostics and stable source/cache guards.
 The fixture explicitly records the two unavailable Cinder legacy discovery-area
 retirement bits;it makes no active-role restoration claim. Ordinary input,
 OS restart,network,LOD and hardware/full-craft acceptance remain OPEN.
-**This source qualification stays closed;the new Halyard runtime task is selected above.** Latest playable remains5bc9a17.
+**This source qualification stays closed;the separate Halyard runtime attempt above is parked.** Latest playable remains5bc9a17.
 
 **Rime solo access/outbound caller: PARKED/unaccepted.** Candidates
 e8635e474→6bd8712e5 are preserved unmerged. Actual package trial stops54.215s
@@ -332,6 +280,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 
 | Existing goal/member | Current result or blocker | Condition before further work |
 | --- | --- | --- |
+| [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
 | [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |
 | [Titan specification](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | BLOCKED input: prepared proposal awaits the user's design decision | Record adoption or exact revisions; no construction before approval |
 | [Halyard fresh-Main re-entry](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105) | PARKED: off-tree cabin-transform errors during actual HUD Restart Shift; no complete re-entry pass | Focused repair/retry request unanswered; original12:47:51UTC deadline expired. Requires explicit reprioritization, retaining cost and exhausted allowance |

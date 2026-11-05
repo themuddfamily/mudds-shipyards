@@ -35179,3 +35179,123 @@ remain. Both original/corrected owners384368/386912 are absent. Final docs/revie
 push time is retained in closeout.json and charged to this same card. No owned
 branch/worktree/process remains. Reuse this closed source scope;ordinary/active-
 role/network/restart/LOD/final-package requirements remain open at their owners.
+
+
+<a id="halyard-lod-capture-viewport-stop-20261105"></a>
+## Halyard whole-craft LOD runtime candidate — parked at capture assembly, 2026-11-05
+
+**PARKED / NOT_ACCEPTED.** The selected delivery was the complete static-exterior
+runtime capability plus its fixed source/staged-image/checkpoint gates,not full
+ordinary LOD or CRAFT-ACCEPT-HALYARD. Candidate code is unmerged;there is no new
+playable checkpoint. Latest accepted playable remains5bc9a17. Full ordinary
+threshold crossings/inspected transition frames,active roles,native/device and
+whole-craft/release requirements stay OPEN/PARKED under their existing owners.
+Source passes and standalone pictures cannot accept a smaller delivery subset.
+
+Original preparation14:17UTC,estimate80–85min,hard15:47UTC90min all-in. Frozen
+readiness14:52/checks14:58/capture start15:02/checkpoint15:22;all implementation,
+first failure/correction/review/import/source/render/inspection/archive/cleanup/
+docs/push remain charged. Original suite300/capture300 and ordinary900/960/
+other parked bounds unchanged;no ordinary journey was selected. One implementer
+owned three existing files,one independent high-risk reviewer;root owned card,
+execution/inspection/checkpoint gating/integration/cleanup.
+
+Base/pushed main `63f7dc4fb4e4a12a6a85f85ed55ad73655f7f4a5`;
+initial `8fc3d5d64a1ebb3542391c23fc3bafd93e4ed060`;
+corrected `6636492306fc322e3887310b9eed86ad3ced5ba6`.
+Only scripts/ships/halyard_crew_transport.gd,its existing focused test and
+existing capture_halyard_camera_views.gd changed. No failed Arrow/Zenith/Cinder
+source reused. All three complete final files and both commits are preserved.
+
+**Candidate behavior and scoped source proof.** Retained close/far static hull,
+actual viewport-camera120/100 hysteresis/invalid-boundary retention,own cockpit/
+aboard interior/actual transition close overrides. Original named close subtree,
+furniture100±10m,shared canopy/damage vane/engine cores/plumes/lights and weapon
+lenses remain. Far sibling mirrors original visual-root effective visibility via
+one connection,so delayed hide/reset follows the original serial fence. Static
+membership and generic Mesh/MultiMesh geometry/copies/submissions are exhaustive;
+a rogue renderer fails. No authority is created in the far presentation. Source
+snapshots preserve actual shapes/RIDs,anchors,claims,home/source/stream/component
+state and retained nodes/meshes/materials within each epoch and after Main.
+
+First cold import20.481s passes. Initial full Halyard suite fails36.145s with537
+positive assertions/four failure labels:unknown-renderer baseline and deliberate
+rogue control,in both retained-Main epochs. No Main/capture/export admitted.
+The literal source cause was three late-created Loadmaster cabin/readability
+cues parented directly to the ship after the LOD roots were classified:
+_loadmaster_wayfinding_panel,_loadmaster_wayfinding_role_key,_loadmaster_station_sign.
+Independent source/cumulative review approved the sole exact correction:those
+three held object identities count as retained interior,visibility/transforms
+are checked,and unknown counts/paths are printed. No name/unknown fallback,
+budget waiver or predicate deletion. First failure/cost is retained;one total
+correction is spent. A conservative root prelaunch phase-reserve check admitted
+no engine;actual corrected sequence used the same14:58 phase deadline and300s
+suite limits. No hidden additional trial or budget reset.
+
+| Actual corrected gate | Result |
+| --- | --- |
+| Import |6.486s/exit0 |
+| Full Halyard suite |541assertions/35.968s/OS0/exactly1HALYARD_CREW_TRANSPORT_TEST_OK/diagnostics0 |
+| Static exterior budget |far12928/close51768triangles,far70/close83submissions;original≤25%/≤close satisfied |
+| Existing shared all-nine Main suite |176assertions/69.633s/OS0/exactly1MAIN_REENTRY_QUALITY_TEST_OK/diagnostics0 |
+| Source/cache guards |both matrices PASS/source_manifest_match=true/godot_cache_stable=true |
+
+**Actual Forward+ capture and failure.** Same existing four-panel production-
+camera harness,--lod-review opt-in and owned output. Only its far fixture raises
+maximum_chase_camera_distance160/requests150;normal production44m remains.
+Private Xvfb5120×720/explicitx11/Dummy audio,pinned Vulkan ICD/library;
+actual bannerVulkan1.4.305/Forward+/llvmpipeLLVM19.1.7(256bits). Editor4.7.1,
+SHA25632f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde;
+actual renderer/input/toolchain pins and commands retained. No native GPU,
+Windows/device/audio-listening/human qualification.270s SceneTreeTimer exists,
+but its timeout path was not exercised;independent outer300s remains the abort.
+
+Capture exits0,exactly one HALYARD_CAMERA_VIEWS_CAPTURE_OK,zero warnings/script/
+engine/leak diagnostics and five nonempty PNGs. Actual report selects far at
+154.133m with close exterior hidden;impaired44m request reports52.046m/close;
+cockpit12.231m/own_cockpit/close. Source and protected import/class/UID snapshots
+before/after are byte-identical. These are real source-staging observations,
+not a normal player approach or complete transition-image qualification.
+
+Root inspected every original image. The standalone near image shows one
+coherent olive hull/four cyan engine cues;far image shows one small corresponding
+hull/engine group;impaired image shows the changed engine/damage cue;cockpit
+shows clear readout/three sight targets with close interior. No broader art
+acceptance follows. **Assembly FAIL:** actual four panels are1280×900,not the
+original1280×720;actual composite1280×720,not5120×720,and shows only the first
+view plus the second label while remaining views are cropped. OS0/marker1 and
+four standalone views do not pass that intended four-view assembly.
+
+[Original cropped composite for review](/srv/mudds-work/halyard-whole-lod-20261105/review/halyard_camera_views.png).
+The exact original is retained;no resize/recomposition is substituted. Source
+shows the harness setting root.size while project viewport1600×900/window
+1280×720/canvas_items scaling remains unhandled. Runtime root/layout dimensions
+were not separately logged;the PNG measurements are direct. Independent review
+confirms the viewport/content-scale assembly seam and the gate failure.
+
+No export,EXE/ZIP/TAR,startup/package audit or checkpoint notes were admitted.
+No runtime candidate was merged. Reopening needs later explicit user
+reprioritization for one harness-only correction synchronizing root window,
+logical content scale and rendered/panel dimensions after layout settles,then
+asserting exact5120×720 strip/four1280×720 before save/success. Keep all game
+geometry,cameras,thresholds,source/capture/package gates and prior cost/exhausted
+allowance. Regenerate actual images;do not alter existing PNGs or add a view/
+renderer/capture allowance. No additional correction/run is selected here.
+
+Verified [records archive](/srv/mudds-work/halyard-whole-lod-20261105/records.tar.gz):
+244regular members/17,229,403bytes/SHA256
+`b78353326f1c39ffbbc292434fa3df32cf508bc0065f0e22b5b5a158add6c5b1`.
+Every member hash checked,including both full raw source runs,actual render log/
+all five PNGs,profiles/commands/guards,original card/correction decision,all three
+full changed files and verified named-ref Git bundle with both commits/base/tip.
+The prerequisite base remains reachable through pushed main;unique unaccepted
+work is accounted for before deletion.
+
+Fresh remote tips show main63f7dc4fb/no task branch. Clean registered exact663649230
+worktree,source copies,archive and all process identities checked. Normal worktree
+removal/exact-CAS local ref deletion and owned profile/cache/helper cleanup at
+15:07:41.404313UTC,50.690minutes through cleanup. Original/corrected/capture owners
+394999/397093/398067 and actual Xvfb398078/Godot398081 are absent. Case retains
+records.tar.gz,closeout.json and the one original cropped review PNG;no duplicate
+loose source/cache/builds. Final docs/review/push time remains charged in closeout.
+No task branch/worktree/process remains;no unrelated folders were deleted.
