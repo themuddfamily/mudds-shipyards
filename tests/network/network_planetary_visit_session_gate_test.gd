@@ -60,6 +60,8 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+	_check(game.get_network_ember_survey_snapshot().is_empty(),
+		"solo Main exposes no passive shared Ember survey (actual %s)" % game.get_network_ember_survey_snapshot())
 	var binding := game.planetary_cruise_binding
 	var ship := game.get_active_ship()
 	_check(binding != null and ship != null, "Main resolves its cruise binding and active ship")
@@ -94,6 +96,8 @@ func _run() -> void:
 			and str(presentation.get("status_text", "")).contains("SOLO EXPLORATION ONLY"),
 		"the cruise HUD says why, in Aurora's and Rime's words (got '%s')" % presentation.get("status_text"))
 	game.shutdown_network_session(&"test_leave")
+	_check(game.get_network_ember_survey_snapshot().is_empty(),
+		"closed network lifetime retains no passive Ember survey (actual %s)" % game.get_network_ember_survey_snapshot())
 
 	# --- C: closing the session gives the cruise back -------------------------
 	_check(game._planetary_cruise_gate_reason() == &"",

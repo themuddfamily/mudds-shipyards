@@ -2,12 +2,31 @@
 extends "res://tests/network/halyard_network_passenger_route_test.gd"
 
 ## The ordinary matrix runs the same real-peer shared journey harness.
+# Presentation unit only: discovery/current-exterior qualification are staged.
+# Progress still comes from the real authenticated recipient, and the exercised
+# HUD method is production GameFlow. This grants no remote body or interaction.
+class PassiveSurveyPresentation extends GameFlow:
+	var recipient: GameFlow
+	var exterior_current := true
+	var interaction: Node3D
+	func _refresh_interaction_targets() -> void:
+		station_interaction_candidate = interaction
+	func _network_client_ember_passenger_surface_is_current() -> bool:
+		return exterior_current
+	func get_network_ember_survey_snapshot() -> Dictionary:
+		return recipient.get_network_ember_survey_snapshot()
+
+
+var _ember_passive_progress := false
+
+
 func _run() -> void:
+	_ember_passive_progress = "--ember-passive-progress" in OS.get_cmdline_user_args()
 	_rime_arrival = "--rime-shared-arrival" in OS.get_cmdline_user_args()
 	_home_return = not _rime_arrival and "--aurora-shared-home-return" in OS.get_cmdline_user_args()
 	_surface_arrival = _rime_arrival or _home_return or "--aurora-shared-arrival" in OS.get_cmdline_user_args()
 	_arrival_world_id = &"rime_glacial_world" if _rime_arrival else &"aurora_temperate_world"
-	_shared_cruise = not _surface_arrival
+	_shared_cruise = not _surface_arrival and not _ember_passive_progress
 	await super._run()
 
 
@@ -36,7 +55,9 @@ func _orchestrate() -> void:
 		_shared_cruise = false
 	await super._orchestrate()
 	if _failures.is_empty():
-		if _home_return:
+		if _ember_passive_progress:
+			print("HALYARD_NETWORK_EMBER_PASSIVE_PROGRESS_OK")
+		elif _home_return:
 			print("HALYARD_NETWORK_SHARED_AURORA_HOME_RETURN_OK")
 		elif _surface_arrival:
 			print("HALYARD_NETWORK_SHARED_RIME_ARRIVAL_OK" if _rime_arrival else "HALYARD_NETWORK_SHARED_AURORA_ARRIVAL_OK")
@@ -120,6 +141,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if _package_under_test.is_empty():
 		var script_index := args.find("--script")
 		args[script_index + 1] = "res://tests/network/halyard_network_shared_planetary_cruise_test.gd"
+	if _ember_passive_progress:
+		args.append("--ember-passive-progress")
 	if _surface_arrival:
 		args.append("--rime-shared-arrival" if _rime_arrival else "--aurora-shared-arrival")
 	if _home_return:
@@ -676,3 +699,287 @@ class SharedHomeSampler extends Node:
 		failures += int(craft.is_destroyed() or not craft.is_piloted()
 			or craft.get_command_source() != pilot_source or not game.player.is_seated_at(craft.get_pilot_seat_anchor())
 			or not body.is_cabin_containment_active())
+
+
+# One existing owned-peer profile. This is deliberately a staged production
+# current-state probe, not an outbound journey or late cabin-admission claim.
+# Both peers retain the inherited 300-second whole and 120/60-second stage caps.
+func _peer_profile() -> Dictionary:
+	if _ember_passive_progress:
+		return {"client_roles": ["client"], "private_environment": true,
+			"total_seconds": 300.0, "abort_exit_grace_seconds": 10.0}
+	return super._peer_profile()
+
+
+func _host() -> void:
+	if not _ember_passive_progress:
+		await super._host()
+		return
+	await _passive_ember_host()
+
+
+func _client() -> void:
+	if not _ember_passive_progress:
+		await super._client()
+		return
+	await _passive_ember_client()
+
+
+func _passive_operands() -> Dictionary:
+	return {"journey": _game.get_network_planetary_journey_snapshot(),
+		"survey": _game.get_network_ember_survey_snapshot(),
+		"director": _game.activity_director.get_activity_snapshot(&"ember_beacon_survey"),
+		"host": _game.ember_surface_loop_host.get_return_status_snapshot(),
+		"surface": _game.ember_surface_loop_production_binding.get_planetary_surface_snapshot(),
+		"save_generation": _game._runtime_settings_user_data_store.get_generation(),
+		"body_source": _game.get_network_remote_body_intent_source(), "phase": _game.phase}
+
+
+func _passive_require(condition: bool, description: String, operands: Dictionary = {}) -> bool:
+	if not condition:
+		print("EMBER_PASSIVE_PROGRESS_OPERANDS: ", description, " actual=", operands if not operands.is_empty() else _passive_operands())
+	_check(condition, description)
+	return condition
+
+
+func _passive_stage_surface(point: Vector3) -> bool:
+	# Fixture placement uses the actual scene's solid support. The production
+	# Host/binding still observe the actor and advance their normal lifecycle.
+	var query := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 64.0, point - Vector3.UP * 64.0, 1)
+	query.exclude = [_player.get_rid()]
+	var floor := _player.get_world_3d().direct_space_state.intersect_ray(query)
+	if not _passive_require(not floor.is_empty(), "staged survey actor has actual authored support", {"point": point, "floor": floor}):
+		return false
+	_player.teleport_to(Transform3D(Basis.IDENTITY, (floor.position as Vector3) + Vector3.UP * 0.06))
+	await _ticks(12)
+	return true
+
+
+func _passive_ember_host() -> void:
+	if not _passive_require(bool(_game.host_network_session(_port).get("accepted", false)), "passive progress host starts actual authenticated ENet"):
+		return
+	# Boot the future observer now, but it will not connect until index one.
+	_write("host.ready", {})
+	_player.teleport_to(_craft.get_boarding_entry_transform())
+	_game._board_ship(_craft)
+	if not _passive_require(await _until(func(): return _game._piloting and not _game._transition_busy, 15.0), "actual production boarding retains host pilot"):
+		return
+	_game._sortie_departed_berth = true
+	_game.phase = GameFlow.Phase.FREE_FLIGHT
+	var claimed := _game._claim_network_host_pilot_seat(_craft)
+	if not _passive_require(bool(claimed.get("accepted", false)), "ordinary boarding ledger confirms host pilot", {"claim": claimed}):
+		return
+	var frame := _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var canonical := _game.planetary_cruise_binding.get_snapshot().canonical_destination_orbital as Dictionary
+	var decoded := frame.orbital_to_world_streaming_position(canonical, frame.get_generation())
+	var destination: Vector3 = decoded.position
+	# Established shared-surface fixture: stage only the initial flight
+	# envelope; typed approach, supported touchdown and disembark remain real.
+	_craft.global_position = destination + Vector3.BACK * 500.0
+	_craft.global_basis = Basis.looking_at((destination - _craft.global_position).normalized(), Vector3.UP)
+	_craft.velocity = Vector3.ZERO
+	var admitted := _game.engage_planetary_cruise()
+	if not _passive_require(bool(admitted.get("accepted", false)), "shared admission owns the real Ember approach", {"admission": admitted, "state": _passive_operands()}):
+		return
+	if not _passive_require(await _until(func(): return _game._planetary_journey.shared_ember_surface_is_current(), 120.0), "physical typed landing composes actual shared production surface"):
+		return
+	var host := _game.ember_surface_loop_host
+	if not _passive_require(await _until(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 20.0), "production Host disembarks to the actual authored surface"):
+		return
+	var anchors := host.get_return_status_snapshot().surface_route as Dictionary
+	if not await _passive_stage_surface(anchors.egress_anchor) or not await _passive_stage_surface(anchors.staging_anchor):
+		return
+	if not _passive_require(await _until(func(): return _game.ember_surface_loop_production_binding.get_planetary_surface_snapshot().adapter.activity_reward.state == &"active", 4.0), "supported staged outbound anchors start actual mandatory survey"):
+		return
+	var landing := _game.ember_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
+	if not await _passive_stage_surface(landing.to_global(Vector3(160.0, 0.0, -30.0))):
+		return
+	if not _passive_require(await _until(func(): return int(_game.activity_director.get_activity_snapshot(&"ember_beacon_survey").get("next_checkpoint_index", -1)) == 1, 4.0), "actual production position observation advances genuine Director to checkpoint one"):
+		return
+	_game._network_planetary_journey._publish(true)
+	var progress := _passive_survey_fields(_game.get_network_ember_survey_snapshot())
+	if not _passive_require(progress.get("state") == &"active" and int(progress.get("next_checkpoint_index", -1)) == 1
+		and int(progress.get("checkpoint_count", -1)) == 2 and not bool(progress.get("reward_committed", true))
+		and progress.get("next_objective_id") == &"ember_return_beacon", "published host readback matches genuine ACTIVE/index1/count2/unpaid", {"progress": progress, "production": _passive_operands()}):
+		return
+	# Keep the ordinary host clock running at this stationary real checkpoint.
+	# Compare logical progress/payment operands independently of presentation time.
+	var retained := _passive_operands()
+	_write("host.progress", {"survey": progress})
+	if not await _wait_file("client.progress", 60.0):
+		return
+	var received := _read("client.progress")
+	var peer := int(received.peer_id)
+	var accepted := bytes_to_var(Marshalls.base64_to_raw(str(received.packet_bytes))) as Dictionary
+	# Actual authority RPCs exercise the adapter's authenticated envelope.
+	# The source remains the same host; each malformed identity is explicit.
+	for field in ["recipient_peer_id", "peer_generation", "session_generation", "migration_generation"]:
+		var bad := accepted.duplicate(true)
+		bad[field] = int(bad[field]) + 1
+		bad["revision"] = int(_game.network_session.get("_planetary_journey_revision")) + 100
+		# A valid different logical view makes accidental acceptance visible;
+		# normal publications cannot erase its higher activity generation.
+		(bad.ember_survey as Dictionary)["activity_generation"] = int((bad.ember_survey as Dictionary).activity_generation) + 10
+		(bad.ember_survey as Dictionary)["next_checkpoint_index"] = 0
+		(bad.ember_survey as Dictionary)["next_objective_id"] = &"ember_relay_tower"
+		_game.network_session.rpc_id(peer, &"_broadcast_planetary_journey_bootstrap", bad)
+	_game.network_session.rpc_id(peer, &"_broadcast_planetary_journey_bootstrap", accepted)
+	var old := accepted.duplicate(true)
+	old["revision"] = int(accepted.revision) - 1
+	_game.network_session.rpc_id(peer, &"_broadcast_planetary_journey_bootstrap", old)
+	_write("host.replayed", {})
+	if not await _wait_file("client.fenced", 60.0):
+		return
+	var after := _passive_operands()
+	if not _passive_require(after.director == retained.director and after.surface.adapter.activity_reward == retained.surface.adapter.activity_reward
+		and after.surface.relay_survey.mandatory_route == retained.surface.relay_survey.mandatory_route
+		and after.save_generation == retained.save_generation and after.survey == retained.survey,
+		"fresh observer and replay fences mutate no production checkpoint, save or payment", {"before": retained, "after": after}):
+		return
+	# Retire through the existing production visit owner; this probe claims no
+	# physical return or late cabin admission.
+	_game._network_planetary_journey.cancel(&"passive_progress_test_complete")
+	_write("host.retired", {})
+	await _wait_file("client.retired", 60.0)
+
+
+func _passive_ember_client() -> void:
+	if not await _wait_file("host.progress", 120.0):
+		return
+	var local_director := _game.activity_director.get_activity_snapshot(&"ember_beacon_survey")
+	var pre_join_generation := _game._runtime_settings_user_data_store.get_generation()
+	var pre_join_payload := _game._runtime_settings_user_data_store.get_snapshot()
+	if not _passive_require(bool(_game.join_network_session("127.0.0.1", _port).get("accepted", false)), "fresh observer connects only after host checkpoint one"):
+		return
+	# Accepted join synchronously withdraws the old solo recovery context.
+	# Establish the passive-reception baseline after that expected setup write,
+	# before any yield can deliver authenticated progress packets.
+	var local_save := _game._runtime_settings_user_data_store.get_generation()
+	var local_payload := _game._runtime_settings_user_data_store.get_snapshot()
+	var expected_join_payload := pre_join_payload.duplicate(true)
+	expected_join_payload[GameFlow.SOLO_SAFE_RECOVERY_SLOT] = {"mode": "unavailable"}
+	_write("client.join_setup", {"generation_before": pre_join_generation, "generation_after": local_save,
+		"payload_before": pre_join_payload, "payload_after": local_payload})
+	if not _passive_require(local_save == pre_join_generation + 1 and local_payload == expected_join_payload,
+		"accepted join changes only solo recovery before passive packet reception",
+		{"generation_before": pre_join_generation, "generation_after": local_save,
+		"expected_payload": expected_join_payload, "actual_payload": local_payload}):
+		return
+	if not _passive_require(await _until(func(): return _admitted_session_ready() and not _game.get_network_ember_survey_snapshot().is_empty(), 12.0), "fresh authenticated recipient consumes current real Ember progress"):
+		return
+	var expected := _passive_survey_fields(_read("host.progress").survey as Dictionary)
+	var survey := _passive_survey_fields(_game.get_network_ember_survey_snapshot())
+	var packet := _game.get_network_planetary_journey_snapshot()
+	if not _passive_require(survey == expected and survey.get("state") == &"active"
+		and int(survey.get("next_checkpoint_index", -1)) == 1 and int(survey.get("checkpoint_count", -1)) == 2
+		and not bool(survey.get("reward_committed", true)) and survey.get("next_objective_id") == &"ember_return_beacon",
+		"fresh current envelope delivers actual host progress without local defaults", {"expected": expected, "survey": survey, "packet": packet}):
+		return
+	_write("client.progress", {"survey": survey, "packet_bytes": Marshalls.raw_to_base64(var_to_bytes(packet)), "peer_id": _game.network_session.multiplayer.get_unique_id()})
+	if not await _wait_file("host.replayed", 60.0):
+		return
+	await _ticks(12)
+	if not _passive_require(_passive_survey_fields(_game.get_network_ember_survey_snapshot()) == survey,
+		"actual authenticated duplicate, old and foreign session envelopes preserve accepted view", {"before": packet, "after": _game.get_network_planetary_journey_snapshot()}):
+		return
+	# The consumer also fences same-epoch world/ship substitution and stale
+	# production generations even after the transport authenticated a sender.
+	for field in ["world_id", "ship_id", "journey_epoch", "host_generation", "host_attachment_generation", "composition_generation", "activity_generation"]:
+		var bad := _game.get_network_planetary_journey_snapshot()
+		bad["revision"] = int(bad.revision) + 1
+		if field == "world_id":
+			bad[field] = &"aurora_temperate_world"
+		elif field == "ship_id":
+			bad[field] = &"foreign_ship"
+		elif field == "journey_epoch":
+			bad[field] = 0
+		else:
+			(bad.ember_survey as Dictionary)[field] = int((bad.ember_survey as Dictionary)[field]) - 1
+		_game._network_planetary_journey.consume_state(bad)
+		if not _passive_require(_passive_survey_fields(_game.get_network_ember_survey_snapshot()) == survey, "bridge refuses stale or substituted " + field,
+			{"candidate": bad, "expected": survey, "actual": _game.get_network_ember_survey_snapshot()}):
+			return
+	var session_epoch := _game._network_hud_session_epoch
+	_game._network_hud_session_epoch += 1
+	var detached_view := _game.get_network_ember_survey_snapshot()
+	_game._network_hud_session_epoch = session_epoch
+	if not _passive_require(detached_view.is_empty() and _passive_survey_fields(_game.get_network_ember_survey_snapshot()) == survey,
+		"passive getter requires the accepting local session lifetime", {"detached": detached_view, "restored": _game.get_network_ember_survey_snapshot(), "expected": survey}):
+		return
+	var after_director := _game.activity_director.get_activity_snapshot(&"ember_beacon_survey")
+	var after_save := _game._runtime_settings_user_data_store.get_generation()
+	var after_payload := _game._runtime_settings_user_data_store.get_snapshot()
+	if not _passive_require(after_director == local_director and after_save == local_save and after_payload == local_payload
+		and _game.get_network_remote_body_intent_source() == null and not _player.is_seated()
+		and not _game.ember_surface_loop_production_binding.has_planetary_surface_composition(),
+		"passive current progress creates no local Director, save, reward or cabin authority",
+		{"director_before": local_director, "director_after": after_director, "save_before": local_save, "save_after": after_save,
+			"payload_before": local_payload, "payload_after": after_payload, "actual": _passive_operands()}):
+		return
+	if not _passive_verify_hud():
+		return
+	_write("client.fenced", {})
+	if not await _wait_file("host.retired", 60.0):
+		return
+	if not _passive_require(await _until(func(): return _game.get_network_ember_survey_snapshot().is_empty(), 5.0), "authenticated retirement clears passive current Ember view"):
+		return
+	var delayed := packet.duplicate(true)
+	delayed["revision"] = int(packet.revision) + 100
+	_game._network_planetary_journey.consume_state(delayed)
+	if not _passive_require(_game.get_network_ember_survey_snapshot().is_empty() and not _game._network_planetary_journey.is_active(),
+		"retired epoch cannot be revived by delayed higher revision progress", {"delayed": delayed, "current": _game.get_network_planetary_journey_snapshot(), "survey": _game.get_network_ember_survey_snapshot()}):
+		return
+	_write("client.retired", {})
+
+
+func _passive_survey_fields(survey: Dictionary) -> Dictionary:
+	if survey.is_empty():
+		return {}
+	return {"activity_id": str(survey.get("activity_id", "")), "state": str(survey.get("state", "")),
+		"next_objective_id": str(survey.get("next_objective_id", "")),
+		"activity_generation": int(survey.get("activity_generation", -1)),
+		"next_checkpoint_index": int(survey.get("next_checkpoint_index", -1)),
+		"checkpoint_count": int(survey.get("checkpoint_count", -1)),
+		"reward_committed": bool(survey.get("reward_committed", false)),
+		"host_generation": int(survey.get("host_generation", -1)),
+		"host_attachment_generation": int(survey.get("host_attachment_generation", -1)),
+		"composition_generation": int(survey.get("composition_generation", -1))}
+
+
+func _passive_verify_hud() -> bool:
+	var fixture := PassiveSurveyPresentation.new()
+	fixture.recipient = _game
+	fixture.hud = _game.hud
+	fixture.phase = GameFlow.Phase.BOARDING
+	fixture._network_client_ember_passenger_surface = {"world_id": &"ember_moon"}
+	var hatch := _craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	fixture.interaction = hatch
+	fixture._update_on_foot_flow()
+	var objective: String = _game.hud.get("_objective_source_text")
+	var prompt: String = _game.hud.get("_interaction_source_text")
+	var expected_prompt := hatch.get_interaction_prompt()
+	var passed := _passive_require(objective == "HOST SURVEY 1 / 2 — RETURN BEACON"
+		and not expected_prompt.is_empty() and prompt == expected_prompt,
+		"staged presentation unit renders actual recipient objective and preserves real hatch prompt",
+		{"objective": objective, "prompt": prompt, "hatch_prompt": expected_prompt,
+		"recipient": _game.get_network_ember_survey_snapshot(), "qualification": "exterior predicate and discovery staged; no physical admission"})
+	fixture.exterior_current = false
+	fixture._update_on_foot_flow()
+	passed = _passive_require(str(_game.hud.get("_objective_source_text")).is_empty()
+		and fixture._network_client_aurora_survey_presentation.is_empty(),
+		"staged presentation context loss clears its owned passive Ember objective",
+		{"objective": _game.hud.get("_objective_source_text"), "owned": fixture._network_client_aurora_survey_presentation}) and passed
+	fixture.exterior_current = true
+	fixture.interaction = null
+	fixture._update_on_foot_flow()
+	_game.hud.set_objective("replacement objective", "REPLACEMENT")
+	_game.hud.set_interaction("replacement prompt")
+	fixture._clear_network_client_aurora_survey_presentation()
+	passed = _passive_require(_game.hud.get("_objective_source_text") == "replacement objective"
+		and _game.hud.get("_interaction_source_text") == "replacement prompt",
+		"owned passive Ember cleanup preserves newer HUD producers",
+		{"objective": _game.hud.get("_objective_source_text"), "prompt": _game.hud.get("_interaction_source_text")}) and passed
+	fixture.hud = null
+	fixture.recipient = null
+	fixture.free()
+	return passed

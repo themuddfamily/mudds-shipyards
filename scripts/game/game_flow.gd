@@ -831,6 +831,10 @@ func get_network_planetary_journey_snapshot() -> Dictionary:
 	return _network_planetary_journey.get_snapshot()
 
 
+func get_network_ember_survey_snapshot() -> Dictionary:
+	return _network_planetary_journey.get_current_ember_survey()
+
+
 func _on_network_planetary_journey_state(packet: Dictionary) -> void:
 	_network_planetary_journey.consume_state(packet)
 
@@ -8800,21 +8804,31 @@ func _refresh_interaction_targets() -> void:
 func _update_on_foot_flow() -> void:
 	_refresh_interaction_targets()
 	var shared_world := StringName(_network_client_ember_passenger_surface.get("world_id", &""))
-	if shared_world in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID] \
+	if shared_world in [&"ember_moon", AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID] \
 			and _network_client_ember_passenger_surface_is_current():
 		var view: Dictionary
 		var shared := get_network_planetary_journey_snapshot()
-		if shared_world == AuroraExpeditionType.WORLD_ID:
+		if shared_world == &"ember_moon":
+			var survey := get_network_ember_survey_snapshot()
+			if not survey.is_empty():
+				var objective := "RETURN BEACON" if survey.get("next_objective_id") == &"ember_return_beacon" else "RELAY TOWER"
+				if int(survey.get("next_checkpoint_index", 0)) == 2:
+					objective = "SURVEY COMPLETE" if bool(survey.get("reward_committed", false)) else "AWAITING HOST REWARD"
+				view = {"objective": "HOST SURVEY %d / %d — %s" % [int(survey.next_checkpoint_index), int(survey.checkpoint_count), objective],
+					"prompt": "HOST SURVEY — CREW OBSERVATION"}
+		elif shared_world == AuroraExpeditionType.WORLD_ID:
 			view = _aurora_expedition.survey.shared_presentation(aurora_streaming_bootstrap.get_loaded_instance(), player,
 				shared.get("aurora_survey", {}) as Dictionary)
 		else:
 			view = _rime_expedition.survey.shared_presentation(rime_streaming_bootstrap.get_loaded_instance(), player,
 				shared.get("rime_survey", {}) as Dictionary, StringName(_network_client_ember_passenger_surface.entity_id))
 		if not view.is_empty():
-			hud.set_objective(view.objective, "AURORA COASTAL OBSERVATION" if shared_world == AuroraExpeditionType.WORLD_ID else "RIME ICE-CORE SURVEY")
+			hud.set_objective(view.objective, "EMBER RELAY SURVEY" if shared_world == &"ember_moon" else ("AURORA COASTAL OBSERVATION" if shared_world == AuroraExpeditionType.WORLD_ID else "RIME ICE-CORE SURVEY"))
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt() if station_interaction_candidate is ShipCabinHatch else view.prompt)
 			_capture_network_client_aurora_survey_presentation(not station_interaction_candidate is ShipCabinHatch)
 			return
+	if _network_client_aurora_survey_presentation.get("world_id") == &"ember_moon":
+		_clear_network_client_aurora_survey_presentation()
 	_activity_board_proximity_prompt_rendered = false
 	if phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.FAILED, Phase.RECOVERING]:
 		hud.set_interaction("", false)
@@ -12114,6 +12128,7 @@ func _retire_network_client_ember_passenger_surface(await_authority: bool = fals
 func _capture_network_client_aurora_survey_presentation(owns_prompt: bool = false) -> void:
 	_network_client_aurora_survey_presentation = {
 		"hud_id": hud.get_instance_id(), "objective": hud.get("_objective_source_text"),
+		"world_id": _network_client_ember_passenger_surface.get("world_id", &""),
 		"kicker": (hud.get("_objective_kicker") as Label).text,
 	}
 	if owns_prompt:

@@ -34,6 +34,9 @@ var _home_return_crew: Dictionary = {}
 var _home_approach := false
 var _restored_surface_session: Dictionary = {}
 var _restored_crew_admissions: Dictionary = {}
+var _client_revision := 0
+var _client_session_id := 0
+var _client_session_epoch := -1
 
 func _init(flow: Node) -> void:
 	_flow = flow
@@ -350,7 +353,17 @@ func client_actor_sample(local_sample: Dictionary) -> Dictionary:
 	return {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
 
 func consume_state(packet: Dictionary) -> void:
-	if _flow.network_session.is_server():
+	if not _flow._network_session_is_live() or _flow.network_session.is_server():
+		return
+	# The adapter authenticates sender, recipient and transport generations.
+	# Retain that adapter's local lifetime too; a detached bridge cannot lend
+	# its passive view to a replacement session whose revisions start again.
+	var session_id: int = _flow.network_session.get_instance_id()
+	if _client_session_id != 0 and (_client_session_id != session_id \
+			or _client_session_epoch != _flow._network_hud_session_epoch):
+		return
+	var revision := int(packet.get("revision", 0))
+	if revision <= _client_revision:
 		return
 	var epoch := int(packet.get("journey_epoch", 0))
 	if epoch < _epoch or epoch <= 0 or not WORLD_PAIRS.has(packet.get("world_id")):
@@ -359,6 +372,9 @@ func consume_state(packet: Dictionary) -> void:
 			or packet.get("ship_id") != _state.get("ship_id")):
 		return
 	if packet.get("phase") == &"retired":
+		_client_revision = revision
+		_client_session_id = session_id
+		_client_session_epoch = _flow._network_hud_session_epoch
 		if epoch == _epoch and not _state.is_empty() \
 				and packet.get("ship_id") == _state.get("ship_id"):
 			_flow._consume_network_ember_passenger_retirement(epoch, StringName(packet.ship_id))
@@ -388,8 +404,18 @@ func consume_state(packet: Dictionary) -> void:
 				return
 			_client_observer_admitted = true
 			_craft_instance_id = craft.get_instance_id()
+	if packet.get("world_id") == WORLD_ID and packet.get("phase") == &"landed" and packet.has("ember_survey"):
+		if not _ember_survey_packet_is_current(packet.get("ember_survey"), epoch == _epoch):
+			return
+	_client_revision = revision
+	_client_session_id = session_id
+	_client_session_epoch = _flow._network_hud_session_epoch
 	_epoch = epoch
 	_state = packet.duplicate(true)
+	# A survey belongs only to a landed Ember envelope. Never surface a
+	# previous world's progress, even if an otherwise valid packet contains it.
+	if get_world_id() != WORLD_ID or _state.get("phase") != &"landed":
+		_state.erase("ember_survey")
 
 func consume_ready(peer_id: int, payload: Dictionary) -> void:
 	if not is_active() or not _flow.network_session.is_server():
@@ -462,9 +488,13 @@ func detach() -> void:
 	_ready_peers.clear()
 	_epoch = 0
 	_last_ack_origin = -1
+	_client_revision = 0
+	_client_session_id = 0
+	_client_session_epoch = -1
 
 func _publish(reliable: bool, recipient: int = 0) -> void:
 	if _state.get("phase") == &"retired":
+		_state.erase("ember_survey")
 		# A removed or destroyed craft cannot suppress retirement. Its last
 		# validated absolute focus is passive metadata in this tombstone.
 		_flow.network_session.publish_planetary_journey_state(_state, true, recipient)
@@ -480,11 +510,113 @@ func _publish(reliable: bool, recipient: int = 0) -> void:
 	if int(_state.get("origin_revision", -1)) != frame.get_generation():
 		_ready_peers.clear()
 	_state["origin_revision"] = frame.get_generation()
+	_state.erase("ember_survey")
+	if get_world_id() == WORLD_ID and _state.get("phase") == &"landed":
+		var survey := _capture_current_ember_survey()
+		if not survey.is_empty():
+			_state["ember_survey"] = survey
 	if get_world_id() == AURORA_WORLD_ID:
 		_state["aurora_survey"] = _arrival_owner(AURORA_WORLD_ID).survey.shared_state()
 	elif get_world_id() == RIME_WORLD_ID:
 		_state["rime_survey"] = _arrival_owner(RIME_WORLD_ID).survey.shared_state()
 	_flow.network_session.publish_planetary_journey_state(_state, reliable, recipient)
+
+
+## A narrow presentation readback of the actual retained production visit.
+## No Director start/restore, remote checkpoint or reward callback is exposed.
+func _capture_current_ember_survey() -> Dictionary:
+	if not _flow._planetary_journey.shared_ember_surface_is_current() \
+			or not is_instance_valid(_flow.ember_surface_loop_host) \
+			or not is_instance_valid(_flow.ember_surface_loop_production_binding) \
+			or not is_instance_valid(_flow.activity_director) \
+			or not is_instance_valid(_flow.active_ship) \
+			or _flow.active_ship.get_instance_id() != _craft_instance_id \
+			or _flow.active_ship.get_ship_id() != get_ship_id():
+		return {}
+	var host: Dictionary = _flow.ember_surface_loop_host.get_return_status_snapshot()
+	var binding: Dictionary = _flow.ember_surface_loop_production_binding.get_caller_snapshot()
+	var surface: Dictionary = _flow.ember_surface_loop_production_binding.get_planetary_surface_snapshot()
+	var adapter := surface.get("adapter", {}) as Dictionary
+	var runtime := adapter.get("activity_reward", {}) as Dictionary
+	var route := (surface.get("relay_survey", {}) as Dictionary).get("mandatory_route", {}) as Dictionary
+	var director: Dictionary = _flow.activity_director.get_activity_snapshot(&"ember_beacon_survey")
+	var identities := binding.get("identities", {}) as Dictionary
+	var host_id: int = _flow.ember_surface_loop_host.get_instance_id()
+	if surface.get("state") != &"bound" or not bool(host.get("attached", false)) \
+			or int(surface.get("composition_generation", 0)) <= 0 \
+			or int(surface.get("host_generation", -1)) != int(host.get("generation", -2)) \
+			or int(surface.get("attachment_generation", -1)) != int(host.get("attachment_generation", -2)) \
+			or int(runtime.get("run_generation", -1)) != int(host.get("generation", -2)) \
+			or int(runtime.get("attachment_generation", -1)) != int(host.get("attachment_generation", -2)) \
+			or int(adapter.get("host_instance_id", 0)) != host_id \
+			or int(identities.get("host_instance_id", 0)) != host_id \
+			or int(identities.get("ship_instance_id", 0)) != _craft_instance_id \
+			or int((host.get("identities", {}) as Dictionary).get("ship_instance_id", 0)) != _craft_instance_id:
+		return {}
+	var generation := int(runtime.get("activity_generation", 0))
+	var index := int(route.get("next_checkpoint_index", -1))
+	var state := StringName(runtime.get("state", &""))
+	var paid := not (runtime.get("committed_reward", {}) as Dictionary).is_empty()
+	var objective: StringName = &"ember_relay_tower" if index == 0 else (&"ember_return_beacon" if index == 1 else &"")
+	if runtime.get("activity_id") != &"ember_beacon_survey" or route.get("activity_id") != &"ember_beacon_survey" \
+			or director.get("activity_id") != &"ember_beacon_survey" or generation <= 0 \
+			or generation != int(route.get("activity_generation", -1)) \
+			or generation != int(director.get("generation", -1)) \
+			or int(route.get("checkpoint_count", -1)) != 2 or int(director.get("checkpoint_count", -1)) != 2 \
+			or index < 0 or index > 2 or index != int(director.get("next_checkpoint_index", -1)) \
+			or route.get("next_objective_id") != objective or bool(route.get("complete", false)) != (index == 2):
+		return {}
+	if state == &"active":
+		if int(director.get("state", -1)) != CheckpointRouteActivity.State.ACTIVE or index >= 2 or paid:
+			return {}
+	elif state in [&"awaiting_reward", &"completed"]:
+		if int(director.get("state", -1)) != CheckpointRouteActivity.State.COMPLETED or index != 2 \
+				or paid != (state == &"completed"):
+			return {}
+	else:
+		return {}
+	return {"activity_id": &"ember_beacon_survey", "state": state, "activity_generation": generation,
+		"next_checkpoint_index": index, "checkpoint_count": 2, "next_objective_id": objective,
+		"reward_committed": paid, "host_generation": host.generation,
+		"host_attachment_generation": host.attachment_generation,
+		"composition_generation": surface.composition_generation,
+		"authority": {"activity": false, "save": false, "reward": false}}
+
+
+func _ember_survey_packet_is_current(value: Variant, same_journey: bool) -> bool:
+	if not value is Dictionary:
+		return false
+	var survey := value as Dictionary
+	var index := int(survey.get("next_checkpoint_index", -1))
+	var state := StringName(survey.get("state", &""))
+	var paid := bool(survey.get("reward_committed", false))
+	var objective: StringName = &"ember_relay_tower" if index == 0 else (&"ember_return_beacon" if index == 1 else &"")
+	if survey.get("activity_id") != &"ember_beacon_survey" or int(survey.get("checkpoint_count", -1)) != 2 \
+			or index < 0 or index > 2 or survey.get("next_objective_id") != objective \
+			or state not in [&"active", &"awaiting_reward", &"completed"] \
+			or (state == &"active" and (index == 2 or paid)) \
+			or (state != &"active" and (index != 2 or paid != (state == &"completed"))):
+		return false
+	var previous := (_state.get("ember_survey", {}) as Dictionary) if same_journey else {}
+	for key in ["host_generation", "host_attachment_generation", "composition_generation", "activity_generation"]:
+		if int(survey.get(key, 0)) <= 0 or int(survey.get(key, 0)) < int(previous.get(key, 0)):
+			return false
+	if not previous.is_empty() and int(survey.activity_generation) == int(previous.activity_generation):
+		if index < int(previous.next_checkpoint_index) or (bool(previous.reward_committed) and not paid):
+			return false
+	return true
+
+
+func get_current_ember_survey() -> Dictionary:
+	if not is_active() or get_world_id() != WORLD_ID or _state.get("phase") != &"landed" \
+			or not _flow._network_session_is_live():
+		return {}
+	if _flow.network_session.is_server():
+		return _capture_current_ember_survey()
+	if _flow.network_session.get_instance_id() != _client_session_id \
+			or _flow._network_hud_session_epoch != _client_session_epoch:
+		return {}
+	return (_state.get("ember_survey", {}) as Dictionary).duplicate(true)
 
 
 func is_surface_arrival() -> bool:
