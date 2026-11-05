@@ -16,6 +16,8 @@ extends SceneTree
 const MAIN := preload("res://scenes/main.tscn")
 const SUCCESS_MARKER := "PLANETARY_SURFACE_VISIT_EXPEDITION_TEST_OK"
 const FAILURE_MARKER := "PLANETARY_SURFACE_VISIT_EXPEDITION_TEST_FAILED"
+const RESIDENCY_SUCCESS_MARKER := "RETIRED_WORLD_RESIDENCY_TEST_OK"
+const RESIDENCY_FAILURE_MARKER := "RETIRED_WORLD_RESIDENCY_TEST_FAILED"
 const BASE_SCRIPT := preload("res://scripts/game/planetary_surface_visit_expedition.gd")
 const AURORA_EXPEDITION := preload("res://scripts/game/aurora_expedition.gd")
 const RIME_EXPEDITION := preload("res://scripts/game/rime_expedition.gd")
@@ -45,6 +47,7 @@ const WORLDS := [
 
 var _failures: Array[String] = []
 var _assertions := 0
+var _residency_only := false
 
 
 func _init() -> void:
@@ -52,10 +55,253 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_residency_only = "--retired-world-residency-only" in OS.get_cmdline_user_args()
+	if _residency_only:
+		for world: Dictionary in WORLDS:
+			await _retired_residency(world)
+		await _finish()
+		return
 	_check_profiles()
 	for world: Dictionary in WORLDS:
 		await _visit(world)
 	await _finish()
+
+
+## Bounded integration fixture, not a shared cancellation journey: ordinary
+## boarding/departure precedes a staged actor position. Ship physics is then
+## frozen and the loaded expedition's corridor state is explicitly staged.
+## Main, its sole origin owner, streaming bindings and loaders keep ticking.
+## No target scene is manually unloaded or freed by this driver. Every API used
+## here predates residency wind-down, so the same fixture runs on old runtime.
+func _retired_residency(world: Dictionary) -> void:
+	var label := str(world.label)
+	var game := await _boot()
+	var craft := await _board_halyard(game)
+	if craft == null:
+		await _shut_down(game)
+		return
+	await _prepare_bounded_outbound(game, world)
+	# The ship must consume released departure input and the cruise's current
+	# envelope before the fixture freezes it. has_manual_flight_intent reads its
+	# last consumed command; disabling ship physics first can strand the visit
+	# behind _ensure_outbound_cruise before source composition ever runs.
+	for _i in 30:
+		if not craft.has_manual_flight_intent():
+			break
+		await _residency_frames(1)
+	var owner: RefCounted = game.get(world.owner)
+	var peer: RefCounted = game.get(world.peer)
+	var bootstrap := game.get(world.bootstrap) as PlanetaryStreamingBootstrap
+	var binding := _residency_binding(game, world)
+	var coordinator := bootstrap.get_node(^"WorldStreamingCoordinator") as WorldStreamingCoordinator
+	var peer_profile: RefCounted = peer.get("profile")
+	var peer_bootstrap := game.get(peer_profile.get("bootstrap_property")) as PlanetaryStreamingBootstrap
+	var peer_binding := game.get(peer_profile.get("binding_property")) as PlanetaryStreamingProductionBinding
+	_check(owner.request(), "%s residency fixture admits through the existing visit request" % label)
+	for _i in 120:
+		await _residency_frames(1)
+		if is_instance_valid(bootstrap.get_loaded_instance()) \
+				and is_instance_valid(owner.get("_approach_source")):
+			break
+	var surface := bootstrap.get_loaded_instance()
+	var setup_visit := owner.call(&"get_visit_snapshot") as Dictionary
+	var setup_cruise := game.planetary_cruise_binding.get_snapshot()
+	var setup_controller := setup_cruise.get("controller", {}) as Dictionary
+	var setup_attachment := craft.get_planetary_cruise_attachment_report()
+	var setup_command := craft.get_last_ship_command()
+	print("RETIRED_RESIDENCY_SETUP world=", world.world_id, " state=", owner.get("state"),
+		" manual_intent=", craft.has_manual_flight_intent(),
+		" command=", setup_command.to_dictionary() if setup_command != null else {},
+		" cruise_requested=", game.planetary_cruise_binding.is_engagement_requested(),
+		" controller_generation=", setup_controller.get("generation", -1),
+		" controller_reason=", (setup_controller.get("last_result", {}) as Dictionary).get("reason", &""),
+		" ship_state=", setup_attachment.get("state", &""), " speed=", craft.velocity.length(),
+		" compose_reason=", (setup_visit.get("compose", {}) as Dictionary).get("reason", &""),
+		" last_leg_reason=", (setup_visit.get("last_leg", {}) as Dictionary).get("reason", &""))
+	_check(is_instance_valid(surface) and is_instance_valid(owner.get("_approach_source")),
+		"%s staged approach has an actual streamed scene and visit-owned source" % label)
+	if not is_instance_valid(surface) or not is_instance_valid(owner.get("_approach_source")):
+		await _shut_down(game)
+		return
+	craft.set_physics_process(false)
+	var terrain := surface.get_node_or_null(^"TerrainClipmap")
+	_check(terrain != null, "%s streamed scene owns its terrain subtree" % label)
+	var surface_ref: WeakRef = weakref(surface)
+	var terrain_ref: WeakRef = weakref(terrain)
+	var generation := bootstrap.get_location_generation()
+	var source := craft.get_command_source()
+	var stream_id := source.get_stream_id()
+	var pilot := game.player
+	var origin_owner := game.common_world_origin_rebase_owner
+	owner.set("state", &"corridor")
+	print("RETIRED_RESIDENCY_STAGING world=", world.world_id,
+		" actor_position=", craft.global_position, " body_center=", bootstrap.global_position,
+		" location_generation=", generation,
+		" ship_physics=false corridor_state=staged live_Main_ticks=true")
+	var pose := craft.global_transform
+	var velocity := craft.velocity
+	_check(owner.request(), "%s staged corridor uses the ordinary abandon request" % label)
+	var immediate_preserved: bool = craft.global_transform == pose and craft.velocity == velocity \
+		and game.player == pilot and pilot.is_seated() and craft.is_piloted() \
+		and game._piloting and craft.get_command_source() == source \
+		and source.get_stream_id() >= stream_id and owner.get("state") == &"idle" \
+		and not game._planetary_journey.is_aurora_visit_active() \
+		and owner.get("_berth") == null and owner.get("_approach_source") == null \
+		and owner.get("_surface") == null \
+		and not game.planetary_cruise_binding.is_engagement_requested()
+	if not await _settle_residency_cancel(craft, owner, "%s initial cancel" % label):
+		await _shut_down(game)
+		return
+	var held_ticks := int(binding.get_snapshot().get("physics_tick_count", -1))
+	await _residency_frames(4)
+	var inside_preserved: bool = bootstrap.get_loaded_instance() == surface \
+		and bootstrap.get_location_generation() == generation
+	var retired_observed_inside: bool = int(binding.get_snapshot().get("physics_tick_count", -1)) > held_ticks
+
+	# Re-admission hands this exact resident generation back to its active lane.
+	_check(_request_residency_visit(owner, craft, label), "%s can re-admit its resident world before wind-down finishes" % label)
+	var active_ticks := int(binding.get_snapshot().get("physics_tick_count", -1))
+	var active_frame := Engine.get_physics_frames()
+	await _residency_frames(4)
+	var readmit_single_cadence: bool = int(binding.get_snapshot().get("physics_tick_count", -1)) \
+		- active_ticks == Engine.get_physics_frames() - active_frame
+	var readmit_preserved: bool = bootstrap.get_loaded_instance() == surface \
+		and bootstrap.get_location_generation() == generation
+	owner.set("state", &"corridor")
+	_check(owner.request(), "%s re-admitted approach cancels through the same request" % label)
+	if not await _settle_residency_cancel(craft, peer, "%s second cancel" % label):
+		await _shut_down(game)
+		return
+	_check(_request_residency_visit(peer, craft, label), "%s's other world can own the active lane during retirement" % label)
+	await _residency_frames(4)
+	var other_lane_hold: bool = bootstrap.get_loaded_instance() == surface
+	var peer_ticks := int(peer_binding.get_snapshot().get("physics_tick_count", -1))
+	var peer_frame := Engine.get_physics_frames()
+	var origin_generation := bootstrap.get_coordinate_frame_for_session().get_generation()
+	_stage_residency_actor(craft, peer_bootstrap)
+	await _residency_frames(12)
+	var report := coordinator.audit()
+	print("RETIRED_RESIDENCY_UNLOAD world=", world.world_id,
+		" generation_before=", generation, " generation_after=", bootstrap.get_location_generation(),
+		" coordinator=", report, " binding=", binding.get_snapshot().get("last_tick_result", {}))
+	# First assertion sensitive to the missing runtime integration: old runtime
+	# reaches the same staged cut but leaves this exact generation resident.
+	_check(not is_instance_valid(bootstrap.get_loaded_instance())
+		and int(report.get("unload_count", 0)) > 0
+		and bootstrap.get_location_generation() > generation,
+		"%s retired world actually unloads through its coordinator outside the envelope" % label)
+	_check(immediate_preserved and inside_preserved and other_lane_hold and retired_observed_inside,
+		"%s cancellation preserves pilot/source/pose and keeps observing inside-envelope residency" % label)
+	_check(readmit_single_cadence and readmit_preserved,
+		"%s fresh admission replaces retirement ownership with exactly one active cadence" % label)
+	_check((report.get("loading_records", []) as Array).is_empty()
+		and (report.get("loaded_records", []) as Array).is_empty()
+		and int(report.get("owned_instance_count", -1)) == 0,
+		"%s coordinator clears loading and owned records" % label)
+	await _residency_frames(4)
+	_check(surface_ref.get_ref() == null and terrain_ref.get_ref() == null,
+		"%s scene and terrain weakrefs expire after coordinator deferred free" % label)
+	var peer_snapshot := peer_binding.get_snapshot()
+	_check(int(peer_snapshot.get("physics_tick_count", -1)) - peer_ticks
+		== Engine.get_physics_frames() - peer_frame
+		and is_instance_valid(peer_bootstrap.get_loaded_instance())
+		and game._planetary_journey.is_aurora_visit_active()
+		and game._planetary_journey.get_visit_world_id() == peer_profile.get("world_id"),
+		"%s retirement leaves the other active world's one cadence and resident scene intact" % label)
+	var retired_snapshot := binding.get_snapshot()
+	_check(bootstrap.get_coordinate_frame_for_session().get_generation() > origin_generation
+		and int(retired_snapshot.get("bound_coordinate_frame_generation", -1))
+			== bootstrap.get_coordinate_frame_for_session().get_generation()
+		and retired_snapshot.get("last_world_streaming_position") == craft.global_position
+		and int(retired_snapshot.get("last_actor_instance_id", -1)) == craft.get_instance_id()
+		and game.common_world_origin_rebase_owner == origin_owner,
+		"%s wind-down consumes the other lane's current translated actor sample under the sole origin owner" % label)
+	var stopped_ticks := int(retired_snapshot.get("physics_tick_count", -1))
+	var load_requests := int(report.get("load_request_count", -1))
+	peer.set("state", &"corridor")
+	_check(peer.request(), "%s fixture retires the other active approach normally" % label)
+	if not await _settle_residency_cancel(craft, owner, "%s peer cancel" % label):
+		await _shut_down(game)
+		return
+	await _residency_frames(4)
+	_stage_residency_actor(craft, bootstrap)
+	await _residency_frames(12)
+	_check(int(binding.get_snapshot().get("physics_tick_count", -1)) == stopped_ticks
+		and int(coordinator.audit().get("load_request_count", -2)) == load_requests
+		and not is_instance_valid(bootstrap.get_loaded_instance()),
+		"%s completed retirement stops cadence and never cold-loads on re-entering the envelope" % label)
+	_check(game.player == pilot and pilot.is_seated() and game.active_ship == craft
+		and craft.is_piloted() and game._piloting and craft.get_command_source() == source
+		and source.get_stream_id() >= stream_id and not game._transition_busy
+		and not game._landing_request_active and not craft.is_landing_active()
+		and not game.planetary_cruise_binding.is_engagement_requested()
+		and owner.get("state") == &"idle" and owner.get("_berth") == null
+		and owner.get("_surface") == null and owner.get("_approach_source") == null,
+		"%s wind-down never revives controls, approach, lease or visit authority" % label)
+	await _shut_down(game)
+
+
+func _residency_binding(game: GameFlow, world: Dictionary) -> PlanetaryStreamingProductionBinding:
+	var owner: RefCounted = game.get(world.owner)
+	var profile: RefCounted = owner.get("profile")
+	return game.get(profile.get("binding_property")) as PlanetaryStreamingProductionBinding
+
+
+## Cancellation requests the body's actual bounded brake. The immediate cut
+## was already captured; now give that body real physics until its current
+## lifecycle and the next owner's ordinary launch gate both permit admission.
+## Observe readiness without repeatedly invoking an admission action.
+func _settle_residency_cancel(craft: HeroShip, next_owner: RefCounted, label: String) -> bool:
+	var before := craft.get_planetary_cruise_attachment_report()
+	craft.set_physics_process(true)
+	var ready := false
+	for _i in 120:
+		await _residency_frames(1)
+		var current := craft.get_planetary_cruise_attachment_report()
+		var runtime := next_owner.call(&"runtime_state") as Dictionary
+		if current.get("state", &"") == HeroShip.PLANETARY_CRUISE_STATE_INACTIVE \
+				and not craft.has_manual_flight_intent() and bool(runtime.get("action_enabled", false)):
+			ready = true
+			break
+	craft.set_physics_process(false)
+	var after := craft.get_planetary_cruise_attachment_report()
+	print("RETIRED_RESIDENCY_CANCEL_SETTLED cut=", label,
+		" before_state=", before.get("state", &""),
+		" after_state=", after.get("state", &""), " after_reason=", after.get("reason", &""),
+		" speed=", craft.velocity.length(), " next_runtime=", next_owner.call(&"runtime_state"))
+	_check(ready, "%s consumes cancellation braking before the next owner action" % label)
+	return ready
+
+
+func _request_residency_visit(owner: RefCounted, craft: HeroShip, label: String) -> bool:
+	var runtime := owner.call(&"runtime_state") as Dictionary
+	var accepted := bool(owner.call(&"request"))
+	var visit := owner.call(&"get_visit_snapshot") as Dictionary
+	var attachment := craft.get_planetary_cruise_attachment_report()
+	print("RETIRED_RESIDENCY_ADMISSION fixture=", label, " accepted=", accepted,
+		" runtime_before=", runtime,
+		" admission_reason=", (visit.get("admission", {}) as Dictionary).get("reason", &""),
+		" last_leg_reason=", (visit.get("last_leg", {}) as Dictionary).get("reason", &""),
+		" ship_state=", attachment.get("state", &""),
+		" ship_reason=", attachment.get("reason", &""), " speed=", craft.velocity.length())
+	return accepted
+
+
+func _stage_residency_actor(craft: HeroShip, bootstrap: PlanetaryStreamingBootstrap) -> void:
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var encoded := frame.body_local_to_orbital_position(
+		bootstrap.get_navigation_destination().get("body_local_position_meters"), frame.get_generation())
+	var decoded := frame.orbital_to_world_streaming_position(encoded.get("coordinate"), frame.get_generation())
+	craft.global_transform = Transform3D(Basis.IDENTITY,
+		(decoded.get("position", Vector3.INF) as Vector3) + Vector3.BACK * 70_000.0)
+	craft.velocity = Vector3.ZERO
+	craft.reset_physics_interpolation()
+
+
+func _residency_frames(count: int) -> void:
+	for _i in count:
+		await physics_frame
+		await process_frame
 
 
 ## Both wrappers are the shared class; their profiles are complete, distinct
@@ -257,5 +503,7 @@ func _check(ok: bool, message: String) -> void:
 func _finish() -> void:
 	paused = false
 	await process_frame
-	print("%s: %d assertions" % [SUCCESS_MARKER if _failures.is_empty() else FAILURE_MARKER, _assertions])
+	var success := RESIDENCY_SUCCESS_MARKER if _residency_only else SUCCESS_MARKER
+	var failure := RESIDENCY_FAILURE_MARKER if _residency_only else FAILURE_MARKER
+	print("%s: %d assertions" % [success if _failures.is_empty() else failure, _assertions])
 	quit(0 if _failures.is_empty() else 1)

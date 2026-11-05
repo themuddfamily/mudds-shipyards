@@ -118,6 +118,10 @@ const SURFACE_VISIT_STREAMING_PAIRS: Dictionary = {
 	],
 }
 var _visit_world_id: StringName = AuroraTemperateStreamingBootstrap.WORLD_ID
+## A retired visit gives up all travel authority immediately. Its exact streaming
+## generation still needs current focus until the normal unload envelope is left.
+## These weak identities cannot keep a world alive or acquire a replacement load.
+var _retired_surface_residencies: Dictionary = {}
 var _planetary_return_physical_arrival_required := false
 var _planetary_return_physical_arrival_armed := false
 var _last_planetary_return_physical_arrival_result: Dictionary = {}
@@ -300,6 +304,7 @@ func advance_world(delta: float, actor_sample: Dictionary) -> Dictionary:
 		delta, actor_sample, ember_origin_result, coordinate_frame_generation
 	)
 	_flow._sync_planetary_cruise_hud()
+	_advance_retired_surface_residencies(delta, actor_sample)
 	return actor_sample
 
 
@@ -359,6 +364,7 @@ func admit_aurora_visit(
 			false, engaged.get("reason", &"aurora_cruise_engage_refused") as StringName
 		)
 	_aurora_visit_active = true
+	_retired_surface_residencies.erase(world_id)
 	_aurora_visit_rebase_commit_count = 0
 	_aurora_final_approach_handoff_ready = false
 	_aurora_final_approach_armed = false
@@ -468,6 +474,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 			if not _aurora_final_approach_handoff_ready and not bool(
 					_flow.planetary_cruise_binding.is_engagement_requested()):
 				_aurora_final_approach_armed = false
+	_advance_retired_surface_residencies(delta, actor_sample)
 	return {
 		"accepted": true,
 		"reason": &"aurora_visit_advanced",
@@ -665,6 +672,7 @@ func arm_aurora_final_approach(
 func retire_aurora_visit() -> Dictionary:
 	if not _aurora_visit_active:
 		return _aurora_retired(true, &"aurora_visit_inactive")
+	_retain_retired_surface_residency()
 	_aurora_visit_active = false
 	if _aurora_return_active:
 		cancel_return_departure(&"aurora_visit_retired")
@@ -689,6 +697,55 @@ func retire_aurora_visit() -> Dictionary:
 
 func is_aurora_visit_active() -> bool:
 	return _aurora_visit_active
+
+
+func _retain_retired_surface_residency() -> void:
+	var bootstrap := _visit_bootstrap()
+	var binding := _visit_binding()
+	if not is_instance_valid(bootstrap) or not is_instance_valid(binding):
+		return
+	var coordinator := bootstrap.get_node_or_null(^"WorldStreamingCoordinator") as WorldStreamingCoordinator
+	if not is_instance_valid(coordinator):
+		return
+	var location_id := bootstrap.get_location_id()
+	if not is_instance_valid(bootstrap.get_loaded_instance()) \
+			and not coordinator.get_loading_ids().has(String(location_id)):
+		return
+	_retired_surface_residencies[_visit_world_id] = {
+		"bootstrap": weakref(bootstrap),
+		"binding": weakref(binding),
+		"coordinator": weakref(coordinator),
+		"location_id": location_id,
+		"location_generation": bootstrap.get_location_generation(),
+	}
+
+
+## Called only after the active lane's sole origin transaction has produced the
+## current local actor sample. This observes residency; it never previews an
+## origin shift, engages cruise, consumes a visit callback or requests a load.
+func _advance_retired_surface_residencies(delta: float, actor_sample: Dictionary) -> void:
+	for world_id: StringName in _retired_surface_residencies.keys():
+		if _aurora_visit_active and _visit_world_id == world_id:
+			_retired_surface_residencies.erase(world_id)
+			continue
+		var record := _retired_surface_residencies[world_id] as Dictionary
+		var bootstrap := (record.bootstrap as WeakRef).get_ref() as PlanetaryStreamingBootstrap
+		var binding := (record.binding as WeakRef).get_ref() as PlanetaryStreamingProductionBinding
+		var coordinator := (record.coordinator as WeakRef).get_ref() as WorldStreamingCoordinator
+		if not is_instance_valid(bootstrap) or not is_instance_valid(binding) \
+				or not is_instance_valid(coordinator) \
+				or binding.get_bound_bootstrap() != bootstrap \
+				or bootstrap.get_location_generation() != int(record.location_generation):
+			_retired_surface_residencies.erase(world_id)
+			continue
+		# Stop before supplying another focus once unload has cleared both records.
+		# Otherwise a pilot who flies back inside the load envelope could cold-load
+		# a cancelled visit. Only a fresh admitted lane may start that lifecycle.
+		if not is_instance_valid(bootstrap.get_loaded_instance()) \
+				and not coordinator.get_loading_ids().has(String(record.location_id)):
+			_retired_surface_residencies.erase(world_id)
+			continue
+		binding.physics_tick_from_caller_sample(delta, actor_sample)
 
 
 func aurora_final_approach_handoff_ready() -> bool:
@@ -807,6 +864,7 @@ func detach() -> void:
 	cancel_return_departure(&"return_main_detached")
 	if _aurora_visit_active:
 		retire_aurora_visit()
+	_retired_surface_residencies.clear()
 	if _planetary_return_physical_arrival_armed:
 		_abort_planetary_return_physical_arrival(&"return_main_detached")
 		_flow._landing_request_active = false
