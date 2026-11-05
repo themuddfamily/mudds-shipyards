@@ -516,7 +516,42 @@ production launch and packaged participation still need implementation.
 
 ## Current work and next selection
 
-No implementation assignment is currently running. The latest delivered
+**Active task: Zenith modern airframe distance LOD integration.** This selects
+the existing [current-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)
+Zenith production member, not its parked native incoming/flight trial.
+
+- **Goal/result:** CRAFT-ACCEPT-ZENITH / modern-airframe LOD: the actual modern
+  hull and fittings switch atomically to a cheaper complete far representation
+  through the existing selector; shared canopy and actionable cues retain state.
+- **Start/owner:** clean `434da0361`; healthy Zenith in its existing focused
+  component fixture. Implementation owns `scripts/ships/zenith_interceptor.gd`,
+  `scenes/ships/presentation/zenith_authored_presentation.gd` if necessary, and
+  `tests/zenith_interceptor_test.gd`; root owns integration, documentation and
+  isolated capture. One independent reviewer checks authority/lifecycle safety.
+- **Dependencies:** existing authored presentation and current modern geometry
+  are present. No ordinary sortie or incoming-damage run is selected. Existing
+  full craft/art/camera qualification stays required and open.
+- **Action/pass:** import and directly parse changed scripts; run the existing
+  interceptor suite with added complete-modern-root checks. Start close; 53m
+  holds close, >53m selects far; 43m holds far, <43m selects close; dead band and
+  nonfinite inputs hold. Repeat after retained detach/re-entry. Exactly one
+  complete modern hull is active, far static triangles are strictly fewer than
+  close and static submissions no greater. Switching retains meshes/materials,
+  canopy/cue state and quiet gameplay authority identities without rebuilding.
+- **Proof:** raw source-suite output and close/far/transition inspection on
+  isolated Xvfb, explicit x11 and Dummy audio. Synthetic component distances
+  prove this integration only, not ordinary flight, native GPU or Windows.
+- **Budget:** start 2026-11-05 06:27:25 UTC; all-in deadline 07:57:25 UTC,
+  source readiness by 06:57:25 UTC. Existing focused suite cap 300s; parse/import
+  cap 90s each; rendered probe cap 120s with independent process abort. Existing
+  one-correction ART rule applies; source/candidate and checks freeze before
+  the acceptance run. No renamed retry of a parked check.
+- **Endpoint:** passing source and rendered integration gets a clean commit,
+  safe Windows/Linux checkpoint and strict startup checks, merge/push and owned
+  cleanup. Otherwise retain the failed source/results and park at its actual
+  failed predicate. Full Zenith flight/art qualification remains open.
+
+The latest delivered
 capability is [Ember passive shared progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
 on **d525554** with the checkpoint linked above. A fresh observer receives the
 host's real survey progress; the exterior HUD presentation has a separately
