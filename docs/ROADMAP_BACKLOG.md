@@ -40,6 +40,14 @@ The [current disposition](#remaining-contract-gaps--plan-next) and canonical row
 record its accepted 2026-11-05 definition closure. That closure delivers no
 gameplay and does not close the implementation or qualification goals.
 
+Current routine-repair policy: [working roadmap failure boundary](../ROADMAP.md#fixed-budget-and-failure-boundary).
+Compiler/test-fixture mistakes may be repaired within their original absolute
+budget without owner permission; preserve all checks, costs and original
+requirements. This supersedes mechanical-error-only approval wording while
+leaving expired/substantive parked reopening conditions binding. The station
+startup-test static-call repair resumes under this rule; no silence/approval,
+new deadline or successful ordinary result is inferred.
+
 ## Owner decisions accepted2026-10-21
 
 Freight transfer remains automatic on landing; physical terminals expose the

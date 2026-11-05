@@ -108,7 +108,7 @@ and terminal observation, not cargo replay or full craft/eleven-binding closure.
 | Genuine miss/retirement | Wait normal .70s gate; physically aim/query station-UP corridor, native FIRE once | Distinct flight, real positive-age travel then lifetime miss; health74 stable, pool/authority active counts0, no abandonment/resurrection/duplicate, authored weapon/heat behavior retained | NOT_RUN |
 | Complete home and delivery | Fixed reverse route, original captured L/strict lease,90 neutral OFFLINE, physical E exit/apron walk/normal UI Quit | Exact occupied dock_04_cargo/root error≤.05m/speed≤.05m/s, supported same Player walk≥1m to accepted apron(8.8,4.18,90); actual OS0/both clean markers/diagnostics0; all source/native/package gates pass, pushed source/checkpoint and owned cleanup complete | NOT_RUN |
 
-### Station Reduced Flash ordinary package/UI episode — PARKED
+### Resumed: station Reduced Flash ordinary package/UI episode
 
 COMFORT-FLASH station member; candidates803a2aaa3→7e50fdf65 remain unmerged.
 Corrected Python checks pass308/14.147s. The first Godot gate fails before any
@@ -118,14 +118,17 @@ two diagnostics, OS1. The other five source suites, actual station/UI episode,
 exports/startups and package audit are **NOT_RUN**. No gameplay or checkpoint
 from this attempt is accepted.
 
-The sole correction was spent on exact Python failure causes and the reviewed
-native-E/input-owner/protected-settings/live-authority gaps. No automatic retry.
-The concrete next proposal removes that one unnecessary static call, retaining
-the production observer preload and every original test/ordinary/package gate.
-**Explicit user reprioritization for one additional correction is requested and
-pending; no approval is inferred.** The original21:32:08UTC deadline and all
-20:17:08UTC-start costs remain binding. Until an answer, this attempt is PARKED.
-[Exact failure, retained source/proposal and cleanup](docs/history/ROADMAP_DELIVERIES.md#station-flash-startup-test-compile-stop-20261105).
+The prior stop remains preserved in its [failure record](docs/history/ROADMAP_DELIVERIES.md#station-flash-startup-test-compile-stop-20261105).
+The request for owner approval of the one-line compiler repair is withdrawn as
+an unnecessary process gate; silence is not treated as approval. Under the
+corrected routine-repair policy, remove that invalid static assertion while
+retaining the production observer preload and **every original frozen case,
+source/native/package check, numeric cap, input/identity/authority guard and
+clean-close requirement**. This is an ordinary test repair, not a scope decision.
+Original start20:17:08UTC,75min all-in and absolute21:32:08UTC deadline remain;
+all prior cost and failed-candidate records are retained. No budget reset or
+accepted runtime claim. Root owns this small repair and its original full
+validation in a separate worktree while the Hauler implementation proceeds.
 Existing station policy3fb8e0359 and shared cold/Reset3649b4b stay accepted only
 in their original scopes. The parked Forward+/installed-rendered-launch attempt
 is separate and is not reopened by this proposal.
@@ -342,13 +345,22 @@ larger production capabilities before starting. Full journeys and soaks retain
 their original durations; do not shorten them to fit an implementation card.
 Default correction allowance is one; freeze it and the absolute deadline first.
 
-Stop at the first unexpected failure and retain the actual operands/output.
-A correction needs a demonstrated cause, remaining frozen allowance and an
-explicit cumulative-cost decision. A failed final correction or hard deadline
-parks the task. New names, branches or smaller subsets never reset costs or
-allowance. Exhaustion also requires later explicit user reprioritization;
-automatic continuation cannot authorize a retry. No dependent check starts
-before its prerequisites pass. Unrelated defects return to their existing owner.
+Stop dependent checks at the first unexpected failure and retain its actual
+operands/output. Every correction needs a demonstrated cause and cumulative-cost
+decision. **Routine compiler errors and incorrect test assertions are normal
+implementation repairs inside the unchanged absolute time budget. They do not
+require owner permission or consume the substantive-behavior correction limit.**
+They still require a clean candidate and rerunning the complete affected gates;
+no check, threshold or endpoint may be dropped to obtain a pass.
+
+Frozen correction allowances apply to substantive production/behavior repairs.
+Their exhaustion, an unresolved product requirement or the hard deadline parks
+the task. New names, branches or smaller subsets never reset cumulative cost or
+extend a deadline. Expired or substantively blocked parked attempts retain their
+recorded reopening conditions and explicit priority decisions. This is not a
+blanket retry of old work. No dependent check starts before its prerequisites
+pass; unrelated defects return to their existing owner. Ask the user for real
+product/scope/resource decisions, not approval to repair a mistake in a test.
 
 ### What counts as finished
 
