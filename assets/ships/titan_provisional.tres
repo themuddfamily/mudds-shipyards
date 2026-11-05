@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"titan_provisional"
+display_name = "Titan-class Medium Transport candidate"
+role_name = "Medium transport"
+evidence_status = 1
+evidence_references = PackedStringArray("A3: creator-authored roster page archived 2009-11-12, name and medium-transport role only", "B3: Titan label at f1860, changes to Torrent at f1879 over unchanged visible craft; labels only, no model identification", "B4: Titan name string only; registered name-tied spawn is Torrent, not Titan", "docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md")
+evidence_notes = "A3 supports the Titan-class Medium Transport name and medium-transport role only. B3 and B4 corroborate labels only, not a Titan model; neither visible hull is borrowed. Historical model, scale, interior, access, systems and handling remain UNKNOWN. This owner-approved candidate is an original modern chamfered shuttle design: all geometry, dimensions, materials, pilot position, engine layout and handling/mechanics are modern choices, not historical measurements or authenticated reconstruction. Standalone hull/pilot fixture only; cabin access, passengers, cargo, combat, berth and production fleet integration remain pending. Upload dates date neither recordings nor builds."
+compatibility_tags = PackedStringArray("medium_craft", "medium_transport", "multi_crew", "cargo", "titan_transport")
+maximum_speed = 72.0
+boost_speed = 90.0
+thrust_acceleration = 18.0
+brake_acceleration = 27.0
+passive_drag = 1.95
+throttle_response = 6.1
+boost_multiplier = 1.19
+yaw_speed_degrees = 40.0
+roll_speed_degrees = 48.0
+flight_assist_strength = 4.45
+visual_bank_degrees = 5.5
+maximum_mouse_turn_degrees = 12.5
+engine_start_time = 3.4
+weapon_cooldown = 0.62
+maximum_hull = 220.0
+landing_maximum_speed = 11.0
+entry_noun = "hatch"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"standard_fighter"
