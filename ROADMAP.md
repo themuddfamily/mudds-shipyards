@@ -227,9 +227,59 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**No gameplay implementation or qualification is selected.** The requested
-roadmap clarification is documentation work. Select the next delivery only by
-filling the task card above; OPEN in the inventory does not mean ready to start.
+**Selected: SOLO-RIME / executable ordinary access-and-outbound member.**
+[Existing contract and explicitly permitted split](docs/ROADMAP_BACKLOG.md#solo-aurora-rime-ordinary-contracts).
+
+- **Result:** the existing native-sortie tool can drive normal Boot→convoy family
+  selection→physical Arrow boarding/departure→Destination Board Rime selection→
+  canonical10Mm cruise→strict Rime pad landing→natural OFFLINE→physical exit/
+  supported surface walking→normal HUD Quit. No actor placement, direct action,
+  time override or reward/phase/command-source write. This is an executable
+  build/qualification capability; the complete SOLO-RIME journey stays OPEN.
+- **Start/ownership:** clean main6a6c9f3cd; exact candidate frozen after caller
+  implementation. Root owns this card/integration/private export/raw retention/
+  cleanup. One implementation agent owns only run_native_sortie.py,
+  test_native_sortie.py,native_sortie_observer.gd,startup_loader.gd and
+  startup_cli_privacy_test.gd in its own worktree. No gameplay repair selected.
+  Output `/srv/mudds-work/rime-solo-outbound-20261105/`; unused private profile,
+  pinned4.7.1/a13da4feb editor and official release templates. No inherited data.
+- **Dependencies:** Arrow access and existing production Rime cruise/approach/
+  landing sources exist. The ordinary caller is missing,not an owner-input wait.
+  Shared Rime/Halyard arrival PARK stays closed; its setup is not this solo route.
+- **Action:** implement `--route rime-outbound` in existing native-sortie owners;
+  compile/import/privacy/full existing Python checks,clean private Linux export
+  and actual archive startup0/exactly1 STARTUP_MENU_READY_OK/diag0. Freeze exact
+  source/ELF/TAR before once running
+  `python3 -B tools/release/run_native_sortie.py EXACT_ELF --output FRESH_DIR --route rime-outbound`.
+  All Godot calls Dummy; rendered execution private Xvfb/explicitx11,independent
+  supervisor and full input/cursor release/reap. Never the user's desktop.
+- **Pass:** complete ordered prefix above,actual OS0/zero unexpected diagnostics,
+  current default LocalShipInputSource throughout,same Arrow/Player,travel>9.8Mm/
+  rebases>900,source steps<335m/no skipped physics/staging0;actual body/region/
+  pad/current lease/landed DOCKED/final_approach_handoff_ready. Require automatic
+  OFFLINE and ordinary exterior E followed by20supported walking ticks with
+  .25m<distance<5m. No survey/reward is fabricated. Keep canonical approach
+  envelope/speed/attitude and all tighter source station/boarding/alignment/
+  corridor/exit tick limits from the contract. Actual clean shutdown files and
+  protected unrelated data must agree. Caller success marker
+  NATIVE_RIME_OUTBOUND_OK only after normal HUD OS0,source/cache/profile guards
+  and owned process/input cleanup. Missing stage fails; no green subset.
+- **Proof/end:** raw OS-input/frame/command/cruise/rebase/landing/support/file/
+  exit receipts and exact package hashes under owned output. Independent source
+  review,accepted caller merged/pushed,unique failures archived before branch/
+  worktree/private exports/profile/scratch cleanup. Tool-only change needs no
+  duplicate public Windows checkpoint; no runtime/graphics repair is authorized.
+  Complete same-candidate survey/return/native2700/2760 and separate natural
+  cold/restart remain required; this prefix cannot close them or reset a later
+  complete journey's clock. No new registered capture set or validator.
+- **Budget/stop:** preparation charged from2026-11-05 13:03:00UTC; estimate60–80min,
+  absolute hard14:33:00UTC including review/export/run/integration/cleanup.
+  Existing2700s route/2760s independent supervisor cap,original tighter member
+  limits retained; launch only if full configured cap plus cleanup fits the
+  all-in deadline. Code/check readiness by13:35,launch no later13:43UTC with
+  remaining abort/closure reserve. First unexpected failure stops dependents;
+  one total cause-bound correction only after independent cumulative-cost GO.
+  Final failure/deadline parks and preserves source/raw; no automatic successor.
 
 **Latest closed member: Bulwark editable-source handoff — PASS.** Frozen source
 155cea002 supplies a complete editable archive and reproduction notes. A fresh
