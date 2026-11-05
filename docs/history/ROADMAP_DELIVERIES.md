@@ -34416,3 +34416,81 @@ after source archive, fresh remote-tip and registered ownership checks. No
 remote task branch or owned process remains. Only records.tar.gz/closeout.json
 remain in the case folder. Cleanup completed 2026-11-05T07:57:03.805978+00:00;
 cumulative 41.447 minutes from the original start, within the 90-minute cap.
+
+
+<a id="cinder-standing-readmission-initial-chair-stop-20261105"></a>
+## Cinder standing readmission — initial chair stop, 2026-11-05
+
+**PARKED/unaccepted.** Selected existing Cinder remote-crew capability1, separate
+from parked physical egress, landed world admission and cargo handoff. Original
+start08:00:25UTC, source-ready cutoff08:30:25, all-in stop09:30:25. Initial parsed
+behavioral freeze08:22:51 met readiness cutoff. Two of eight readiness fixes used;
+all three behavioral corrections exhausted. Roadmap clarification interrupted
+implementation without resetting its clock or limits. Full task card is preserved
+in the archive's selected-roadmap.md; caller300s/outer360s, host60s, client120s,
+Join20s, Resume8s, consumed view8s, walk15s and input240+3s remain unchanged.
+
+Candidate **5982bafd07dcf58cdb0c61866052b82bd408ddb9**, based on d7fc8c686,
+contains only GameFlow and the existing network passenger caller. Production
+extends the guarded standing-berth helper's exact whitelist from Halyard
+Loadmaster to Cinder Loadmaster/Navigator, retaining host authorization,
+support/range, body/claim, occupied/pending/transition and landed-revision guards.
+No generic pilot-promotion change. Source review GO and direct parsing are not
+behavioral acceptance. All authored changes remain unmerged.
+
+Readiness corrections fixed standing-before-disconnect and direct host/guest
+receipt correlation. Behavioral corrections were:
+
+1. Initial old-runtime setup failed because the fixture read absent telemetry
+   `docked`. Read the real operation snapshot dock latch and log actual operation,
+   pilot claim and enabled source; retain the full setup predicate.
+2. Root incorrectly launched annotated input-only Halyard regression headlessly.
+   Rerun with private Xvfb, explicit x11 and Dummy audio/rendering, same script/cap.
+3. Concurrent hosts contended for fixed LAN discovery UDP27102, producing
+   discovery_port_unavailable. Serialize that regression after baseline peers exit;
+   no production, assertion or cap change. These execution mistakes count toward
+   the original allowance; they do not justify an extra retry.
+
+**Old runtime reaches the intended failure:** corrected caller parses on both
+sources exit0/zero diagnostics (17.618s/17.622s). Two actual OS peers complete
+initial Navigator chair/FIRE, ordinary stand, browser Disconnect, exact-once
+body/frame retirement and normal Manual Join/Resume. First actual rejoined E
+requests the occupied pilot seat and gets seat_occupied instead of a fresh
+standing berth. Parent143/104.917533s/marker0; client56 and host24 checks, both
+incomplete, two failure diagnostics each. Host wait failure is secondary; peer
+exit receipts absent. This aborted expected failure is not a completed OS0 suite.
+Client landing rows are empty at this endpoint: the unchanged authoritative
+landing prerequisite remains unproved, never waived.
+
+**Halyard regression passes** after serialized isolated launch:34 assertions,
+exit0/77.128s/one distinct recovered-cabin marker/zero diagnostics. It proves
+actual completed docking and first-E standing admission for Halyard only.
+
+**Candidate fails before readmission:** parent143/98.239598s/marker0, raw client
+first failure `B initial physical chair E confirms Navigator`. Initial cabin
+boarding succeeds with fresh admission/body source, floor and frame registration;
+initial chair does not confirm. Client13 checks/host14 checks, completefalse;
+client has two errors, host two secondary failures plus12 static-string cleanup
+errors. No initial role/FIRE boundary, disconnect, rejoin, fresh standing grant,
+walking, renewed chair/FIRE or retained-A-through-readmission proof is reached.
+The exact initial chair rejection cause was not measured; empty landing rows in
+the different baseline stage are NOT an established cause of this failure.
+Peer exit receipts absent; no clean child OS0 claim is made.
+
+No additional correction, merge, export or checkpoint. Latest playable6474bda
+is unchanged. Reopening requires an actionable diagnosis and reliable real-input
+initial Navigator acquisition, unchanged authoritative landing prerequisites,
+and explicit user reprioritization preserving exhausted allowance/cumulative
+cost. A newly authorized trial must still prove the full old-RED/current-GREEN
+sequence and clean owned exits. Complete moving roles/home/egress/shared/native
+requirements retain their original gates; no subset is silently accepted.
+
+Verified archive: `/srv/mudds-work/cinder-cabin-readmission-20261105/records.tar.gz`
+(175 regular members,7,188,017bytes,SHA256
+`460032b262204fafa3961da5585f19376276c4c463a6283cd024bc11bcbbede5`).
+Source bundle/base/tip and every archived member SHA256 verified before cleanup.
+Owned candidate/baseline worktrees removed; local task ref exact-CAS deleted at
+5982bafd0 after fresh remote-tip/ownership checks. Remote task branch absent;
+no owned peer remains. Only archive/closeout remain in the case folder.
+Cleanup2026-11-05T08:44:48.422507+00:00,44.390minutes from original start;
+all-in cost also includes the following closure documentation/push.

@@ -15221,6 +15221,13 @@ original14:42:07 deadline; prior PLAN-NEXT costs and parked limits are retained.
 <a id="cinder-remote-crew-moving-handback"></a>
 #### Cinder remote crew: motion, standing admission, ramp and conserved delivery
 
+**Standing-readmission attempt PARKED/unaccepted,2026-11-05.** Candidate5982bafd0
+is archived unmerged: actual old runtime reaches the first rejoined-E rejection,
+but candidate initial Navigator chair acquisition fails before its disconnect.
+Halyard regression34 passes in its own scope. No Cinder readmission or build is
+accepted. [Exact stop, retained source and reopening requirements](history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105).
+This capability remains missing; do not automatically rename/retry it.
+
 Definition2026-10-27,22:21–22:46UTC through source review,checks,push and
 cleanup. Root owns these documents;one read-only source agent binds the shared
 Cinder fields. No engine run or parked checkpoint retry. Literal prerequisites:

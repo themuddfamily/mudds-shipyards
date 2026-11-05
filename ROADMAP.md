@@ -227,58 +227,19 @@ the readiness/proof/closure rules. All337 canonical rows are unchanged; local
 roadmap links resolve and independent review checked the selection rules. No
 gameplay result or qualification is claimed by this documentation change.
 
-**Unfinished implementation, preserved while this requested planning work is handled:** Cinder retained-cabin standing readmission. Existing
-[Cinder remote-crew capability 1](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback),
-independent of parked physical egress and remote cargo transfer.
+**Cinder retained-cabin standing readmission: PARKED/unaccepted.** Candidate
+5982bafd0 is archived unmerged. The old-runtime run reached the intended first
+rejoined E failure, but the candidate stopped earlier: initial Navigator chair E
+did not confirm. Its disconnect/rejoin/readmission result remains unproved.
+The shared Halyard regression passes34 assertions; that does not qualify Cinder.
+The frozen correction allowance is exhausted. No checkpoint was built; latest
+playable remains6474bda. Owned worktrees, branch and scratch are cleaned up.
+[Exact results, archive and reopening conditions](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105).
 
-- **Result:** after browser disconnect/rejoin while standing in the Hauler,
-  the guest's first crew-station E obtains a fresh standing cabin berth/body;
-  a later E claims the chair. The occupied pilot seat remains with A.
-- **Start/owner:** clean `583ad250a`; implementation owns only
-  `scripts/game/game_flow.gd` and existing
-  `tests/network/halyard_network_passenger_route_test.gd`. One independent
-  reviewer checks authorization, ownership, support and lifecycle. Reuse existing
-  host boarding/body owners and explicit retained-cabin helper; preserve its
-  Halyard behavior and generic cockpit/pilot promotion semantics.
-- **Dependencies:** current Hauler/chair/body/transport and existing browser UI
-  are present. Do not restore parked egress, Halyard landed-admission or Jovian
-  readmission candidates. No new world route, remote terminal or role matrix.
-- **Action:** new opt-in `--cinder-cabin-readmission` in the existing two-OS
-  passenger caller; A is the host Hauler pilot, B its current Navigator guest.
-  Both selected peers use actual Intro Begin Shift before pause/browser actions.
-  Existing outside approach staging and an initial production home reset may
-  establish the fixture's supported starting state; disclose them. Initial
-  hatch/chair/FIRE, browser Disconnect, supported solo cabin walk, Manual Join
-  and Back/Resume, first E/body, walk, later E/chair/FIRE use real production UI
-  and inputs. No placement, old-grant write or fake body supplies readmission.
-- **Pass:** old runtime fails the first fresh-standing-grant endpoint after
-  successful setup/rejoin. New runtime retains the same B Player and supported
-  cabin after disconnect; old host body weakref, claim and effects retire once.
-  Rejoin authenticates current session/admission. First E is BOARD_ANY for a
-  host-chosen berth only: unseated fresh bound body/source, no pilot/chair grant.
-  Walk at least0.6m on real current cabin support, then claim current Navigator
-  chair and FIRE with matching host/guest peer/avatar/entity/frame/claim/stream
-  and current consumer receipt. A's original body/seat/source/helm and advancing
-  commands, unrelated stock and owners stay current. Stale/foreign/no-admission,
-  unsupported/out-of-range, occupied/pending/transition guards stay intact;
-  current existing helper prerequisites must actually pass, not be removed.
-- **Proof:** raw two-peer UI/action/body/claim/support/receipt operands and actual
-  OS0 exits with one distinct success marker/zero diagnostics; retain old failure.
-  Run existing recovered-Halyard-cabin focused regression because its helper is
-  shared. Targeted staged starting state proves this capability only; complete
-  moving roles, full home/egress and ordinary fresh travel remain open.
-- **Budget:** start2026-11-05 08:00:25 UTC; source-ready deadline08:30:25;
-  all-in deadline09:30:25. Existing caller300s/outer360s, host ready60s, client
-  completion120s, Manual Join20s, Back/Resume8s, consumed view8s, walk15s and
-  input240+3s support limits retained. Source readiness includes direct parsing
-  before behavioral source freeze: at most eight cause-bound readiness fixes,
-  then at most three behavioral acceptance corrections (eleven total), all
-  within this original clock. Each unexpected failure stops dependent checks
-  and records cause/cumulative cost; no reset, renamed retry or parked reopening.
-- **Endpoint:** accepted behavior gets focused checks, safe clean-commit
-  Windows/Linux checkpoint/strict startup/package validation, merge/push and
-  owned cleanup. Otherwise archive/park at deadline or exhausted allowance.
-  All Godot Dummy, headless/private Xvfb explicit x11; hosted CI stays disabled.
+Do not select a renamed retry. Reopening requires an actionable diagnosis of the
+actual initial chair rejection, preservation of the authoritative landing guard,
+and explicit user reprioritization retaining the prior cost and exhausted limit.
+Other independent ready goals remain selectable under the rules below.
 
 The
 [Cinder physical guest exit attempt](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105)
