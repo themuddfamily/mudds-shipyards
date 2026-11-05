@@ -270,6 +270,7 @@ func _initialize() -> void:
 	var anchor_snapshot := _anchor_snapshot(craft)
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
 	var authority_snapshot := _authority_snapshot(craft.get_audit_report())
+	await _test_whole_exterior_lod(craft)
 	craft.apply_damage(1.0)
 	await process_frame
 	_check(
@@ -1137,3 +1138,224 @@ func _impact_effect_added_since(before: Dictionary) -> Node3D:
 		if candidate is Node3D and candidate.get_node_or_null(^"ImpactLight") != null:
 			return candidate as Node3D
 	return null
+
+
+func _test_whole_exterior_lod(craft: CinderCargoHauler) -> void:
+	var was_physics := craft.is_physics_processing()
+	craft.set_physics_process(false)
+	var report := craft.get_exterior_lod_report()
+	print("CINDER_HAULER_WHOLE_LOD_CENSUS: ", report)
+	_check(report.active_lod == 0 and report.valid,
+		"initial complete static exterior is close and actual surface/copy budgets meet 25 percent")
+	var ribs := craft.get_node("CinderCargoVisual/CargoFrameRibBatch") as MultiMeshInstance3D
+	var original_visible_copies := ribs.multimesh.visible_instance_count
+	ribs.multimesh.visible_instance_count = -1
+	var all_copies: Dictionary = craft.call("_exterior_lod_renderer_census", ribs)
+	ribs.multimesh.visible_instance_count = 0
+	var zero_copies: Dictionary = craft.call("_exterior_lod_renderer_census", ribs)
+	ribs.multimesh.visible_instance_count = 2
+	var partial_copies: Dictionary = craft.call("_exterior_lod_renderer_census", ribs)
+	ribs.multimesh.visible_instance_count = original_visible_copies
+	_check(all_copies.copies == ribs.multimesh.instance_count and all_copies.triangles > 0
+		and all_copies.submissions == ribs.multimesh.mesh.get_surface_count(),
+		"actual MultiMesh census uses all allocated copies only when visible count is minus one")
+	_check(zero_copies.copies == 0 and zero_copies.triangles == 0 and zero_copies.submissions == 0,
+		"zero visible MultiMesh copies contribute no triangles or submissions")
+	_check(partial_copies.copies == 2
+		and partial_copies.triangles * all_copies.copies == all_copies.triangles * 2
+		and partial_copies.submissions == all_copies.submissions
+		and ribs.multimesh.visible_instance_count == original_visible_copies,
+		"partial visible copies scale actual triangles while retaining one surface submission and restore original state")
+	var before := _lod_retained_snapshot(craft)
+	var cases := [[100.0, 0], [120.0, 0], [110.0, 0], [-1.0, 0], [INF, 0], [NAN, 0],
+		[120.001, 1], [120.0, 1], [100.0, 1], [110.0, 1], [-1.0, 1], [-INF, 1], [NAN, 1], [99.999, 0]]
+	for item: Array in cases:
+		craft.update_exterior_lod_distance(float(item[0]))
+		report = craft.get_exterior_lod_report()
+		var atomic := int(report.active_lod) == int(item[1])
+		for row: Dictionary in report.renderers:
+			if row.membership == &"close":
+				atomic = atomic and bool(row.visible) == (int(item[1]) == 0 and bool(row.authored_visible))
+		_check(atomic and (craft.get("_exterior_lod_far") as Node3D).visible == (int(item[1]) == 1),
+			"strict boundaries/deadband/invalid retain one complete exterior: %s -> %s" % item)
+		var actual := _lod_retained_snapshot(craft)
+		var difference := _lod_first_difference(before, actual)
+		if not difference.is_empty():
+			print("CINDER_HAULER_LOD_FIRST_DIFFERENCE: ", difference)
+		_check(difference.is_empty(), "distance switch preserves every actual node/resource/authority operand")
+	var unknown := MeshInstance3D.new()
+	unknown.name = "UnknownNonemptyRenderer"
+	unknown.mesh = BoxMesh.new()
+	craft.get_variant_visual_root().add_child(unknown)
+	_check(not craft.get_exterior_lod_report().valid,
+		"new nonempty renderer cannot evade complete membership")
+	unknown.free()
+	var empty := MeshInstance3D.new()
+	empty.name = "EmptyResourceWitness"
+	empty.mesh = ArrayMesh.new()
+	craft.get_variant_visual_root().add_child(empty)
+	var empty_id := empty.mesh.get_instance_id()
+	craft.update_exterior_lod_distance(150.0)
+	var empty_seen := false
+	for row: Dictionary in craft.get_exterior_lod_report().renderers:
+		if int(row.node) == empty.get_instance_id():
+			empty_seen = int(row.mesh) == empty_id and int(row.surfaces) == 0 and int(row.triangles) == 0
+	_check(empty_seen and empty.mesh.get_instance_id() == empty_id,
+		"zero-surface stock is retained and explicitly audited without empty tangent generation")
+	empty.free()
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.global_position = craft.global_position + Vector3(0, 0, 150)
+	camera.make_current()
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"actual foreign current viewport camera selects far by measured distance")
+	camera.global_position = craft.global_position + Vector3(0, 0, 20)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 0,
+		"actual current viewport camera returns complete close hull")
+	var cockpit := craft.get_node("CinderCargoVisual/CockpitInterior/CockpitCamera") as Camera3D
+	var cockpit_pose := cockpit.transform
+	cockpit.global_position = craft.global_position + Vector3(0, 0, 150)
+	cockpit.make_current()
+	craft.update_exterior_lod_distance(150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 0,
+		"exact own current cockpit camera forces close independently of distance")
+	cockpit.transform = cockpit_pose
+	var foreign := Hauler.new() as CinderCargoHauler
+	root.add_child(foreign)
+	foreign.set_physics_process(false)
+	var foreign_cockpit := foreign.get_node("CinderCargoVisual/CockpitInterior/CockpitCamera") as Camera3D
+	foreign_cockpit.global_position = craft.global_position + Vector3(0, 0, 150)
+	foreign_cockpit.make_current()
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign craft cockpit has no force-close ownership")
+	var actor := PLAYER_SCENE.instantiate() as PlayerController
+	root.add_child(actor)
+	actor.set_physics_process(false)
+	actor.set_process(false)
+	actor.set_control_enabled(false)
+	actor.set_camera_active(true)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	actor.set_camera_view_mode(PlayerController.CameraViewMode.FIRST_PERSON)
+	_check(actor.set_cabin_containment(craft, Hauler.INTERIOR_BOUNDS, craft.global_transform),
+		"real current Player accepts the own-craft cabin frame")
+	craft.update_exterior_lod_distance(150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 0,
+		"aboard current Player interior first-person camera forces close")
+	actor.set_cabin_containment(foreign, Hauler.INTERIOR_BOUNDS, foreign.global_transform)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign Player cabin binding does not force this craft close")
+	actor.clear_cabin_containment()
+	var started := actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_cockpit_seat_anchor(), 1.0, craft)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(started and actor.is_boarding_at(craft.get_cockpit_seat_anchor())
+		and craft.get_exterior_lod_report().active_lod == 0,
+		"real own-seat boarding transition with current Player camera forces close")
+	actor.call("_update_boarding", 1.1)
+	var leaving := actor.begin_disembark(craft.get_exit_transform(), 1.0, craft)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.update_exterior_lod_distance(150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(leaving and craft.get_exterior_lod_report().active_lod == 0,
+		"real own-craft disembark transition retains close")
+	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_cockpit_seat_anchor(), 1.0, foreign)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign real transition cannot force this craft close")
+	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	actor.free()
+	foreign.free()
+	camera.free()
+	craft.update_exterior_lod_distance(20)
+	craft.set_physics_process(was_physics)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+# Snapshot actual owned resources, not duplicate-returning definition getters.
+# Prime normal lazy discovery before walking IDs so the first comparison has
+# exactly the same ownership universe as all later ones.
+func _lod_retained_snapshot(craft: CinderCargoHauler) -> Dictionary:
+	craft.get_command_source()
+	craft.get_weapon_component_emitter_snapshot()
+	craft.get_exterior_lod_report()
+	var resources: Dictionary = {}
+	var nodes: Array[Dictionary] = []
+	var shared: Array = craft.get("_exterior_lod_shared")
+	for node: Node in [craft] + craft.find_children("*", "", true, false):
+		var row := {"id": node.get_instance_id(), "parent": node.get_parent().get_instance_id() if node.get_parent() != null else 0,
+			"children": node.get_child_count()}
+		if node is Node3D:
+			row["transform"] = (node as Node3D).transform
+		if node is GeometryInstance3D and shared.has(node as GeometryInstance3D):
+			row["shared_visible"] = (node as GeometryInstance3D).visible
+		if node is CollisionObject3D:
+			row["rid"] = (node as CollisionObject3D).get_rid()
+			row["layer"] = (node as CollisionObject3D).collision_layer
+			row["mask"] = (node as CollisionObject3D).collision_mask
+		if node is CollisionShape3D:
+			row["disabled"] = (node as CollisionShape3D).disabled
+		nodes.append(row)
+		for property: Dictionary in node.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				_lod_collect_resource_ids(node.get(property.name), resources)
+	_lod_collect_resource_ids(craft.ship_definition, resources)
+	_lod_collect_resource_ids(craft.get("_weapon_definition"), resources)
+	var source := craft.get_command_source()
+	return {"nodes": nodes, "resources": resources, "source": source.get_instance_id(),
+		"stream": source.get_stream_id(), "sequence": source.get_next_sequence(),
+		"anchors": craft.get_cargo_transfer_anchors().map(func(anchor: Marker3D) -> int: return anchor.get_instance_id()),
+		"definition": craft.ship_definition.get_instance_id(), "hull": craft.get("_hull"),
+		"ledger": craft.get_component_damage().get_ledger_snapshot(),
+		"generation": craft.get_component_damage().get_ledger_generation()}
+
+
+func _lod_collect_resource_ids(value: Variant, ids: Dictionary) -> void:
+	if value is Resource and not value is Script:
+		var resource := value as Resource
+		var id := resource.get_instance_id()
+		if ids.has(id):
+			return
+		ids[id] = resource.get_class()
+		if resource is Mesh:
+			for surface in (resource as Mesh).get_surface_count():
+				_lod_collect_resource_ids((resource as Mesh).surface_get_material(surface), ids)
+		for property: Dictionary in resource.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				_lod_collect_resource_ids(resource.get(property.name), ids)
+	elif value is Array:
+		for item: Variant in value:
+			_lod_collect_resource_ids(item, ids)
+	elif value is Dictionary:
+		for item: Variant in value.values():
+			_lod_collect_resource_ids(item, ids)
+
+
+func _lod_first_difference(expected: Variant, actual: Variant, path: String = "owned") -> String:
+	if typeof(expected) != typeof(actual):
+		return "%s expected=%s actual=%s" % [path, str(expected), str(actual)]
+	if expected is Dictionary:
+		if expected.size() != actual.size():
+			return "%s.size expected=%s actual=%s" % [path, expected.size(), actual.size()]
+		for key: Variant in expected:
+			if not actual.has(key):
+				return "%s[%s] expected=%s actual=MISSING" % [path, key, str(expected[key])]
+			var difference := _lod_first_difference(expected[key], actual[key], "%s[%s]" % [path, key])
+			if not difference.is_empty():
+				return difference
+	elif expected is Array:
+		if expected.size() != actual.size():
+			return "%s.size expected=%s actual=%s" % [path, expected.size(), actual.size()]
+		for index in expected.size():
+			var difference := _lod_first_difference(expected[index], actual[index], "%s[%d]" % [path, index])
+			if not difference.is_empty():
+				return difference
+	elif expected != actual:
+		return "%s expected=%s actual=%s" % [path, str(expected), str(actual)]
+	return ""

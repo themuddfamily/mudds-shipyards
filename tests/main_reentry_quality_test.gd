@@ -209,6 +209,11 @@ func _test_whole_main_reentry_paused(
 	if not census_valid:
 		return
 	paused = true
+	var lod_hauler := _ship_by_id(all_craft, &"cinder_cargo_hauler") as CinderCargoHauler
+	_check(lod_hauler != null, "Hauler LOD cut resolves the exact production craft")
+	if lod_hauler == null:
+		return
+	_test_hauler_lod_epoch(lod_hauler, "healthy settled initial epoch", game, world_owner, authority)
 	if not _prepare_component_cut(game, world_owner, authority, all_craft, component_cut):
 		return
 
@@ -377,6 +382,7 @@ func _test_whole_main_reentry_paused(
 		await _await_settled_roster(game)
 		if not _compare_component_cut(game, component_cut, authority, cycle, true):
 			return
+		_test_hauler_lod_epoch(lod_hauler, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
 
 		var restored_audio := audio.get_synthesis_report()
 		var restored_resource_ids := restored_audio.resource_instance_ids as Dictionary
@@ -1255,3 +1261,116 @@ func _finish() -> void:
 	else:
 		print("MAIN_REENTRY_QUALITY_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+func _test_hauler_lod_epoch(craft: CinderCargoHauler, epoch: String, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> void:
+	var before := {"craft": _lod_retained_snapshot(craft), "external": _lod_main_external(craft, game, world, authority)}
+	var source_id := (craft.get_command_source()).get_instance_id()
+	for item: Array in [[20.0, 0], [120.0, 0], [120.001, 1], [110.0, 1], [100.0, 1], [99.999, 0]]:
+		craft.update_exterior_lod_distance(float(item[0]))
+		var report := craft.get_exterior_lod_report()
+		var actual := {"craft": _lod_retained_snapshot(craft), "external": _lod_main_external(craft, game, world, authority)}
+		var difference := _lod_first_difference(before, actual)
+		if not difference.is_empty():
+			print("MAIN_HAULER_LOD_FIRST_DIFFERENCE: epoch=", epoch, " distance=", item[0], " ", difference)
+		_check(report.valid and report.active_lod == int(item[1]) and difference.is_empty()
+			and craft.get_command_source().get_instance_id() == source_id,
+			"Hauler complete exterior switch retains exact owned resources and authority within %s at %s" % [epoch, item[0]])
+
+
+# Snapshot actual owned resources, not duplicate-returning definition getters.
+# Prime normal lazy discovery before walking IDs so the first comparison has
+# exactly the same ownership universe as all later ones.
+func _lod_retained_snapshot(craft: CinderCargoHauler) -> Dictionary:
+	craft.get_command_source()
+	craft.get_weapon_component_emitter_snapshot()
+	craft.get_exterior_lod_report()
+	var resources: Dictionary = {}
+	var nodes: Array[Dictionary] = []
+	var shared: Array = craft.get("_exterior_lod_shared")
+	for node: Node in [craft] + craft.find_children("*", "", true, false):
+		var row := {"id": node.get_instance_id(), "parent": node.get_parent().get_instance_id() if node.get_parent() != null else 0,
+			"children": node.get_child_count()}
+		if node is Node3D:
+			row["transform"] = (node as Node3D).transform
+		if node is GeometryInstance3D and shared.has(node as GeometryInstance3D):
+			row["shared_visible"] = (node as GeometryInstance3D).visible
+		if node is CollisionObject3D:
+			row["rid"] = (node as CollisionObject3D).get_rid()
+			row["layer"] = (node as CollisionObject3D).collision_layer
+			row["mask"] = (node as CollisionObject3D).collision_mask
+		if node is CollisionShape3D:
+			row["disabled"] = (node as CollisionShape3D).disabled
+		nodes.append(row)
+		for property: Dictionary in node.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				_lod_collect_resource_ids(node.get(property.name), resources)
+	_lod_collect_resource_ids(craft.ship_definition, resources)
+	_lod_collect_resource_ids(craft.get("_weapon_definition"), resources)
+	var source := craft.get_command_source()
+	return {"nodes": nodes, "resources": resources, "source": source.get_instance_id(),
+		"stream": source.get_stream_id(), "sequence": source.get_next_sequence(),
+		"anchors": craft.get_cargo_transfer_anchors().map(func(anchor: Marker3D) -> int: return anchor.get_instance_id()),
+		"definition": craft.ship_definition.get_instance_id(), "hull": craft.get("_hull"),
+		"ledger": craft.get_component_damage().get_ledger_snapshot(),
+		"generation": craft.get_component_damage().get_ledger_generation()}
+
+
+func _lod_collect_resource_ids(value: Variant, ids: Dictionary) -> void:
+	if value is Resource and not value is Script:
+		var resource := value as Resource
+		var id := resource.get_instance_id()
+		if ids.has(id):
+			return
+		ids[id] = resource.get_class()
+		if resource is Mesh:
+			for surface in (resource as Mesh).get_surface_count():
+				_lod_collect_resource_ids((resource as Mesh).surface_get_material(surface), ids)
+		for property: Dictionary in resource.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				_lod_collect_resource_ids(resource.get(property.name), ids)
+	elif value is Array:
+		for item: Variant in value:
+			_lod_collect_resource_ids(item, ids)
+	elif value is Dictionary:
+		for item: Variant in value.values():
+			_lod_collect_resource_ids(item, ids)
+
+
+func _lod_first_difference(expected: Variant, actual: Variant, path: String = "owned") -> String:
+	if typeof(expected) != typeof(actual):
+		return "%s expected=%s actual=%s" % [path, str(expected), str(actual)]
+	if expected is Dictionary:
+		if expected.size() != actual.size():
+			return "%s.size expected=%s actual=%s" % [path, expected.size(), actual.size()]
+		for key: Variant in expected:
+			if not actual.has(key):
+				return "%s[%s] expected=%s actual=MISSING" % [path, key, str(expected[key])]
+			var difference := _lod_first_difference(expected[key], actual[key], "%s[%s]" % [path, key])
+			if not difference.is_empty():
+				return difference
+	elif expected is Array:
+		if expected.size() != actual.size():
+			return "%s.size expected=%s actual=%s" % [path, expected.size(), actual.size()]
+		for index in expected.size():
+			var difference := _lod_first_difference(expected[index], actual[index], "%s[%d]" % [path, index])
+			if not difference.is_empty():
+				return difference
+	elif expected != actual:
+		return "%s expected=%s actual=%s" % [path, str(expected), str(actual)]
+	return ""
+
+
+func _lod_main_external(craft: CinderCargoHauler, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> Dictionary:
+	var home := world.get_berth_node(craft.get_home_berth_id())
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var role := craft.get_crew_role_authority()
+	return {"world": world.get_instance_id(), "player": game.player.get_instance_id(),
+		"source": authority.get_source_id(craft), "source_count": game.get_combat_resolver().get_registered_source_count(),
+		"home": home.get_instance_id(), "home_id": craft.get_home_berth_id(),
+		"home_occupant": _retained_id(home.get_occupant()), "home_owner": _retained_id(home.get_reservation_owner()),
+		"home_ship_id": home.get_reserved_ship_id(), "home_token": home.get_reservation_token(craft),
+		"berth_token": (game.get("_berth_tokens") as Dictionary).get(craft.get_instance_id()),
+		"boarding_reserved": area.is_reserved(), "boarding_token": area.get_reservation_token(),
+		"role": _retained_id(role), "claims": role.get_snapshot() if role != null else {},
+		"pilot": craft.is_piloted(), "remote_pilot": craft.is_remote_piloted()}
