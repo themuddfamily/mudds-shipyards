@@ -4,7 +4,39 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `f0d6796` — 2026-10-27
+The current playable checkpoint is listed in [ROADMAP.md](../ROADMAP.md).
+The dated records below retain their original source and validation scopes.
+
+## Restoring an archived checkpoint binary
+
+Older loose executables may be removed only after a complete byte comparison
+proves the same file is preserved in its retained ZIP/TAR. Archives, notes and
+export records remain. Historical direct executable links can be restored from
+the same-name archive; the cleanup preserves active documentation links and
+the latest three complete checkpoint sets.
+
+Replace `REV` with the checkpoint's hexadecimal revision. To restore only the
+Linux executable at its original path, preserving archive permissions:
+
+```bash
+tar -xzf builds/linux/MuddsShipyards-REV-linux-x86_64.tar.gz \
+  --strip-components=1 --directory builds/linux \
+  MuddsShipyards-REV/MuddsShipyards-REV.x86_64
+```
+
+For Windows, open the retained ZIP and extract its same-name EXE into
+`builds/windows/`, or use:
+
+```bash
+unzip -j builds/windows/MuddsShipyards-REV-checkpoint.zip \
+  MuddsShipyards-REV.exe -d builds/windows
+```
+
+Some older Windows archives use `MuddsShipyards-REV.zip`; use that retained
+filename instead. Neither command starts the game. Existing native Windows/GPU,
+physical-device and full-release qualification limits still apply.
+
+## Recorded development checkpoint: `f0d6796` — 2026-10-27
 
 [Linux archive](../builds/linux/MuddsShipyards-f0d6796-linux-x86_64.tar.gz),
 [ELF](../builds/linux/MuddsShipyards-f0d6796.x86_64) and

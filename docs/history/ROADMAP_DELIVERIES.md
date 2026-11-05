@@ -35950,3 +35950,46 @@ package inventories/audit and copy/review/process records. Accepted packages sta
 in repository builds. Ordinary craft/cargo/crew/home/LOD journeys, full art,
 original default capture, native Windows/GPU/devices and all original parent gates
 remain OPEN. No successor or parked retry is selected by closure.
+
+
+<a id="checkpoint-duplicate-cleanup-cutoff-20261105"></a>
+## Archived checkpoint duplicate cleanup — fixed cutoff, 2026-11-05
+
+Owner-requested housekeeping, supporting PACKAGE-FINAL storage without qualifying
+any game/release outcome. Selection95f895a97 froze306 canonical loose executable
+candidates/51,541,891,296bytes and38 protected binaries. No source/runtime change,
+engine call, new checkpoint, branch or worktree. Prior files occupied85GB with
+about1.9GB filesystem free.
+
+**Actual:** 303 candidates checked,298 exact archived duplicates removed totaling
+50,170,821,576bytes (50.2GB). Each deletion followed complete stream byte equality,
+ZIP member/gzip CRC integrity, binary/archive SHA256, safe exact member/type/mode,
+unchanged fd/path inode-size-time-mode-link identities, no active executable owner,
+and fsynced per-file proof. All archives, notes and export results remain. The
+latest27e2955/84bd54a/c60face sets, four installers and28 old directly referenced
+binaries remain. All21 latest-set files rehashed/mode checked against their
+accepted manifests; all306 candidate archive identities remain unchanged.
+A removed Windows and Linux0070248 binary were restored using the documented
+unzip/tar commands into owned temporary directories, verified exact original
+hashes/modes, then those restored duplicates were removed.
+
+**Retained exceptions:** Windows1d095ad,5010203,52b7b6e,71f681d,7f23a80 have loose
+mode0644 versus archived0755. They were preserved; byte equivalence was not claimed
+past that failed guard. Linuxf8b5f86,fb396ab,fdae1cb remained NOT_RUN when the
+unchanged19:24UTC verification cutoff was reached. Assignment PARKED for remaining
+candidates; do not report all306 verified or silently rename/retry the remainder.
+
+Measured sequential throughput required the one frozen driver correction:
+original supervised worker464819 was deliberately terminated, terminal143 and
+absent; only27 unfinished files were submitted with4 workers to the identical
+verification function, with serialized proof/unlink and the original guards,
+candidates,19:24cutoff and19:28all-in deadline retained. Completed proofs were
+preserved, not rerun. Corrected supervisor466259 exits0; result accurately says
+CUTOFF_REMAINING,303processed/298removed/5retained/3unprocessed. No threshold,
+mode, byte comparison or archive requirement was loosened.
+
+[Archive restoration instructions](../LINUX_BUILD.md#restoring-an-archived-checkpoint-binary)
+also point current players to ROADMAP's latest checkpoint rather than calling
+an old October record current. All original native/device/release gates remain
+open. Start19:08UTC; final closure time and verified records archive identity are
+in `/srv/mudds-work/checkpoint-storage-cleanup-20261105/closeout.json`.
