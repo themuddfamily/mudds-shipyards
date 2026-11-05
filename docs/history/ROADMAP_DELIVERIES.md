@@ -33321,8 +33321,15 @@ qualification, all17 Reduced Flash families and applicable device/native/final
 gates remain OPEN/NOT_RUN. No parked route is resumed or renamed here, and
 GitHub Actions remains disabled.
 
-Owned records are retained outside the repository under
-/srv/mudds-work/arrow-atmospheric-guidance-20261105. Integration closure preserves
-those records, copies checked artifacts into main, pushes accepted changes and
-removes the owned branch/worktree/processes. The original00:13:41→01:28:41UTC
-75min clock includes implementation, proof, builds and cleanup.
+Accepted work is merged/pushed through6755438d0. All seven checked artifact
+copies in the main repository retain exact hashes. The owned worktree is removed;
+the local branch was deleted with its exact expected tip after verifying pushed
+main containment and remote branch absence. No branch exceptions or owned
+engine actors remain. Raw records and accepted source patch are consolidated in
+/srv/mudds-work/arrow-atmospheric-guidance-20261105/records.tar.gz:
+40 regular members/3,621,617bytes, verified SHA256
+722c0d72478bdeb503678667d1af73c877303bf20d0d02773cd233796d92018f.
+Only that archive and closeout.json remain in the owned case directory. Cleanup
+completed by00:32:17UTC, inside the original00:13:41→01:28:41UTC75min clock
+including implementation, proof, builds and integration. The closure record
+is committed/pushed separately; no full project completion is implied.
