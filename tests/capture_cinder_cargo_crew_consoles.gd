@@ -21,6 +21,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--lod-review"):
+		await _run_lod_review()
+		return
 	root.size = CAPTURE_RESOLUTION
 	root.content_scale_size = Vector2i.ZERO
 	root.msaa_3d = Viewport.MSAA_2X
@@ -218,3 +221,144 @@ func _finish() -> void:
 		return
 	print("CINDER_CARGO_CREW_CONSOLE_CAPTURE_FAILED: ", "; ".join(_failures))
 	quit(1)
+
+
+## Opt-in review keeps the original 1600x900 console witness untouched.
+## Three native offscreen panels each own a complete production craft and its
+## real gameplay camera; no beauty camera, image scaling or camera reparenting.
+func _run_lod_review() -> void:
+	create_timer(270.0).timeout.connect(func() -> void:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		push_error("CINDER_HAULER_LOD_REVIEW_TIMEOUT")
+		quit(1))
+	var output := ""
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--output-dir="):
+			output = argument.trim_prefix("--output-dir=")
+	_check(output.is_absolute_path(), "LOD review requires an absolute output directory")
+	if not output.is_absolute_path():
+		_finish()
+		return
+	_check(DirAccess.make_dir_recursive_absolute(output) == OK, "LOD output directory exists")
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	root.content_scale_size = Vector2i.ZERO
+	root.size = Vector2i(1920, 720)
+	await process_frame
+	_check(root.size == Vector2i(1920, 720)
+		and DisplayServer.window_get_size() == Vector2i(1920, 720)
+		and root.content_scale_size == Vector2i.ZERO
+		and root.content_scale_mode == Window.CONTENT_SCALE_MODE_DISABLED
+		and root.get_visible_rect().size == Vector2(1920, 720),
+		"native 1920x720 window and disabled content scaling match the declared layout")
+	_check(RenderingServer.get_current_rendering_method() == &"forward_plus"
+		and not RenderingServer.get_video_adapter_name().is_empty(),
+		"LOD review uses a live Forward+ rendering device")
+	var viewports: Array[SubViewport] = []
+	var crafts: Array[CinderCargoHauler] = []
+	var containers: Array[SubViewportContainer] = []
+	var names := ["near_20m", "far_150m", "cockpit"]
+	for index in 3:
+		var container := SubViewportContainer.new()
+		container.name = "LODPanel" + str(index)
+		container.position = Vector2(index * 640, 0)
+		container.size = Vector2(640, 720)
+		container.stretch = false
+		root.add_child(container)
+		containers.append(container)
+		var viewport := SubViewport.new()
+		viewport.name = "ProductionView" + str(index)
+		viewport.size = Vector2i(640, 720)
+		viewport.own_world_3d = true
+		viewport.msaa_3d = Viewport.MSAA_2X
+		viewport.use_taa = true
+		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		container.add_child(viewport)
+		viewports.append(viewport)
+		var stage := Node3D.new()
+		viewport.add_child(stage)
+		_build_environment(stage)
+		var craft := Hauler.new() as CinderCargoHauler
+		stage.add_child(craft)
+		crafts.append(craft)
+		craft.set_process(false)
+		craft.set_physics_process(false)
+		craft.set_piloted(true)
+		craft.set_cockpit_view(index == 2)
+		if index == 1:
+			# Only this fixture extends the production chase-distance ceiling.
+			craft.maximum_chase_camera_distance = 150.0
+		craft.set_chase_camera_distance(150.0 if index == 1 else 20.0)
+		craft.call("_update_presentation", 10.0, ShipCommand.new())
+		craft.get_camera().make_current()
+	for _frame in 24:
+		await physics_frame
+		await process_frame
+	for craft: CinderCargoHauler in crafts:
+		craft.call("_update_exterior_lod_from_current_camera")
+	for _frame in 8:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var panels: Array[Image] = []
+	for index in 3:
+		var viewport := viewports[index]
+		var craft := crafts[index]
+		var camera := viewport.get_camera_3d()
+		var report := craft.get_exterior_lod_report()
+		var distance := camera.global_position.distance_to(craft.get_variant_visual_root().global_position)
+		var expected := 1 if index == 1 else 0
+		_check(viewport.size == Vector2i(640, 720)
+			and viewport.get_visible_rect().size == Vector2(640, 720)
+			and containers[index].position == Vector2(index * 640, 0)
+			and containers[index].size == Vector2(640, 720) and not containers[index].stretch,
+			"panel %s has exact native viewport and unscaled 640x720 layout" % names[index])
+		_check(camera == craft.get_camera() and camera.get_viewport() == viewport
+			and craft.is_ancestor_of(camera) and camera.current
+			and camera.name == (&"CockpitCamera" if index == 2 else &"ShipCamera")
+			and report.valid and report.active_lod == expected,
+			"panel %s selects the actual production camera and complete exterior" % names[index])
+		if index < 2:
+			_check((distance > 120.0 if index == 1 else distance < 100.0)
+				and is_equal_approx(craft.get_chase_camera_distance(), 150.0 if index == 1 else 20.0),
+				"panel %s uses requested production chase distance and actual threshold" % names[index])
+			var visible_corners := 0
+			for x in [-4.6, 4.6]:
+				for y in [-1.6, 2.6]:
+					for z in [-6.2, 6.8]:
+						if camera.is_position_in_frustum(craft.to_global(Vector3(x, y, z))):
+							visible_corners += 1
+			_check(visible_corners == 8,
+				"panel %s contains the complete authored cargo/engine/cockpit envelope (%d/8)" % [names[index], visible_corners])
+		else:
+			var readout := craft.get("_cockpit_readout") as Label3D
+			_check(readout != null and readout.is_visible_in_tree()
+				and camera.near <= 0.05
+				and (-camera.global_basis.z).dot(-craft.global_basis.z) > 0.999,
+				"cockpit keeps its physical pilot eye, forward alignment and live instruments")
+		print("CINDER_HAULER_LOD_REVIEW_PANEL: name=", names[index], " actual_camera=", camera.get_path(),
+			" distance=", distance, " lod=", report.active_lod,
+			" close_triangles=", report.close_triangles, " far_triangles=", report.far_triangles)
+		var panel := viewport.get_texture().get_image()
+		_check(panel != null and not panel.is_empty() and panel.get_size() == Vector2i(640, 720),
+			"panel %s returns an actual unscaled 640x720 image" % names[index])
+		if panel == null or panel.is_empty() or panel.get_size() != Vector2i(640, 720):
+			continue
+		panels.append(panel)
+		var path := output.path_join(names[index] + ".png")
+		_check(panel.save_png(path) == OK and Image.load_from_file(path).get_size() == Vector2i(640, 720),
+			"panel %s saves a real 640x720 PNG" % names[index])
+	if panels.size() == 3:
+		var strip := Image.create(1920, 720, false, panels[0].get_format())
+		for index in 3:
+			strip.blit_rect(panels[index], Rect2i(0, 0, 640, 720), Vector2i(index * 640, 0))
+		var strip_path := output.path_join("hauler_lod_review_strip.png")
+		_check(strip.get_size() == Vector2i(1920, 720) and strip.save_png(strip_path) == OK
+			and Image.load_from_file(strip_path).get_size() == Vector2i(1920, 720),
+			"three native panels assemble and save an exact 1920x720 strip without resizing")
+		for index in 3:
+			_check(strip.get_region(Rect2i(index * 640, 0, 640, 720)).get_data() == panels[index].get_data(),
+				"strip panel %s preserves every native source pixel" % names[index])
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	for container: SubViewportContainer in containers:
+		container.queue_free()
+	await process_frame
+	_finish()

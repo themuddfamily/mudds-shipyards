@@ -401,6 +401,16 @@ var _boarding_ramp_collision: CollisionShape3D
 var _weapon_definition: WeaponDefinition
 var _ship_perspective_audio_binding: RefCounted
 
+# Retain the authored hierarchy. Only these renderer objects belong to the
+# static switch; authority ancestors and shared consumer-owned cues never do.
+var _exterior_lod_static: Array[GeometryInstance3D] = []
+var _exterior_lod_shared: Array[GeometryInstance3D] = []
+var _exterior_lod_members: Dictionary = {}
+var _exterior_lod_close_visibility: Dictionary = {}
+var _exterior_lod_far: Node3D
+var _exterior_lod_index := 0
+var _exterior_lod_ready := false
+
 signal navigator_ping_cleared(previous_receipt: Dictionary, reason: StringName)
 signal loadmaster_manifest_intent_accepted(receipt: Dictionary)
 signal loadmaster_manifest_cleared(generation: int, reason: StringName)
@@ -459,6 +469,8 @@ func _ready() -> void:
 	if not component_damage_changed.is_connected(_on_cargo_component_damage_changed):
 		component_damage_changed.connect(_on_cargo_component_damage_changed)
 	_sync_engine_damage_shoulders()
+	_exterior_lod_ready = true
+	_set_exterior_lod(0)
 
 
 func _exit_tree() -> void:
@@ -487,6 +499,7 @@ func _physics_process(delta: float) -> void:
 	_sync_boarding_ramp()
 	_cleanup_detached_loadmaster()
 	_cleanup_detached_navigator()
+	_update_exterior_lod_from_current_camera()
 
 
 func _rebind_cargo_perspective_audio() -> void:
@@ -598,7 +611,209 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 	_build_cargo_interior()
 	_bind_cargo_interior_frame()
 	_consolidate_cargo_fitout()
+	_build_exterior_lod()
 	return true
+
+
+## Register the complete output of the fixed production builders, once, after
+## consolidation. Membership is retained by object identity; a later renderer
+## cannot silently become static, shared, or omitted from the audit.
+func _build_exterior_lod() -> void:
+	_exterior_lod_static.clear()
+	_exterior_lod_shared.clear()
+	_exterior_lod_members.clear()
+	_exterior_lod_close_visibility.clear()
+	_exterior_lod_index = 0
+	var visual := get_variant_visual_root()
+	for branch: Node in [visual, _walkable_interior]:
+		for node: Node in branch.find_children("*", "GeometryInstance3D", true, false):
+			var renderer := node as GeometryInstance3D
+			var shared := branch == _walkable_interior \
+				or node == _cargo_shoulders or node == _boarding_ramp_visual \
+				or _engine_glows.has(node as MeshInstance3D) \
+				or node == _cockpit_root or _cockpit_root.is_ancestor_of(node) \
+				or node == _canopy_pivot or _canopy_pivot.is_ancestor_of(node) \
+				or node is Label3D
+			if shared:
+				_exterior_lod_shared.append(renderer)
+			else:
+				_exterior_lod_static.append(renderer)
+				_exterior_lod_close_visibility[node.get_instance_id()] = renderer.visible
+			_exterior_lod_members[node.get_instance_id()] = &"shared" if shared else &"close"
+	_exterior_lod_far = Node3D.new()
+	_exterior_lod_far.name = "DistantExterior"
+	visual.add_child(_exterior_lod_far)
+	# Keep the pressure vessel, freight bands, twin nacelles and formed end
+	# shoulders. Service plates, bolts, gaskets and lettering intentionally drop
+	# out at distance. Shared ramp/canopy/damage rails/plumes remain originals.
+	const RETAINED_MACRO_NAMES := [
+		"IndustrialHull", "CargoPod", "CargoFrameRibBatch",
+		"ContinuousFreightLoadFrame", "CockpitPressureTransition",
+		"ForwardPressureCap", "AftPressureCap", "PortFreightCradle", "StarboardFreightCradle",
+		"PortFreightExhaust", "StarboardFreightExhaust",
+		"PortRecessedThroat", "StarboardRecessedThroat",
+	]
+	for source: GeometryInstance3D in _exterior_lod_static:
+		var source_name := String(source.name)
+		var engine_shell := source_name in ["PortEnginePylon", "StarboardEnginePylon", "PortEngineShroud", "StarboardEngineShroud"]
+		if not source_name in RETAINED_MACRO_NAMES and not engine_shell:
+			continue
+		var copy: GeometryInstance3D
+		if source is MultiMeshInstance3D:
+			var batch := MultiMeshInstance3D.new()
+			batch.multimesh = (source as MultiMeshInstance3D).multimesh
+			copy = batch
+		else:
+			var mesh_copy := MeshInstance3D.new()
+			var original := source as MeshInstance3D
+			mesh_copy.mesh = original.mesh
+			if engine_shell:
+				mesh_copy.mesh = _loft_mesh(original.mesh.get_aabb().size, original.mesh.surface_get_material(0))
+			elif source_name in ["PortFreightExhaust", "StarboardFreightExhaust"]:
+				# Open, low-resolution bell: both mouths and the material remain
+				# readable without retaining the close rolled-lip microgeometry.
+				var bell := CylinderMesh.new()
+				bell.top_radius = 0.55
+				bell.bottom_radius = 0.75
+				bell.height = 0.65
+				bell.radial_segments = 16
+				bell.rings = 1
+				bell.cap_top = false
+				bell.cap_bottom = false
+				bell.material = original.mesh.surface_get_material(0)
+				var surface := SurfaceTool.new()
+				surface.append_from(bell, 0, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO))
+				mesh_copy.mesh = surface.commit()
+			copy = mesh_copy
+		copy.name = source.name
+		copy.transform = visual.global_transform.affine_inverse() * source.global_transform
+		copy.material_override = source.material_override
+		copy.layers = source.layers
+		copy.cast_shadow = source.cast_shadow
+		_exterior_lod_far.add_child(copy)
+		_exterior_lod_members[copy.get_instance_id()] = &"far"
+	_exterior_lod_far.visible = false
+
+
+func _set_exterior_lod(index: int) -> void:
+	if index == _exterior_lod_index:
+		return
+	_exterior_lod_index = index
+	for renderer: GeometryInstance3D in _exterior_lod_static:
+		renderer.visible = index == 0 and bool(_exterior_lod_close_visibility[renderer.get_instance_id()])
+	if is_instance_valid(_exterior_lod_far):
+		_exterior_lod_far.visible = index == 1
+
+
+## Explicit-distance seam is source coverage; normal runtime always supplies the
+## actual current viewport camera. Invalid samples leave the retained state alone.
+func update_exterior_lod_distance(distance: float) -> void:
+	if not _exterior_lod_ready or not is_finite(distance) or distance < 0.0:
+		return
+	if distance > 120.0:
+		_set_exterior_lod(1)
+	elif distance < 100.0:
+		_set_exterior_lod(0)
+
+
+func _exterior_lod_camera_forces_close(camera: Camera3D) -> bool:
+	if camera == _cockpit_camera:
+		return true
+	var ancestor := camera.get_parent()
+	while ancestor != null and not ancestor is PlayerController:
+		ancestor = ancestor.get_parent()
+	var actor := ancestor as PlayerController
+	if actor == null or actor.get_camera() != camera:
+		return false
+	# Resolve the real Player/camera/seat/frame binding, never a cached ship flag.
+	var state := int(actor.get("_embodiment_state"))
+	var transition := state in [PlayerController.EmbodimentState.BOARDING, PlayerController.EmbodimentState.DISEMBARKING]
+	var frame := actor.get("_transition_frame") as Node3D
+	var seat := actor.get("_seat_anchor") as Node3D
+	var own_seat := is_instance_valid(seat) and is_ancestor_of(seat)
+	var exterior_exit := state == PlayerController.EmbodimentState.DISEMBARKING \
+		and not (actor.get("_transition_waypoints") as Array).is_empty()
+	# GameFlow's exterior pilot handoff keeps the exact retained seat but
+	# supplies no moving frame. Cabin handoffs supply this craft as their frame.
+	if transition and own_seat and (frame == null or frame == self):
+		return true
+	if transition and exterior_exit and frame == self:
+		return true
+	var cabin := actor.get("_cabin_frame") as Node3D
+	return is_instance_valid(cabin) and (cabin == self or is_ancestor_of(cabin)) \
+		and actor.is_first_person_active()
+
+
+func _update_exterior_lod_from_current_camera() -> void:
+	if not _exterior_lod_ready or not is_inside_tree():
+		return
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	if _exterior_lod_camera_forces_close(camera):
+		_set_exterior_lod(0)
+	else:
+		update_exterior_lod_distance(camera.global_position.distance_to(get_variant_visual_root().global_position))
+
+
+## Generic Mesh surface APIs include PrimitiveMesh stock. Zero-surface resources
+## remain registered with zero geometry; no empty SurfaceTool is ever committed.
+func _exterior_lod_renderer_census(renderer: GeometryInstance3D) -> Dictionary:
+	var mesh: Mesh
+	var copies := 1
+	var allocated_copies := 1
+	if renderer is MeshInstance3D:
+		mesh = (renderer as MeshInstance3D).mesh
+	elif renderer is MultiMeshInstance3D:
+		var multi := (renderer as MultiMeshInstance3D).multimesh
+		if multi != null:
+			mesh = multi.mesh
+			allocated_copies = multi.instance_count
+			copies = multi.instance_count if multi.visible_instance_count < 0 else mini(multi.instance_count, multi.visible_instance_count)
+	var triangles := 0
+	var vertex_count := 0
+	var surfaces := mesh.get_surface_count() if mesh != null else 0
+	for surface in surfaces:
+		var arrays := mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		vertex_count += vertices.size()
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := indices.size() if not indices.is_empty() else vertices.size()
+		var primitive := (mesh as ArrayMesh).surface_get_primitive_type(surface) if mesh is ArrayMesh else Mesh.PRIMITIVE_TRIANGLES
+		match primitive:
+			Mesh.PRIMITIVE_TRIANGLES:
+				triangles += count / 3
+			Mesh.PRIMITIVE_TRIANGLE_STRIP:
+				triangles += maxi(0, count - 2)
+	return {"triangles": triangles * copies, "submissions": surfaces if copies > 0 else 0,
+		"copies": copies, "allocated_copies": allocated_copies, "surfaces": surfaces, "vertices": vertex_count * copies, "mesh": mesh.get_instance_id() if mesh != null else 0}
+
+
+func get_exterior_lod_report() -> Dictionary:
+	var result := {"active_lod": _exterior_lod_index, "close_triangles": 0, "far_triangles": 0,
+		"close_submissions": 0, "far_submissions": 0, "renderers": [], "unknown": []}
+	for branch: Node in [get_variant_visual_root(), _walkable_interior]:
+		for node: Node in branch.find_children("*", "GeometryInstance3D", true, false):
+			var renderer := node as GeometryInstance3D
+			var counts := _exterior_lod_renderer_census(renderer)
+			var membership: StringName = _exterior_lod_members.get(node.get_instance_id(), &"unknown")
+			counts["node"] = node.get_instance_id()
+			counts["path"] = str(get_path_to(node))
+			counts["membership"] = membership
+			counts["visible"] = renderer.visible
+			counts["authored_visible"] = _exterior_lod_close_visibility.get(node.get_instance_id(), renderer.visible)
+			(result["renderers"] as Array).append(counts)
+			if membership == &"unknown" and (int(counts.vertices) > 0 or (node is Label3D and not (node as Label3D).text.is_empty())):
+				(result["unknown"] as Array).append(counts.path)
+			if membership in [&"close", &"far"]:
+				var prefix := String(membership)
+				result[prefix + "_triangles"] += counts.triangles
+				result[prefix + "_submissions"] += counts.submissions
+	result["valid"] = (result.unknown as Array).is_empty() \
+		and result.close_triangles > 0 and result.far_triangles > 0 \
+		and result.far_triangles * 4 <= result.close_triangles \
+		and result.far_submissions <= result.close_submissions
+	return result
 
 
 ## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
