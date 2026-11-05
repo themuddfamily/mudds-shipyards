@@ -105,6 +105,16 @@ and terminal observation, not cargo replay or full craft/eleven-binding closure.
 | Genuine miss/retirement | Wait normal .70s gate; physically aim/query station-UP corridor, native FIRE once | Distinct flight, real positive-age travel then lifetime miss; health74 stable, pool/authority active counts0, no abandonment/resurrection/duplicate, authored weapon/heat behavior retained | NOT_RUN |
 | Complete home and delivery | Fixed reverse route, original captured L/strict lease,90 neutral OFFLINE, physical E exit/apron walk/normal UI Quit | Exact occupied dock_04_cargo/root error≤.05m/speed≤.05m/s, supported same Player walk≥1m to accepted apron(8.8,4.18,90); actual OS0/both clean markers/diagnostics0; all source/native/package gates pass, pushed source/checkpoint and owned cleanup complete | NOT_RUN |
 
+Hauler correction1/3 authorized21:57UTC: actual travelling impact reached the
+moving target, but the authoritative re-query ended at a rounded surface point
+roughly1µm outside its collider and returned a miss. Repair only the runtime
+terminal-segment handoff in `travelling_bolt_projectile.gd`, extend the existing
+oblique target regression in `cinder_cargo_mass_driver_bolt_test.gd`, and retain
+the original range/occlusion/source/faction/once-only damage rules. Observer and
+Python timing/representation repairs retain real airborne proof and exact26
+once-only damage. The original22:10:26UTC all-in deadline is unchanged; failed
+native records remain retained. Full hit/miss/home delivery is still NOT_RUN.
+
 ### Station Reduced Flash ordinary package/UI episode — integrated
 
 Source **e3880319c**, pushed in main **a7538b24e**. Actual packaged ordinary
