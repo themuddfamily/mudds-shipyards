@@ -227,6 +227,52 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Active qualification/handoff: Bulwark complete editable source and cold
+reconstruction.** Existing [literal contract](docs/ROADMAP_BACKLOG.md#bulwark-editable-source-handoff).
+
+- **Result:** a complete tracked source.tar, exact commit/engine checksums and
+  editing/reproduction notes, backed by successful empty-cache reconstruction of
+  the existing procedural Bulwark through both named source suites. No model,
+  gameplay, renderer, evidence format or validator is added.
+- **Start/owners:** clean main46d083b21; freeze the exact full committed source
+  after this card, pinned Godot4.7.1/a13da4feb/SHA32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde.
+  Output `/srv/mudds-work/bulwark-source-art/20261105-124033`; fresh REPRO=`output/repro`.
+  Root owns git archive/full input comparison/notes/docs/cleanup; one execution
+  agent owns only the existing scoped matrix runs and their external results.
+  No Git branch, production edit, external publication or parked retry is selected.
+- **Dependencies:** procedural sources/material/import inputs and both existing
+  suites exist. Existing matrix uses filesystem manifests and supports a source
+  archive without .git. No exact prior cold-handoff PARK was found in the bounded
+  history check. Captures/gunner/ordinary/full-craft/native gates remain unchanged.
+- **Action:** git archive the full frozen commit, extract into unused REPRO with
+  no .git/.godot; compare every archived regular byte and symlink target. Fresh
+  external private XDG/TMPDIR/profile, no inherited display/editor/cache; actual
+  version invocation includes headless/Dummy. Run existing matrix headless/Dummy,
+  jobs1/timeout300/import-gate always/scope bulwark_heavy_gunship_test. Only its
+  actual PASS/clean import and suite/source/cache checks permit the second command:
+  import-gate never/scope bulwark_production_integration_test. Preserve the literal
+  contract's sequential commands and complete raw outputs; no combined scheduler.
+- **Pass:** successful fresh import produces global_script_class_cache.cfg; both
+  actual matrix/suite exits0, positive BULWARK_HEAVY_GUNSHIP and
+  BULWARK_PRODUCTION_INTEGRATION summaries with0failures; zero raw engine/script/
+  fatal/leak diagnostics, source_manifest_match and godot_cache_stable true.
+  Compare every archived source byte/symlink again after both runs, independently
+  of the matrix's post-import baseline. Retain any protected-configuration restore
+  diff. No staged component result qualifies ordinary controls, rendered art,
+  whole-craft LOD, native Windows/GPU/audio or the complete craft.
+- **Proof/end:** source.tar, source-engine-sha256.txt, engine-version.txt, concise
+  notes and existing raw results retained under output. Archive/verify raw records,
+  then remove owned REPRO/profile/cache/helpers and reap processes; preserve source
+  inputs. Update the existing member/state only after full pass; otherwise retain
+  failure without a green subset. No playable checkpoint follows test-only work.
+- **Budget/stop:** original assessment2026-11-05 12:40:33UTC; estimate30–45minutes,
+  hard stop14:10:33UTC (90minutes including all preparation/checks/closure). Existing
+  import≤1200s plus two300s suites≤1800 total; independent outer1860s/subreaper.
+  First failure stops dependent admission. One total cause-bound correction only
+  for an established in-scope assembly/invocation issue; no source change may make
+  the frozen snapshot pass. Failed final correction/deadline parks the handoff.
+
+
 **Exported Jovian first kit-delivery caller: PARKED/unaccepted.** Candidates
 8cf04f491→5e50a997e are archived unmerged. First run stops before input because
 the observer conflates the cargo destination module with its physical ShipBerth;
