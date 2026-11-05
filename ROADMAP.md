@@ -23,6 +23,13 @@ during planetary disembark. Supported exit and normal Quit remain unproved;
 source is archived unmerged; its whole journey remains unaccepted.
 [Exact failure and retained scope](docs/history/ROADMAP_DELIVERIES.md#ember-outbound-surface-gravity-stop-20261105).
 
+Latest Jovian retained-cabin readmission attempt is **PARKED/unaccepted**.
+The real three-peer run reached strict home/OFFLINE and B's normal disconnect,
+then stopped when A's publication state/tick became invalid. Helm, ownership
+and home remained intact in the captured operands. Fresh join/berth/engineer
+claim were not reached; no candidate was merged or checkpoint produced.
+[Failure, concrete reopening gate and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-cabin-readmission-parked-20261105).
+
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
 337 records, their IDs, parents, kinds and accepted proof scopes. These include
 containers, decisions and definitions; **337 is not a count of coding tasks left**.

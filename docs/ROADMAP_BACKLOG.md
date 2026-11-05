@@ -14576,6 +14576,21 @@ and current same-authority generation afterward. UI timing and this production
 admission capability are NOT_RUN;the two-peer fixture's direct shutdown after
 migration cleared ownership proves neither cut nor this reclaim.
 
+**Attempt2026-11-05 — PARKED/unaccepted.** Candidate982f116734eeff0ae108bfa90efdb0b60276f61e
+was archived unmerged. The existing three-peer return fixture gained a candidate
+`--postdock-cabin-readmission` selector; it is not present in accepted main.
+After strict home/OFFLINE and B's real UI disconnect, the host stopped on
+`original_A_current=false`: actual publication `published_state=-1` and
+`published_tick=-1`. Exact pilot occupancy, seated anchor, peer/owner/wire
+identity, enabled helm/stream and home stayed valid. This proves neither helm
+loss nor fresh admission. Solo walking, Manual Join/Back/Resume, berth E, later
+engineer E and negative probes were not reached. One grammar correction was
+spent; no further fix/run/export was selected. Before any reopening, diagnose
+why B peer removal invalidates A's publication bookkeeping, distinguish expected
+republishing from a lifecycle defect, and review a causal correction against
+the original invariant/caps and cumulative cost. Do not relax the predicate.
+[Raw operands, archive and terminal scope](history/ROADMAP_DELIVERIES.md#jovian-cabin-readmission-parked-20261105).
+
 **Implementation/proof boundary.** Extend the existing Jovian three-peer caller
 chain and shared engineer fixture with passive transient observations;add the
 smallest focused production admission regression in the existing boarding/

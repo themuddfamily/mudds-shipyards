@@ -33749,3 +33749,72 @@ closeout.json remain in the case; durable template targets are not dereferenced
 or deleted. Cleanup completed at 03:56:11UTC, within the original04:41:44
 cutoff; final docs/commit/push follow in that same allowance. No retained branch/
 worktree exceptions.
+
+
+<a id="jovian-cabin-readmission-parked-20261105"></a>
+## Jovian retained-cabin readmission parked 20261105
+
+Goal: normal explicit hatch Interact after an authenticated reconnect from the
+same retained Jovian cabin obtains a fresh standing berth through host authority;
+only later normal walking/chair Interact claims engineer. A keeps its original
+helm/body/stream/home; stale/foreign/unsupported attempts grant nothing. This is
+a bounded missing capability of ROLE-JOVIAN-ENGINEER, not the whole moving
+engineer/active-repair role or the parked Halyard physical-egress work.
+
+**PARKED/NOT_ACCEPTED.** Candidate982f116734eeff0ae108bfa90efdb0b60276f61e
+contains only GameFlow and the existing Jovian three-peer return fixture. It was
+not merged or pushed. Accepted main runtime and latest a01d0fb Windows/Linux
+checkpoint remain unchanged. Card start04:01:09UTC, source cutoff04:26:09UTC,
+original hard stop05:31:09UTC, estimate60min/cap90min, one causal correction.
+No limit or acceptance condition was widened.
+
+Initial isolated official4.7.1 import exits0/20.626s/no diagnostics. First script
+parse exits1/0.802s: unparenthesized multiline inline lambda returns, first at
+fixture2346. Independent review approved the sole grammar correction across six
+such expressions; no operands, actions, ordering or clocks changed. Corrected
+parse exits0/17.415s/no diagnostics; corrected source ready before cutoff.
+
+The selected real three-peer run takes133.360s, coordinator OS143 after the
+first failure/automatic owned-process reap, ten coordinator diagnostics and no
+success marker. It reaches ordinary boarding, flight, strict home return,
+actual OFFLINE and B's normal UI disconnect. At host.readmission_retirement,
+original_A_current becomes false. Existing host.first_failure.host_pilot records
+the actual failed members: published_state_seated=false and
+published_tick_positive=false, with publication values -1/-1. All other pilot
+members are true: exact occupancy, remote piloting/peer, seated anchor, owner,
+wire entity and generation. Enabled same helm, stream, body/ownership, strict
+home/lease, session and six repair units remain valid. A's own snapshot retains
+flight identity and arrival. This does not establish actual helm loss. The
+removed B body/claim/role is retired; fresh B join/admission was not reached.
+
+Supported solo walking, Manual Join20s/BackResume8s, explicit standing E/body,
+later engineer E, refusal probes, Halyard reconnect regression, boarding
+integration, exports, strict package startup and new checkpoint are NOT_RUN.
+A selected continuation that never reaches them cannot prove them. The spent
+correction budget stops further edits/probes/reruns. Native Windows/GPU/human,
+full timed moving repair/reconnect and final qualification remain OPEN.
+
+Independent terminal review confirms these exact operands and scope. Reopening
+first requires a bounded causal diagnosis of why B peer removal invalidates A's
+publication bookkeeping, including whether republishing is expected; review a
+correction preserving the full pilot predicate and original limits against the
+cumulative attempt cost. This record authorizes no new allowance or retry.
+
+Verified archive:
+`/srv/mudds-work/jovian-cabin-readmission-20261105/records.tar.gz`,
+100 regular members/3,747,524bytes, SHA256
+3588697bac993efb66c1b9e8a5dc03d6d3176682ffd07ebf6f795435182b2986.
+It retains both full candidate files, binary patch, verified incremental Git
+bundle against main3b58552cfe7e92b1dc250b4df740770852e20edf, command/results,
+all raw peer logs/receipts/failed suboperands, profiles and review. Every member
+hash was rechecked after archive creation; template symlinks were recorded and
+excluded without dereferencing their durable toolchain targets.
+
+Fresh remote-tip and registered-worktree ownership checks found no owned remote
+branch. After archive/bundle verification, the clean task worktree and exact-tip
+local branch were removed with compare-and-swap protection. No owned engine or
+supervisor remains. Only records.tar.gz and closeout.json remain in the case
+folder; main is the sole local branch/worktree. Cleanup observed04:22:18UTC,
+21.153minutes from selection; final documentation/review/push stays charged to
+this closure. No evidence-only work is counted as product progress, and no
+parent/phase gate or canonical record is closed by this failed attempt.
