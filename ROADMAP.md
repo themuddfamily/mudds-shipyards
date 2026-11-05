@@ -198,6 +198,36 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+### Selected: remove archived checkpoint binary duplicates
+
+**Goal:** the owner's requested file cleanup, supporting PACKAGE-FINAL build
+storage. This is housekeeping, not gameplay progress or release qualification.
+Start: clean pushed `4157ba2e7`; builds/windows46GB + builds/linux39GB, filesystem
+free1.9GB. Root owns this mechanical cleanup; one independent read-only reviewer
+has checked pairing/reference conventions. No task branch/worktree or engine run.
+
+**Exact scope:** frozen `/srv/mudds-work/checkpoint-storage-cleanup-20261105/plan.json`
+contains306 obsolete canonical loose EXE/ELF candidates totaling51,541,891,296
+bytes and their unique retained ZIP/TAR. Preserve latest three complete sets
+27e2955/84bd54a/c60face, all archives/notes/export results, four installers,
+28 older binaries with active tracked references, and any ambiguous/unique file.
+
+| Case/action | Fixed expected result | Actual/proof |
+| --- | --- | --- |
+| For each frozen regular single-link candidate, inspect its unique archive member | Exact safe member name/type/mode and size; no alias, encryption or duplicate-member ambiguity; archive retained | NOT_RUN |
+| Stream-compare every byte and verify archive CRC/integrity, hash both binary/archive, check unchanged expected inode/size/time/mode identities and no running executable owner | Only exact archived duplicates may be unlinked, immediately after identity recheck; no engine execution | NOT_RUN |
+| Mismatch/unreadable/ambiguous/archive or identity problem | Preserve original and archive, record literal exception; never delete unique/unverified bytes or retry around a different file | NOT_RUN |
+| Finish/restore contract | Latest complete sets, installers, referenced binaries and every archive remain; per-file proof records original hash/member/archive hash; documented restoration; report actual freed bytes and retained exceptions | NOT_RUN |
+
+**Proof/stop:** command/per-file outcomes under the owned folder above. Start
+19:08:00UTC2026-11-05 includes readiness; hard19:28:00UTC20min all-in, verification
+cutoff19:24 reserves closure. One correction maximum for a demonstrated driver
+error; no unchecked deletion. Expected exceptional files stay retained. A driver
+failure/deadline stops work and records remaining candidates; no hidden scope or
+budget reset. Close with actual accounting, documentation/commit/push and owned
+process/scratch cleanup. No new checkpoint because game/source packages do not
+change; all ordinary/native/full-release gates remain open.
+
 ### Delivered: Jovian distant exterior and playable checkpoint
 
 **CRAFT-ACCEPT-JOVIAN / whole-craft LOD runtime member: PASS.**
