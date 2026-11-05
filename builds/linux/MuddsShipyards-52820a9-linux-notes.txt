@@ -1,0 +1,10 @@
+Mudd's Shipyards Linux checkpoint 52820a9
+Source: 52820a9a3cd58e01fe8eccaba048370783d43c00
+
+Ember's on-foot Save Progress now works through Pause > Activity Board > Nearby Activities even when Cinder storage is out of range. A successful save reports Progress saved.; stale context, refused writes and unsupported unpaid partial caldera errands report failure. Paid lava-tube and lander-wreck errands are acknowledged from the existing validated reward record on fresh surface composition/re-entry, preventing a second reward. Cinder keeps its existing Save/Load owner; Ember Load is not enabled.
+
+Actual validation
+Clean isolated import; HUD9 and Cinder flow7 assertions; full Ember lifecycle207 assertions/130.772s, all exit0/zero diagnostics. The actual Main Save button writes an independently read incomplete first-relay primary, preserves staged paid-errand counts, handles a refused write without changing primary/backup/live state, and normal Quit saves the exact live pose/route/optional progress with clean markers. Source fixtures stage approach and paid reward records; this is source/UI/disk integration proof, not the complete ordinary outbound/caldera expedition or a new packaged cold-restart trial. Historical failed206-check attempt and measured fixture corrections are retained. Independent source/correction review GO. Clean-commit Windows/Linux exports and three strict menu startups each exit0/one STARTUP_MENU_READY_OK/zero diagnostics. All automated Godot uses Dummy audio. Paired package audit is retained separately after ZIP/notes freeze.
+
+Scope
+Unpaid partial caldera counters remain unsupported and refuse saving rather than claim success. Full ordinary Ember/outbound/abandonment/caldera/cold-final journeys and applicable native Windows/GPU/physical input/audio/human/final-release gates remain open. Windows payload smoke uses Linux Godot. Earlier Arrow guidance and server results retain their original accepted source/package scopes.

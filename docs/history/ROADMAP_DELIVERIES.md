@@ -33333,3 +33333,75 @@ Only that archive and closeout.json remain in the owned case directory. Cleanup
 completed by00:32:17UTC, inside the original00:13:41→01:28:41UTC75min clock
 including implementation, proof, builds and integration. The closure record
 is committed/pushed separately; no full project completion is implied.
+
+
+<a id="ember-save-progress-delivered-20261105"></a>
+### Ember Save Progress integration finished — 2026-11-05
+
+Source52820a9a3cd58e01fe8eccaba048370783d43c00, derived from the archived
+4221ad72d candidate on current0c90b43a2. Its four production files provide real
+Nearby Activities Save dispatch/availability for current Ember ON_FOOT, honest
+feedback, stale identity/write/unsupported partial-progress refusal and paid
+caldera acknowledgement from validated durable reward counts. Cinder keeps its
+Save/Load owner; Ember Load remains disabled. Paid IDs freeze only existing
+completion/reward seams, without restoring active routes/checkpoints/actors or
+adding a persistence namespace. Current Arrow guidance ownership is preserved.
+
+This finishes prior parked work rather than renaming it. Original archive
+/srv/mudds-work/ember-save-progress-20261105/records.tar.gz remains unchanged:
+SHA25662cc0c76de09885f16c93c3178ca1b4e8a3ac37b4781fa1ce921533775e6aa7f.
+Its original206-check aggregate failure and sole correction remain unaccepted;
+prior active cost23:13:28→23:33:55UTC20m27s and expired00:28:28 hard deadline
+are retained. Root explicitly prioritized a bounded causal reopening
+00:36:01→01:16:01UTC40min all-in/max cumulative active60m27s. No old deadline
+was relabelled, and no unchanged full-suite retry or assertion relaxation was used.
+
+Focused reproduction16.031s logs the original five operands: refusal feedback
+and live progress true, generation0→1/full payload/files false. The sole
+addition is tutorial_prompts_seen/schema1/seen_ids[ember_caldera_errands],
+committed by accepted Begin through the existing tutorial store. Its diagnostic
+attempt also parsed absent prior-file bytes and emitted a separate JSON error;
+that unaccepted probe is retained, with structured nonlogging parse correction.
+The fixed fixture independently requires exactly one legitimate Begin commit
+and exact whole payload, then snapshots all payload/gen/file bytes immediately
+before actual Save. All original rejected-Save predicates are unchanged.
+An intermediate new Begin assertion failed solely because stored JSON schema1.0
+was compared with constructed int1; named measured members showed accepted/
+generation/exact commit-ID true. Existing full-precision JSON stringify→parse
+normalization makes the expected full payload use the store's exact wire types;
+no field/tolerance/subset relaxation was introduced. Independent source/causal/
+correction reviews GO before full validation.
+
+Actual clean checks: HUD9/2.224s; Cinder flow7/16.100s; full lifecycle207/130.772s,
+all actualOS0/zero diagnostics. The actual Main's Save button enables while Cinder
+is unavailable, writes an independently read primary with incomplete first relay
+and same generation, retains both staged paid-errand counts, and reports durable
+success. A refused actual write preserves primary/backup/live payload/gen/claims/
+actors/lease after HUD refresh. Zero/one/both paid IDs, invalid/unavailable data,
+repeated restoration/reward fences and unsupported unpaid partial refusal remain
+covered. Normal Quit captures the exact live nonorigin pose, route and optional
+progress before detach: all ten logged operands true, two checkpoint commits,
+foreign data retained, fresh store reads the same active receipt, and actual
+persisted crash/safe-start markers are clean. Final isolated import5.747s clean.
+
+Source fixtures stage approach, paid authority records and partial errand
+positions; the real UI/disk path is tested but complete ordinary outbound,
+physical caldera completion, packaged cold-final/abandonment and whole SOLO-EMBER
+qualification remain OPEN/PARKED at their original limits. Historical cold-relay
+acceptance keeps its original923d7b326 package scope. Fresh checkpoint52820a9
+EXE/ZIP/notes and matching Linux archive are built from the clean source commit.
+Three strict menu startups (Windows payload under Linux Godot, Linux direct,
+Linux archive) each actualOS0/one STARTUP_MENU_READY_OK/zero diagnostics;
+all automated Godot is headless/Dummy/private XDG/TMP with HOME unchanged.
+The existing paired audit passes all nine predicates after ZIP/notes freeze:
+matching complete1531-entry Windows/Linux inventories, pinned Windows code
+section and exact Linux export/archive plus Windows EXE+notes ZIP identities. All337 canonical immutable fields and
+Done cells are retained; only SOLO-EMBER and EMBER-PACKAGE-ABANDON State record
+the completed prerequisite. No product parent/phase gate is closed. Native/
+device/human/final qualification remains NOT_RUN; GitHub Actions stays disabled.
+
+Reopening raw records/source patch are retained outside the repo under
+/srv/mudds-work/ember-save-progress-reopen-20261105 until closure. Closure copies
+checked artifacts into main, preserves the original archive, consolidates the
+new records alongside it, pushes accepted changes and deletes the owned branch/
+worktree/processes. No failed branch is merged merely to make it deletable.

@@ -4,15 +4,17 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **7e5276a** — [Windows ZIP](builds/windows/MuddsShipyards-7e5276a-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-7e5276a-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-7e5276a-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-7e5276a-linux-notes.txt)).
-Arrow's HUD and cockpit now show actual Aurora/Rime atmospheric entry load and
-radial descent advice, including live Reduced Flash updates. The source caller
-and lifecycle checks pass; full ordinary expeditions and family qualification
-remain OPEN. [Exact delivery](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations).
-The earlier dedicated-server lifecycle delivery retains its [24ed6bc package scope](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract).
+Latest playable checkpoint: **52820a9** — [Windows ZIP](builds/windows/MuddsShipyards-52820a9-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-52820a9-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-52820a9-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-52820a9-linux-notes.txt)).
+Ember's on-foot Save Progress now routes through the real activity controls even
+when Cinder storage is out of range. Paid caldera errands are acknowledged from
+the validated durable reward record; unsupported unpaid partial errands refuse
+saving visibly. The previously parked Save candidate is finished in source/UI/
+disk scope; full ordinary expedition qualification remains OPEN/PARKED.
+[Exact integration and retained failures](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands).
+Earlier Arrow guidance and server deliveries retain their recorded scopes.
 
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
 337 records, their IDs, parents, kinds and accepted proof scopes. These include
@@ -96,9 +98,9 @@ need actual SOLO caller/handoff prerequisites. [Aurora/Rime solo contracts](docs
 now bind canonical crafts/routes/objectives/rewards/home returns and explicit
 first native limits; Rime has a separate natural cold/restart member.
 [Ember surface/save/return](docs/ROADMAP_BACKLOG.md#solo-ember-surface-return-contract)
-now binds all three objectives and exact Host ownership. Its [Save Progress gap](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands)
-names the missing button availability/dispatch and paid-errand completion
-integration. [Colour paint/view requirements](docs/ROADMAP_BACKLOG.md#colour-ordinary-paint-and-view-contract)
+now binds all three objectives and exact Host ownership. Its [Save Progress integration](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands)
+is delivered on52820a9a3 with actual button/disk and paid-errand acknowledgement
+checks; full ordinary route qualification remains open. [Colour paint/view requirements](docs/ROADMAP_BACKLOG.md#colour-ordinary-paint-and-view-contract)
 now distinguish actual gameplay states from256 component cases and bind one
 ordinary rendered cell. Callers and qualification remain open; parked journeys
 keep their reopening conditions.
