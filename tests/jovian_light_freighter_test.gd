@@ -30,6 +30,7 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 
+	await _test_whole_exterior_lod(jovian)
 	_test_fitout_cpu_surface_parity(jovian)
 	_test_formed_roof(jovian)
 	_test_roof_service_layer_clearances(jovian)
@@ -2110,6 +2111,7 @@ func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:
 	jovian.weapon_cooldown = 0.03
 	jovian.set_piloted(true)
 	jovian.request_engine_start()
+	_test_lod_owner_state(jovian, "starting engine")
 	_check(str(jovian.get_telemetry().engine_state) == "STARTING", "freighter enters inherited engine startup")
 	_check(_visible_mesh_count(engine_cores) == 4, "all four engine cores activate during startup")
 	for index in 7:
@@ -2148,6 +2150,7 @@ func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:
 		_visible_mesh_count(engine_plumes) == 0,
 		"failed engine bay retains inherited online exhaust suppression"
 	)
+	_test_lod_owner_state(jovian, "failed engine-bay cue and exhaust")
 	var engine_integrity := component_damage.get_component_integrity(
 		ShipComponentDamage.COMPONENT_ENGINE_BAY
 	)
@@ -2581,6 +2584,7 @@ func _test_pilot_doorway(ship: JovianLightFreighter) -> void:
 	_check(signals == [false] and is_zero_approx(hinge.rotation.y) and not blocker.disabled,
 		"reversed pilot door cancels stale open completion and closes its actual leaf")
 	ship.set_canopy_open(true, 0.0)
+	_test_lod_owner_state(ship, "open physical pilot door")
 	await ship.canopy_motion_finished
 	await physics_frame
 	_check(blocker.disabled and is_equal_approx(hinge.rotation.y, JovianLightFreighter.PILOT_DOOR_OPEN_ANGLE),
@@ -2741,6 +2745,8 @@ func _test_pilot_access_stowage(ship: JovianLightFreighter) -> void:
 	var mesh_hits: Dictionary = {}
 	for index in 81:
 		ship.call("_set_pilot_access_fold", float(index) / 80.0)
+		if index == 40:
+			_test_lod_owner_state(ship, "half-folded pilot stair")
 		for mesh: MeshInstance3D in resources:
 			var relative := ship.global_transform.affine_inverse() * mesh.global_transform
 			var vertices := mesh.mesh.get_faces()
@@ -2871,6 +2877,8 @@ func _test_cargo_ramp_closure(ship: JovianLightFreighter) -> void:
 	var rods: Array = ship.get("_cargo_ramp_rods")
 	for sample in 81:
 		ship.call("_set_cargo_ramp_fraction", float(sample) / 80.0)
+		if sample == 40:
+			_test_lod_owner_state(ship, "half-folded cargo ramp and actuators")
 		for mesh: MeshInstance3D in access.find_children("*", "MeshInstance3D", true, false):
 			if access.get_node("CargoRampMounts").is_ancestor_of(mesh):
 				continue
@@ -3018,3 +3026,319 @@ func _sample_pilot_doorway_motion(ship: JovianLightFreighter, player: PlayerCont
 			for hit in player.get_world_3d().direct_space_state.intersect_shape(body_query, 32):
 				hits[str(hit.collider.name) + "/" + bone_name] = true
 	return {"frames": frames, "capsule_frames": capsule_frames, "hits": hits}
+
+
+func _test_whole_exterior_lod(craft: JovianLightFreighter) -> void:
+	var was_physics := craft.is_physics_processing()
+	craft.set_physics_process(false)
+	var report := craft.get_exterior_lod_report()
+	print("JOVIAN_WHOLE_LOD_CENSUS: ", report)
+	_check(report.active_lod == 0 and report.valid,
+		"initial complete static exterior is close and actual surface/copy budgets meet 25 percent")
+	var far := craft.get("_exterior_lod_far") as Node3D
+	for macro: String in JovianLightFreighter.EXTERIOR_LOD_MACROS:
+		var distant := far.get_node_or_null(NodePath(macro + "Distant")) as GeometryInstance3D
+		var original: Dictionary = craft.call("_exterior_lod_source_piece", macro)
+		var census: Dictionary = craft.call("_exterior_lod_renderer_census", distant) if distant != null else {}
+		_check(distant != null and not original.is_empty() and int(census.get("triangles", 0)) > 0,
+			"complete distant exterior retains nonempty authored Jovian macro %s" % macro)
+		if distant == null or original.is_empty():
+			continue
+		var holder := original.node as GeometryInstance3D
+		var expected := holder.global_transform
+		if bool(original.get("batched", false)):
+			expected *= original.transform as Transform3D
+		_check(distant.global_transform.is_equal_approx(expected)
+			and distant.layers == holder.layers and distant.cast_shadow == int(original.cast_shadow)
+			and distant.material_override == original.material_override,
+			"far %s preserves actual source placement/layer/shadow/material policy" % macro)
+		if distant is MeshInstance3D:
+			var exact_materials := true
+			for surface in (distant as MeshInstance3D).mesh.get_surface_count():
+				exact_materials = exact_materials and original.materials.has((distant as MeshInstance3D).mesh.surface_get_material(surface))
+			_check(exact_materials, "far %s retains real source surface coatings" % macro)
+	var passive := true
+	for node: Node in far.find_children("*", "", true, false):
+		passive = passive and node is GeometryInstance3D and node.get_script() == null
+	_check(passive, "distant exterior has only passive retained renderers and no authority nodes")
+	var ribs := craft.get_node("JovianFreighterVisual/LandingBogieFootBatch") as MultiMeshInstance3D
+	var original_visible_copies := ribs.multimesh.visible_instance_count
+	ribs.multimesh.visible_instance_count = -1
+	var all_copies: Dictionary = craft.call("_exterior_lod_renderer_census", ribs)
+	ribs.multimesh.visible_instance_count = 0
+	var zero_copies: Dictionary = craft.call("_exterior_lod_renderer_census", ribs)
+	ribs.multimesh.visible_instance_count = 1
+	var partial_copies: Dictionary = craft.call("_exterior_lod_renderer_census", ribs)
+	ribs.multimesh.visible_instance_count = original_visible_copies
+	_check(all_copies.copies == ribs.multimesh.instance_count and all_copies.triangles > 0
+		and all_copies.submissions == ribs.multimesh.mesh.get_surface_count(),
+		"actual MultiMesh census uses all allocated copies only when visible count is minus one")
+	_check(zero_copies.copies == 0 and zero_copies.triangles == 0 and zero_copies.submissions == 0,
+		"zero visible MultiMesh copies contribute no triangles or submissions")
+	_check(partial_copies.copies == 1
+		and partial_copies.triangles * all_copies.copies == all_copies.triangles * 1
+		and partial_copies.submissions == all_copies.submissions
+		and ribs.multimesh.visible_instance_count == original_visible_copies,
+		"partial visible copies scale actual triangles while retaining one surface submission and restore original state")
+	var before := _lod_retained_snapshot(craft)
+	var cases := [[100.0, 0], [120.0, 0], [110.0, 0], [-1.0, 0], [INF, 0], [NAN, 0],
+		[120.001, 1], [120.0, 1], [100.0, 1], [110.0, 1], [-1.0, 1], [-INF, 1], [NAN, 1], [99.999, 0]]
+	for item: Array in cases:
+		craft.update_exterior_lod_distance(float(item[0]))
+		report = craft.get_exterior_lod_report()
+		var atomic := int(report.active_lod) == int(item[1])
+		for row: Dictionary in report.renderers:
+			if row.membership == &"close":
+				atomic = atomic and bool(row.visible) == (int(item[1]) == 0 and bool(row.authored_visible))
+		_check(atomic and (craft.get("_exterior_lod_far") as Node3D).visible == (int(item[1]) == 1),
+			"strict boundaries/deadband/invalid retain one complete exterior: %s -> %s" % item)
+		var actual := _lod_retained_snapshot(craft)
+		var difference := _lod_first_difference(before, actual)
+		if not difference.is_empty():
+			print("JOVIAN_LOD_FIRST_DIFFERENCE: ", difference)
+		_check(difference.is_empty(), "distance switch preserves every actual node/resource/authority operand")
+	var unknown := MeshInstance3D.new()
+	unknown.name = "UnknownNonemptyRenderer"
+	unknown.mesh = BoxMesh.new()
+	craft.get_variant_visual_root().add_child(unknown)
+	_check(not craft.get_exterior_lod_report().valid,
+		"new nonempty renderer cannot evade complete membership")
+	unknown.free()
+	var empty := MeshInstance3D.new()
+	empty.name = "EmptyResourceWitness"
+	empty.mesh = ArrayMesh.new()
+	craft.get_variant_visual_root().add_child(empty)
+	var empty_id := empty.mesh.get_instance_id()
+	craft.update_exterior_lod_distance(150.0)
+	var empty_seen := false
+	for row: Dictionary in craft.get_exterior_lod_report().renderers:
+		if int(row.node) == empty.get_instance_id():
+			empty_seen = int(row.mesh) == empty_id and int(row.surfaces) == 0 and int(row.triangles) == 0
+	_check(empty_seen and empty.mesh.get_instance_id() == empty_id,
+		"zero-surface stock is retained and explicitly audited without empty tangent generation")
+	empty.free()
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.global_position = craft.global_position + Vector3(0, 0, 150)
+	camera.make_current()
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"actual foreign current viewport camera selects far by measured distance")
+	camera.global_position = craft.global_position + Vector3(0, 0, 20)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 0,
+		"actual current viewport camera returns complete close hull")
+	var cockpit := craft.get_node("WalkableInterior/CockpitInterior/CockpitCamera") as Camera3D
+	var cockpit_pose := cockpit.transform
+	cockpit.global_position = craft.global_position + Vector3(0, 0, 150)
+	cockpit.make_current()
+	craft.update_exterior_lod_distance(150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 0,
+		"exact own current cockpit camera forces close independently of distance")
+	cockpit.transform = cockpit_pose
+	var foreign := JOVIAN_SCENE.instantiate() as JovianLightFreighter
+	root.add_child(foreign)
+	foreign.set_physics_process(false)
+	var foreign_cockpit := foreign.get_node("WalkableInterior/CockpitInterior/CockpitCamera") as Camera3D
+	foreign_cockpit.global_position = craft.global_position + Vector3(0, 0, 150)
+	foreign_cockpit.make_current()
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign craft cockpit has no force-close ownership")
+	var actor := PLAYER_SCENE.instantiate() as PlayerController
+	root.add_child(actor)
+	actor.set_physics_process(false)
+	actor.set_process(false)
+	actor.set_control_enabled(false)
+	actor.set_camera_active(true)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	actor.set_camera_view_mode(PlayerController.CameraViewMode.FIRST_PERSON)
+	_check(actor.set_cabin_containment(craft, AABB(Vector3(-4, -2, -8), Vector3(8, 8, 17)), craft.global_transform),
+		"real current Player accepts the own-craft cabin frame")
+	craft.update_exterior_lod_distance(150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 0,
+		"aboard current Player interior first-person camera forces close")
+	var secondary := Camera3D.new()
+	actor.add_child(secondary)
+	secondary.global_position = craft.global_position + Vector3(0, 0, 150)
+	secondary.make_current()
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"same Player's unrelated current camera cannot inherit aboard camera ownership")
+	secondary.free()
+	actor.get_camera().make_current()
+	actor.set_cabin_containment(foreign, AABB(Vector3(-4, -2, -8), Vector3(8, 8, 17)), foreign.global_transform)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign Player cabin binding does not force this craft close")
+	actor.clear_cabin_containment()
+	var started := actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_cockpit_seat_anchor(), 1.0, null)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(started and actor.is_boarding_at(craft.get_cockpit_seat_anchor())
+		and craft.get_exterior_lod_report().active_lod == 0,
+		"GameFlow exterior null-frame own-seat boarding with current Player camera forces close")
+	actor.call("_update_boarding", 1.1)
+	var leaving := actor.begin_disembark(craft.get_exit_transform(), 1.0, null)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.update_exterior_lod_distance(150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(leaving and craft.get_exterior_lod_report().active_lod == 0,
+		"GameFlow exterior null-frame own-seat disembark transition retains close")
+	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_cockpit_seat_anchor(), 1.0, foreign)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign real transition cannot force this craft close")
+	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	actor.begin_boarding(foreign.get_boarding_entry_transform(), foreign.get_cockpit_seat_anchor(), 1.0, null)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"foreign retained seat with GameFlow null frame cannot force this craft close")
+	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	actor.begin_boarding(craft.get_boarding_entry_transform(), craft.get_cockpit_seat_anchor(), 1.0, foreign)
+	actor.get_camera().global_position = craft.global_position + Vector3(0, 0, 150)
+	craft.call("_update_exterior_lod_from_current_camera")
+	_check(craft.get_exterior_lod_report().active_lod == 1,
+		"own retained seat paired with a foreign frame cannot force close")
+	actor.force_recovery_to_on_foot(Transform3D.IDENTITY)
+	actor.free()
+	foreign.free()
+	camera.free()
+	craft.update_exterior_lod_distance(20)
+	craft.set_physics_process(was_physics)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+# Snapshot actual owned resources, not duplicate-returning definition getters.
+# Prime normal lazy discovery before walking IDs so the first comparison has
+# exactly the same ownership universe as all later ones.
+func _lod_retained_snapshot(craft: JovianLightFreighter) -> Dictionary:
+	craft.get_command_source()
+	craft.get_weapon_component_emitter_snapshot()
+	craft.get_exterior_lod_report()
+	var resources: Dictionary = {}
+	var nodes: Array[Dictionary] = []
+	var shared: Array = craft.get("_exterior_lod_shared")
+	for node: Node in [craft] + craft.find_children("*", "", true, false):
+		var row := {"id": node.get_instance_id(), "parent": node.get_parent().get_instance_id() if node.get_parent() != null else 0,
+			"children": node.get_child_count()}
+		if node is Node3D:
+			row["transform"] = (node as Node3D).transform
+		if node is GeometryInstance3D and shared.has(node as GeometryInstance3D):
+			row["shared_visible"] = (node as GeometryInstance3D).visible
+		if node is Camera3D:
+			row["cull_mask"] = (node as Camera3D).cull_mask
+		if node is Light3D:
+			row["energy"] = (node as Light3D).light_energy
+			row["light_visible"] = (node as Light3D).visible
+		if node is GeometryInstance3D:
+			row["layers"] = (node as GeometryInstance3D).layers
+		if node is CollisionObject3D:
+			row["rid"] = (node as CollisionObject3D).get_rid()
+			row["layer"] = (node as CollisionObject3D).collision_layer
+			row["mask"] = (node as CollisionObject3D).collision_mask
+		if node is CollisionShape3D:
+			row["disabled"] = (node as CollisionShape3D).disabled
+		nodes.append(row)
+		for property: Dictionary in node.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				_lod_collect_resource_ids(node.get(property.name), resources)
+	_lod_collect_resource_ids(craft.ship_definition, resources)
+	var source := craft.get_command_source()
+	return {"nodes": nodes, "resources": resources, "source": source.get_instance_id(),
+		"stream": source.get_stream_id(), "sequence": source.get_next_sequence(),
+		"anchors": craft.find_children("*", "Marker3D", true, false).map(func(anchor: Node) -> int: return anchor.get_instance_id()),
+		"definition": craft.ship_definition.get_instance_id(), "hull": craft.get("_hull"),
+		"ledger": craft.get_component_damage().get_ledger_snapshot(),
+		"generation": craft.get_component_damage().get_ledger_generation(),
+		"role": craft.get_crew_role_authority().get_snapshot() if craft.get_crew_role_authority() != null else {},
+		"engineer": craft.get_engineer_repair_network_snapshot(),
+		"work": craft.get_engineer_repair_presentation_snapshot(),
+		"copilot": craft.get_copilot_navigation_state(),
+		"damage_cue": craft.get_engine_damage_cue_snapshot(),
+		"weapon": craft.get_weapon_component_emitter_snapshot(),
+		"close_geometry": _lod_close_geometry(craft)}
+
+
+
+func _lod_collect_resource_ids(value: Variant, ids: Dictionary) -> void:
+	if value is Resource and not value is Script:
+		var resource := value as Resource
+		var id := resource.get_instance_id()
+		if ids.has(id):
+			return
+		ids[id] = resource.get_class()
+		if resource is Mesh:
+			for surface in (resource as Mesh).get_surface_count():
+				_lod_collect_resource_ids((resource as Mesh).surface_get_material(surface), ids)
+		for property: Dictionary in resource.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				_lod_collect_resource_ids(resource.get(property.name), ids)
+	elif value is Array:
+		for item: Variant in value:
+			_lod_collect_resource_ids(item, ids)
+	elif value is Dictionary:
+		for item: Variant in value.values():
+			_lod_collect_resource_ids(item, ids)
+
+
+func _lod_first_difference(expected: Variant, actual: Variant, path: String = "owned") -> String:
+	if typeof(expected) != typeof(actual):
+		return "%s expected=%s actual=%s" % [path, str(expected), str(actual)]
+	if expected is Dictionary:
+		if expected.size() != actual.size():
+			return "%s.size expected=%s actual=%s" % [path, expected.size(), actual.size()]
+		for key: Variant in expected:
+			if not actual.has(key):
+				return "%s[%s] expected=%s actual=MISSING" % [path, key, str(expected[key])]
+			var difference := _lod_first_difference(expected[key], actual[key], "%s[%s]" % [path, key])
+			if not difference.is_empty():
+				return difference
+	elif expected is Array:
+		if expected.size() != actual.size():
+			return "%s.size expected=%s actual=%s" % [path, expected.size(), actual.size()]
+		for index in expected.size():
+			var difference := _lod_first_difference(expected[index], actual[index], "%s[%d]" % [path, index])
+			if not difference.is_empty():
+				return difference
+	elif expected != actual:
+		return "%s expected=%s actual=%s" % [path, str(expected), str(actual)]
+	return ""
+
+
+func _lod_close_geometry(craft: JovianLightFreighter) -> Dictionary:
+	var result: Dictionary = {}
+	for renderer: GeometryInstance3D in (craft.get("_exterior_lod_static") as Array) + (craft.get("_exterior_lod_shared") as Array):
+		var mesh: Mesh
+		if renderer is MeshInstance3D:
+			mesh = (renderer as MeshInstance3D).mesh
+		elif renderer is MultiMeshInstance3D:
+			mesh = (renderer as MultiMeshInstance3D).multimesh.mesh
+		var surfaces: Array = []
+		if mesh != null:
+			for surface in mesh.get_surface_count():
+				var data: Array = [hash(mesh.surface_get_arrays(surface)), mesh.surface_get_material(surface)]
+				if mesh is ArrayMesh:
+					data.append(hash(RenderingServer.mesh_get_surface(mesh.get_rid(), surface)))
+				surfaces.append(data)
+		result[renderer.get_instance_id()] = {"mesh": mesh.get_instance_id() if mesh != null else 0,
+			"surfaces": surfaces, "range": [renderer.visibility_range_begin, renderer.visibility_range_end,
+				renderer.visibility_range_end_margin, renderer.visibility_range_fade_mode]}
+	return result
+
+
+func _test_lod_owner_state(craft: JovianLightFreighter, label: String) -> void:
+	var before := _lod_retained_snapshot(craft)
+	craft.update_exterior_lod_distance(150.0)
+	var difference := _lod_first_difference(before, _lod_retained_snapshot(craft))
+	_check(craft.get_exterior_lod_report().active_lod == 1 and difference.is_empty(),
+		"far switch preserves actual %s: %s" % [label, difference])
+	craft.update_exterior_lod_distance(20.0)
+	difference = _lod_first_difference(before, _lod_retained_snapshot(craft))
+	_check(craft.get_exterior_lod_report().active_lod == 0 and difference.is_empty(),
+		"close return preserves actual %s: %s" % [label, difference])
