@@ -34611,3 +34611,66 @@ absent; no owned process remains. Only archive/closeout remain in the case folde
 seven verified playable files remain in builds/. Cleanup completed
 2026-11-05T09:40:55.153579+00:00,27.119minutes from original start, within90minutes;
 closure documentation/push add to this same cost.
+
+
+<a id="cinder-light-whole-lod-render-stop-20261105"></a>
+## Cinder Light whole-craft LOD — rendered gate stop, 2026-11-05
+
+**PARKED/unaccepted**, candidate **8dc9b64964d0652e5c8b9168edde4eebb4b792f7**,
+based90410f705. Four files: Light controller, its existing component/silhouette
+capture and passive native observer. Authors retained path-preserving static
+membership, complete reduced exterior, actual-camera selection/close access,
+shared canopy/beacon/muzzle/plumes and cache-fresh passive fields. No parked
+Arrow/Zenith source was restored. These authored changes remain unmerged.
+
+Original assessment09:42:11UTC/all-in deadline11:12:11, existing ART one correction
+round total. Initial test parser fails dynamic inferred berth; old-runtime copy
+also cannot infer new-API values. Final far-active test precondition changed
+while first syntax checks were running, so their test hash cannot establish
+current test acceptance. One final readiness transaction makes test locals
+explicitly typed/new APIs dynamic with Dictionary casts and retains the far
+precondition; all production/capture hashes stay unchanged. Corrected test and
+old copy parse0/zero diagnostics; controller/observer/capture also parse0/zero
+diagnostics. No extra correction or time reset.
+
+**Actual source results:** old source stops before Main at missing LOD API,
+parent143/two diagnostics (target plus supervisor interruption), marker0.
+Candidate focused256 and full317 assertions pass; separate canopy6, damage7 and
+speed-silhouette9 regressions pass. Every listed green source run exits0 with zero
+diagnostics and its one exact marker; all four source hashes match final freeze.
+Independent census39142→6022solid triangles (15.385%),64→38submissions,
+88→40instances. Source tests cover quiet authority/resource identities within
+each epoch, retained-Main re-entry, supplied boundary/invalid distances, actual
+staged viewport/cockpit/boarding/disembark, shared state and passive live/cached/
+compact observations. Parent suppression is staged visibility, not actual fatal
+loss/recovery. These component results do not establish ordinary visual travel.
+
+**Required render fails:** actual private Xvfb/x11/Dummy/Forward+ softwareVulkan
+command exits124 after110.288453s. Raw log contains only engine banner, llvmpipe
+identification and supervisor timeout/reaping; output directory exists but
+contains0PNGs,0frame markers,0success markers. Exact stalled phase/cause remains
+UNMEASURED; no shader-compilation or gameplay cause is asserted. Source contains
+no enforced90s internal watchdog despite the card's declared target. Only110s
+outer enforcement is evidenced. No rendered inspection, export or checkpoint
+was performed; latest playable5bc9a17 is unchanged. No subset is accepted from
+the green source checks. Original ordinary/native/hardware and full-craft gates
+remain open; no mandatory new human-review gate is added.
+
+A request for explicit user cumulative-cost reprioritization proposes one capture
+retry with phase logs/internal watchdog,300s internal/330s outer, no LOD/gameplay
+changes and original11:12:11 all-in deadline/prior cost retained. No approval
+received and no dependent retry/source edits executed. Until approval, exhausted
+round/110s terminal boundary remains. A future change must name the superseded
+boundary and preserve all complete geometry, authority, actual visual/package
+and original ordinary qualification requirements.
+
+Verified archive `/srv/mudds-work/cinder-light-whole-lod-20261105/records.tar.gz`:
+250 regular members,10,197,130bytes,SHA256
+`7b38690b01c719676c8eb54084382a3fe9b66022eff3bcc7871b5e23360a7760`.
+Every member hash and source bundle/base/tip verified before owned cleanup.
+Fresh remote tips and registered ownership checked; unique source preserved,
+owned candidate/baseline worktrees removed and local ref exact-CAS deleted at
+8dc9b6496. Remote task branch absent; no owned process remains. Only archive/
+closeout remain in the case folder. Cleanup2026-11-05T10:22:17.871896+00:00,
+40.115minutes from original start, including mapping/waiting and failure work;
+closure review/push adds to the same cumulative cost.
