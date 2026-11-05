@@ -227,50 +227,26 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active delivery: exported Jovian first kit-delivery caller.** Assessment starts
-2026-11-05 11:17:51UTC; hard stop12:47:51UTC includes selection, checks, package,
-integration and cleanup. Its sole correction fixes an observer identity mismatch:
-the cargo destination module and physical ShipBerth are distinct objects. Both
-identities are now checked; stock, deadlines and complete journey stay fixed.
-Any subsequent unexpected failure parks the whole goal. No parked Guided,
-capture, Halyard or KIT-RELOAD retry is selected automatically.
+**Exported Jovian first kit-delivery caller: PARKED/unaccepted.** Candidates
+8cf04f491→5e50a997e are archived unmerged. First run stops before input because
+the observer conflates the cargo destination module with its physical ShipBerth;
+the sole correction checks both real identities and their registered relationship.
+The corrected run reaches actual Begin Shift/Cargo selection/Resume, then stops
+on a motion-observation epoch discontinuity across pause: global frame826 retains
+motion frame548; frame827 reports motion frame826. The player and motion endpoints
+stay unchanged. No walking, boarding, delivery, payment or normal Quit is qualified;
+no movement/teleport defect is established. Both runs have zero engine diagnostics
+and release/reap all inputs/processes. Green source/startup checks do not accept a
+subset. Latest playable remains5bc9a17; no new checkpoint or runtime merge.
+[Exact proof, archive and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105).
 
-**Exported Jovian first kit-delivery caller.** Existing
-[PLAY-JOVIAN-KIT](docs/ROADMAP_BACKLOG.md#proof-activity) full journey and
-[HUD-CARGO prerequisite](docs/ROADMAP_BACKLOG.md#hud-cargo-contract).
-
-- **Result:** a supported `--route jovian-kit-delivery` completes the entire first
-  delivery through ordinary OS input on the release executable. Existing source
-  fixture acceptance is reused; its injected input/direct test quit is not an
-  exported caller or normal HUD Exit. This new capability does not close the
-  three-process HUD-CARGO reset/selection/cold sequence or retry KIT-RELOAD.
-- **Start/owners:** clean14c2e1c07, fresh real profile/no prepared JSON, normal menu,
-  cargoIDLEg0/stock6/0/no transfer or payment. Implementation owns existing
-  `tools/release/run_native_sortie.py`, `scripts/diagnostics/native_sortie_observer.gd`,
-  `scripts/game/startup_loader.gd`, `tools/release/test_native_sortie.py` and
-  `tests/startup_cli_privacy_test.gd`. Root owns review, artifacts/build/docs/cleanup;
-  production cargo/data owners remain unchanged.
-- **Action/pass:** actual Begin Shift/Cargo keyboard selection≤5s each; authored
-  Freight goals≤15s each/.30m horizontal/.8m vertical/15 supported settled ticks;
-  hatch E/pilot boarding≤12s. Same Player/Jovian/default sampler/no provider;
-  ordinary thrust releases lease and travels≥5m on initial nose/ACTIVEg1≤10s;
-  brake≤10s to≤.5m/s for60physics ticks, Start transaction elapsed0 and original
-  activity180s deadline. Ordinary landing press accepted≤8s, strict current home
-  dock≤120s/.05m/.5°/.05m/s; actual transfer2/stock4/2/one g1 ledger and durable
-  payment. Neutral automatic OFFLINE≤authored idle threshold+1s, physical exit
-  ≤2×canopy+disembark+1s, same supported Player walks≥.5m≤15s. Retain60post-delivery
-  ticks/no duplicate reward, normal HUD Quit/actualOS0/zero diagnostics, actual
-  completed durable file and both clean-close markers. No actor/pose/data writes.
-- **Proof:** old CLI rejects missing route before launch. Freeze source/Python/
-  startup privacy checks, then clean Windows/Linux exports, three strict startup
-  checks and exact paired package audit. One complete native run on the matching
-  archive-extracted Linux ELF: original300s inner/330s outer, private Xvfb/x11/
-  Dummy. Fixed external results `/srv/mudds-work/jovian-kit-native-caller-20261105`.
-  Numeric/source/isolated Linux results do not qualify native Windows/GPU/devices.
-- **Endpoint:** estimate65–80minutes through closure; source target≤12:10UTC.
-  After full pass only, EXE/ZIP/notes in builds/windows plus matching Linux,
-  merge/push and exact owned branch/worktree/process/scratch cleanup. Failure
-  retains unique source/raw and parks without a smaller accepted subset.
+Owned branch/worktree/profiles/unaccepted exports/scratch are removed after verified
+archival. The full [first journey](docs/ROADMAP_BACKLOG.md#hud-cargo-contract)
+and larger HUD-CARGO reset/cold sequence remain open in their distinct scopes.
+Reopening this caller needs a concrete pause/freshness correction and later explicit
+user reprioritization retaining prior cost/exhausted allowance; no renamed retry.
+No new implementation is active. The prepared Titan design decision and focused
+Halyard repair request remain unanswered; neither is assumed approved.
 
 **Halyard fresh-Main re-entry: PARKED/unaccepted.** Candidatecfcb7fae4 is
 archived unmerged. The actual three-process run reaches BOARD/seven MOVING,

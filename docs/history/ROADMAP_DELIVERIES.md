@@ -34819,3 +34819,71 @@ exact-CAS local ref, profiles and scratch removed. Only archive/closeout remain.
 Cleanup2026-11-05T12:06:16.308405+00:00, 48.422minutes from original assessment;
 final documentation/review/push remains charged to that same card. Unique unaccepted
 source is retained in the verified archive; no task branch or process remains.
+
+<a id="jovian-native-caller-pause-epoch-stop-20261105"></a>
+## Exported Jovian first delivery stopped at pause epoch 20261105
+
+The complete exported first Jovian job caller is **PARKED/NOT_ACCEPTED**.
+Candidates8cf04f49170d339e1400ae3582f167d33497b104 and correction
+5e50a997e2a59358a3a4601402aadd046769676b remain unmerged; pushed base
+89bea208bcf6df5f744c5bd3d0fdc2da695be79f retains their source dependencies.
+Original assessment11:17:51UTC, all-in hard stop12:47:51, one total correction.
+The five-file candidate adds the full OS-input `jovian-kit-delivery` release route,
+passive Start/transfer/actor/UI/data observations, exact private startup admission
+and four focused regressions. No gameplay/data-owner edits or prepared JSON.
+Existing SceneTree-input/direct-quit first-job acceptance is reused in its source
+scope; it cannot substitute for the new package/OS-input/full-normal-Quit result.
+HUD-CARGO's larger1200/1260 reset/IDLE/ACTIVE-cold sequence remains unimplemented;
+KIT-RELOAD keeps its separate original30s parked boundary.
+
+Clean import0/24.842s/diag0; old CLI rejects missing route before any launch.
+Frozen syntax,4focused and307full Python tests pass; observer parse0/16.021s/
+diag0 and existing startup privacy0/1.439s/one marker/diag0. First clean Windows/
+Linux exports and three strict startup checks pass0+1+0. The actual archive-extracted
+ELF matches its direct binary SHA before the one selected original300s/outer330 run.
+
+First native run fails22.433s/diag0 at boot before any input or stage. Observed
+cargo is genuinely configured IDLEg0,stock6/0,deadline180,source_current=true,
+but destination_current=false. The observer compared a Node3D JovianFreightBerth
+cargo module with the separate physical ShipBerth. The single cause correction
+requires the actual current world module, matching berth ID/physical registry and
+both distinct nonzero stable identities. No criterion, stock, timing, action or
+production owner is changed. Corrected observer parse0/16.020s/diag0 and full307
+Python14.691s pass; unchanged privacy/source checks are reused by identical hashes.
+Fresh corrected exports and all three strict startups again pass0+1+0.
+
+Corrected actual archive ELF SHA
+53436e6008bd871fa4c53d97ecd0c9e9511dcad639100570da75c15d09117dfe
+fails28.906s/diag0 at menu_resume. Stages record real Begin Shift, notice dismissal,
+Pause/Activity Board/Cargo selection/Back/Resume. Last validated global frame826,
+sequence361 is unpaused/grounded/supported at(-8.5,-.0198632758,11), with retained
+completed-motion frame548. Next raw global827/seq362 reports completed-motion
+frame826; the following global828 reports827. All shown player positions and
+motion start/end values are unchanged. The existing consecutive-epoch assertion
+rejects548→826 across resume. This establishes the retained observation mismatch,
+not a movement or teleport defect. There are361 recorded control updates containing
+only Escape/Return/Tab/e; zero mouse delta/fire/walk keys and zero visited goals.
+Cargo remains IDLEg0/stock6/0, starts/transfers/owed empty. No walking/boarding/
+departure/transfer/payment/home exit/60postticks/normal UI OS0 is qualified.
+
+Both attempts have true input release/helper/game/Xvfb reap flags. Six recorded
+child PIDs are independently absent. All input is private Xvfb/x11/Dummy with dummy
+rendering; native GPU,physical devices,rendered readability/native Windows remain
+NOT_RUN. Source review,307tests and startup successes do not accept a subset or
+close any product parent. ZIP/notes/paired audit/new accepted checkpoint are
+NOT_RUN; no unaccepted code/binary is merged or published. Latest playable5bc9a17
+remains. Reopening needs a concrete observer pause/freshness correction plus later
+explicit user reprioritization retaining prior cumulative cost/exhausted allowance;
+the complete original journey and all local/300/330 limits remain binding.
+
+Verified archive `/srv/mudds-work/jovian-kit-native-caller-20261105/records.tar.gz`:
+241 regular members/9,609,985bytes,SHA256
+`899d3c70cd74f49ee77793170d8a6d3b2a8f1363ea07551b049c98bebdc42af5`. Every member hash, all five full source files and the named-branch
+bundle including both commits/base/tip verify before deletion. Exact duplicate
+first/current extracted ELFs are removed only after matching package pins/raw result;
+export results/pins and all raw logs remain archived. Fresh remote tips show no task
+branch; registered clean ownership/tip checked. Owned worktree, exact-CAS local ref,
+unaccepted exports, profiles/caches/helpers/scratch removed; only archive/closeout
+remain. Cleanup2026-11-05T12:36:45.541386+00:00, 78.909minutes from original
+assessment; final documentation/review/push is charged to the same card. No task
+branch/worktree/process is retained; unique unaccepted source stays in the archive.
