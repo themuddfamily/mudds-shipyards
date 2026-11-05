@@ -10,18 +10,19 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **d525554** — [Windows ZIP](builds/windows/MuddsShipyards-d525554-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-d525554-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-d525554-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-d525554-linux-notes.txt)).
-Shared Ember progress now comes from the host's real survey state through the
-existing authenticated journey. Current exterior crew's HUD shows that passive
-objective/progress with hatch priority and owned-text clearing. Fresh ENet
-observer proof and a separately staged HUD unit pass; physical late admission,
-full shared/ordinary journeys and native/hardware qualification remain OPEN.
-[Actual delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105).
-Earlier Ember save/terminal retry, Aurora/Rime settled resume retirement, Arrow
-guidance and dedicated startup remain included in their recorded scopes.
+Latest playable checkpoint: **6474bda** — [Windows ZIP](builds/windows/MuddsShipyards-6474bda-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-6474bda-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-6474bda-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-6474bda-linux-notes.txt)).
+Cancelled Aurora/Rime approaches now keep their resident world on normal
+streaming wind-down until the actor leaves its unload envelope. Actual Main
+integration passes both worlds' unload/free, fresh admission and current-origin
+checks. This is staged component proof; full ordinary/shared cancellation and
+native/hardware qualification remain OPEN.
+[Delivery and exact proof limits](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105).
+Earlier Ember passive progress, save/terminal retry, Aurora/Rime settled resume
+retirement, Arrow guidance and dedicated startup remain included in their
+recorded scopes.
 
 Latest Ember outbound trial remains **PARKED**: actual Host takeover and strict
 caldera/OFFLINE reached, but the driver incorrectly requires station gravity
@@ -205,15 +206,16 @@ recovery and Rime's conserved-checkpoint resume are missing production work;
 restarting the survey from zero cannot qualify progress conservation. The
 exterior-loss recovery candidate is [PARKED before its native cut](docs/history/ROADMAP_DELIVERIES.md#exterior-session-loss-recovery-parked-20261105):
 the client never reached its physical exterior cut-ready point. No recovery
-proof, runtime merge or new checkpoint resulted; d525554 remains latest.
+proof, runtime merge or new checkpoint resulted from that attempt.
 [Three pilot-loss cases](docs/ROADMAP_BACKLOG.md#shared-world-pilot-loss-safe-return)
 now choose actual host authority shutdown and safe same-craft Mudds recovery,
 with durable progress protected before teardown. Preflight-safe recovery,
 client embodiment/home handoff and ordinary case callers remain production work.
 [Three cancellation cases](docs/ROADMAP_BACKLOG.md#shared-world-outbound-cancel)
 now bind real flight/approach controls,connected home return,earned-record
-preservation and fresh admission/departure. Aurora/Rime retirement cadence and
-full ordinary callers remain unimplemented;no cancellation case has run.
+preservation and fresh admission/departure. Aurora/Rime residency-only retirement
+is delivered on 6474bda; full ordinary callers and complete cancellation
+qualification remain open.
 [Three OS-interruption cases](docs/ROADMAP_BACKLOG.md#shared-world-os-interrupt)
 now fix committed saves,owned kill/fresh Boot and one-payment shared continuation.
 Ember's in-tree save/shared resume and ordinary restored-crew intake remain
@@ -512,48 +514,17 @@ caller remain missing; the parked outbound gate remains a prerequisite.
 [Exported dedicated authority](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract)
 now has a concrete Boot/CLI, listening, orderly one-session exit and packaged
 two-client acceptance contract. The accepted source harness remains narrower;
-production launch and packaged participation still need implementation.
+normal Boot launch and optional orderly session exit are delivered on24ed6bc86;
+packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active task: retired Aurora/Rime world residency wind-down.** Existing
-[shared cancellation retirement capability](docs/ROADMAP_BACKLOG.md#shared-world-outbound-cancel),
-selected independently of full SHARED-*-CANCEL journeys and their baseline gates.
-
-- **Result:** after a travelling visit is cancelled, its already loaded world
-  keeps receiving current actor focus until normal streaming unloads it outside
-  its existing envelope; visit controls, approach/lease and survey stay retired.
-- **Start/owner:** clean `0ed1458d0`; implementation owns
-  `scripts/game/planetary_journey_coordinator.gd`, `scripts/game/game_flow.gd`
-  and `tests/planetary_surface_visit_expedition_test.gd`. One independent reviewer
-  checks lifecycle, actor sample ordering and authority preservation.
-- **Dependencies:** existing two streaming bindings/coordinators and the single
-  common-origin owner are present. Actual shared baseline, Aurora source artifact,
-  Rime native landing and physical crew home gates remain unchanged and unselected.
-- **Action:** import/direct parse; run existing surface-visit suite with new
-  `--retired-world-residency-only` selector on isolated private profiles. Freeze
-  a loaded, staged cancelled-approach fixture for each world; use production
-  cancellation and normal GameFlow ticks, not a test-driven manual unload.
-- **Pass:** old runtime reproduces missing unload; changed runtime keeps a loaded
-  retired world while current focus remains inside its envelope, unloads it
-  through its existing coordinator outside the envelope, clears loading/owned
-  records, expires scene/terrain weakrefs after deferred free, then stops its
-  retired cadence. Inactive cold worlds do not load. Fresh admission cancels
-  stale retirement ownership; another active world is not double-ticked or
-  unloaded. Actor/control/claim/command identities are preserved; only the one
-  common-origin owner commits translations. Test staging proves this runtime
-  capability, not ordinary outbound travel or the full shared cancellation case.
-- **Proof:** raw focused old/new logs and actual streaming generations, loaded
-  roots, weakrefs and current binding samples. New selector cap300s/outer360s;
-  the existing full suite retains its900s limit and is not selected unchanged.
-- **Budget:** start2026-11-05 06:43:22 UTC; source ready by07:08:22;
-  all-in deadline08:13:22. Up to three cause-bound corrections within this
-  original clock, each after stopping dependent checks and reviewing cumulative
-  cost; no reset or parked retry. Independent process abort owns every engine.
-- **Endpoint:** accepted behavior gets focused regressions, a clean commit,
-  safe Windows/Linux checkpoint with strict startup/package checks, merge/push
-  and owned cleanup. Failure at the deadline or exhausted allowance is retained
-  and parked; all full native/shared journeys remain open.
+No implementation assignment is currently running. The
+[retired-world residency capability](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
+is **DELIVERED** on 6474bda with the checkpoint linked above. Actual source/Main
+checks prove both worlds' normal coordinator unload and deferred scene/terrain
+free after staged cancelled approaches leave the envelope; full shared/ordinary
+cancellation journeys and native qualification remain open.
 
 The bounded
 [Zenith modern LOD attempt](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105)
@@ -562,9 +533,8 @@ BoxMesh. The sole correction was spent on an earlier null-index assumption.
 No complete modern LOD sequence, rendered pair or checkpoint passed; the
 candidate is preserved unmerged. Existing full Zenith qualification stays open.
 
-The latest delivered
-capability is [Ember passive shared progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
-on **d525554** with the checkpoint linked above. A fresh observer receives the
+Earlier [Ember passive shared progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
+on **d525554** remains included. A fresh observer receives the
 host's real survey progress; the exterior HUD presentation has a separately
 staged focused check. Physical late admission and full ordinary journeys remain
 unproved. The subsequent [landed-crew browser-entry attempt](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105)

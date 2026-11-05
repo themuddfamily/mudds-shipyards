@@ -34253,3 +34253,90 @@ Fresh remote check found no task branch; owned worktree removed and local ref
 CAS-deleted at candidate994d1a8. No owned engine/display processes remain.
 Only records.tar.gz and closeout.json remain in the case folder.
 Cleanup completed 2026-11-05T06:42:22.713930+00:00; cumulative 14.962min from the original start, within the90min cap.
+
+
+<a id="retired-world-residency-delivered-20261105"></a>
+## Cancelled Aurora/Rime world residency — delivered 2026-11-05
+
+Source **6474bda0432eea0aeeb9208e4b8a339fbc9f7407**, integrated and pushed to
+main. Existing shared-cancellation retirement requirement only: travelling
+cancellation now retains weak identities for an already loading/loaded world
+and observes its focus after the active lane's current common-origin result.
+Existing streaming owns unload/generation/free. Admission takes the resident
+world back once; retired/unloaded generations stop before another focus can
+cold-load them. No new origin owner, controls, visit callbacks, registrations
+or scheduler; the landed rescue path is unchanged.
+
+The bounded task card was pushed on `cc193a016` before editing. Original start
+06:43:22 UTC, source-ready deadline 07:08:22, all-in deadline 08:13:22; selected
+focused 300s/outer 360s and original full-suite 900s limits retained.
+Final corrected fixture/source freeze: 2026-11-05T07:01:33.690202+00:00. Production
+changes only 58 lines in the journey coordinator; the existing surface-visit
+suite gains an opt-in `--retired-world-residency-only` fixture. GameFlow and
+streaming/origin implementations stay unchanged. Independent source and raw
+result review GO. No new roadmap IDs, validator, schema or evidence family.
+
+Two fixture corrections consumed 2/3 allowance within that original clock:
+- First old-runtime setup stopped OS143/37.269s/two diagnostics before the
+  intended failure: world loaded but no approach source. Freezing the body
+  before admission blocked normal consumed-command/cruise progression; the
+  particular old blocking operand was not logged. Correction keeps physics
+  running until an actual source composes, preserving that assertion.
+- Second setup stopped OS143/35.288s/two diagnostics on fresh readmission.
+  Source confirms real cancellation requests braking and admission rejects
+  BRAKING; the frozen body could not finish. Its exact refusal operand was not
+  logged. The correction observes immediate cancel pose/velocity first, then
+  allows real physics through bounded 120-frame attachment/neutral/readiness
+  settlement before each one-shot admission. Logs show actual braking_complete,
+  inactive attachment and speed0. No private state/velocity setter supplies
+  braking. Production code stayed unchanged throughout both fixture corrections.
+
+**Old-runtime reproduction:** same final fixture on `cc193a016`, then supervisor
+stop at the intended Aurora unload failure, OS143/36.661s. All setup, actual
+source composition, cancellation settlement, same-world readmission and peer
+admission pass first. Outside the envelope Aurora stays generation1, unloads0,
+owned scenes1. Five missing-cadence predicates plus the supervisor interruption
+are the only diagnostics; no script/parse/setup error. This is the bounded
+Aurora regression reproduction, not a completed both-world suite or OS0 proof.
+
+**Changed-runtime acceptance:** exit0/59.825s, exactly one
+`RETIRED_WORLD_RESIDENCY_TEST_OK: 42 assertions`, zero raw diagnostics. Both
+Aurora and Rime advance generation1→2, unload exactly once, clear all loading/
+owned records and expire scene/terrain weakrefs. In-envelope hold, fresh same-
+world admission with exactly one active cadence, other active world preservation,
+translated current actor sampling under the sole origin owner, stopped cadence/
+no cold-load and no revived visit/control/lease authority all pass. Existing
+streaming coordinator regression independently passes 93 assertions/5.830s,
+exit0/one marker/zero diagnostics. Imports and direct old/new script parses pass
+with zero diagnostics; the unchanged full 900s visit suite was not rerun.
+
+**Proof limits:** real Main, ordinary boarding/departure, actual production
+request/cancel/braking and real streaming loader/unload/deferred free. Initial
+and opposite-world actor positions and corridor state are explicitly staged;
+ship physics is fixed only around residency observations. This establishes the
+production residency capability, not complete ordinary/shared travel, three-peer
+cancellation/home/rearm, landed rescue regression or native/GPU qualification.
+All existing baseline/artifact/parked gates and full-game parents stay open.
+
+**Checkpoint 6474bda:** fresh clean-commit official 4.7.1 Windows/Linux exports
+pass (26.604s/26.979s, zero diagnostics). Windows payload under Linux editor
+passes 26.934s; direct Linux 22.651s and extracted archive 22.616s each pass strict
+`--startup-check`, actual exit0/exactly one STARTUP_MENU_READY_OK/zero diagnostics.
+All engines headless/Dummy/private profiles; no native Windows/GPU claim.
+Paired package audit passes all nine predicates, 1531 entries, unchanged inputs,
+source/template/header/inventory/ELF/TAR/ZIP identities. All seven checkpoint
+files copied to repository builds/windows and builds/linux with SHA256 equality.
+[Windows checkpoint](../../builds/windows/MuddsShipyards-6474bda-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-6474bda-notes.txt),
+[Linux archive](../../builds/linux/MuddsShipyards-6474bda-linux-x86_64.tar.gz).
+
+Verified records archive: `/srv/mudds-work/retired-world-residency-20261105/records.tar.gz`
+(103 regular members, 10,146,522 bytes, SHA256
+`2bcccc44c308a0e01dd99d8c0853400304e3d3ac971161ea33121907ae681db9`). Every regular member hash and the source bundle were
+verified before owned cleanup; seven playable artifacts remain in builds/.
+
+Owned candidate and baseline worktrees removed; local task ref CAS-deleted
+at 6474bda after fresh pushed-main ancestry and ownership checks. Remote task
+branch absent, no owned processes remain, and only records.tar.gz/closeout.json
+remain in the case folder. Cleanup completed 2026-11-05T07:14:11.139134+00:00;
+cumulative 30.819 minutes from the original start, within the 90-minute cap.

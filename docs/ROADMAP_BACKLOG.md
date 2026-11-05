@@ -4081,12 +4081,19 @@ Actual current manual commands must continue to be consumed with no automatic
 old outbound re-engagement. Capture any legitimate stream retirement/new current
 stream rather than inventing a no-reset requirement unsupported by its owner.
 
-**Aurora/Rime loaded-world retirement is missing integration.** Their current
-cancel path makes expedition/coordinator idle and returns the active lane to
-Ember-only advance_world. The old target lane then stops receiving actor samples.
-Common-origin accept_common_world_translation explicitly does not reevaluate
-streaming,and _clear_surface releases visit nodes without freeing the owned
-world. This is a source-bound missing retirement cadence,not an observed leak.
+**Aurora/Rime residency-only retirement is DELIVERED on6474bda.** Before this
+change, travelling cancellation made the expedition/coordinator idle and the
+old target lane stopped receiving focus. Common-origin translation deliberately
+does not reevaluate streaming, and visit cleanup does not own the streamed world.
+The coordinator now retains exact weak streaming identities/generation and
+observes current focus after the active lane's one origin transaction, until
+normal unload retires that residency. Successful fresh admission takes ownership
+back; an unloaded generation cannot cold-load through the retired cadence.
+The [actual delivery](history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
+includes old-runtime Aurora missing-unload reproduction and both-world staged
+Main integration. Full three-peer cancellation/home/rearm proof remains open;
+its baseline, artifact, physical-egress and parked prerequisites are unchanged.
+The following requirements still bind those full cases.
 Keep a residency-only retired-lane wind-down in the existing streaming/journey
 owners until real current actor focus leaves that world's unload envelope and
 WorldStreamingCoordinator requests/completes unload. Preserve one common-origin
@@ -4146,7 +4153,8 @@ at cancel,return or rearm. Use private profiles,isolated Xvfb/x11,Dummy audio.
 Retain raw three-peer logs,current action/retirement/source/pose/streaming/home/
 record and rearm operands,failure-free done/all three actual OS0/zero diagnostics/
 owned input/process/display closure. Each future production/caller assignment
-remains≤90min all-in/stop/correction/checkpoint;all new execution is NOT_RUN.
+remains≤90min all-in/stop/correction/checkpoint. Full ordinary three-peer
+execution remains NOT_RUN; the focused residency integration above is narrower.
 Baseline/artifact/parked/final-package gates are unchanged.
 
 <a id="shared-world-os-interrupt"></a>
