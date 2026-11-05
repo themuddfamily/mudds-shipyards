@@ -26,6 +26,88 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Hauler ordinary mass-driver hit, miss and home
+
+**CRAFT-ACCEPT-CINDER-HAULER / travelling pilot weapon member**, reusing the
+[existing firing-role map](docs/WEAPON_DEFINITION_CONTRACT.md) and accepted
+Hauler admission/home99f2717ee. Deliver its missing executable ordinary caller
+and terminal observation, not cargo replay or full craft/eleven-binding closure.
+
+- **Candidate/start:** clean e67299a53; fresh normal Boot/private empty profile,
+  ordinary E/18 `CinderHaulerSupplyPilot.INITIAL_GOALS`/actual Dock04 boarding
+  and90 neutral ticks. No activity arm/load, state/pose/health write or injected
+  shot/packet. Ordinary default pilot input only; no parked route retry.
+- **Owners/files:** one high-effort implementer owns existing
+  `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`,
+  `scripts/diagnostics/native_sortie_observer.gd`,
+  `scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd`.
+  Root owns card/commands/package/integration/cleanup; one independent high
+  reviewer checks terminal attribution, actual input and complete outcomes.
+  No gameplay tuning change or missing-original/crew/remote scope.
+- **Literal source-owned route binding:** from actual departed Dock04 use its
+  accepted live capture→capture+world-UP60m clearance, then station-local
+  (0,120,-200)→(0,30,-75), reaching each at≤2m/≤.5m/s. Query actual complete
+  current hull/geometry before each leg; fail a blocker, never teleport or
+  substitute another goal. Station coordinates follow the live World transform.
+  Brake at the firing point; aim from actual muzzle to the current supported
+  moving target, using real mouse and measured motion/lead. Missile-style
+  camera or actor pose writes are prohibited. Return through (0,120,-200),
+  the same live clearance point and original capture/home path.
+- **Hit/miss binding:** actual `ExteriorTargetRange/TargetDrone01`, `DRONE-01`,
+  base(-13,7,-95), real moving collider radius2.35m, starts100 health. Exactly
+  one accepted real FIRE flight must travel then commit26 once (100→74).
+  After normal cooldown, ordinary input aims the same muzzle station-UP;
+  passively query its actual .45m-radius/180m swept corridor excluding own hull.
+  Exactly one second FIRE flight must genuinely miss/expire after the authored
+ 1.2s/180m, with health74 unchanged. No fabricated target/empty-space receipt.
+  Weapon stage45s from settled firing arrival through both terminals; total
+  original CAP300/independent360 remains from process launch, never reset.
+- **Source facts:** registered source1109/current Hauler, weapon
+  cinder_cargo_mass_driver,180m/26/.70s,150m/s/1.2s/.45m; actual3-slot pool.
+  Preserve inherited heat/component/ONLINE/cadence gates. Do not use
+  get_last_player_shot_result's launch dictionary as a terminal proof. Passive
+  pool bolt_launched/resolved/abandoned callbacks and real authoritative
+  terminal ShotRequest/adapter hit context must correlate exact flight/source/
+  weapon/sequence; slot identity alone does not establish source attribution.
+- **Literal executable command:** `python3 -B tools/release/run_native_sortie.py
+  ABS_LINUX_ELF --output /srv/mudds-work/hauler-weapon-20261105/ordinary
+  --route hauler-weapon`. Add exactly this opt-in selector under existing
+  x11/Dummy/private-input admission; preserve all old selectors/order/defaults.
+  Existing native private Xvfb/dummy renderer/abort/input release/reaping stays.
+  Normal output result must contain success=true and NATIVE_HAULER_WEAPON_OK
+  only after every stage/normal OS0. No rendered/GPU/device/human qualification.
+- **Complete checks:** existing full Python native suite; seven full headless
+  matrix scopes: startup_cli_privacy_test, cinder_cargo_mass_driver_bolt_test,
+  cinder_cargo_hauler_test, weapon_definition_test, live_combat_integration_test,
+  combat_resolver_test, main_reentry_quality_test. Pinned Godot4.7.1, Dummy,
+  jobs1/timeout300, first import always then never, original marker once,
+  raw diagnostics0/OS0/stable source+imports. Compile actual observer via
+  startup/privacy preload, without calling instance-only methods on its class.
+  Clean paired exports/three strict --startup-check probes/full inventory+
+  all nine existing package audit predicates remain required before publication.
+- **Proof/close:** one exact immutable source/package, actual PID/input/actor/
+  muzzle/target/flight/authority/impact/terminal/home/support/stock/reward/claim
+  operand records and normal durable clean close. Root retains verified records
+  and unique source; merge/push accepted work, seven repository checkpoint files
+  with actual scope notes; exact owned worktree/ref/process/scratch cleanup.
+  No validators/schema versions/new evidence family, Downloads or hosted CI.
+- **Budget/stop:** readiness costs retained from20:40:26UTC2026-11-05;
+ 90min all-in estimate/absolute22:10:26UTC deadline. Freeze **three corrections
+  total** for this cross-component input/flight/terminal capability, each only
+  after concrete cause plus cumulative-cost GO. First unexpected failure stops
+  dependent work; final failed correction/deadline parks complete delivery.
+  Original input/home sublimits remain:15s/walk goal,12s boarding,15s home
+  alignment,120s landing,10s exit,90 neutral OFFLINE observations. No cost or
+  correction reset, smaller endpoint or automatic successor. Prior parked
+  station/Cinder attempts retain their distinct costs and owner gates.
+
+| Frozen case | Actual action | Expected endpoint | Result |
+| --- | --- | --- | --- |
+| Physical admission/departure | Normal Boot/E/supported18-goal walk/actual E boarding/neutral90/W departure/live clearance and fixed firing route | Same production Dock04 Hauler/Player/source/default controls, ONLINE/home lease released, healthy hull and unchanged cargo/reward/other claims; real full-hull route queries pass | NOT_RUN |
+| Genuine travelling hit | Native FIRE once at actual DRONE-01 with real muzzle/motion aim | One correlated current source1109/weapon/sequence/flight; launch health100, positive-age displaced flight observation before actual terminal; supported adapter commits26 once, health74, no duplicate damage | NOT_RUN |
+| Genuine miss/retirement | Wait normal .70s gate; physically aim/query station-UP corridor, native FIRE once | Distinct flight, real positive-age travel then lifetime miss; health74 stable, pool/authority active counts0, no abandonment/resurrection/duplicate, authored weapon/heat behavior retained | NOT_RUN |
+| Complete home and delivery | Fixed reverse route, original captured L/strict lease,90 neutral OFFLINE, physical E exit/apron walk/normal UI Quit | Exact occupied dock_04_cargo/root error≤.05m/speed≤.05m/s, supported same Player walk≥1m to accepted apron(8.8,4.18,90); actual OS0/both clean markers/diagnostics0; all source/native/package gates pass, pushed source/checkpoint and owned cleanup complete | NOT_RUN |
+
 ### Station Reduced Flash ordinary package/UI episode — PARKED
 
 COMFORT-FLASH station member; candidates803a2aaa3→7e50fdf65 remain unmerged.

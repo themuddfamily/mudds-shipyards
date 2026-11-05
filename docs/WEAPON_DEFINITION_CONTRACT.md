@@ -203,3 +203,25 @@ timing. Presentation/audio IDs can become active routing inputs only after pool
 and cue tests prove the same atomic acceptance behavior. Beam resolution, generic ammunition conversion and allowed friendly-fire
 conversion remain unsupported in this converter and fail closed. This limitation
 does not revoke the caller-owned live ammunition systems described above.
+
+
+### Selected Hauler ordinary travelling-shot member — 2026-11-05
+
+The existing CRAFT-ACCEPT-CINDER-HAULER pilot function has an unimplemented
+ordinary caller; no runtime weapon type is missing. Its bounded route is now
+fixed in the [selected roadmap card](../ROADMAP.md#current-work-and-next-selection):
+accepted18-point Dock04 admission/live capture+UP60m, then station-local
+(0,120,-200)→(0,30,-75), each≤2m/≤.5m/s with actual full-hull query. Native
+muzzle/motion aim fires exactly one shot at actual moving DRONE-01
+(TargetDrone01/base[-13,7,-95],radius2.35m,health100), then after normal cooldown
+one real shot along physically aimed/queried station-UP clear space. Hit is
+100→74 from actual terminal source1109/weapon/sequence/flight attribution;
+miss expires through the actual1.2s/180m owner, preserving74. Positive-age
+movement must precede each terminal. Pool and authority retire both flights.
+Weapon stage45s; original native CAP300/outer360, home/input waits unchanged.
+Reverse through(0,120,-200)/live UP60m/capture to strict Dock04/OFFLINE90ticks,
+physical exit/apron walk/normal OS0. No cargo arm/replay or pose/damage injection.
+This binds source-owned caller fields; every execution is NOT_RUN at selection.
+It does not close generic self/friendly/occlusion/peer/heat cases or the full
+craft; existing component/source acceptance is retained in its cited scope.
+The separate station-flash and Cinder remote-body parked attempts are untouched.
