@@ -196,6 +196,67 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+### Selected: Cinder Bomber whole-craft LOD runtime and checkpoint
+
+**Goal/contract:** CRAFT-ACCEPT-CINDER-BOMBER, static-exterior LOD capability in
+[the current-craft contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
+Result: the running Bomber gains one complete retained distant exterior in a
+fresh playable checkpoint. Full ordinary craft/LOD/art acceptance stays open.
+This is a fresh member; no parked attempt or rejected code is reused.
+
+**Start/dependencies:** clean pushed main `3ac6e229c`; healthy settled OFFLINE
+Bomber, empty claims. Its production visual/definition, accepted shared all-nine
+retained-Main source qualification and pinned Godot4.7.1/template/private Xvfb
+workflow are available. No pending Bomber-role decision is needed for this
+presentation-only capability; payload/role policy is unchanged.
+
+**Owner/files:** one implementer in the owned worktree edits only
+`scripts/ships/cinder_long_range_bomber.gd`, `tests/cinder_long_range_bomber_test.gd`,
+`tests/main_reentry_quality_test.gd`, and
+`tests/capture_cinder_bomber_silhouette.gd`. One independent reviewer checks the
+camera/lifecycle/rendering integration. Root owns execution, actual original-image
+review, paired checkpoint, integration/push and cleanup; no nested agents.
+
+| Case: initial state and action | Fixed expected result | Actual/proof |
+| --- | --- | --- |
+| Healthy Bomber: use its actual current camera; exercise initial close, distances below/exactly100/in100–120/exactly120/above120, negative and nonfinite inputs; then own cockpit/aboard/real transition and foreign ownership cases | Initial close; far only >120m, close only <100m; exact boundaries/dead band retain; invalid values do not mutate. Own actual cockpit/aboard/boarding-disembarking forces close; foreign camera/seat/frame/actor/craft does not | NOT_RUN |
+| Census every actual Mesh/MultiMesh static exterior and retained shared state, switch both ways | Exactly one complete static exterior active; far triangles ≤25%close and submissions ≤close. Count actual surface primitives and visible MultiMesh copies (-1/all,0/none,partial), preserve empty geometry, reject unknown nonempty renderers. Retain complete pressure hull/shoulders/wing roots/both wings/empennage/engines/sensor silhouette | NOT_RUN |
+| Compare original close geometry, sensor masks, payload/damage/canopy/engine state and actual authority/resource snapshots across switches and the existing retained-Main cuts | All existing geometry/resource/batching/collision assertions preserved. Sensor/cowl retain layer1<<1; actual CockpitCamera excludes sensor,ShipCamera retains it. Stateful consumer ownership and actual body/shapes/anchors/claims/home/component/source/payload-hardpoint identities remain stable within each epoch; original Main reset expectations retained | NOT_RUN |
+| Run all twelve complete source suites below in their actual catalog modes | Each exits0 with exactly one original success marker, zero raw diagnostics, unchanged source and protected import/cache guards. Preserve all old assertions; no ordinary parked route replay or reduced suite | NOT_RUN |
+| Opt-in existing silhouette capture, own production cameras at requested near40m/far150m/cockpit | Default1600×900 custom-camera capture unchanged. Opt-in produces three actual640×720PNG panels plus1920×720strip, exact dimensions/layout and unscaled region equality. Actual near<100m/far>120m, own ShipCamera/CockpitCamera identity; exterior8/8 envelope in frame; coherent matching hull/wings/engines and unobstructed readable centre cockpit. No review-camera substitute | NOT_RUN |
+| Export clean immutable source; probe Windows payload under Linux editor, direct Linux ELF and safely extracted Linux archive; run existing full nine-predicate paired audit | Fresh WindowsEXE/two-file ZIP/notes in builds/windows and matching LinuxELF/TAR/export-result/notes. Each --startup-check exits0, exactly one STARTUP_MENU_READY_OK,zero raw diagnostics. All complete inventory entries audited against prior checkpoint, only intended compiled Bomber runtime change; individually account regenerated node-ID metadata without blanket actual-map approval. PE/template/source/TAR/ZIP/helper identities and unchanged inputs pass | NOT_RUN |
+
+**Commands/proof:** `tools/release/run_test_matrix.sh` with pinned executable
+`/srv/mudds-work/toolchains/godot-4.7.1-official/godot`, `--audio-driver Dummy
+--jobs 1 --timeout 300 --scope NAME`, separate owned profiles/results. Headless:
+`cinder_long_range_bomber_test`, `cinder_bomber_hull_resource_sharing_test`,
+`cinder_bomber_sensor_resource_sharing_test`,
+`cinder_bomber_failed_wing_payload_gate_test`,
+`cinder_bomber_payload_integration_test`, `main_reentry_quality_test`,
+`fleet_expansion_production_binding_test`, `game_flow_fleet_expansion_switching_test`,
+`game_flow_fleet_expansion_physical_switching_test`, `ship_fitout_batch_test`.
+Graphical: `cinder_bomber_component_damage_cue_test` and
+`cinder_bomber_failed_wing_silhouette_test`, each `--mode graphical
+--display-driver x11` on private Xvfb/Forward+/llvmpipe. Modes independently
+verified before selection. Capture existing script with `-- --lod-review
+--output-dir=ABS`, private Xvfb1920×720/x11/Forward+/llvmpipe/Dummy;270s inner
+watchdog/300s independently supervised outer abort/reap. All Godot calls include
+Dummy, no active desktop/audio/hosted CI. Raw commands/logs/guards/originals in
+`/srv/mudds-work/bomber-whole-lod-20261105/`. Native Windows/GPU/device and
+ordinary journey/full-craft gates stay OPEN. No production evidence validator.
+
+**Budget/stop/close:** readiness started17:41:06UTC2026-11-05; estimate75–85min,
+hard19:11:06UTC90min all-in. Implementation ready18:15,source complete18:35,
+capture starts18:40,checkpoint starts18:50,closure reserve from19:01. Freeze
+**three total corrections** upfront for static geometry,lifecycle and capture/
+package integration. Each requires demonstrated cause, remaining allowance and
+explicit cumulative-cost decision under this same deadline; no threshold/case/
+route/candidate-scope relaxation or cost reset. First unexpected failure stops
+dependents; failed final correction/deadline parks the complete delivery with
+unique source/results archived. Close PASS only after every case,independent
+review,merge/push,checkpoint and owned branch/worktree/process/scratch cleanup.
+No automatic successor or parked retry follows closure.
+
 ### Delivered: Cinder Hauler distant exterior and playable checkpoint
 
 **CRAFT-ACCEPT-CINDER-HAULER / whole-craft LOD runtime member: PASS.**
