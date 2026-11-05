@@ -506,6 +506,8 @@ var _nearby_activity_rows: VBoxContainer
 var _nearby_activity_focus_reveal_pending := false
 var _nearby_activity_feedback: Label
 var _nearby_activity_snapshot: Dictionary = {}
+var _ember_save_feedback_context: Dictionary = {}
+var _ember_save_feedback_view: Dictionary = {}
 var _last_nearby_convoy_semantic_transition := ""
 var _nearby_convoy_semantic_transition_serial := 0
 var _planetary_cruise_button: Button
@@ -6840,6 +6842,12 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	if _nearby_activity_presenter == null:
 		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
 	var view: Dictionary = _nearby_activity_presenter.call("present", _nearby_activity_snapshot)
+	var ember_context := snapshot.get("ember_save_context", {}) as Dictionary
+	if not ember_context.is_empty() and ember_context == _ember_save_feedback_context:
+		view["persistence_feedback"] = _ember_save_feedback_view.duplicate(true)
+	else:
+		_ember_save_feedback_context.clear()
+		_ember_save_feedback_view.clear()
 	_render_nearby_activity_view(view)
 	var binding_available := bool(snapshot.get("binding_available", true))
 	for button_name in ["NearbyActivitySaveButton", "NearbyActivityLoadButton"]:
@@ -6847,8 +6855,11 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			button_name, true, false
 		) as Button
 		if persistence_button != null:
-			persistence_button.disabled = not binding_available
-	if not binding_available and is_instance_valid(_nearby_activity_feedback):
+			var ember_save_available: bool = button_name == "NearbyActivitySaveButton" \
+				and not (snapshot.get("ember_save_context", {}) as Dictionary).is_empty()
+			persistence_button.disabled = not (binding_available or ember_save_available)
+	if not binding_available and is_instance_valid(_nearby_activity_feedback) \
+			and (snapshot.get("ember_save_context", {}) as Dictionary).is_empty():
 		_nearby_activity_feedback.text = (
 			"CINDER REACH IS OUT OF STREAMING RANGE  //  LAUNCH TOWARD ITS MARKER TO LOAD FIELD ACTIVITIES"
 		)
@@ -6898,6 +6909,10 @@ func apply_nearby_activity_persistence_result(result: Dictionary) -> Dictionary:
 	if _nearby_activity_presenter == null:
 		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
 	var view: Dictionary = _nearby_activity_presenter.call("present_persistence_result", result)
+	var ember_context := _nearby_activity_snapshot.get("ember_save_context", {}) as Dictionary
+	if not ember_context.is_empty():
+		_ember_save_feedback_context = ember_context.duplicate(true)
+		_ember_save_feedback_view = (view.get("persistence_feedback", {}) as Dictionary).duplicate(true)
 	_render_nearby_activity_view(view)
 	return view
 
@@ -6974,6 +6989,8 @@ func _reveal_nearby_activity_focus() -> void:
 
 func clear_nearby_activity_snapshot() -> void:
 	_nearby_activity_snapshot.clear()
+	_ember_save_feedback_context.clear()
+	_ember_save_feedback_view.clear()
 	if _nearby_activity_feedback != null:
 		_nearby_activity_feedback.text = "No progress result received."
 	if _nearby_activity_rows != null:
@@ -7152,6 +7169,9 @@ func _forward_nearby_activity_intent(action: StringName, activity_id: StringName
 		intent = _nearby_activity_presenter.call("reset_intent", activity_id)
 	elif action == &"save":
 		intent = _nearby_activity_presenter.call("save_progress_intent")
+		var ember_context := _nearby_activity_snapshot.get("ember_save_context", {}) as Dictionary
+		if not ember_context.is_empty():
+			intent["ember_save_context"] = ember_context.duplicate(true)
 	else:
 		intent = _nearby_activity_presenter.call("load_progress_intent")
 	if action in [&"select", &"reset"]:

@@ -31,10 +31,13 @@ class BindingProbe extends Node:
 		var result: Dictionary = store.commit(snapshot, generation, commit_id)
 		if bool(result.get("accepted", false)):
 			snapshot["generation"] = generation
+		result["status"] = &"saved" if bool(result.get("accepted", false)) else &"failed"
 		return result
 
 	func load_activity_session() -> Dictionary:
-		return store.load()
+		var result: Dictionary = store.load()
+		result["status"] = &"loaded"
+		return result
 
 
 class WorldProbe extends Node3D:
@@ -44,11 +47,12 @@ class WorldProbe extends Node3D:
 		return cluster
 
 
-class HudProbe extends CanvasLayer:
+class HudProbe extends "res://scripts/ui/hud.gd":
 	var persistence_results: Array[Dictionary] = []
 
-	func apply_nearby_activity_persistence_result(result: Dictionary) -> void:
+	func apply_nearby_activity_persistence_result(result: Dictionary) -> Dictionary:
 		persistence_results.append(result.duplicate(true))
+		return super.apply_nearby_activity_persistence_result(result)
 
 
 var _assertions := 0
@@ -72,6 +76,9 @@ func _run() -> void:
 	var flow := GameFlowType.new()
 	var hud := HudProbe.new()
 	var store := StoreProbe.new()
+	root.add_child(hud)
+	await process_frame
+	hud.nearby_activity_intent_requested.connect(flow._on_hud_nearby_activity_intent_requested)
 	flow.world = world
 	flow.hud = hud
 	_check(flow.configure_nearby_activity_persistence(store, &"nearby_slot"), "GameFlow configures the caller-owned activity persistence seam")
@@ -85,6 +92,18 @@ func _run() -> void:
 	var after := binding.get_snapshot()
 	_check(hud.persistence_results.size() == 3 and not bool(hud.persistence_results[2].accepted), "failed writes return normalized failure feedback")
 	_check(after == before, "failed writes preserve activity authority state")
+	store.fail_commit = false
+	hud.set_nearby_activity_snapshot({"binding_available": true})
+	hud.show_nearby_activity_page()
+	var save := hud.find_child("NearbyActivitySaveButton", true, false) as Button
+	var load := hud.find_child("NearbyActivityLoadButton", true, false) as Button
+	save.pressed.emit()
+	load.pressed.emit()
+	_check(hud.persistence_results.size() == 5
+		and bool(hud.persistence_results[3].accepted) and bool(hud.persistence_results[4].accepted),
+		"actual Cinder Save and Load button emissions dispatch their existing persistence owners")
+	_check((hud.get("_nearby_activity_feedback") as Label).text == "Progress restored.",
+		"actual Cinder button dispatch publishes normal Load feedback")
 	cluster.queue_free()
 	world.queue_free()
 	flow.free()

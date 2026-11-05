@@ -1282,6 +1282,45 @@ func get_caldera_expedition_interaction_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+## A fresh composition consumes only validated paid IDs from GameFlow. Reuse
+## the caldera completion restore seam without resurrecting an active route.
+func acknowledge_paid_caldera_expeditions(completed: PackedStringArray) -> Dictionary:
+	if not _live() or _expedition == null:
+		return {"accepted": false, "reason": &"caldera_expedition_unavailable"}
+	var saved := _expedition.call(&"get_persistence_snapshot") as Dictionary
+	var merged := (saved.get("completed_activity_ids") as PackedStringArray).duplicate()
+	for value: String in completed:
+		if not ExpeditionActivityScript.is_expedition_activity(StringName(value)):
+			return {"accepted": false, "reason": &"invalid_caldera_expedition_record"}
+		if not merged.has(value):
+			merged.append(value)
+	if merged == saved.get("completed_activity_ids"):
+		return {"accepted": true, "reason": &"paid_caldera_completion_unchanged"}
+	if StringName(saved.get("active_activity_id", &"")) != &"":
+		return {"accepted": false, "reason": &"caldera_expedition_already_active"}
+	var restored := _expedition.call(&"restore_persistence_snapshot", {
+		"schema_version": ExpeditionActivityScript.SCHEMA_VERSION,
+		"world_id": &"ember_moon", "active_activity_id": "",
+		"completed_activity_ids": merged,
+	}) as Dictionary
+	if not bool(restored.get("accepted", false)):
+		return restored
+	_freeze_completed_caldera_reward_seams(&"restored_from_reward_store")
+	return {"accepted": true, "reason": &"paid_caldera_completion_acknowledged"}
+
+
+func _freeze_completed_caldera_reward_seams(source: StringName) -> void:
+	for activity_id: StringName in ExpeditionActivityScript.ACTIVITY_IDS:
+		if bool(_expedition.call(&"is_completed", activity_id)) \
+				and not _expedition_receipts.has(activity_id):
+			_expedition_receipts[activity_id] = {
+				"activity_id": activity_id, "activity_generation": 0,
+				"reward_id": StringName(
+					(ExpeditionActivityScript.ACTIVITY_SPECS[activity_id] as Dictionary).reward_id),
+				"authority_result": {"accepted": true, "reason": source},
+			}
+
+
 func start_caldera_expedition(activity_id: StringName) -> Dictionary:
 	if not _live() or _expedition == null:
 		return _result(false, &"caldera_expedition_unavailable")
@@ -2011,19 +2050,7 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 			return _result(false, &"caldera_expedition_restore_rejected")
 		# A restored errand is already paid for; freeze its reward seam so the
 		# re-entered visit cannot open a second request for it.
-		for activity_id: StringName in ExpeditionActivityScript.ACTIVITY_IDS:
-			if bool(_expedition.call(&"is_completed", activity_id)) \
-					and not _expedition_receipts.has(activity_id):
-				_expedition_receipts[activity_id] = {
-					"activity_id": activity_id,
-					"activity_generation": 0,
-					"reward_id": StringName(
-						(ExpeditionActivityScript.ACTIVITY_SPECS[activity_id] as Dictionary).reward_id
-					),
-					"authority_result": {
-						"accepted": true, "reason": &"restored_from_save",
-					},
-				}
+		_freeze_completed_caldera_reward_seams(&"restored_from_save")
 	_apply_relay_survey_presentation()
 	return _result(true, &"planetary_session_restored")
 

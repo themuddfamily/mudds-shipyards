@@ -56,6 +56,24 @@ class MemoryFilesystem extends FilesystemScript:
 		return OK
 
 
+## Real files for the normal player Save/failed-write/Quit regression below.
+class DiskSaveFilesystem extends FilesystemScript:
+	var reject_writes := false
+	var ember_checkpoint_commits := 0
+	var target_path := ""
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes:
+			return ERR_CANT_CREATE
+		return super.write_bytes_and_flush(path, bytes)
+	func rename_path(from_path: String, to_path: String) -> Error:
+		var result := super.rename_path(from_path, to_path)
+		if result == OK and to_path == target_path:
+			var document: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(to_path))
+			if str(document.get("commit", {}).get("id", "")).begins_with("ember-active-journey-"):
+				ember_checkpoint_commits += 1
+		return result
+
+
 class PersistenceForwarder extends RefCounted:
 	var persistence: RefCounted
 	var save_calls := 0
@@ -179,6 +197,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--ember-save-refusal-only"):
+		await _exercise_ordinary_save_refusals()
+		_finish()
+		return
 	var filesystem := MemoryFilesystem.new()
 	var first_store = StoreScript.new(STORE_PATH, filesystem)
 	_check(bool(first_store.load().accepted), "the normal Main store loads")
@@ -381,10 +403,16 @@ func _run() -> void:
 	await _exercise_completed_debt()
 	await _exercise_active_payment()
 	await _exercise_explicit_abandon()
+	await _exercise_paid_caldera_restore()
+	await _exercise_ordinary_save_refusals()
 	# Last: the actual production quit handler requests SceneTree shutdown. All
 	# assertions after that request are synchronous, before natural tree teardown.
 	await _exercise_production_orderly_quit()
 
+	_finish()
+
+
+func _finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	var result_marker: String = "EMBER_ACTIVE_JOURNEY_GAMEFLOW_LIFECYCLE_TEST_OK" \
@@ -395,9 +423,176 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 
-func _exercise_production_orderly_quit() -> void:
+## Focused source fixtures: real shared authority/store and fresh composition;
+## these cases do not claim ordinary caldera walking or outbound qualification.
+func _exercise_paid_caldera_restore() -> void:
+	for paid_count: int in [0, 1, 2]:
+		var path := "user://ember-paid-restore-%d-%d.json" % [Time.get_ticks_usec(), paid_count]
+		var store := StoreScript.new(path)
+		var source := await _make_surface(store, true)
+		var authority := source.authority as RefCounted
+		for index: int in paid_count:
+			var activity_id := StringName(EmberCalderaExpeditionActivity.ACTIVITY_IDS[index])
+			var spec := EmberCalderaExpeditionActivity.ACTIVITY_SPECS[activity_id] as Dictionary
+			var paid := authority.call(&"commit", {"activity_id": activity_id, "activity_generation": 1,
+				"reward_id": spec.reward_id, "reward_authority": false, "granted": false}) as Dictionary
+			_check(bool(paid.get("accepted", false)), "the paid-subset source is accepted by the real durable reward authority")
+		await _retire_surface(source)
+		var fresh_store := StoreScript.new(path)
+		var surface := await _make_surface(fresh_store, true, 32, 8)
+		var flow := surface.flow as GameFlow
+		flow.ember_surface_loop_production_binding = surface.wrapper
+		var before := fresh_store.get_snapshot()
+		var generation := fresh_store.get_generation()
+		var restored := flow._restore_paid_ember_caldera_expeditions()
+		var report := flow.get_ember_caldera_expedition_report()
+		var activities := report.get("activities", {}) as Dictionary
+		_check(bool(restored.get("accepted", false)) and report.active_activity_id == &""
+			and bool(activities[&"ember_lava_tube_sounding"].reward_committed) == (paid_count >= 1)
+			and bool(activities[&"ember_lander_wreck_survey"].reward_committed) == (paid_count == 2)
+			and activities[&"ember_lava_tube_sounding"].activity_reward.state == &"ready"
+			and activities[&"ember_lander_wreck_survey"].activity_reward.state == &"ready",
+			"fresh composition acknowledges exactly the validated none/tube/both paid subset without live activity authority")
+		for index: int in paid_count:
+			var activity_id := StringName(EmberCalderaExpeditionActivity.ACTIVITY_IDS[index])
+			var replay := flow.begin_ember_caldera_expedition(activity_id)
+			_check(not bool(replay.get("accepted", true)) and replay.get("reason") == &"caldera_expedition_already_completed",
+				"a restored paid errand cannot start or reopen its reward seam")
+		var repeated := flow._restore_paid_ember_caldera_expeditions()
+		_check(bool(repeated.get("accepted", false)) and fresh_store.get_snapshot() == before
+			and fresh_store.get_generation() == generation
+			and flow.get_ember_caldera_expedition_report() == report,
+			"repeated paid restoration changes neither disk, reward counts nor live completion state")
+		if paid_count == 0:
+			var unavailable := flow.get("_game_flow_reward_authority") as RefCounted
+			flow.set("_game_flow_reward_authority", null)
+			_check(not bool(flow._restore_paid_ember_caldera_expeditions().get("accepted", true))
+				and flow.get_ember_caldera_expedition_report() == report,
+				"unavailable payment authority cannot invent a completed errand")
+			flow.set("_game_flow_reward_authority", unavailable)
+			var corrupted := before.duplicate(true)
+			corrupted["game_flow_reward_store"] = {"reward_counts": {"ember_lava_tube_sounding_data": 1}}
+			_check(fresh_store.commit(corrupted, generation, "invalid-paid-record").accepted,
+				"the invalid-authority fixture reaches the real atomic store")
+			_check(not bool(flow._restore_paid_ember_caldera_expeditions().get("accepted", true))
+				and flow.get_ember_caldera_expedition_report() == report,
+				"invalid committed payment data fails closed without inventing a paid ID")
+		await _retire_surface(surface)
+
+
+func _exercise_ordinary_save_refusals() -> void:
 	var filesystem := MemoryFilesystem.new()
 	var store := StoreScript.new(STORE_PATH, filesystem)
+	var surface := await _make_surface(store, true)
+	var flow := surface.flow as LifecycleFlow
+	flow.player = surface.actor as CharacterBody3D
+	flow.ember_surface_loop_host = surface.host
+	flow.ember_surface_loop_production_binding = surface.wrapper
+	flow.set("_ember_surface_journey_active", true)
+	var hud := GameHUD.new()
+	root.add_child(hud)
+	flow.hud = hud
+	await process_frame
+	hud.nearby_activity_intent_requested.connect(flow._on_hud_nearby_activity_intent_requested)
+	flow._sync_nearby_activity_hud()
+	var save := hud.find_child("NearbyActivitySaveButton", true, false) as Button
+	_check(not save.disabled, "the source fixture publishes a real identity-bound Ember HUD context")
+	var before := store.get_snapshot()
+	var generation := store.get_generation()
+	var files := filesystem.files.duplicate(true)
+	surface.host.attachment += 1
+	save.pressed.emit()
+	_check((hud.get("_nearby_activity_feedback") as Label).text == "Progress could not be saved."
+		and store.get_generation() == generation and store.get_snapshot() == before
+		and filesystem.files == files,
+		"actual Save emission refuses a retained stale attachment context before any write")
+	surface.host.attachment -= 1
+	flow._sync_nearby_activity_hud()
+	var started := flow.begin_ember_caldera_expedition(&"ember_lava_tube_sounding")
+	var expected_started := before.duplicate(true)
+	expected_started["tutorial_prompts_seen"] = {
+		"schema_version": 1, "seen_ids": ["ember_caldera_errands"],
+	}
+	# UserDataStore installs its independently parsed published document. Match
+	# that JSON representation while keeping exact full-payload equality.
+	expected_started = JSON.parse_string(JSON.stringify(expected_started, "", true, true))
+	if OS.get_cmdline_user_args().has("--ember-save-refusal-only"):
+		var actual_started := store.get_snapshot()
+		var actual_tutorial := actual_started.get("tutorial_prompts_seen", {}) as Dictionary
+		var expected_tutorial := expected_started.get("tutorial_prompts_seen", {}) as Dictionary
+		print("EMBER_SAVE_BEGIN_OPERANDS: ", JSON.stringify({
+			"accepted": bool(started.get("accepted", false)),
+			"generation_equal": store.get_generation() == generation + 1,
+			"payload_equal": actual_started == expected_started,
+			"commit_id_equal": store.get_commit_metadata().get("id") == "tutorial-prompt-seen-0000000001",
+			"started": started, "generation_before": generation,
+			"generation_after": store.get_generation(),
+			"actual_payload": actual_started, "expected_payload": expected_started,
+			"commit_metadata": store.get_commit_metadata(),
+			"actual_schema_type": type_string(typeof(actual_tutorial.get("schema_version"))),
+			"expected_schema_type": type_string(typeof(expected_tutorial.get("schema_version"))),
+			"actual_seen_ids_type": type_string(typeof(actual_tutorial.get("seen_ids"))),
+			"expected_seen_ids_type": type_string(typeof(expected_tutorial.get("seen_ids"))),
+		}))
+	_check(bool(started.get("accepted", false))
+		and store.get_generation() == generation + 1
+		and store.get_snapshot() == expected_started
+		and store.get_commit_metadata().get("id") == "tutorial-prompt-seen-0000000001",
+		"accepted Begin writes only its first-time caldera tutorial acknowledgement to the shared store")
+	var reached := surface.binding.call(&"submit_caldera_expedition_position", &"ember_lava_tube_sounding",
+		EmberCalderaExpeditionActivity.get_checkpoints_body_local(&"ember_lava_tube_sounding")[0]) as Dictionary
+	var active := flow.get_ember_caldera_expedition_report()
+	_check(bool(started.get("accepted", false)) and bool(reached.get("accepted", false))
+		and active.activities[&"ember_lava_tube_sounding"].checkpoints_reached == 1,
+		"the refusal fixture holds an actual unpaid partial caldera route")
+	# Begin legitimately records its first-time briefing above. Protect the full
+	# state at this Save boundary, including that acknowledged tutorial write.
+	before = store.get_snapshot()
+	generation = store.get_generation()
+	files = filesystem.files.duplicate(true)
+	save.pressed.emit()
+	flow._sync_nearby_activity_hud()
+	await process_frame
+	if OS.get_cmdline_user_args().has("--ember-save-refusal-only"):
+		var changed_files := {}
+		for path: Variant in filesystem.files:
+			if filesystem.files[path] != files.get(path, PackedByteArray()):
+				changed_files[path] = {
+					"before": _decode_refusal_file(files.get(path, PackedByteArray())),
+					"after": _decode_refusal_file(filesystem.files[path]),
+				}
+		print("EMBER_SAVE_REFUSAL_OPERANDS: ", JSON.stringify({
+			"feedback_equal": (hud.get("_nearby_activity_feedback") as Label).text == "Progress could not be saved.",
+			"generation_equal": store.get_generation() == generation,
+			"payload_equal": store.get_snapshot() == before,
+			"file_bytes_equal": filesystem.files == files,
+			"live_progress_equal": flow.get_ember_caldera_expedition_report() == active,
+			"generation_before": generation, "generation_after": store.get_generation(),
+			"payload_before": before, "payload_after": store.get_snapshot(),
+			"changed_files": changed_files,
+		}))
+	_check((hud.get("_nearby_activity_feedback") as Label).text == "Progress could not be saved."
+		and store.get_generation() == generation and store.get_snapshot() == before
+		and filesystem.files == files and flow.get_ember_caldera_expedition_report() == active,
+		"ordinary Save visibly refuses unsupported unpaid partial progress without dropping counters or writing")
+	var direct := flow.save_interrupted_ember_journey()
+	_check(not bool(direct.get("accepted", true)) and direct.get("reason") == &"ember_active_caldera_progress_unsupported",
+		"the actual active-journey boundary also protects shutdown from silently dropping partial errands")
+	hud.queue_free()
+	await _retire_surface(surface)
+
+
+func _decode_refusal_file(bytes: PackedByteArray) -> Variant:
+	var decoder := JSON.new()
+	return decoder.data if decoder.parse(bytes.get_string_from_utf8()) == OK \
+		else {"bytes": bytes.size(), "valid_json": false}
+
+
+func _exercise_production_orderly_quit() -> void:
+	var path := "user://ember-ordinary-save-%d.json" % Time.get_ticks_usec()
+	var filesystem := DiskSaveFilesystem.new()
+	filesystem.target_path = path
+	var store := StoreScript.new(path, filesystem)
 	store.load()
 	store.commit({"foreign": {"retained": 91}}, 0, "quit-seed")
 	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate() as GameFlow
@@ -410,7 +605,10 @@ func _exercise_production_orderly_quit() -> void:
 	var craft := game.get_flyable_ships()[1] as HeroShip
 	game.canopy_motion_time = 0.01
 	game.boarding_motion_time = 0.02
-	game.start_shift()
+	(game.hud.find_child("IntroBeginShiftButton", true, false) as Button).pressed.emit()
+	if not await _wait_production(func(): return game.phase != GameFlow.Phase.INTRO, 120):
+		_check(false, "the actual Begin Shift button starts the production shift")
+		return
 	game._board_ship(craft)
 	var piloting := await _wait_production(func(): return (game.phase == GameFlow.Phase.START_ENGINES
 		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()), 240)
@@ -418,13 +616,100 @@ func _exercise_production_orderly_quit() -> void:
 	if not piloting or not await _enter_production_ember_survey(game, craft):
 		_check(false, "production approach, touchdown, disembark and egress reach the on-foot survey")
 		return
-	# Inspect only. Neither the test nor the staging recipe explicitly saves.
+	# Outbound staging above remains source coverage. From this ordinary
+	# on-foot visit the real Host owns walking and the actual HUD owns Save.
+	var region := game.ember_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
+	for leg: Array in [["z", -44.0, false, &"move_left", 120],
+		["x", 180.0, true, &"move_forward", 150]]:
+		if not await _walk_production_surface(game, region, leg):
+			_check(false, "ordinary surface walking reaches the first relay")
+			return
+	var authority := game.get("_game_flow_reward_authority") as RefCounted
+	# Source-staged paid records exercise the existing validated disk consumer;
+	# this is not qualification of ordinary caldera execution/outbound travel.
+	for activity_id: StringName in EmberCalderaExpeditionActivity.ACTIVITY_IDS:
+		var spec := EmberCalderaExpeditionActivity.ACTIVITY_SPECS[activity_id] as Dictionary
+		var paid := authority.call(&"commit", {"activity_id": activity_id, "activity_generation": 1,
+			"reward_id": spec.reward_id, "reward_authority": false, "granted": false}) as Dictionary
+		_check(bool(paid.get("accepted", false)), "the production shared authority durably accepts the staged paid errand")
+	game._ensure_ember_surface_presentations()
 	var evidence := game._collect_ember_interrupted_journey_save_evidence()
 	_check(bool(evidence.get("accepted", false)) and not store.get_snapshot().has(String(SLOT))
 		and filesystem.ember_checkpoint_commits == 0,
 		"a live production on-foot survey has current evidence and no pre-quit active checkpoint")
 	if not evidence.get("accepted", false):
 		return
+	_check(int(evidence.route.get("next_checkpoint_index", -1)) == 1
+		and not bool(evidence.route.get("complete", true)),
+		"actual production walking publishes the incomplete first-relay checkpoint")
+	var hud := game.hud as GameHUD
+	game._sync_nearby_activity_hud()
+	var escape := InputEventKey.new()
+	escape.physical_keycode = KEY_ESCAPE
+	escape.keycode = KEY_ESCAPE
+	escape.pressed = true
+	Input.parse_input_event(escape)
+	await process_frame
+	escape.pressed = false
+	Input.parse_input_event(escape)
+	_check(paused, "ordinary Escape opens the actual pause overlay")
+	(hud.find_child("ActivityBoardButton", true, false) as Button).pressed.emit()
+	(hud.find_child("NearbyActivityOpenButton", true, false) as Button).pressed.emit()
+	var save_button := hud.find_child("NearbyActivitySaveButton", true, false) as Button
+	var load_button := hud.find_child("NearbyActivityLoadButton", true, false) as Button
+	_check(not save_button.disabled and load_button.disabled
+		and not bool((hud.get_nearby_activity_report().snapshot as Dictionary).get("binding_available", true)),
+		"the real Ember Save context enables ordinary Save while Cinder and Load stay unavailable")
+	var actor_before := game.player.global_transform
+	var actor_id := game.player.get_instance_id()
+	var host_id := game.ember_surface_loop_host.get_instance_id()
+	var lease := game.ember_surface_berth.get_reservation_token(craft)
+	var runtime_before := game.ember_surface_loop_production_binding.get_planetary_surface_snapshot().adapter.activity_reward as Dictionary
+	save_button.pressed.emit()
+	var save_result := game.get_ember_interrupted_journey_persistence_report().last_save_status as Dictionary
+	var independently_loaded := StoreScript.new(path)
+	var independent_load := independently_loaded.load()
+	var disk := independently_loaded.get_snapshot()
+	var paid_record := disk.get("game_flow_reward_store", {}) as Dictionary
+	var counts := paid_record.get("reward_counts", {}) as Dictionary
+	var disk_route := (disk.get(String(SLOT), {}) as Dictionary).get("completion", {}).get("route_identity", {}) as Dictionary
+	_check(bool(save_result.get("accepted", false)) and save_result.get("binding_reason") == &"active_journey_saved"
+		and bool(independent_load.get("accepted", false)) and independently_loaded.get_loaded_source() == &"primary"
+		and int(disk_route.get("next_checkpoint_index", -1)) == 1
+		and int(disk_route.get("activity_generation", -1)) == int(evidence.route.activity_generation)
+		and not bool(disk_route.get("complete", true))
+		and int(counts.get("ember_beacon_data", 0)) == 0
+		and int(counts.get("ember_lava_tube_sounding_data", 0)) == 1
+		and int(counts.get("ember_lander_wreck_salvage_log", 0)) == 1
+		and bool(authority.call(&"validate_record", paid_record).get("accepted", false))
+		and disk.foreign.retained == 91,
+		"the actual Save button publishes an independently read first-relay primary and preserves both paid errands")
+	game._sync_nearby_activity_hud()
+	await process_frame
+	_check((hud.get("_nearby_activity_feedback") as Label).text == "Progress saved.",
+		"ordinary HUD refresh retains the actual Save success feedback")
+	var primary_before := FileAccess.get_file_as_bytes(path)
+	var backup_before := FileAccess.get_file_as_bytes(path + ".bak")
+	var live_before := store.get_snapshot()
+	var claims_before := authority.call(&"get_snapshot") as Dictionary
+	var generation_before := store.get_generation()
+	filesystem.reject_writes = true
+	save_button.pressed.emit()
+	game._sync_nearby_activity_hud()
+	await process_frame
+	_check((hud.get("_nearby_activity_feedback") as Label).text == "Progress could not be saved."
+		and not bool(game.get_ember_interrupted_journey_persistence_report().last_save_status.get("accepted", true))
+		and FileAccess.get_file_as_bytes(path) == primary_before
+		and FileAccess.get_file_as_bytes(path + ".bak") == backup_before
+		and store.get_snapshot() == live_before and store.get_generation() == generation_before
+		and authority.call(&"get_snapshot") == claims_before
+		and game.player.global_transform == actor_before and game.player.get_instance_id() == actor_id
+		and game.ember_surface_loop_host.get_instance_id() == host_id
+		and game.ember_surface_berth.get_reservation_token(craft) == lease
+		and game.ember_surface_loop_production_binding.get_planetary_surface_snapshot().adapter.activity_reward == runtime_before,
+		"a refused actual Save preserves primary, backup, live progress, actors, leases and paid authority after HUD refresh")
+	filesystem.reject_writes = false
+	hud.set_paused(false)
 	var expected_route: Dictionary = JSON.parse_string(JSON.stringify(evidence.route, "", true, true))
 	var expected_optional: Dictionary = JSON.parse_string(JSON.stringify(evidence.optional_progress, "", true, true))
 	game._on_orderly_shutdown_requested()
@@ -444,16 +729,16 @@ func _exercise_production_orderly_quit() -> void:
 		"exact_route": completion.get("route_identity") == expected_route,
 		"incomplete_route": not bool(expected_route.get("complete", true)),
 		"exact_optional": completion.get("optional_progress") == expected_optional,
-		"one_checkpoint_commit": filesystem.ember_checkpoint_commits == 1,
+		"two_checkpoint_commits": filesystem.ember_checkpoint_commits == 2,
 		"foreign_retained": store.get_snapshot().foreign.retained == 91,
 	}
 	print("EMBER_QUIT_CAPTURE_OBSERVATION: " + JSON.stringify({"checks": checks,
-		"actual_document_json": (filesystem.files.get(STORE_PATH, PackedByteArray()) as PackedByteArray).get_string_from_utf8(),
+		"actual_document_json": FileAccess.get_file_as_string(path),
 		"expected_route": expected_route, "expected_optional": expected_optional,
 		"expected_tangent": expected_tangent}, "", true, true))
 	_check(not checks.values().has(false),
 		"ordinary application Quit captures the exact current production pose and incomplete survey once before detach")
-	var fresh_store := StoreScript.new(STORE_PATH, filesystem)
+	var fresh_store := StoreScript.new(path)
 	_check(fresh_store.load().accepted and fresh_store.get_snapshot().get(String(SLOT)) == saved,
 		"a new store reads the same durable active journey written by the production quit handler")
 	# Natural process teardown follows when this final case returns to _run.
@@ -1029,7 +1314,7 @@ func _make_surface(store: RefCounted, real_rewards := false, run_generation := 3
 	if real_rewards:
 		authority = RewardAuthorityScript.new()
 		_check(authority.configure(store).accepted, "the debt fixture configures the real GameFlow reward authority")
-		actor = Node.new()
+		actor = CharacterBody3D.new()
 		craft = Node.new()
 		root.add_child(actor)
 		root.add_child(craft)

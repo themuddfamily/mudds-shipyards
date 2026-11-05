@@ -468,6 +468,14 @@ func get_planetary_surface_session_snapshot() -> Dictionary:
 	return _planetary_composition.call(&"get_session_snapshot")
 
 
+## Caller validates the existing durable reward record; composition applies
+## only completed-objective acknowledgements through its established seam.
+func acknowledge_paid_caldera_expeditions(completed: PackedStringArray) -> Dictionary:
+	if _planetary_composition == null:
+		return {"accepted": false, "reason": &"planetary_composition_unavailable"}
+	return _planetary_composition.call(&"acknowledge_paid_caldera_expeditions", completed) as Dictionary
+
+
 func restore_planetary_surface_session_snapshot(snapshot: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")

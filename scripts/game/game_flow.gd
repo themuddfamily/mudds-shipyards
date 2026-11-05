@@ -16332,6 +16332,11 @@ func restore_ember_relay_survey_persistence() -> Dictionary:
 func save_interrupted_ember_journey() -> Dictionary:
 	if not _ember_surface_journey_active:
 		return {"accepted": true, "reason": &"ember_active_journey_not_running"}
+	# Partial caldera routes have no durable counter contract. Refuse the whole
+	# save rather than report success while dropping an unpaid errand.
+	var caldera := get_ember_caldera_expedition_report()
+	if StringName(caldera.get("active_activity_id", &"")) != &"":
+		return {"accepted": false, "reason": &"ember_active_caldera_progress_unsupported"}
 	if _runtime_settings_user_data_store == null \
 			or _ember_relay_survey_persistence_binding == null \
 			or not _ember_relay_survey_persistence_binding.has_method(
@@ -17237,6 +17242,10 @@ func begin_ember_surface_journey(
 ## forwards the intent: the retained Ember surface binding owns the errand and
 ## the existing reward authority owns the payout.
 func begin_ember_caldera_expedition(activity_id: StringName) -> Dictionary:
+	if _runtime_settings_user_data_store != null:
+		var restored := _restore_paid_ember_caldera_expeditions()
+		if not bool(restored.get("accepted", false)):
+			return restored
 	if not is_instance_valid(ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
 	var started := ember_surface_loop_production_binding.start_caldera_expedition(activity_id)
@@ -17252,6 +17261,29 @@ func abandon_ember_caldera_expedition(
 	return ember_surface_loop_production_binding.abandon_caldera_expedition(
 		activity_id, reason
 	)
+
+
+## Payment is already durable in the shared reward store. Only completion
+## acknowledgements cross into a fresh caldera composition, never live runs.
+func _restore_paid_ember_caldera_expeditions() -> Dictionary:
+	if _runtime_settings_user_data_store == null or _game_flow_reward_authority == null \
+			or not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"ember_paid_caldera_authority_unavailable"}
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	var completed := PackedStringArray()
+	if payload.has(String(GameFlowRewardAuthority.SLOT_ID)):
+		if _runtime_settings_user_data_store.get_loaded_source() != &"primary":
+			return {"accepted": false, "reason": &"ember_paid_caldera_authority_recovery_required"}
+		var record: Variant = payload.get(String(GameFlowRewardAuthority.SLOT_ID))
+		var validation := _game_flow_reward_authority.call(&"validate_record", record) as Dictionary
+		if not bool(validation.get("accepted", false)):
+			return {"accepted": false, "reason": &"ember_paid_caldera_authority_invalid"}
+		var counts := (record as Dictionary).get("reward_counts", {}) as Dictionary
+		for activity_id: StringName in EmberCalderaExpeditionActivity.ACTIVITY_IDS:
+			var spec := EmberCalderaExpeditionActivity.ACTIVITY_SPECS[activity_id] as Dictionary
+			if int(counts.get(String(spec.reward_id), 0)) > 0:
+				completed.append(String(activity_id))
+	return ember_surface_loop_production_binding.acknowledge_paid_caldera_expeditions(completed)
 
 
 func get_ember_caldera_expedition_report() -> Dictionary:
@@ -21903,6 +21935,7 @@ func _sync_nearby_activity_hud() -> void:
 		convoy_activity["runtime_rebind_pending"] = convoy_presentation.get("runtime_rebind_pending", false)
 		convoy_activity["resume_craft_display_name"] = convoy_presentation.get("resume_craft_display_name", "")
 	snapshot["binding_available"] = true
+	snapshot["ember_save_context"] = _get_current_ember_save_context()
 	snapshot["hulk_power"] = get_hulk_power_restoration_snapshot()
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
@@ -21917,6 +21950,7 @@ func _set_unloaded_nearby_activity_hud() -> void:
 	hud.call(&"set_nearby_activity_snapshot", {
 		"host": {"activity": convoy_activity} if bool(convoy_activity.get("runtime_rebind_pending", false)) else {},
 		"binding_available": false,
+		"ember_save_context": _get_current_ember_save_context(),
 		"station_defense": _station_defense_nearby_activity_snapshot(),
 		"hulk_power": get_hulk_power_restoration_snapshot(),
 	})
@@ -22813,14 +22847,76 @@ func _build_nearby_activity_audio_snapshot(
 	return {}
 
 
+## The HUD holds a detached identity ticket, never save or actor authority.
+## Re-sampling at dispatch fences a pause page retained across a visit change.
+func _get_current_ember_save_context() -> Dictionary:
+	if not _ember_surface_journey_active or _transition_busy \
+			or not is_instance_valid(player) or not player.is_inside_tree() \
+			or player.is_queued_for_deletion() \
+			or not is_instance_valid(ember_surface_loop_host) \
+			or not ember_surface_loop_host.is_inside_tree() \
+			or ember_surface_loop_host.is_queued_for_deletion() \
+			or ember_surface_loop_host.get_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or not ember_surface_loop_production_binding.is_inside_tree() \
+			or ember_surface_loop_production_binding.is_queued_for_deletion() \
+			or not ember_surface_loop_production_binding.is_configured():
+		return {}
+	var host := ember_surface_loop_host.get_return_status_snapshot()
+	var identities := host.get("identities", {}) as Dictionary
+	var binding := ember_surface_loop_production_binding.get_caller_snapshot()
+	var bound_identities := binding.get("identities", {}) as Dictionary
+	if not bool(host.get("attached", false)) \
+			or StringName(host.get("phase_id", &"")) != &"on_foot" \
+			or int(host.get("generation", 0)) < 1 \
+			or int(host.get("attachment_generation", 0)) < 1 \
+			or int(identities.get("player_instance_id", 0)) != player.get_instance_id() \
+			or int(bound_identities.get("host_instance_id", 0)) != ember_surface_loop_host.get_instance_id() \
+			or int(bound_identities.get("player_instance_id", 0)) != player.get_instance_id():
+		return {}
+	return {
+		"world_id": &"ember_moon",
+		"host_instance_id": ember_surface_loop_host.get_instance_id(),
+		"host_generation": int(host.generation),
+		"attachment_generation": int(host.attachment_generation),
+		"player_instance_id": player.get_instance_id(),
+		"binding_instance_id": ember_surface_loop_production_binding.get_instance_id(),
+		"binding_generation": int(binding.get("generation", 0)),
+	}
+
+
+func _save_ember_from_nearby_activity_intent(intent: Dictionary) -> Dictionary:
+	var current := _get_current_ember_save_context()
+	if current.is_empty() or intent.get("ember_save_context", {}) != current:
+		return {"accepted": false, "reason": &"ember_save_context_stale", "status": &"failed_write"}
+	var result := save_interrupted_ember_journey()
+	# The existing persistence receipt keeps its binding_reason and atomic
+	# failure details; the presenter consumes its established status vocabulary.
+	result["status"] = &"saved" if bool(result.get("accepted", false)) \
+		and result.get("binding_reason") == &"active_journey_saved" else &"failed_write"
+	return result
+
+
 func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 	var activity_id := StringName(str(intent.get("activity_id", &"")))
 	var action := StringName(str(intent.get("reason", &"")))
+	# Presenter intents already carry both fields. Keep legacy reason-only
+	# callers while reconciling the actual Save/Load button protocol.
+	if action == &"save_requested" and StringName(intent.get("action", &"")) == &"save_progress":
+		action = &"save_progress"
+	elif action == &"load_requested" and StringName(intent.get("action", &"")) == &"load_progress":
+		action = &"load_progress"
 	var binding := _get_nearby_activity_binding()
 	if action in [&"save_progress", &"load_progress"]:
-		if not is_instance_valid(binding):
-			return
-		var persistence_result := _handle_nearby_activity_persistence(binding, action, intent)
+		var persistence_result: Dictionary
+		if action == &"save_progress" and (intent.has("ember_save_context") \
+				or not _get_current_ember_save_context().is_empty()):
+			persistence_result = _save_ember_from_nearby_activity_intent(intent)
+		elif is_instance_valid(binding):
+			persistence_result = _handle_nearby_activity_persistence(binding, action, intent)
+		else:
+			persistence_result = {"accepted": false, "reason": &"cinder_reach_unloaded",
+				"status": &"failed_write" if action == &"save_progress" else &"load_failed"}
 		if hud.has_method(&"apply_nearby_activity_persistence_result"):
 			hud.call(&"apply_nearby_activity_persistence_result", persistence_result)
 		return
@@ -25265,6 +25361,8 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 	# This is a fresh presence read, not a replacement for attach authentication.
 	if not ember_surface_loop_production_binding.has_planetary_surface_composition():
 		return {"accepted": false, "reason": &"planetary_surface_not_bound"}
+
+	_restore_paid_ember_caldera_expeditions()
 
 	# The authored trailhead offer points are composed with the surface, but
 	# only this owner may answer their presses. Installing the seam here keeps
