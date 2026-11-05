@@ -23,6 +23,41 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan standalone hull and pilot fixture
+
+Owner-approved modern Titan proposal child1. **Start22:11:00UTC2026-11-05;
+45min all-in, absolute22:56:00UTC.** One medium implementation agent owns only
+new `assets/ships/titan_provisional.tres`, `scenes/ships/titan_medium_transport.tscn`,
+optional Titan-local script/material files and one focused
+`tests/titan_medium_transport_test.gd`; root integrates, validates and cleans up.
+No shared runtime, Main/GameFlow, station, registry, cargo, weapons, passenger
+claims or networking changes. No recursive agents.
+
+Deliver an editable original chamfered12×18×5m shuttle hull with short side
+engine boxes and recessed stern vestibule, finite convex shell/engine collision
+that preserves the approved future cabin void (no solid full-hull cabin box),
+correct candidate/provisional identity and all16 exact approved handling fields.
+Reuse HeroShip control; fit exact pilot anchor/camera from the proposal. Physical
+hatch/ramp/cabin walking, berth and production composition belong to later children.
+
+Acceptance: definition validation passes; scene instantiates without diagnostics;
+authored mesh/collision bounds and transforms are finite and inside the approved
+closed envelope; collision interiors do not overlap or fill the future cabin;
+actual inherited engine OFFLINE→STARTING→ONLINE and physical thrust/braking/neutral
+shutdown work in one isolated fixture with no sibling retuning. The focused test
+must exercise these behaviors, not only search source strings. All automated
+Godot calls use Dummy audio/headless; any rendered inspection uses privateXvfb
+with explicit x11. Use pinned4.7.1 engine and existing matrix/import guards.
+Stop at this standalone asset.9/17 remains unchanged until production composition
+and qualification; no ordinary boarding/Main delivery or historical model claim.
+
+Do not add validators, generated evidence families or unrelated tests. Correct
+routine implementation mistakes inside this same budget; one substantive design
+correction requires concrete causal evidence and unchanged approved geometry/
+handling. Missing shared-controller capability stops this child for a separate
+bounded integration decision. Commit/push accepted source and remove owned task
+branch/worktree after integration; archive rejected unique source before cleanup.
+
 ### Hauler ordinary mass-driver hit, miss and home — PARKED, unaccepted
 
 Final retained source **8c56e9d15**. No source from this attempt is merged and
