@@ -504,6 +504,17 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
 
+
+# Retained presentation leaves only; original authority parents never move.
+const EXTERIOR_LOD_MACROS := ["ForwardFlightDeck", "PortCargoShoulder", "PortAftCargoShoulder", "StarboardCargoShoulder", "CargoRoofShell", "ForwardCabinCrown", "PortCabinTransition", "StarboardCabinTransition", "FlightDeckWindscreenCowl", "AftMachinerySpine", "PortRadiator", "StarboardRadiator", "VentralKeel", "LandingBogieFootBatch", "PortLowerEngineHousing", "PortUpperEngineHousing", "StarboardLowerEngineHousing", "StarboardUpperEngineHousing", "PortLowerEngineCollar", "PortUpperEngineCollar", "StarboardLowerEngineCollar", "StarboardUpperEngineCollar", "PortLowerEngineCollarRecessedThroat", "PortUpperEngineCollarRecessedThroat", "StarboardLowerEngineCollarRecessedThroat", "StarboardUpperEngineCollarRecessedThroat"]
+var _exterior_lod_static: Array[GeometryInstance3D] = []
+var _exterior_lod_shared: Array[GeometryInstance3D] = []
+var _exterior_lod_members: Dictionary = {}
+var _exterior_lod_close_visibility: Dictionary = {}
+var _exterior_lod_far: Node3D
+var _exterior_lod_index := 0
+var _exterior_lod_ready := false
+
 func _enter_tree() -> void:
 	super._enter_tree()
 	call_deferred("_sync_jovian_engine_presentation_immediately")
@@ -544,6 +555,9 @@ func _ready() -> void:
 	_sync_engine_damage_cue()
 	_apply_jovian_metadata()
 	_sync_jovian_engine_presentation_immediately()
+	# Base Ready queued weapon emitters and seat presentation first. Resolve the
+	# complete final tree after those callbacks and the engineer work presenter.
+	call_deferred("_finish_exterior_lod")
 
 
 func _exit_tree() -> void:
@@ -685,6 +699,7 @@ func _physics_process(delta: float) -> void:
 	_update_jovian_presentation(delta)
 	_update_pilot_access_stowage(delta)
 	_update_cargo_ramp_presentation(delta)
+	_update_exterior_lod_from_current_camera()
 
 
 func apply_damage(
@@ -7063,3 +7078,272 @@ func _frustum(
 	)
 	parent.add_child(mesh_instance)
 	return mesh_instance
+
+
+
+## Runs once, after the original deferred final presenters. Re-entry retains it.
+func _finish_exterior_lod() -> void:
+	if not is_inside_tree() or _exterior_lod_ready:
+		return
+	for node: Node in find_children("*", "GeometryInstance3D", true, false):
+		var renderer := node as GeometryInstance3D
+		var shared := not _jovian_visual.is_ancestor_of(node) or node is Label3D
+		for retained: Node in [_walkable_interior, _canopy_pivot, _pilot_door_pivot,
+				_pilot_stair_upper, _pilot_stair_lower, _cargo_ramp_hinge, _cargo_ramp_toe_hinge,
+				_engine_damage_cue, _jovian_visual.get_node_or_null("PilotAccessSteps"),
+				_jovian_visual.get_node_or_null("CargoAccess"),
+				_jovian_visual.get_node_or_null("PortCargoAccess")]:
+			shared = shared or (is_instance_valid(retained) and (node == retained or retained.is_ancestor_of(node)))
+		for effect: MeshInstance3D in _engine_cores + _engine_plumes + _cargo_ramp_actuators + _cargo_ramp_rods:
+			shared = shared or node == effect
+		var authored_names := PackedStringArray([String(node.name)])
+		for piece: Dictionary in ShipFitoutBatch.authored_piece_index(node):
+			authored_names.append(String(piece.name))
+		for piece_name: String in authored_names:
+			for token: String in ["Windscreen", "Quarterlight", "Defensive", "PulseBarrel", "LandingBogieStrut", "LandingDamper", "NavigationLight", "Canopy"]:
+				if token == "Windscreen" and piece_name == "FlightDeckWindscreenCowl":
+					continue
+				shared = shared or piece_name.contains(token)
+		if shared:
+			_exterior_lod_shared.append(renderer)
+		else:
+			_exterior_lod_static.append(renderer)
+			_exterior_lod_close_visibility[node.get_instance_id()] = renderer.visible
+		_exterior_lod_members[node.get_instance_id()] = &"shared" if shared else &"close"
+	# Resolve all originals before a same-name far node exists.
+	var originals: Dictionary = {}
+	for macro: String in EXTERIOR_LOD_MACROS:
+		originals[macro] = _exterior_lod_source_piece(macro)
+	_exterior_lod_far = Node3D.new()
+	_exterior_lod_far.name = "DistantExterior"
+	_jovian_visual.add_child(_exterior_lod_far)
+	for macro: String in EXTERIOR_LOD_MACROS:
+		var piece: Dictionary = originals[macro]
+		if piece.is_empty():
+			continue
+		var holder := piece.node as GeometryInstance3D
+		var copy: GeometryInstance3D
+		if holder is MultiMeshInstance3D:
+			var batch := MultiMeshInstance3D.new()
+			batch.multimesh = (holder as MultiMeshInstance3D).multimesh.duplicate() as MultiMesh
+			copy = batch
+		else:
+			var mesh_copy := MeshInstance3D.new()
+			mesh_copy.mesh = _exterior_lod_macro_mesh(piece)
+			copy = mesh_copy
+		copy.name = macro + "Distant"
+		copy.transform = _jovian_visual.global_transform.affine_inverse() * holder.global_transform
+		if bool(piece.get("batched", false)):
+			copy.transform *= piece.transform as Transform3D
+		copy.material_override = piece.get("material_override") as Material
+		copy.layers = holder.layers
+		copy.cast_shadow = int(piece.get("cast_shadow", holder.cast_shadow))
+		copy.visible = bool(piece.get("visible", holder.visible))
+		_exterior_lod_far.add_child(copy)
+		_exterior_lod_members[copy.get_instance_id()] = &"far"
+	_exterior_lod_far.visible = false
+	_exterior_lod_ready = true
+
+
+func _exterior_lod_source_piece(piece_name: String) -> Dictionary:
+	for renderer: GeometryInstance3D in _exterior_lod_static:
+		if renderer is MultiMeshInstance3D and String(renderer.name) == piece_name:
+			return {"node": renderer, "batched": false, "visible": renderer.visible,
+				"material_override": renderer.material_override, "cast_shadow": renderer.cast_shadow}
+		var piece := ShipFitoutBatch.find_authored_piece(renderer, piece_name)
+		if not piece.is_empty():
+			return piece
+	return {}
+
+
+## Coarse distant skin is derived from the actual authored triangles, including
+## unique pieces whose originals were freed by close batching. A 25cm grid at
+## >120m removes subpixel tessellation, retaining each part's bounds/materials.
+## Every part is independent, so the split port aperture can never be bridged.
+func _exterior_lod_macro_mesh(piece: Dictionary) -> ArrayMesh:
+	var holder := piece.node as MeshInstance3D
+	var source: Mesh = holder.mesh
+	var batched := bool(piece.get("batched", false))
+	var placement := piece.transform as Transform3D if batched else Transform3D.IDENTITY
+	var inverse := placement.affine_inverse()
+	var bounds: AABB = piece.aabb
+	var runs: Array = piece.get("index_ranges", [])
+	if not batched:
+		for surface in source.get_surface_count():
+			runs.append({"surface": surface, "index_start": 0, "index_count": -1})
+	var result := ArrayMesh.new()
+	for run: Dictionary in runs:
+		var surface := int(run.surface)
+		var arrays := source.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR] if arrays[Mesh.ARRAY_COLOR] != null else PackedColorArray()
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := int(run.index_count)
+		if count < 0:
+			count = indices.size() if not indices.is_empty() else vertices.size()
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var material: Material = holder.get_active_material(surface) if batched else piece.materials[surface]
+		tool.set_material(material)
+		var emitted := 0
+		var seen: Dictionary = {}
+		for offset in range(int(run.index_start), int(run.index_start) + count, 3):
+			var ids: Array[int] = []
+			var points: Array[Vector3] = []
+			for corner in 3:
+				var index := indices[offset + corner] if not indices.is_empty() else offset + corner
+				ids.append(index)
+				var original := inverse * vertices[index]
+				var coarse := original.snapped(Vector3.ONE * 0.25).clamp(bounds.position, bounds.end)
+				for axis in 3:
+					if is_equal_approx(original[axis], bounds.position[axis]) or is_equal_approx(original[axis], bounds.end[axis]):
+						coarse[axis] = original[axis]
+				points.append(coarse)
+			if (points[1] - points[0]).cross(points[2] - points[0]).length_squared() < 0.00000001:
+				continue
+			var key := str(points)
+			if seen.has(key):
+				continue
+			seen[key] = true
+			var order := [0, 2, 1] if placement.basis.determinant() < 0.0 else [0, 1, 2]
+			for corner: int in order:
+				var index := ids[corner]
+				if not normals.is_empty():
+					tool.set_normal((placement.basis.transposed() * normals[index]).normalized())
+				if not colors.is_empty():
+					tool.set_color(colors[index])
+				if not uvs.is_empty():
+					tool.set_uv(uvs[index])
+				tool.add_vertex(points[corner])
+			emitted += 3
+		if emitted > 0:
+			tool.index()
+			tool.commit(result)
+	return result
+
+
+func _set_exterior_lod(index: int) -> void:
+	if index == _exterior_lod_index:
+		return
+	_exterior_lod_index = index
+	for renderer: GeometryInstance3D in _exterior_lod_static:
+		renderer.visible = index == 0 and bool(_exterior_lod_close_visibility[renderer.get_instance_id()])
+	if is_instance_valid(_exterior_lod_far):
+		_exterior_lod_far.visible = index == 1
+
+
+## Explicit-distance seam is source coverage; normal runtime always supplies the
+## actual current viewport camera. Invalid samples leave the retained state alone.
+func update_exterior_lod_distance(distance: float) -> void:
+	if not _exterior_lod_ready or not is_finite(distance) or distance < 0.0:
+		return
+	if distance > 120.0:
+		_set_exterior_lod(1)
+	elif distance < 100.0:
+		_set_exterior_lod(0)
+
+
+func _exterior_lod_camera_forces_close(camera: Camera3D) -> bool:
+	if camera == _cockpit_camera:
+		return true
+	var ancestor := camera.get_parent()
+	while ancestor != null and not ancestor is PlayerController:
+		ancestor = ancestor.get_parent()
+	var actor := ancestor as PlayerController
+	if actor == null or actor.get_camera() != camera:
+		return false
+	# Resolve the real Player/camera/seat/frame binding, never a cached ship flag.
+	var state := int(actor.get("_embodiment_state"))
+	var transition := state in [PlayerController.EmbodimentState.BOARDING, PlayerController.EmbodimentState.DISEMBARKING]
+	var frame := actor.get("_transition_frame") as Node3D
+	var seat := actor.get("_seat_anchor") as Node3D
+	var own_seat := is_instance_valid(seat) and is_ancestor_of(seat)
+	var exterior_exit := state == PlayerController.EmbodimentState.DISEMBARKING \
+		and not (actor.get("_transition_waypoints") as Array).is_empty()
+	# GameFlow's exterior pilot handoff keeps the exact retained seat but
+	# supplies no moving frame. Cabin handoffs supply this craft as their frame.
+	if transition and own_seat and (frame == null or frame == self):
+		return true
+	if transition and exterior_exit and frame == self:
+		return true
+	var cabin := actor.get("_cabin_frame") as Node3D
+	return is_instance_valid(cabin) and (cabin == self or is_ancestor_of(cabin)) \
+		and actor.is_first_person_active()
+
+
+func _update_exterior_lod_from_current_camera() -> void:
+	if not _exterior_lod_ready or not is_inside_tree():
+		return
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	if _exterior_lod_camera_forces_close(camera):
+		_set_exterior_lod(0)
+	else:
+		update_exterior_lod_distance(camera.global_position.distance_to(get_variant_visual_root().global_position))
+
+
+## Generic Mesh surface APIs include PrimitiveMesh stock. Zero-surface resources
+## remain registered with zero geometry; no empty SurfaceTool is ever committed.
+func _exterior_lod_renderer_census(renderer: GeometryInstance3D) -> Dictionary:
+	var mesh: Mesh
+	var copies := 1
+	var allocated_copies := 1
+	if renderer is MeshInstance3D:
+		mesh = (renderer as MeshInstance3D).mesh
+	elif renderer is MultiMeshInstance3D:
+		var multi := (renderer as MultiMeshInstance3D).multimesh
+		if multi != null:
+			mesh = multi.mesh
+			allocated_copies = multi.instance_count
+			copies = multi.instance_count if multi.visible_instance_count < 0 else mini(multi.instance_count, multi.visible_instance_count)
+	var triangles := 0
+	var vertex_count := 0
+	var surfaces := mesh.get_surface_count() if mesh != null else 0
+	for surface in surfaces:
+		var arrays := mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		vertex_count += vertices.size()
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := indices.size() if not indices.is_empty() else vertices.size()
+		var primitive := (mesh as ArrayMesh).surface_get_primitive_type(surface) if mesh is ArrayMesh else Mesh.PRIMITIVE_TRIANGLES
+		match primitive:
+			Mesh.PRIMITIVE_TRIANGLES:
+				triangles += count / 3
+			Mesh.PRIMITIVE_TRIANGLE_STRIP:
+				triangles += maxi(0, count - 2)
+	return {"triangles": triangles * copies, "submissions": surfaces if copies > 0 else 0,
+		"copies": copies, "allocated_copies": allocated_copies, "surfaces": surfaces, "vertices": vertex_count * copies, "mesh": mesh.get_instance_id() if mesh != null else 0}
+
+
+func get_exterior_lod_report() -> Dictionary:
+	var result := {"active_lod": _exterior_lod_index, "close_triangles": 0, "far_triangles": 0,
+		"close_submissions": 0, "far_submissions": 0, "renderers": [], "unknown": [], "missing_macros": []}
+	for branch: Node in [self]:
+		for node: Node in branch.find_children("*", "GeometryInstance3D", true, false):
+			var renderer := node as GeometryInstance3D
+			var counts := _exterior_lod_renderer_census(renderer)
+			var membership: StringName = _exterior_lod_members.get(node.get_instance_id(), &"unknown")
+			counts["node"] = node.get_instance_id()
+			counts["path"] = str(get_path_to(node))
+			counts["membership"] = membership
+			counts["visible"] = renderer.visible
+			counts["authored_visible"] = _exterior_lod_close_visibility.get(node.get_instance_id(), renderer.visible)
+			(result["renderers"] as Array).append(counts)
+			if membership == &"unknown" and (int(counts.vertices) > 0 or (node is Label3D and not (node as Label3D).text.is_empty())):
+				(result["unknown"] as Array).append(counts.path)
+			if membership in [&"close", &"far"]:
+				var prefix := String(membership)
+				result[prefix + "_triangles"] += counts.triangles
+				result[prefix + "_submissions"] += counts.submissions
+	for macro: String in EXTERIOR_LOD_MACROS:
+		var member := _exterior_lod_far.get_node_or_null(NodePath(macro + "Distant")) as GeometryInstance3D if _exterior_lod_far != null else null
+		if member == null or int(_exterior_lod_renderer_census(member).triangles) == 0:
+			(result["missing_macros"] as Array).append(macro)
+	result["valid"] = (result.missing_macros as Array).is_empty() and (result.unknown as Array).is_empty() \
+		and result.close_triangles > 0 and result.far_triangles > 0 \
+		and result.far_triangles * 4 <= result.close_triangles \
+		and result.far_submissions <= result.close_submissions
+	return result

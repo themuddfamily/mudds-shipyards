@@ -211,12 +211,15 @@ func _test_whole_main_reentry_paused(
 	paused = true
 	var lod_hauler := _ship_by_id(all_craft, &"cinder_cargo_hauler") as CinderCargoHauler
 	var lod_bomber := _ship_by_id(all_craft, &"cinder_long_range_bomber") as CinderLongRangeBomber
+	var lod_jovian := _ship_by_id(all_craft, &"jovian_provisional") as JovianLightFreighter
+	_check(lod_jovian != null, "Jovian LOD cut resolves the exact production craft")
 	_check(lod_bomber != null, "Bomber LOD cut resolves the exact production craft")
 	_check(lod_hauler != null, "Hauler LOD cut resolves the exact production craft")
-	if lod_hauler == null or lod_bomber == null:
+	if lod_hauler == null or lod_bomber == null or lod_jovian == null:
 		return
 	_test_craft_lod_epoch(lod_hauler, "healthy settled initial epoch", game, world_owner, authority)
 	_test_craft_lod_epoch(lod_bomber, "healthy settled initial epoch", game, world_owner, authority)
+	_test_craft_lod_epoch(lod_jovian, "healthy settled initial epoch", game, world_owner, authority)
 	if not _prepare_component_cut(game, world_owner, authority, all_craft, component_cut):
 		return
 
@@ -387,6 +390,7 @@ func _test_whole_main_reentry_paused(
 			return
 		_test_craft_lod_epoch(lod_hauler, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
 		_test_craft_lod_epoch(lod_bomber, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
+		_test_craft_lod_epoch(lod_jovian, "retained Main epoch %d" % (cycle + 1), game, world_owner, authority)
 
 		var restored_audio := audio.get_synthesis_report()
 		var restored_resource_ids := restored_audio.resource_instance_ids as Dictionary
@@ -1301,6 +1305,9 @@ func _lod_retained_snapshot(craft) -> Dictionary:
 			row["shared_visible"] = (node as GeometryInstance3D).visible
 		if node is Camera3D:
 			row["cull_mask"] = (node as Camera3D).cull_mask
+		if node is Light3D:
+			row["energy"] = (node as Light3D).light_energy
+			row["light_visible"] = (node as Light3D).visible
 		if node is GeometryInstance3D:
 			row["layers"] = (node as GeometryInstance3D).layers
 		if node is CollisionObject3D:
@@ -1319,7 +1326,8 @@ func _lod_retained_snapshot(craft) -> Dictionary:
 	var source: ShipCommandSource = craft.get_command_source()
 	return {"nodes": nodes, "resources": resources, "source": source.get_instance_id(),
 		"stream": source.get_stream_id(), "sequence": source.get_next_sequence(),
-		"anchors": (craft.get_payload_hardpoints() if craft is CinderLongRangeBomber else craft.get_cargo_transfer_anchors()).map(func(anchor: Marker3D) -> int: return anchor.get_instance_id()),
+		"anchors": _lod_craft_anchors(craft),
+		"jovian": _lod_jovian_state(craft) if craft is JovianLightFreighter else {},
 		"payload": craft.get_payload_authority_snapshot() if craft is CinderLongRangeBomber else {},
 		"payload_owner": craft.get("_payload_authority").get_instance_id() if craft is CinderLongRangeBomber else 0,
 		"definition": craft.ship_definition.get_instance_id(), "hull": craft.get("_hull"),
@@ -1375,7 +1383,7 @@ func _lod_first_difference(expected: Variant, actual: Variant, path: String = "o
 func _lod_main_external(craft, game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority) -> Dictionary:
 	var home := world.get_berth_node(craft.get_home_berth_id())
 	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
-	var role = craft.get_crew_role_authority() if craft is CinderCargoHauler else null
+	var role = craft.get_crew_role_authority() if craft is CinderCargoHauler or craft is JovianLightFreighter else null
 	return {"world": world.get_instance_id(), "player": game.player.get_instance_id(),
 		"source": authority.get_source_id(craft), "source_count": game.get_combat_resolver().get_registered_source_count(),
 		"home": home.get_instance_id(), "home_id": craft.get_home_berth_id(),
@@ -1385,3 +1393,29 @@ func _lod_main_external(craft, game: GameFlow, world: ShipyardWorld, authority: 
 		"boarding_reserved": area.is_reserved(), "boarding_token": area.get_reservation_token(),
 		"role": _retained_id(role), "claims": role.get_snapshot() if role != null else {},
 		"pilot": craft.is_piloted(), "remote_pilot": craft.is_remote_piloted()}
+
+
+func _lod_craft_anchors(craft) -> Array:
+	if craft is CinderLongRangeBomber:
+		return craft.get_payload_hardpoints().map(func(anchor: Marker3D) -> int: return anchor.get_instance_id())
+	if craft is CinderCargoHauler:
+		return craft.get_cargo_transfer_anchors().map(func(anchor: Marker3D) -> int: return anchor.get_instance_id())
+	var anchors: Array = []
+	for node: Node in craft.find_children("*", "Marker3D", true, false):
+		anchors.append({"id": node.get_instance_id(), "transform": (node as Marker3D).transform})
+	return anchors
+
+
+func _lod_jovian_state(craft: JovianLightFreighter) -> Dictionary:
+	var role := craft.get_crew_role_authority()
+	return {"role": _retained_id(role), "claims": role.get_snapshot() if role != null else {},
+		"engineer": craft.get_engineer_repair_network_snapshot(),
+		"console": craft.get_engineer_console_presentation_snapshot(),
+		"work": craft.get_engineer_repair_presentation_snapshot(),
+		"audio": craft.get_engineer_repair_audio_snapshot(),
+		"copilot": craft.get_copilot_navigation_state(),
+		"copilot_audio": craft.get_copilot_navigation_audio_snapshot(),
+		"damage_cue": craft.get_engine_damage_cue_snapshot(),
+		"door": craft.get("_canopy_open"), "stairs": craft.get("_pilot_stair_fold"),
+		"ramp": craft.get("_cargo_ramp_close_fraction"),
+		"weapon": craft.get_weapon_component_emitter_snapshot()}
