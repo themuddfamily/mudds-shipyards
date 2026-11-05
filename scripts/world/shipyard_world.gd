@@ -67,6 +67,7 @@ const SHIP_BERTH_PRODUCTION_IDS: Array[StringName] = [
 	&"dock_04_cargo",
 	&"dock_05_bomber",
 	&"dock_06_interceptor",
+	&"titan_home_berth",
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -765,6 +766,12 @@ const TOW_TRACTOR_SCENE := preload("res://scenes/world/tow_tractor.tscn")
 ## connectors is proved by `station_surface_playability_test.gd` and the
 ## per-module integration suites.
 const STATION_HUB_ENDPOINT_DECLARATIONS := [
+	{
+		"slot_id": &"hub-titan-transport-berth",
+		"expects_module": &"titan-transport-berth",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "TitanConnectorRouteAnchor",
+	},
 	{
 		"slot_id": &"hub-aft-junction",
 		"expects_module": &"aft-junction-stack",
@@ -4211,22 +4218,24 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 	var placements: Dictionary = {}
 	var expected_ids: Array[StringName] = []
 	expected_ids.assign(SHIP_BERTH_FEEDBACK_BERTH_IDS)
+	var initial_berth_ids: Array[StringName] = expected_ids.duplicate()
+	initial_berth_ids.append(&"titan_home_berth")
 	# The Dock 04/05/06 berths assemble after the world's initial index pass.
 	# Until GameFlow refreshes that index, the three berth caches truthfully hold
-	# the six feedback-equipped berths; afterwards they truthfully hold all nine.
+	# the six feedback-equipped berths plus Titan; afterwards all ten berths.
 	# Both atomic states are valid, but partial or foreign cache rosters are not.
 	if (
-		not _dictionary_has_exact_keys(_berth_nodes, expected_ids)
+		not _dictionary_has_exact_keys(_berth_nodes, initial_berth_ids)
 		and not _dictionary_has_exact_keys(_berth_nodes, SHIP_BERTH_PRODUCTION_IDS)
 	):
 		errors.append("cached_berth_registry_ids_do_not_match_production_contract")
 	if (
-		not _dictionary_has_exact_keys(_berth_transforms, expected_ids)
+		not _dictionary_has_exact_keys(_berth_transforms, initial_berth_ids)
 		and not _dictionary_has_exact_keys(_berth_transforms, SHIP_BERTH_PRODUCTION_IDS)
 	):
 		errors.append("cached_berth_transform_ids_do_not_match_production_contract")
 	if (
-		not _dictionary_has_exact_keys(_berth_half_extents, expected_ids)
+		not _dictionary_has_exact_keys(_berth_half_extents, initial_berth_ids)
 		and not _dictionary_has_exact_keys(_berth_half_extents, SHIP_BERTH_PRODUCTION_IDS)
 	):
 		errors.append("cached_berth_extent_ids_do_not_match_production_contract")

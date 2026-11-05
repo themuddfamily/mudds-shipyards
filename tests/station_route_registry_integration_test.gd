@@ -17,12 +17,13 @@ const HUB_ENDPOINT_ID: StringName = &"station-hub"
 const CONNECTION_SLOT_META: StringName = &"station_connection_slot"
 const APPROACH_ROUTE_ID: StringName = &"approach"
 
-const EXPECTED_MODULE_COUNT := 7
-const EXPECTED_HUB_ENDPOINT_COUNT := 7
-const EXPECTED_CONNECTION_SLOT_COUNT := 7
-const EXPECTED_ROUTE_MARKER_COUNT := 51
+const EXPECTED_MODULE_COUNT := 8
+const EXPECTED_HUB_ENDPOINT_COUNT := 8
+const EXPECTED_CONNECTION_SLOT_COUNT := 8
+const EXPECTED_ROUTE_MARKER_COUNT := 54
 
 const EXPECTED_MODULE_IDS: Array[StringName] = [
+	&"titan-transport-berth",
 	&"aft-junction-stack",
 	&"fleet-dock-comb",
 	&"fabrication_annex",
@@ -34,6 +35,7 @@ const EXPECTED_MODULE_IDS: Array[StringName] = [
 
 ## slot id -> the single module that must claim it opposite the station hub.
 const EXPECTED_EDGES := {
+	&"hub-titan-transport-berth": &"titan-transport-berth",
 	&"fabrication_annex_inbound": &"fabrication_annex",
 	&"hub-aft-junction": &"aft-junction-stack",
 	&"hub-fleet-dock-comb": &"fleet-dock-comb",
@@ -44,6 +46,7 @@ const EXPECTED_EDGES := {
 }
 
 const EXPECTED_SLOT_ROUTES := {
+	&"titan-transport-berth": &"approach",
 	&"aft-junction-stack": &"approach",
 	&"fabrication_annex": &"annex_inbound",
 	&"fleet-dock-comb": &"approach",
@@ -144,10 +147,10 @@ func _test_production_graph_is_valid(world: ShipyardWorld) -> void:
 # 2. The roster is exactly the five production modules, with exact counts.
 func _test_exact_module_roster(world: ShipyardWorld) -> void:
 	var report := world.get_station_route_registry_report()
-	_check(int(report.get("module_count", -1)) == EXPECTED_MODULE_COUNT, "registry records exactly seven station modules")
-	_check(int(report.get("hub_endpoint_count", -1)) == EXPECTED_HUB_ENDPOINT_COUNT, "world publishes exactly seven station hub endpoints")
+	_check(int(report.get("module_count", -1)) == EXPECTED_MODULE_COUNT, "registry records exactly eight station modules")
+	_check(int(report.get("hub_endpoint_count", -1)) == EXPECTED_HUB_ENDPOINT_COUNT, "world publishes exactly eight station hub endpoints")
 	_check(int(report.get("connection_slot_count", -1)) == EXPECTED_CONNECTION_SLOT_COUNT, "exactly seven connection slot ids exist across the station")
-	_check(int(report.get("route_marker_count", -1)) == EXPECTED_ROUTE_MARKER_COUNT, "registry accounts for all fifty-one production route markers")
+	_check(int(report.get("route_marker_count", -1)) == EXPECTED_ROUTE_MARKER_COUNT, "registry accounts for all fifty-four production route markers")
 
 	var modules := report.get("modules", {}) as Dictionary
 	var roster_is_exact := modules.size() == EXPECTED_MODULE_IDS.size()
@@ -221,7 +224,7 @@ func _test_hub_endpoints_resolve_to_world_geometry(world: ShipyardWorld) -> void
 	var report := world.get_station_route_registry_report()
 	var hub_endpoints := report.get("hub_endpoints", {}) as Dictionary
 	var declarations := ShipyardWorld.STATION_HUB_ENDPOINT_DECLARATIONS
-	_check(declarations.size() == EXPECTED_HUB_ENDPOINT_COUNT, "the world declares exactly seven station hub endpoints")
+	_check(declarations.size() == EXPECTED_HUB_ENDPOINT_COUNT, "the world declares exactly eight station hub endpoints")
 	_check(hub_endpoints.size() == declarations.size(), "every declared hub endpoint is registered")
 
 	var edge_modules := _edge_module_by_slot(report.get("adjacency", {}) as Dictionary)
@@ -280,7 +283,7 @@ func _test_hub_endpoints_resolve_to_world_geometry(world: ShipyardWorld) -> void
 # 5. Only the outward approach marker of each module is a connection slot.
 func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> void:
 	var modules := _module_nodes(world)
-	_check(modules.size() == EXPECTED_MODULE_COUNT, "all seven production module nodes are reachable for marker inspection")
+	_check(modules.size() == EXPECTED_MODULE_COUNT, "all eight production module nodes are reachable for marker inspection")
 
 	var every_module_tags_only_approach := true
 	var total_route_markers := 0
@@ -298,7 +301,7 @@ func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> v
 			and tagged_routes.size() == 1 \
 			and tagged_routes[0] == (EXPECTED_SLOT_ROUTES.get(module.get_module_id(), &"") as StringName)
 	_check(every_module_tags_only_approach, "each module tags exactly its one reviewed inbound/approach marker as a connection slot")
-	_check(total_route_markers == EXPECTED_ROUTE_MARKER_COUNT, "the live modules expose exactly fifty-one route markers")
+	_check(total_route_markers == EXPECTED_ROUTE_MARKER_COUNT, "the live modules expose exactly fifty-four route markers")
 
 	var every_dead_end_untagged := true
 	var dead_end_count := 0
@@ -333,12 +336,12 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	var report := world.get_station_route_registry_report()
 	var authority_claims := report.get("authority_claims", {}) as Dictionary
 	_check(
-		authority_claims.is_empty(),
-		"station modules declare no gameplay authority ids; berth specifications remain descriptive"
+		authority_claims == {&"titan_home_berth": &"titan-transport-berth"},
+		"only the Titan module declares its own existing ShipBerth authority"
 	)
 
 	var live_berth_ids := world.get_berth_ids()
-	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size()
+	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 1 and live_berth_ids.has(&"titan_home_berth")
 	var berths_unchanged := true
 	for berth_id in EXPECTED_BERTH_IDS:
 		berth_roster_exact = berth_roster_exact and live_berth_ids.has(berth_id)
@@ -346,12 +349,14 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 		berths_unchanged = berths_unchanged \
 			and berth != null \
 			and world.get_berth_transform(berth_id).is_equal_approx(EXPECTED_BERTH_TRANSFORMS[berth_id] as Transform3D)
-	_check(berth_roster_exact, "the world still owns exactly the nine assigned physical berths")
+	_check(berth_roster_exact, "the world owns the original nine physical berths and the own Titan berth")
 	_check(berths_unchanged, "all nine authoritative berth identities and transforms are untouched by the route registry")
 
 	var modules := report.get("modules", {}) as Dictionary
 	var modules_claim_nothing := true
 	for module_id: StringName in EXPECTED_MODULE_IDS:
+		if module_id == &"titan-transport-berth":
+			continue
 		var entry := modules.get(module_id, {}) as Dictionary
 		modules_claim_nothing = modules_claim_nothing \
 			and (entry.get("authority_ids", PackedStringArray()) as PackedStringArray).is_empty()
@@ -475,7 +480,7 @@ func _test_report_is_deeply_detached(world: ShipyardWorld) -> void:
 	)
 	_check(
 		(fresh.get("hub_endpoints", {}) as Dictionary).size() == EXPECTED_HUB_ENDPOINT_COUNT
-		and (fresh.get("authority_claims", {}) as Dictionary).is_empty(),
+		and (fresh.get("authority_claims", {}) as Dictionary) == {&"titan_home_berth": &"titan-transport-berth"},
 		"hub endpoints and authority claims survive caller mutation"
 	)
 	_check(
@@ -536,7 +541,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 		and (red_adjacency.get("dangling_slots", PackedStringArray()) as PackedStringArray).has("hub-aft-junction"),
 		"exactly the unpaired hub slot is listed as dangling"
 	)
-	_check((red_adjacency.get("edges", []) as Array).size() == EXPECTED_EDGES.size() - 1, "the mutated station graph keeps only the six intact edges")
+	_check((red_adjacency.get("edges", []) as Array).size() == EXPECTED_EDGES.size() - 1, "the mutated station graph keeps only the seven intact edges")
 	_check(
 		int(red.get("module_count", -1)) == EXPECTED_MODULE_COUNT
 		and int(red.get("route_marker_count", -1)) == EXPECTED_ROUTE_MARKER_COUNT,
@@ -552,7 +557,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 	)
 	_check(
 		_edge_module_by_slot(restored.get("adjacency", {}) as Dictionary) == EXPECTED_EDGES,
-		"the restored graph reconnects all seven modules to the station hub"
+		"the restored graph reconnects all eight modules to the station hub"
 	)
 	_check(
 		bool(world.get_station_route_registry_report().get("valid", false)),
@@ -582,7 +587,7 @@ func _edge_module_by_slot(adjacency: Dictionary) -> Dictionary:
 
 func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 	var result: Array[Node] = []
-	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace"]:
+	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth"]:
 		var module := world.get_node_or_null(NodePath(node_name))
 		if module != null:
 			result.append(module)

@@ -31,6 +31,7 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 
+	await _test_titan_extension_gate()
 	_test_identity_evidence_and_contract(module)
 	_test_exposed_lattice_language_contract(module)
 	_test_connection_slots(module)
@@ -1591,3 +1592,24 @@ func _count_assertions() -> int:
 	# available at runtime; successful and failed assertions together equal this
 	# frozen suite total.
 	return 72
+
+
+func _test_titan_extension_gate() -> void:
+	var extended := MODULE_SCENE.instantiate() as ObservationLogisticsSpur
+	extended.name = "TitanGateFixture"
+	extended.position = Vector3(200, 0, 0)
+	extended.titan_extension_gate_open = true
+	_test_root.add_child(extended)
+	await physics_frame
+	var closed := MODULE_SCENE.instantiate() as ObservationLogisticsSpur
+	_check(not closed.titan_extension_gate_open, "Titan continuation is explicitly closed by default")
+	closed.free()
+	_check(extended.get_node_or_null("Structure/SafetyRails/FarBridgeNorthRail") == null
+		and extended.get_node_or_null("Structure/SafetyRails/TitanGateRail01") != null
+		and extended.get_node_or_null("Structure/SafetyRails/TitanGateRail02") != null,
+		"enabled continuation replaces the full visible and collision rail with two real segments")
+	var hit := await _ray_local(extended, Vector3(0, 0.6, 39.3), Vector3(0, 0.6, 39.9))
+	_check(hit.is_empty(), "enabled Titan opening is actually clear through the old rail")
+	_check(extended.get_validation_errors().is_empty(), "enabled gate retains its honest component and visual contracts: %s" % extended.get_validation_errors())
+	extended.queue_free()
+	await process_frame
