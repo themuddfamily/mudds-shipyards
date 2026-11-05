@@ -129,6 +129,18 @@ class NativeSortieSafetyTests(unittest.TestCase):
             else: changed['native_gameplay']['fire'] = True
             with self.assertRaises(AssertionError): pilot.validate_observation(changed)
 
+    def test_station_flash_explicit_save_after_ordinary_auto_persist_is_still_sent(self):
+        pilot = native.StationFlashPilot(); pilot.stage = 'save'; pilot.toggle_index = 3
+        sample = dict(frame=1, position=[0, 0, 0], phase='APPROACH_SHIP', window_focused=True,
+                      ui=dict(dirty=False, focus_name='SettingsSaveButton', controls={
+                          'SettingsSaveButton': dict(visible=True, enabled=True, path='/Save', focused=True)}))
+        pilot.last_state = sample
+        with patch.object(pilot, 'disk', return_value={'payload': {}}) as disk:
+            keys, _, _, fire = pilot.update(sample, 100)
+        self.assertEqual(keys, {'Return'}); self.assertFalse(fire)
+        self.assertEqual(pilot.stage, 'saved'); disk.assert_called_once_with('before-save')
+        self.assertIsNone(pilot.saved)
+
     def test_station_flash_cannot_succeed_without_actual_save_toggles_and_exit(self):
         pilot = native.StationFlashPilot()
         for code in (0, 1):

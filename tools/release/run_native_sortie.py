@@ -6143,7 +6143,8 @@ class StationFlashPilot(Pilot):
         elif self.stage == 'save':
             key = activate('SettingsSaveButton')
             if key == 'Return':
-                require(ui['dirty'], 'ordinary final ON preview is dirty before Save')
+                # Normal controls already persist accepted changes; explicit Save
+                # must still be observed as one additional accepted transaction.
                 self.save_before = self.disk('before-save')
                 self.enter('saved', s)
         elif self.stage == 'saved':
