@@ -178,6 +178,15 @@ source/run and diagnostic binding. Cinder's historical24-frame inspection also
 lacks the current registry source/image handoff. Those gaps are distinct from
 missing images or an unimplemented capture harness.
 
+The2026-11-05 bounded player-motion check verifies all nine retained PNGs against
+`artifacts/player_motion/evidence_manifest.json`:exact filenames,2560×1440,
+byte counts and SHA256 all match. The capture script hash matchesed359040c,but
+the Player controller hash does not. The documented run locations contain no
+original complete raw log/source-import guard record or exact inspected-image
+binding. [Exact hashes and search boundary](history/ROADMAP_DELIVERIES.md#player-motion-retained-binding-stop-20261105).
+No source/image registry declaration or historical inspection is upgraded by
+this partial match;actual source/run artifacts remain required. No render ran.
+
 Combat's retained seven2560x1440 PNGs and transactional manifest are published,
 but its raw log prints `WARNING: 7 RIDs of type "Texture" were leaked.` at1483,
 after its success sentinel, plus a prior superuser warning. This is not a

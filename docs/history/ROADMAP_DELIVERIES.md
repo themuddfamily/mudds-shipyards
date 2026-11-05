@@ -35404,3 +35404,55 @@ to the same90min window. Only records.tar.gz,closeout.json and intentionally kep
 original review/bulwark_camera_views.png remain in the owned directory. ReviewPNG
 SHA256 `3673b13346f3ffccd1678cf196694564468b66ea5c9f4461449dbbf1a633a042`.
 No task branch exists remotely;no rejected runtime source was merged to delete it.
+
+
+<a id="player-motion-retained-binding-stop-20261105"></a>
+## Retained player-motion capture binding — contradiction and missing run, 2026-11-05
+
+**GATED; no binding acceptance,recapture or gameplay delivery.** One bounded
+qualification selected capture-player-motion's retained-artifact binding,not
+current/final-source character or ordinary craft-animation qualification.
+Start16:03:04UTC (initial readiness reads included),15–20min estimate,hard
+16:23:04UTC through review/checks/commit/push/cleanup. Root owns only existing
+roadmap/backlog/inventory/history text;one low-effort read-only agent owns the
+run/inspection-reference check. No branch/worktree,engine,display,device,CI,
+new evidence format or registry-stage upgrade was created.
+
+The declared location is artifacts/player_motion/evidence_manifest.json and its
+nine PNGs. All exact original names01_idle,02_walk_contact_a,03_walk_contact_b,
+04_run,05_jump_ascent,06_airborne_descent,07_boarding_transition,
+08_seated_control and09_disembark_recovery match their recorded SHA256/byte counts
+and actual2560×1440 dimensions. This proves only the retained directory's
+internal image/manifest correspondence.
+
+Documented source ised359040c25c5045bdd30976c945ac28ab7f7c41. Its capture script
+matches manifest SHA256
+`6b23eb1762d1b15d762f021e248c54f066790f9304532c89130b7290dfdb21d3`;
+Player scene also matches. **Player controller source contradicts that binding:**
+
+- retained manifest scripts/player/player_controller.gd SHA256:
+  `0165d784824aad0b619845b2b1e830b86cdaca9e2c1ed06b19ef2769f2a90ee7`;
+- actual ed359040c controller blob SHA256:
+  `63302e5b82d3153d14d3e752675e1aea8967cabe598befc941eb56684458cdde`.
+
+The remaining source fields/generator comparison and pixel reinspection were
+not admitted after this failure. Manifest contents were not altered to fit a
+commit. Matching harness bytes alone cannot bind a whole candidate or run.
+
+Independent bounded search found no original complete raw capture log,
+source/import before-after guard record,or exact reviewed-PNG/hash record.
+Boundary:the declared player_motion directory (nine PNGs,nine.import files and
+one manifest);direct artifacts metadata;the existing inventory/backlog/history
+references;ed359040c commit body/stat and its ROADMAP.md line349. That historical
+summary mentions earlier339185c5e repair/exit0 but gives no raw location or image
+hash binding. The commit itself is a patrol gameplay change,not a capture-log
+handoff. No filesystem-wide search or substitute probe was run. Manifest
+`warnings:[]` cannot prove terminal diagnostics/process exit. Historical summary
+and excluded human/native/current/final stages stay in their stated scope.
+
+Reopening this exact binding needs the genuine source/run/integrity and
+inspection artifacts,owned by Codex artifact recovery;do not assign an invented
+product decision to the user or launch an unchanged recapture/search. Existing
+registry source/image stages stay pending and all337 canonical identities/
+acceptance remain unchanged except this row's precise State blocker. The task
+ends with this contradiction and exact absent artifacts;no automatic successor.
