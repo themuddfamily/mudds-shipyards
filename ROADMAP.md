@@ -221,6 +221,61 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Active delivery: Arrow complete static exterior LOD.** Existing
+[CRAFT-ACCEPT-ARROW / current-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
+
+- **Result:** the current Arrow selects a complete cheaper exterior beyond120m
+  and returns to close below100m, preserving its canopy, pods, sensor, damage
+  cues, boarding and cockpit presentation. This is a production capability;
+  full craft/journey/art/native performance qualification stays OPEN.
+- **Start/owner:** clean2ae135cef; one implementer owns
+  `scripts/ships/arrow_recon_ship.gd`, `tests/arrow_recon_ship_test.gd`,
+  `tests/capture_arrow_recon_crown.gd` and Arrow-only passive observations in
+  `scripts/diagnostics/native_sortie_observer.gd` and
+  `tools/release/run_native_sortie.py`. One independent reviewer checks static
+  membership, dynamic preservation, camera identity and authority/resource life.
+- **Dependencies:** existing Arrow procedural presentation, accepted Arrow
+  pilot/return/reuse owners and pinned export toolchain are present. No parked
+  Zenith source or Cinder retry. Existing visual paths and close census remain
+  intact; all current static modern additions belong to the switch.
+- **Action:** extend the existing Arrow component suite with a focused
+  `--whole-craft-lod-only` selection and include its checks in default execution.
+  Exercise0→100→120→121→110→100→99, invalid/negative distances, current real
+  camera selection, exact cockpit and current Main/Player boarding/disembark
+  overrides, settled authority and retained detach/re-entry. Old-runtime focused
+  check must fail specifically because complete-craft LOD is absent. Run changed
+  full Arrow suite and affected damage/crown checks. Use the existing crown
+  capture with an opt-in LOD view mode for close/far/switch and open-canopy review;
+  retain default views. Root runs all engines silently/isolated with independent
+  abort and raw diagnostic checks.
+- **Pass:** actual far static solid triangles≤25% of close; static submissions
+  ≤close. Exactly one complete static exterior active at every observation;
+  no yield between switches. Shared dynamic/canopy/interior retain their own
+  policy. Boundary/dead band/negative/nonfinite input holds state. Actual camera
+  and actual transition overrides select close; unrelated cameras/players do
+  not. Original named paths, collision/anchors/claims/component/weapon/source
+  identity and quiet settled authority stay unchanged within each lifecycle;
+  resources/listeners are retained across switches/re-entry. Expose/read actual
+  renderer membership and mesh surfaces, never a hidden reference-only census.
+- **Proof:** selected/full suites require real exit0, exact success marker and
+  zero raw diagnostics. Rendered same-view comparisons are staged visual review,
+  not ordinary traversal or native performance. Arrow-only native passive fields
+  must report actual camera/distance/selection without inputs or actor writes;
+  the unchanged ordinary route does not cross120m, so that qualification remains
+  NOT_RUN. No new registered capture set or threshold/route drift.
+- **Budget/stop:** original assessment start2026-11-05 08:46:23UTC; all-in
+  deadline10:16:23 (90minutes including mapping/build/integration/cleanup).
+  Existing ART one cause-bound correction total, no reset; source and focused
+  acceptance freeze before execution. Existing component cap300s, rendered
+  capture90s/outer110s per invocation, original ordinary900s/outer960s unchanged.
+  First unexpected failure stops dependent checks; final correction failure or
+  deadline parks the source, without merging an unaccepted subset.
+- **Close:** accepted code gets clean-commit Windows/Linux checkpoint, strict
+  startup/package checks, merge/push and owned branch/worktree/process cleanup.
+  Failed unique source/raw gets a verified archive and explicit reopen condition.
+  All Godot Dummy; rendered automation private Xvfb with explicit x11; CI disabled.
+
+
 **Roadmap clarification delivered (documentation only).** The front page now
 distinguishes product outcomes, bounded deliveries and qualification, and fixes
 the readiness/proof/closure rules. All337 canonical rows are unchanged; local
