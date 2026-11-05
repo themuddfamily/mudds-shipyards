@@ -3622,6 +3622,21 @@ actual restored session and applies only to Aurora/Rime recovery. It does not
 admit this fresh live late peer,and Manual Join at Mudds supplies no distant
 cabin placement. Preserve those recovery/retained-body return protections.
 
+**Attempt2026-11-05 — PARKED/unaccepted.** Candidate2b5154b5c05c93611ee1d909e9e93a0f3b999fbe
+was archived unmerged. It proposes an explicit HUD join button, authenticated
+ready operation, scoped host-selected berth/body admission and existing physical
+hatch continuation. None was exercised. Initial fixture parse failed at a
+multiline inline lambda; the sole grammar correction exposed bridge970's
+uninferred eligible variable and four cascading dependent compilation failures.
+The corrected engine exits0 with five raw diagnostics; the parse gate fails.
+No live UI/body/walking/negative/regression/export or checkpoint result follows.
+Reopening first needs a separately bounded/cumulative-priority decision and
+explicit correction allowance, resolution of the observed typing blocker and
+clean isolated checks of the changed source/dependency chain before any live
+leaf. Existing source costs, original caps and all substantive standing/body/
+hatch/surface/negative/package criteria remain binding; this record selects no
+new attempt or allowance. [Exact failed gate and retained source](history/ROADMAP_DELIVERIES.md#landed-crew-admission-compile-stop-20261105).
+
 Implement a distinct explicit normal **join-current-landed-crew request** through
 the existing GameFlow/NetworkPlanetaryJourneyBridge/boarding ledger owners:
 

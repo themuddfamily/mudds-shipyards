@@ -34001,3 +34001,82 @@ case folder. Cleanup observed05:25:09UTC,25.513minutes from selection; final
 notes/push stay charged to this closure. All canonical IDs/parents/kinds/order/
 Done/State cells remain intact. No product, parent or phase outcome is closed;
 accepted runtime and d525554 checkpoint remain unchanged.
+
+
+<a id="landed-crew-admission-compile-stop-20261105"></a>
+## Fresh live landed-crew admission parked at compilation 20261105
+
+**PARKED/NOT_ACCEPTED**, candidate
+2b5154b5c05c93611ee1d909e9e93a0f3b999fbe based on
+04ccd8cfb753361d6eab674bafdeb1e269d37783. Five files remain unmerged:
+GameFlow, journey bridge, ENet adapter, HUD and existing shared-cruise fixture.
+Accepted runtime and latest d525554 Windows/Linux checkpoint are unchanged.
+The missing live late-berth admission capability and all world cases remain OPEN.
+
+Initial Rime resume inspection found its fresh-crew admission prerequisite, so
+that dependent resume was not selected. This task selected the existing common
+landed-admission gap: explicit normal fresh-peer UI, actual streamed eligibility,
+host-selected physically safe vacant Halyard berth through ordinary authority,
+same-Player cabin walking then normal hatch/surface walking/current body. Host
+survey/progress/payment/lease and retained exterior/recovery fences must survive;
+no automatic/pilot/old-grant admission or client-chosen actor/position/seat.
+No parked Jovian, exterior-loss or outbound trial was reopened.
+
+Card start05:26:18UTC includes that initial mapping, estimate75min/cap90min,
+source cutoff05:51:18UTC, original hard stop06:56:18UTC. Independent high-risk
+review and one implementation agent owned disjoint roles; no nested agents or
+agent engine/test/commit runs. Static blockers were addressed before source
+freeze05:45:48UTC. Drafts included actual current pending-context fencing,
+physical capsule/support queries, live-context negatives and a blocked-first-
+berth case, but static review does not establish their runtime outcomes.
+
+Initial isolated import exits0/20.623s/no diagnostics. The first selected
+fixture parse exits1/0.803s with two diagnostics: expected closing parenthesis
+at fixture1148, a multiline inline lambda return without inner grouping.
+Independent review approved the sole correction: parentheses around the same
+boolean1148-1150, changing no operands/actions/eight-second cap. All four
+production file hashes stayed at the original freeze; no other source fix.
+
+Corrected check runs17.415s; engine OS0 but five raw diagnostics. Its first
+concrete failure is bridge970: “Cannot infer the type of eligible variable
+because the value doesn't have a set type” on var eligible := with Variant
+Dictionary.get comparisons. The remaining four diagnostics are dependent
+visit/Aurora/GameFlow compilation/load failures. The wrapper rejects this result;
+exit0 is not a successful parse. No live admission probe had started, so there
+is no request/body/HUD/cabin/hatch/terrain/negative-case observation to accept.
+The source-readiness gate was not met; the correction allowance is spent.
+
+All live UI/auth/admission/body/cabin/hatch/surface and new rejection/duplicate
+probes, existing passive/boarding/session regressions, clean exports, startup
+checks, paired audit and fresh checkpoint are NOT_RUN. No second patch, blind
+probe or renamed attempt was selected. Full canonical late/reconnect/Rime resume,
+other-world physical cuts, native Windows/GPU/device/human and release remain
+OPEN. No schema/version/validator family or hosted GitHub run was introduced.
+
+Independent terminal review confirms exact production hashes, corrected fixture
+hash, raw gate and cascading scope. Reopening requires a separately reviewed
+bounded window/correction allowance with cumulative costs retained, resolving
+the observed typing blocker and clean isolated parsing of the changed source
+and dependency chain before runtime. All original substantive UI/host/body/
+physical-walking/negative/regression/package requirements and per-stage/whole
+caps remain; this record authorizes no new allowance, reset or reproduction.
+
+Verified archive:
+`/srv/mudds-work/landed-crew-admission-20261105/records.tar.gz`,
+33 regular members/4,053,188bytes, SHA256
+bca4ee96ae8bfafff2cb270057c3b980aef2854d9901849e76219646efed0463.
+It retains all five complete candidate files, initial/corrected patches and
+initial fixture, verified incremental Git bundle against retained main base,
+exact source hashes, commands/results/raw diagnostics/profile records, reviews
+and all337 canonical before-records. Every regular-file member hash was checked
+after archive creation. Durable template symlinks were recorded/excluded without
+following or deleting their targets.
+
+Fresh remote-tip/registered-worktree checks found no task remote branch. After
+archive/bundle verification, the clean owned worktree was removed and its exact
+local tip compare-and-swap deleted. No owned engine/supervisor/display remains;
+main is the sole local branch/worktree. Only records.tar.gz/closeout.json remain
+in the case folder. Cleanup observed05:56:13UTC,29.933minutes from selection;
+final notes/push stay charged to this closure. All337 canonical records and
+their complete table cells remain unchanged. No product/parent/phase outcome
+is closed; accepted runtime and d525554 checkpoint remain unchanged.

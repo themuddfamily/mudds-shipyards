@@ -187,8 +187,10 @@ home endpoints. Missing ordinary callers and the original Aurora artifact/Rime
 landing-failure gates remain open;no existing two-peer component is broadened.
 [Three landed late-join cases](docs/ROADMAP_BACKLOG.md#shared-world-landed-late-join)
 now fix the late companion,checkpoint-one state and full continuation. Safe live
-late-berth admission is missing. Ember passive publication is delivered in its
-fresh-observer/staged-HUD component scope; no physical late case is accepted.
+late-berth admission is missing. Its [candidate is PARKED at compilation](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-compile-stop-20261105);
+no fresh-body/UI/walking proof or runtime merge resulted. Ember passive
+publication is delivered in its fresh-observer/staged-HUD component scope;
+no physical late case is accepted.
 Baseline/Aurora artifact/Rime parked gates remain intact.
 [Three surface reconnect cases](docs/ROADMAP_BACKLOG.md#shared-world-surface-reconnect)
 now fix the transport cut,recovery and fresh crew handback. Safe exterior-loss
