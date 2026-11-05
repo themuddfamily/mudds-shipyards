@@ -2665,13 +2665,54 @@ func _station_flash_observation() -> Dictionary:
 			"visible": control != null and control.is_visible_in_tree(),
 			"enabled": control != null and not control.disabled,
 			"text": control.text if control != null else "", "focused": control == focus}
-	var source: Node = _game.get_active_ship().get("_default_local_command_source") as Node
+	var craft: HeroShip = _game.get_active_ship()
+	var source: LocalShipInputSource = craft.get("_default_local_command_source") as LocalShipInputSource
+	var command: ShipCommand = craft.get_last_ship_command()
+	var cargo: Dictionary = _game.cargo_delivery_activity.get_snapshot()
+	var reward: RefCounted = _game.get("_game_flow_reward_authority") as RefCounted
+	var reward_snapshot: Dictionary = reward.call(&"get_snapshot") as Dictionary if reward != null else {}
+	var boarding: Dictionary = _game.network_session.get_boarding_snapshot()
+	var area: ShipBoardingArea = craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var berth: ShipBerth = _game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	var reservation_owner: Node = berth.get_reservation_owner()
+	var occupant: Node = berth.get_occupant()
+	var local_token: Variant = area.get("_reservation_token")
+	var local_token_id: int = local_token.get_instance_id() if local_token is Object and is_instance_valid(local_token) else 0
+	var authority: Dictionary = {
+		"craft": {"id": craft.get_instance_id(), "position": _v(craft.global_position),
+			"rotation": _v(craft.global_rotation), "velocity": _v(craft.velocity),
+			"engine": str(craft.get("_engine_state")), "landed": bool(craft.get("_landed")),
+			"hull": float(craft.get("_hull")), "destroyed": craft.is_destroyed(),
+			"landing_active": craft.is_landing_active(),
+			"submitted_sequence": _game.combat_authority.get_last_submitted_sequence(craft),
+			"projectile_flights": _game.combat_authority.get_active_projectile_flight_count(),
+			"command": {"throttle": command.throttle if command != null else 0.0,
+				"yaw": command.yaw if command != null else 0.0,
+				"pitch": command.pitch if command != null else 0.0,
+				"roll": command.roll if command != null else 0.0,
+				"fire": command.fire if command != null else false,
+				"fire_pressed": command.fire_pressed if command != null else false,
+				"landing": command.landing if command != null else false,
+				"interact": command.interact if command != null else false}},
+		"cargo": {"inventory": _game.cargo_transfer_authority.to_dictionary(),
+			"state": cargo.get("state"), "generation": cargo.get("generation"),
+			"next_phase_index": cargo.get("next_phase_index"), "receipt": cargo.get("accepted_receipt")},
+		"reward": reward_snapshot.get("record", {}),
+		"claims": {"event_sequence": boarding.get("event_sequence"), "occupancies": boarding.get("occupancies"),
+			"local_reserved": bool(area.get("_has_reservation")), "local_token_id": local_token_id,
+			"home_id": berth.get_instance_id(), "lease_token": str(berth.get_reservation_token(craft)),
+			"reservation_owner_id": reservation_owner.get_instance_id() if is_instance_valid(reservation_owner) else 0,
+			"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0}}
 	return {"mode": "station-flash", "sequence": _station_flash_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
 		"main_id": _game.get_instance_id(), "main_current": get_parent().call("get_main") == _game,
 		"world_id": _game.world.get_instance_id(), "player_id": _player.get_instance_id(),
 		"authority_id": _game.combat_authority.get_instance_id(), "source_id": source.get_instance_id(),
-		"default_sampler": (source as LocalShipInputSource).get_input_provider() == null,
+		"default_sampler": source != null and craft.get("_command_source") == source and source.get_input_provider() == null,
+		"authority": authority, "native_begin": Input.is_physical_key_pressed(KEY_E),
+		"native_gameplay": {"fire": Input.is_action_pressed("fire"),
+			"movement": Input.is_action_pressed("move_forward") or Input.is_action_pressed("move_back") or Input.is_action_pressed("move_left") or Input.is_action_pressed("move_right"),
+			"landing": Input.is_action_pressed("landing_assist"), "interact": Input.is_action_pressed("interact")},
 		"phase": GameFlow.Phase.keys()[_game.phase], "paused": get_tree().paused,
 		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
 		"position": _v(_player.global_position), "rotation": _v(_player.global_rotation),

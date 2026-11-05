@@ -43,6 +43,9 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     main_id=2, world_id=3, player_id=4, authority_id=5, source_id=6,
                     environment_node_id=8, environment_id=7, sky_id=10, sky_material_id=9,
                     main_current=True, default_sampler=True, seated=False, piloted=False,
+                    native_begin=False, native_gameplay=dict(fire=False, movement=False, landing=False, interact=False),
+                    authority=dict(cargo={'manifest':1}, reward={'receipts':0}, claims={'occupancies':[]},
+                                   craft={'hull':100, 'submitted_sequence':0}),
                     transition_busy=False, solar=dict(active=True, runtime_settings_bound=True,
                     reduced_flash=enabled, presentation=p, attach_count=1, detach_count=0),
                     recovery=dict(settings=dict(reduced_flash=enabled, reduced_motion=False,
@@ -76,16 +79,47 @@ class NativeSortieSafetyTests(unittest.TestCase):
             lambda s: s['solar']['presentation']['baseline'].update(glow_bloom=.02),
             lambda s: s['ui'].update(flash_pressed=False),
             lambda s: s['recovery']['settings'].update(reduced_motion=True),
+            lambda s: s['recovery']['settings'].update(mouse_sensitivity=999),
+            lambda s: s.update(default_sampler=False),
         ):
             pilot = native.StationFlashPilot(); pilot.expected_pid = 42
             pilot.validate_observation(self.station_observation())
             changed = self.station_observation(True, 2); mutate(changed)
-            with self.assertRaises(RuntimeError): pilot.validate_observation(changed)
+            with self.assertRaises(AssertionError): pilot.validate_observation(changed)
+
+    def test_station_flash_begin_shift_uses_and_observes_actual_ordinary_e(self):
+        pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+        s = self.station_observation()
+        s.update(menu_ready=True, position=[0, 1, 0], phase='INTRO', window_focused=True)
+        s['ui']['controls'] = {'IntroBeginShiftButton': dict(visible=True, enabled=True)}
+        pilot.validate_observation(s)
+        self.assertEqual(pilot.update(s, 10)[0], {'e'})
+        self.assertEqual(pilot.stage, 'begin_shift')
+        self.assertFalse(pilot.native_begin_seen)
+        pressed = copy.deepcopy(s); pressed.update(sequence=2, frame=2, native_begin=True)
+        pilot.validate_observation(pressed)
+        self.assertTrue(pilot.native_begin_seen)
+        self.assertTrue(pilot.receipts['native_begin_shift']['native_begin'])
+
+    def test_station_flash_live_authority_pose_and_native_input_are_preserved(self):
+        for change in ('cargo', 'reward', 'claims', 'craft', 'position', 'native'):
+            pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+            initial = self.station_observation()
+            initial.update(phase='APPROACH_SHIP', control_enabled=True, grounded=True, paused=True,
+                           support_fresh=False, support=dict(supported=True, collider_id=123),
+                           position=[0, 1, 0], rotation=[0, 0, 0])
+            pilot.validate_observation(initial)
+            pilot.settled = copy.deepcopy(initial); pilot.stage = 'settings'
+            changed = copy.deepcopy(initial); changed.update(sequence=2, frame=2)
+            if change in ('cargo', 'reward', 'claims', 'craft'): changed['authority'][change] = {'changed':True}
+            elif change == 'position': changed['position'][0] = 1
+            else: changed['native_gameplay']['fire'] = True
+            with self.assertRaises(AssertionError): pilot.validate_observation(changed)
 
     def test_station_flash_cannot_succeed_without_actual_save_toggles_and_exit(self):
         pilot = native.StationFlashPilot()
         for code in (0, 1):
-            with self.assertRaises(RuntimeError): pilot.finish(code)
+            with self.assertRaises(AssertionError): pilot.finish(code)
         self.assertEqual(pilot.protected(dict(runtime_settings={'x':1}, cargo={'credits':4})),
                          {'cargo': {'credits':4}})
 

@@ -35,6 +35,7 @@ Use --route life-tow for Central service coexistence during real walking/boardin
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
 Use --route crew-recovery for ordinary Jovian engineer admission, owned kill and cold helm continuation.
+Use --route station-flash for actual supported-spawn Reduced Flash UI and resource readbacks.
 The default is Guided through normal HUD Exit and actual process exit zero.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -5992,6 +5993,7 @@ class StationFlashPilot(Pilot):
         self.ui_until = self.ui_release_until = 0
         self.quit_requested = False
         self.toggle_index = 0
+        self.native_begin_seen = False
         self.save_before = self.saved = None
         self.profile = self.output = None
 
@@ -6021,6 +6023,12 @@ class StationFlashPilot(Pilot):
         if self.last_state is not None:
             require(s['sequence'] > self.last_state['sequence'] and s['frame'] >= self.last_state['frame'],
                     'ordered station observations')
+        if s['native_begin'] and self.stage == 'begin_shift':
+            self.native_begin_seen = True
+            self.receipts.setdefault('native_begin_shift', copy.deepcopy(s))
+        require({k: v for k, v in s['recovery']['settings'].items() if k != 'reduced_flash'}
+                == {k: v for k, v in self.initial['recovery']['settings'].items() if k != 'reduced_flash'},
+                'all non-flash runtime settings retain their actual initial values')
         require(s['default_sampler'] and not s['seated'] and not s['piloted'] and not s['transition_busy'],
                 'station setting cannot change control or pilot authority')
         solar, p = s['solar'], s['solar']['presentation']
@@ -6052,6 +6060,9 @@ class StationFlashPilot(Pilot):
         require(not s['recovery']['settings']['reduced_motion']
                 and s['recovery']['settings']['payload_visual_intensity'] == 2, 'independent comfort defaults retained')
         if self.settled is not None:
+            require(s['authority'] == self.settled['authority']
+                    and not any(s['native_gameplay'].values()),
+                    'live flight combat cargo rewards and claims unchanged with no gameplay input')
             require(s['phase'] == 'APPROACH_SHIP' and s['control_enabled'] and s['grounded']
                     and s['support']['supported'] and s['support']['collider_id'] == self.settled['support']['collider_id']
                     and s['position'] == self.settled['position'] and s['rotation'] == self.settled['rotation'],
@@ -6095,10 +6106,14 @@ class StationFlashPilot(Pilot):
             return 'Tab'
         if self.stage == 'boot':
             if s['menu_ready']:
-                key = activate('IntroBeginShiftButton')
-                if key == 'Return': self.enter('begin_shift', s)
+                control = ui['controls']['IntroBeginShiftButton']
+                require(control['visible'] and control['enabled'], 'ordinary Begin Shift is ready')
+                self.enter('begin_shift', s)
+                key = 'e'
         elif self.stage == 'begin_shift':
             if s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['support']['supported'] and norm(s['velocity']) < 1e-5:
+                require(self.native_begin_seen and not any(s['native_gameplay'].values()),
+                        'actual ordinary E observed then released before supported spawn')
                 require(not s['recovery']['settings']['reduced_flash'], 'fresh ordinary authored OFF preference')
                 self.settled = copy.deepcopy(s)
                 self.receipts['settled'] = copy.deepcopy(s)
@@ -10782,7 +10797,7 @@ def game_leg_umask(route, future_format):
 
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
-    require(route in ("station-flash", "zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol", "station-flash"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     require((route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save')) == (retained_data is not None),
@@ -10934,12 +10949,12 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                              RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
                              CrewRecoveryPilot(cold=bool(leg), expected_pid=game.pid) if isinstance(restart_files, CrewRecoveryFiles) else
                              HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "station-flash": StationFlashPilot, "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-escorted-withdrawal": CourierEscortedWithdrawalPilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-escorted-withdrawal": CourierEscortedWithdrawalPilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()))
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol"), "station-flash": StationFlashPilot}[route]()))
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
-                    if isinstance(pilot, (StationFlashPilot, BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot)): pilot.expected_pid = game.pid
+                    if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot)): pilot.expected_pid = game.pid
                     if isinstance(pilot, StationFlashPilot): pilot.profile, pilot.output = profile, output
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
@@ -10948,7 +10963,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                             while pilot.result is None:
                                 if game.poll() is not None:
                                     code = record_terminal_game_exit(game, leg_result, output/'game.log')
-                                    if isinstance(pilot, (StationFlashPilot, ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                    if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot, StationFlashPilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
                                         tail = (game_leg_output_lines(output/'game.log',leg_log_offset) if unsupported_files else
                                                 (output/'game.log').read_bytes().splitlines())
@@ -10968,10 +10983,10 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                         if corrupt_files: corrupt_files.finish_leg(leg, pilot)
                                         if unsupported_files: unsupported_files.finish_leg(leg, pilot)
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
-                                        if isinstance(pilot, (StationFlashPilot, GuidedExitPilot, ZenithTorrentHandbackPilot)):
+                                        if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot)):
                                             leg_result['exit_ui'] = pilot.receipts['exit_ui']
                                             result['post_exit_user_data'] = capture_guided_shutdown(profile, output)
-                                            if isinstance(pilot, (StationFlashPilot, ZenithTorrentHandbackPilot)):
+                                            if isinstance(pilot, (ZenithTorrentHandbackPilot, StationFlashPilot)):
                                                 closed = result['post_exit_user_data']
                                                 require(closed.get('captured') and closed.get('crash_recovery_state') == 'clean'
                                                         and closed.get('safe_start_recovery_state') == 'clean_shutdown',
@@ -11000,7 +11015,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                             received_at = time.monotonic()
                                             for observation in observations:
                                                 outbound_timing.observe(observation, received_at)
-                                        if isinstance(pilot, (StationFlashPilot, ZenithTorrentHandbackPilot, GuidedExitPilot, BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                        if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot, StationFlashPilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
@@ -11276,8 +11291,8 @@ def main():
                         help='unsupported-save format, default outer; settings/legacy require primary and their dedicated fixture')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('station-flash', 'zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-escorted-withdrawal wounds the runner once, waits for both actual escorts, kills the defender and verifies withdrawal through strict home/physical exit; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol', 'station-flash'), default='guided',
+                        help='station-flash checks ordinary station OFF/ON/OFF/ON, final Save and normal UI exit using actual property readbacks; zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-escorted-withdrawal wounds the runner once, waits for both actual escorts, kills the defender and verifies withdrawal through strict home/physical exit; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')
