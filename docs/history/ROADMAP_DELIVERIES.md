@@ -35806,3 +35806,147 @@ records, initial failure, full package maps/audit and copy/review/process record
 Accepted packages remain in repository builds. Ordinary full Bomber/payload/home/
 LOD-transition journeys, whole-craft art, native Windows/GPU/devices and original
 parent gates remain OPEN. No successor or parked retry is selected by closure.
+
+
+<a id="jovian-whole-lod-delivered-20261105"></a>
+## Jovian whole-craft LOD runtime and checkpoint — delivered 2026-11-05
+
+**PASS:** bounded CRAFT-ACCEPT-JOVIAN static-exterior runtime/checkpoint member.
+Accepted source `27e2955c33b58b5883ee04f9db64c82734435ac7`, merged and pushed on
+`7d76b8ebe70a8949d89c3fc8b0bb938aa14f48e5`. Selection commit `cec91f012` and
+archived original task card fix all six cases, 26 named macro sources, twelve
+suites, image/package requirements and original limits. No parked Jovian
+engineer/delivery/crew caller was reused or reopened.
+
+The actual current viewport camera selects one retained complete static exterior:
+initial close; far strictly >120m; close strictly <100m; exact boundaries/dead band
+retain; invalid negative/nonfinite input ignored. Exact own cockpit, aboard
+Player or real boarding/disembarking camera forces close. Foreign camera, actor,
+seat, frame and craft ownership is rejected. Normal chase defaults are unchanged.
+
+Final whole-craft geometry membership is registered after the base deferred
+weapon presenters and Jovian engineer presentation settle. This includes the
+separate WalkableInterior and root-level weapon emitters. Only immutable static
+exterior leaves switch; cockpit/glazing, furnishings, real doors/stairs/ramp,
+engine cores/plumes/lights, damage cues, labels, crew and defensive weapon owners
+remain shared. Original close meshes, arrays/native roof index LOD, batch geometry,
+resource IDs, furniture ranges/fade and physical/authority nodes stay intact.
+
+Far geometry derives from actual live/batched source triangles and their real
+index ranges, transforms, active materials and layers. Per-axis bounds extrema
+survive the far-only 0.25m vertex grid; thin macros remain nonempty. All 26 parts
+are present, including independent split port shoulders, roofs/cabin transitions,
+four engine housings/collars/throats, radiators, keel and landing feet. No bounding
+box bridges the port aperture. Far names end in Distant, preserving original
+source lookups and engine-family counts. Actual static triangles are17,907/83,538
+(21.44%) and submissions36/124; actual MultiMesh visible copies are counted.
+These geometry counts do not establish FPS/native GPU improvement.
+
+Only four existing files changed: `scripts/ships/jovian_light_freighter.gd`,
+`tests/jovian_light_freighter_test.gd`, `tests/main_reentry_quality_test.gd`,
+`tests/capture_jovian_freighter.gd`.
+
+| Complete source suite | Assertions | Seconds | Result |
+| --- | --- | --- | --- |
+| in_flight_cabin_test | 59 | 28.515 | PASS |
+| in_flight_cabin_integration_test | 75 | 101.261 | PASS |
+| jovian_continuous_interior_route_test | 13 | 37.162 | PASS |
+| jovian_copilot_navigation_gameplay_test | 20 | 4.723 | PASS |
+| jovian_engine_damage_silhouette_test | 11 | 5.775 | PASS |
+| ship_fitout_batch_test | 35 | 0.787 | PASS |
+| jovian_light_freighter_test | 794 | 31.328 | PASS |
+| main_reentry_quality_test | 251 | 86.503 | PASS |
+| jovian_cabin_portal_upright_resource_sharing_test | 12 | 4.865 | PASS |
+| jovian_cargo_ramp_actuator_resource_sharing_test | 6 | 4.753 | PASS |
+| jovian_cargo_ramp_edge_rail_resource_sharing_test | 5 | 4.571 | PASS |
+| jovian_engineer_repair_presentation_test | 18 | 0.743 | PASS |
+
+All twelve actual catalog modes are headless, jobs1/timeout300, Dummy audio.
+Every suite exits0 with exactly one original marker, raw diagnostics0 and stable
+source/import guards. Independent review recomputed log/result bindings, source
+CSV equality and hashes, exact suite membership, marker counts and raw diagnostics.
+All1,299 assertions pass. Jovian794 includes original checks plus 26 nonempty
+macros, actual placement/coating, invalid/boundary/camera cases, native arrays/LOD
+and resource hashes. Existing starting/failed engine, open door and partly folded
+stairs/ramp tests also cross far/close without dropping their old assertions.
+Main251 preserves Hauler/Bomber coverage and adds real Jovian anchors, claims,
+engineer/copilot/weapon state and retained resources in the initial epoch and all
+three retained-Main cycles. Source fixtures and their staged admission do not
+qualify complete ordinary journeys or populated active-claim restart behavior.
+
+**Rendered capture:** the original default four1280×720 images, paths and registry
+remain unchanged; that original full capture gate was not rerun or closed.
+Opt-in mode produces three native640×720 near/far/cockpit PNGs and an unscaled
+1920×720 strip. Each strip region matches its source image pixel-for-pixel.
+Actual own ShipCamera77.466728/157.457672m FOV72 and CockpitCamera8.982009m FOV78
+select close/far/close; both exterior frames contain all eight original
+PARKED_RENDER_BOUNDS corners. Only this fixture extends chase ceilings70/150m,
+then freezes the independent camera-boundary child after real physics settling.
+
+Root and independent reviewer viewed all four originals at native size: coherent
+tan roof/flightdeck/split shoulders and four open dark engine collars near,
+corresponding complete far silhouette and engine circles, no conspicuous missing
+or doubled shell. Far framing limits fine surface scrutiny. Cockpit SPD000,
+OFFLINE//HOLD, WPNSAFE, ENGINEOFFLINE and THR/HULL gauges are readable; original
+windscreen framing above the console does not obstruct instruments. Capture
+exits0, exactly one JOVIAN_LOD_REVIEW_OK, raw diagnostics0. All12,011 tracked files
+and252 protected import/class/UID files match before/after using the existing
+source-manifest writer. Inner270s watchdog configured, expiry untested; outer300s
+independent supervision/reaping retained. This establishes staged llvmpipe
+presentation, not ordinary transition frames, full art or native performance.
+
+**Checkpoint:** pinned official4.7.1 clean-commit Windows/Linux exports pass in
+28.545/26.580s. Windows payload under Linux editor, direct Linux ELF and extracted
+Linux archive pass `--startup-check` in26.789/22.363/22.333s: each exit0, exactly
+one STARTUP_MENU_READY_OK and raw diagnostics0. TAR has the original exact one
+directory/five regular members, expected names/types/modes and byte-identical ELF;
+archive startup runs from its extracted directory.
+
+Existing unchanged nine-predicate paired audit passes all1,531 complete entries
+and unchanged input identities. PE text matches the pinned Windows template;
+exact source/helpers, Linux ELF/TAR/export-result and two-file Windows ZIP/notes
+bind correctly. Against accepted84bd54a,1,464 entries are raw-identical; all66
+changed scene entries differ solely in typed node_ids values, with every other
+decoded byte equal (62 RSRC and four strict RSCC/zstd scenes). The sole intended
+compiled runtime change is Jovian.gdc,199,935 bytes/SHA256
+`1119f86a4137ffc1a25fd95495d9eab371af6046840d3829c3b445863564cc1e`.
+Windows/Linux complete raw maps match. Approved expected map preserves the prior
+independent inventory except individually proved scenes and the reviewed runtime
+tuple; no blanket actual-map approval, schema change or production validator.
+
+Seven checkpoint files copied with SHA256/mode equality to repository builds:
+[Windows ZIP](../../builds/windows/MuddsShipyards-27e2955-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-27e2955-notes.txt),
+[Linux archive](../../builds/linux/MuddsShipyards-27e2955-linux-x86_64.tar.gz),
+[Linux notes](../../builds/linux/MuddsShipyards-27e2955-linux-notes.txt).
+
+**Correction: one of three frozen corrections used.** Initial623b5d0 source run
+exits1 in31.466s:774 PASS lines, marker0/diagnostics15, source/import stable. New
+test helper incorrectly called Bomber-only get_cockpit_seat_anchor on Jovian.
+The first exception skipped actor/foreign-camera cleanup, close-detail and physics
+restoration, causing the following enclosure/collision/engine/fire failures.
+No dependent suite, capture or export ran. Independent review confirmed the exact
+cause and inherited HeroShip.get_pilot_seat_anchor API. Correction27e2955 changes
+only five calls in that new test helper. The complete rerun clears all cascades;
+no runtime, original assertion, mask, threshold, case, deadline or budget changed.
+The other two corrections were unused; original failure/source is retained.
+
+**Closure:** independent final GO. Original start18:22:34UTC, owned cleanup
+19:03:32UTC (40.98min), inside original19:52:34UTC/90min deadline. Final docs/push
+cost is recorded in closeout. Accepted tip contained in fresh pushed main; owned
+worktree normally removed and local branch exact-CAS deleted at27e2955c3. Remote
+task branch absent; supervisors/recorded descendants absent, no owned engine or
+display process remains. Profiles/extracted duplicate/scratch removed only after
+verified archival. All engine calls use Dummy audio/headless or isolated Xvfb/x11;
+GitHub Actions stays disabled.
+
+Retained exceptions: only
+`/srv/mudds-work/jovian-whole-lod-20261105/records.tar.gz` and `closeout.json`.
+Verified archive161 regular members/16,537,397 bytes/SHA256
+`680020711b62348564ffffd3d590bacbe8424e2982731cecc27e32936a7ac176`.
+Every member hash verified, including exact-source Git bundle, frozen card, actual
+commands/raw logs/manifests/guards, four originals, correction/initial failure,
+package inventories/audit and copy/review/process records. Accepted packages stay
+in repository builds. Ordinary craft/cargo/crew/home/LOD journeys, full art,
+original default capture, native Windows/GPU/devices and all original parent gates
+remain OPEN. No successor or parked retry is selected by closure.

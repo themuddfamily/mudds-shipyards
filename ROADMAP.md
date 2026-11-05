@@ -10,19 +10,19 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **84bd54a** — [Windows ZIP](builds/windows/MuddsShipyards-84bd54a-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-84bd54a-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-84bd54a-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-84bd54a-linux-notes.txt)).
-The Cinder Bomber now switches to a complete simplified exterior beyond 120m
-and restores close detail below 100m. Its cockpit/boarding views retain close
-detail; sensor masking and payload/damage/engine presentation are preserved.
-All twelve source suites, original production-camera images, three strict
-startup checks and the complete paired package audit pass. Ordinary full-craft
-journeys and native/GPU/device gates remain open.
-[Exact delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#bomber-whole-lod-delivered-20261105).
-Earlier accepted changes, including the Hauler distant exterior, remain included
-in their recorded scopes.
+Latest playable checkpoint: **27e2955** — [Windows ZIP](builds/windows/MuddsShipyards-27e2955-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-27e2955-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-27e2955-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-27e2955-linux-notes.txt)).
+The Jovian now switches to a complete simplified exterior beyond 120m and
+restores close detail below 100m. Original close geometry, native roof LOD,
+furniture, access motion, engine/damage effects and crew state are preserved.
+All twelve source suites, original production-camera images, three strict startup
+checks and the complete paired package audit pass. Ordinary full-craft journeys,
+full art and native/GPU/device gates remain open.
+[Exact delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#jovian-whole-lod-delivered-20261105).
+Earlier accepted changes, including Hauler/Bomber distant exteriors, remain
+included in their recorded scopes.
 
 ## Read this as a delivery plan
 
@@ -198,139 +198,33 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-### Selected: Jovian whole-craft LOD runtime and checkpoint
+### Delivered: Jovian distant exterior and playable checkpoint
 
-**Goal/contract:** CRAFT-ACCEPT-JOVIAN static-exterior capability in the
-[current-craft LOD contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
-Result: the running Jovian gains one complete retained distant exterior in a
-fresh playable checkpoint. Full ordinary craft/LOD/art journeys remain open.
-This is a fresh capability; no parked Jovian engineer/delivery/crew attempt or
-its rejected source/caller is reopened or reused.
-
-**Start/dependencies:** clean pushed main `7009eca39`, healthy settled OFFLINE
-Jovian with empty claims. Existing authored/procedural visual and shared all-nine
-retained-Main qualification are available, as are pinned Godot4.7.1/templates,
-private Xvfb/x11/llvmpipe and accepted source/export workflows. One implementer
-owns only `scripts/ships/jovian_light_freighter.gd`,
-`tests/jovian_light_freighter_test.gd`, `tests/main_reentry_quality_test.gd`,
-`tests/capture_jovian_freighter.gd` in an owned worktree. One independent reviewer
-checks lifecycle/camera/render integration; root executes checks, inspects original
-images, builds, merges/pushes and cleans owned artifacts. No nested delegation.
-
-| Case: initial state and action | Fixed expected result | Actual/proof |
-| --- | --- | --- |
-| Healthy actual current camera: initial close, below/exact100/in100–120/exact120/above120, negative/nonfinite; own and foreign cockpit/Player/seat/frame/boarding-disembark cases | Initial close; far strictly >120m, close strictly <100m; boundaries/dead band retain; invalid input ignored. Only exact own cockpit/aboard/real transition forces close; foreign ownership never inherits it | NOT_RUN |
-| Exhaustive actual final geometry membership after ready/consolidation/presenters; switch close/far both ways | One complete static exterior; far triangles ≤25%close and submissions ≤close, all26 named macro sources below retained with exact placement/material/layer policy. Mesh/ArrayMesh/Primitive/MultiMesh surface and actual visible copies (-1/all,0/none,partial) counted; empty geometry retained, unknown nonempty renderers rejected | NOT_RUN |
-| Compare original close geometry/resources/real native roof LOD, furniture ranges, aperture/engine/damage/crew state and actual authority snapshots across switches and retained Main epochs | Original geometry hashes/allocations/batching, roof-service native index LOD, furnishing100m±10m/fade policy, split port aperture, cockpit/canopy/real pilot door/folding stairs/cargo ramp, engine cores/plumes/lights/damage, crew/engineer/copilot/weapon owners unchanged. No new authority. Actual bodies/shapes/anchors/claims/home/components/source/resources stable within each epoch; original Main resets and Hauler/Bomber coverage retained | NOT_RUN |
-| Run all twelve complete source suites below in their actual headless catalog mode | Each exit0, original marker exactly once, zero raw diagnostics, stable source/import guards, every original assertion preserved. No parked ordinary route replay or reduced suite | NOT_RUN |
-| Opt-in existing capture, actual own ShipCamera at requested70m/150m and CockpitCamera | Original default four1280×720 captures/paths/registry unchanged. New three native640×720 near/far/cockpit PNGs plus1920×720 unscaled strip; exact dimensions/layout/region pixel equality. Final actual near<100m/far>120m and close/far/close; original FOV retained; all eight authored PARKED_RENDER_BOUNDS corners in each exterior frame. Coherent complete matching hull/shoulders/roof/four engines/aperture and readable unobstructed centre cockpit, no review camera | NOT_RUN |
-| Clean immutable paired export, three strict startups and existing full-map/nine-predicate audit | Fresh WindowsEXE/two-file ZIP/notes in builds/windows and matching LinuxELF/TAR/export-result/notes. WindowsPCK-underLinux,directLinux,extractedLinux each --startup-check exit0/oneSTARTUP_MENU_READY_OK/rawdiag0. Complete inventories bind intended Jovian.gdc change only, individually proving any regenerated node-ID scene metadata; pinned template/source/ELF/TAR/ZIP/helpers and unchanged inputs pass, all seven files copied/hash-mode verified | NOT_RUN |
-
-**Required26 far macro sources:** ForwardFlightDeck; PortCargoShoulder;
-PortAftCargoShoulder; StarboardCargoShoulder; CargoRoofShell; ForwardCabinCrown;
-PortCabinTransition; StarboardCabinTransition; FlightDeckWindscreenCowl;
-AftMachinerySpine; PortRadiator; StarboardRadiator; VentralKeel;
-LandingBogieFootBatch; PortLowerEngineHousing; PortUpperEngineHousing;
-StarboardLowerEngineHousing; StarboardUpperEngineHousing; PortLowerEngineCollar;
-PortUpperEngineCollar; StarboardLowerEngineCollar; StarboardUpperEngineCollar;
-PortLowerEngineCollarRecessedThroat; PortUpperEngineCollarRecessedThroat;
-StarboardLowerEngineCollarRecessedThroat; StarboardUpperEngineCollarRecessedThroat.
-Resolve actual close/batched sources through existing authored-piece indexes,
-without far same-name masking. No bounding-box substitute spanning the split port
-aperture. Preserve shared windscreen/seals/post, actual WalkableInterior/room
-walls, dynamic access, defensive weapon assembly/landing struts and owner-driven
-cues; do not invent a Bomber-style sensor that Jovian does not have.
-
-**Commands/proof:** existing `tools/release/run_test_matrix.sh` with pinned
-`--godot /srv/mudds-work/toolchains/godot-4.7.1-official/godot` and
-`--audio-driver Dummy --jobs 1 --timeout 300 --mode headless --scope NAME`,
-invoked separately with owned profiles/results for: `jovian_light_freighter_test`,
-`main_reentry_quality_test`, `ship_fitout_batch_test`, `in_flight_cabin_test`,
-`in_flight_cabin_integration_test`, `jovian_continuous_interior_route_test`,
-`jovian_engineer_repair_presentation_test`, `jovian_copilot_navigation_gameplay_test`,
-`jovian_cargo_ramp_actuator_resource_sharing_test`,
-`jovian_cargo_ramp_edge_rail_resource_sharing_test`,
-`jovian_cabin_portal_upright_resource_sharing_test`,
-`jovian_engine_damage_silhouette_test`. All modes independently verified.
-Default Jovian suite already covers landing feet, native roof LOD and furniture.
-Capture existing script with `-- --lod-review --output-dir=ABS`, private
-Xvfb1920×720/x11/Forward+/llvmpipe/Dummy; only fixture extends chase ceiling70/150
-and freezes actual camera-boundary child after settling. Inner270s watchdog,
-outer300s independent abort/reap; source/protected-import snapshots before/after.
-Exterior envelope is original PARKED_RENDER_BOUNDS: min(-10.6,-1.36,-14.1),
-size(19.1,6.31,28.55), transformed through the actual craft. All engine calls use
-Dummy; no active desktop/audio/hosted CI. Raw commands/logs/guards/originals in
-`/srv/mudds-work/jovian-whole-lod-20261105/`. Ordinary/native Windows/GPU/device/
-full-craft gates stay OPEN; no production evidence validator or required capture
-registry expansion.
-
-**Budget/stop/close:** readiness start18:22:34UTC2026-11-05; estimate75–85min,
-hard19:52:34UTC90min all-in. Implementation ready18:55, source complete19:15,
-capture begins19:20, checkpoint begins19:30, closure reserve from19:42. Freeze
-**three total corrections** upfront for static geometry,lifecycle and capture/
-package integration. Each requires demonstrated cause, remaining allowance and
-explicit cumulative-cost decision under the same deadline. No reduced cases,
-thresholds, candidate scope or reset costs. First unexpected failure stops all
-dependents; failed final correction/deadline parks the whole delivery with
-unique source/results preserved. PASS only after every frozen case, independent
-review, required checkpoint, merge/push and owned branch/worktree/process/scratch
-cleanup. No automatic successor or parked retry follows closure.
-
-### Delivered: Cinder Bomber distant exterior and playable checkpoint
-
-**CRAFT-ACCEPT-CINDER-BOMBER / whole-craft LOD runtime member: PASS.**
-Source `84bd54a796a1d986736da93244b25991dbb6bfb5`, integrated in pushed main
-`530cfaad5`. The complete ordinary craft/LOD/art journey remains open.
+**CRAFT-ACCEPT-JOVIAN / whole-craft LOD runtime member: PASS.**
+Source `27e2955c33b58b5883ee04f9db64c82734435ac7`, integrated in pushed main
+`7d76b8ebe`. The complete ordinary craft/LOD/art journey remains open.
 
 | Frozen case | Expected result | Actual result and proof |
 | --- | --- | --- |
-| Current camera, boundaries and ownership | Initial close; far only >120m, close only <100m; boundaries/dead band retain; invalid distances ignored; only own cockpit/aboard/real transition forces close | PASS in full 137-assertion Bomber suite, including foreign and null-frame seat cases |
-| Complete static renderer census | One complete exterior; far triangles ≤25%close and submissions ≤close; all19 macro parts and consumer-owned dynamic state retained | PASS: 8,648/41,076 triangles (21.05%), 21/61 submissions; actual visible MultiMesh copies counted |
-| Original close geometry, sensor masks and actual retained authority/resources | Preserve original batching/coating, cockpit sensor exclusion, payload hardpoints/state, damage/engine/canopy and within-epoch identities through switches/Main cuts | PASS: actual indexed port-root geometry/material/placement retained; existing resource, payload, fleet/batching and full 226-assertion Main suites pass |
-| All twelve complete source suites | Each exit0, one original marker, zero raw diagnostics, stable source/import guards | PASS: twelve suites, 563 assertions, ten headless/two private graphical; independently checked actual logs/manifests |
-| Actual production-camera images | Three native640×720 near/far/cockpit PNGs plus1920×720 unscaled strip; full exterior envelope, matching hull and readable unobstructed centre cockpit | PASS: actual43.099/153.086/3.360m cameras select close/far/close; both exterior envelopes8/8; all four originals independently reviewed |
-| Clean paired checkpoint and full audit | Three strict menu-ready startups, exact complete inventories/all nine predicates, seven repository checkpoint files | PASS: each exit0/one STARTUP_MENU_READY_OK/no diagnostics; all1,531 entries audited, files copied with hash/mode equality |
+| Current camera, boundaries and ownership | Initial close; far only >120m, close only <100m; boundaries/dead band retain; invalid inputs ignored; only own cockpit/aboard/real transition forces close | PASS in full 794-assertion Jovian suite, including foreign and real seat/frame cases |
+| Exhaustive final membership and static census | Complete exterior with all 26 source macros; far triangles ≤25%close and submissions ≤close; actual visible MultiMesh copies counted | PASS: 17,907/83,538 triangles (21.44%), 36/124 submissions; 26 nonempty macros, no unknown renderer |
+| Original close geometry/native roof LOD/furniture and dynamic/authority state | Preserve original arrays/LOD indices/resources/batching, split aperture, access/engine/damage/crew state and within-epoch identities through switches/Main cuts | PASS: actual source hashes/resource IDs, non-default motion/engine cases and original cabin/crew/batching checks; full Main251 retains Hauler/Bomber coverage and all three cycles |
+| Twelve complete source suites | Each exit0, one original marker, no raw diagnostics, stable source/import guards | PASS: twelve headless suites, 1,299 assertions; independent actual log/hash/manifest review |
+| Actual production-camera images | Three native640×720 panels and1920×720 unscaled strip; complete exterior envelope, matching hull/four engines and readable centre cockpit | PASS: actual77.467/157.458/8.982m cameras select close/far/close, exterior8/8 corners; four originals independently reviewed; original default four-image gate unchanged/unperformed |
+| Clean paired checkpoint and full audit | Three strict menu-ready startups, exact complete inventories/all nine predicates, seven repository checkpoint files | PASS: each exit0/one readiness marker/no diagnostics; all1,531 entries audited; files copied with hash/mode equality |
 
-[Commands, actual measurements, corrections and retained records](docs/history/ROADMAP_DELIVERIES.md#bomber-whole-lod-delivered-20261105).
-Two of three frozen corrections were used: preserve four far surface coatings;
-then restore the merged port wing root via the existing authored-piece index.
-Original close consolidation remains intact; no case/threshold/deadline changed.
+[Commands, measured results, correction and retained records](docs/history/ROADMAP_DELIVERIES.md#jovian-whole-lod-delivered-20261105).
+One of three frozen corrections was used: five new test calls used a Bomber-only
+seat accessor, aborting fixture cleanup. The inherited Jovian pilot-seat API
+restored that path; the full rerun clears all subsequent failures. No runtime,
+original assertion, threshold, scope or deadline changed for the correction.
 
-Started17:41:06UTC; owned cleanup18:18:53UTC (37.79min), within the original
-19:11:06UTC/90min all-in deadline. Accepted source is merged/pushed; owned branch,
-worktree, processes and generated scratch are removed. Only the verified
-163-member records archive and closeout remain in the task folder. Final
-documentation/push time is recorded in closeout. No next task is selected by this
-closure; other parked attempts and owner decisions retain their existing gates.
-
-### Delivered: Cinder Hauler distant exterior and playable checkpoint
-
-**CRAFT-ACCEPT-CINDER-HAULER / whole-craft LOD runtime member: PASS.**
-Source `c60face0560e15e27b22fa0cfa8d75715468df4b`, integrated in pushed main
-`47e868403`. This closes the bounded runtime/checkpoint delivery, while the
-complete ordinary craft journey remains open.
-
-| Frozen case | Expected result | Actual result and proof |
-| --- | --- | --- |
-| Current camera and distance boundaries | Initial close; far >120m, close <100m; boundaries/dead band retain; invalid distances ignored; only own cockpit/aboard/transition forces close | PASS in the complete 133-assertion Hauler suite, including foreign ownership negatives |
-| Complete static renderer census | Exactly one complete exterior; far triangles ≤25% of close, submissions ≤close; shared dynamic state preserved | PASS: 5,092/30,556 triangles (16.7%), 13/79 submissions; active MultiMesh copies counted |
-| Existing geometry/resources and retained Main | Preserve close geometry, allocation, collision, claims, home and component/source identities within each epoch | PASS: existing regression suites and full 201-assertion Main suite; original lifecycle expectations preserved |
-| Seven complete source suites | Exit 0, original marker once, no raw diagnostics, source/import guards stable | PASS: all seven suites, 383 assertions, five headless and two private graphical runs |
-| Actual production-camera images | Three native 640×720 near/far/cockpit panels and 1920×720 strip; coherent hull and readable unobstructed cockpit | PASS: dimensions and strip regions verified; all four originals reviewed independently on Forward+/llvmpipe |
-| Clean paired checkpoint and package audit | Three strict menu-ready startups; complete exact inventory and all nine package predicates; repository checkpoint files | PASS: each startup exit 0/one readiness marker/no diagnostics; all 1,531 entries audited; seven files copied with matching hashes/modes |
-
-[Full commands, measurements, corrections and retained records](docs/history/ROADMAP_DELIVERIES.md#hauler-whole-lod-delivered-20261105).
-The three corrections frozen before implementation were all used: null-frame
-pilot-transition ownership, the archive directory/file guard, and regenerated
-scene node-ID metadata in the old-package comparison. No acceptance threshold,
-case, runtime candidate or deadline was relaxed. All other scene bytes match.
-
-Started 16:44:20 UTC; cleanup completed 17:37:53 UTC (53.56 minutes), within the
-original 90-minute all-in deadline of 18:14:20 UTC. Accepted code is merged/pushed;
-owned worktree, branch, processes and generated scratch are removed. Only the
-verified 107-member records archive and closeout remain in the task folder.
-Final documentation/push time is recorded in that closeout. No next task is
-selected by this closure, and no parked attempt has been reopened.
+Started18:22:34UTC; owned cleanup19:03:32UTC (40.98min), within the original
+19:52:34UTC/90min all-in deadline. Source is merged/pushed; owned branch, worktree,
+processes and generated scratch are removed. Only the verified161-member records
+archive and closeout remain in the task folder. Final documentation/push time is
+recorded in closeout. No next task is selected by closure; all parked attempts
+and owner decisions retain their existing gates.
 
 **Cinder Light live role-choice card: PARKED/unaccepted.** Candidates
 6eef191c6→38b51455f→50134b4c2 are archived unmerged. Registry59,nine-craft
@@ -382,7 +276,7 @@ reconciliation uses its already-defined contract. Gameplay requirements remain
 unchanged. This closes the15:16UTC documentation selection within its20-minute
 budget/15:36UTC deadline; no gameplay, checkpoint or parked retry is selected.
 No task branch/worktree/process/scratch was created. That documentation task
-selected no implementation; the Hauler delivery is recorded above.
+selected no implementation; subsequent runtime deliveries are linked below.
 
 **Halyard whole-craft LOD runtime: PARKED/unaccepted.** Candidates
 8fc3d5d64→663649230 are preserved unmerged. Corrected Halyard541/Main176 source
@@ -406,6 +300,8 @@ Accepted recent results stay closed in their stated scopes:
 | --- | --- | --- |
 | Shared retained-Main all-nine source qualification | [Actual identity/empty-claim/home retention and normal passive repair](docs/history/ROADMAP_DELIVERIES.md#main-nine-component-claims-home-qualified-20261105) | Ordinary input, OS restart, networking and whole-craft acceptance |
 | Bulwark editable-source handoff | [Complete editable archive and clean reproduction](docs/history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105) | Gameplay, art, LOD and native acceptance |
+| Hauler distant exterior runtime/checkpoint | [Complete frozen source/image/package delivery](docs/history/ROADMAP_DELIVERIES.md#hauler-whole-lod-delivered-20261105) | Ordinary LOD transitions, full craft/art and native hardware qualification |
+| Bomber distant exterior runtime/checkpoint | [Complete frozen source/image/package delivery](docs/history/ROADMAP_DELIVERIES.md#bomber-whole-lod-delivered-20261105) | Ordinary LOD transitions, full craft/art and native hardware qualification |
 
 These are selection constraints, **not a list of tasks running in parallel**:
 
