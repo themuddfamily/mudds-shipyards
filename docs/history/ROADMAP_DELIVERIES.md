@@ -34494,3 +34494,54 @@ Owned candidate/baseline worktrees removed; local task ref exact-CAS deleted at
 no owned peer remains. Only archive/closeout remain in the case folder.
 Cleanup2026-11-05T08:44:48.422507+00:00,44.390minutes from original start;
 all-in cost also includes the following closure documentation/push.
+
+
+<a id="arrow-whole-lod-typed-membership-stop-20261105"></a>
+## Arrow whole-craft LOD — typed membership stop, 2026-11-05
+
+**PARKED/unaccepted.** Original assessment start08:46:23UTC/all-in stop10:16:23;
+existing ART one correction round, component300s/capture90s internal110s outer,
+ordinary900s/960s unchanged. Task card440e39330 is preserved in the archive.
+Unmerged candidate **75a413ec8839cf54700ac69b3f3e146234387fc3** owns Arrow
+controller, its existing component/crown-capture scripts and Arrow-only passive
+native observer/driver fields. It authors retained complete-static far geometry,
+exhaustive static visibility selection at120/100m, current camera/transition
+handling and tests; these changes are **not delivered behavior**.
+
+Pre-freeze review corrected static pod membership, retained evaluated opening
+surfaces and independent actual-renderer assertions. Initial direct parse fails
+at inferred `indexed` type; dependent parses emit the same compiler cause.
+The sole final correction transaction explicitly types that value and addresses
+a separately recorded pre-behavior frame-order review finding: move selection
+from physics to render callback, freezing both callbacks in staged fixtures.
+Both causes and the unchanged budget are recorded in correction-1-decision.json;
+no new allowance. Corrected four source scripts and copied old-runtime test parse
+exit0/zero diagnostics; Python compilation
+and diff checks pass. All five frozen source hashes match the archived candidate.
+
+Old runtime focused check fails exactly for absent whole-craft LOD API:
+parent143/15.983674s/two diagnostics (target plus supervisor interrupt), marker0.
+Candidate focused check aborts143/23.676342s/841 diagnostics/marker0. First error
+is `_whole_craft_lod_is_shared`: ancestor traversal calls typed
+`Array[MeshInstance3D].has()` with Node3D during far construction. Paired validation
+errors repeat; the final diagnostic is owned-process interruption. Only API
+existence passes. No census, settled Main, boundaries, camera/transition,
+authority/resource/re-entry or complete-suite check is reached. Further component
+regressions, captures, exports and checkpoint are NOT_RUN. Source review GO is
+superseded by actual runtime failure; no smaller subset is accepted.
+
+Reopening requires explicit user reprioritization retaining exhausted allowance
+and cumulative cost, plus type-safe membership across all ancestor node types.
+Then the complete original geometry/boundary/authority/lifecycle/render/package
+contract still applies. Ordinary threshold traversal and native performance stay
+NOT_RUN; current ordinary Arrow route does not cross120m. Latest playable6474bda
+is unchanged. No parked Zenith/Cinder source is restored or requalified.
+
+Verified archive `/srv/mudds-work/arrow-whole-lod-20261105/records.tar.gz`:
+106 regular members,7,854,806bytes,SHA256
+`5723ae4300d224e40cb4f449dbe8179d4cd3d485fd09b3b85eeb8a0b59626af1`.
+Every member hash and source bundle/base/tip verified. Fresh remote tips and
+registered ownership checked before worktree removal/exact local-ref deletion
+at75a413ec8; remote task branch absent. No owned process remains; only archive
+and closeout remain in the case folder. Cleanup09:11:18.568953UTC,24.926minutes
+from original start; all-in cost additionally includes closure review/push.
