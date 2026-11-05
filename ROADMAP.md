@@ -220,6 +220,66 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Active delivery: Cinder Light complete static exterior LOD.** Existing
+[CRAFT-ACCEPT-CINDER-LIGHT / whole-craft LOD contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
+
+- **Result:** the current Light interceptor selects one complete cheaper exterior
+  beyond120m and close detail below100m. Canopy/cockpit, damage beacon, muzzle
+  state and plumes retain their existing owners; no gameplay authority changes.
+- **Start/owner:** clean2ca740796. Implementer owns only
+  `scripts/ships/cinder_light_interceptor.gd`, existing
+  `tests/cinder_light_interceptor_test.gd` and existing
+  `tests/capture_cinder_interceptor_silhouette.gd`. Root owns minimal passive
+  Light fields in `scripts/diagnostics/native_sortie_observer.gd`; one independent
+  reviewer checks complete geometry, camera identity and retained authority/life.
+- **Dependencies:** Light's existing procedural presentation/Main/berth and pinned
+  export toolchain are present. No parked Arrow/Zenith source is restored. Keep
+  all named close paths; explicit exhaustive static-renderer membership selects
+  against a retained far sibling. Shared dynamic/interior/canopy policy is named,
+  not an exclusion used to shrink the static census.
+- **Action:** extend the existing Light suite with opt-in `--whole-craft-lod-only`
+  and default coverage. Old source must fail specifically for the missing LOD
+  capability. In actual settled Main/occupied OFFLINE berth, record quiet
+  authority/resources and exercise0→100→120→121→110→100→99, negative/nonfinite
+  inputs, actual current camera/cockpit/boarding/disembark overrides, then repeat
+  after retained-Main detach/re-entry. Preserve within-epoch authority snapshots
+  and expected existing lifecycle resets. Run the complete Light suite and
+  affected existing canopy/engine-beacon checks. Extend the existing silhouette
+  capture with opt-in close/far/return and open-canopy comparison, preserving its
+  default nominal/failed-engine view. No new capture registry or ordinary route.
+- **Pass:** complete far static solid triangles≤25% of close and submissions≤close,
+  counting every source surface/instance and keeping shadow-only duplication
+  out of the solid denominator. Exactly one complete exterior active at every
+  observation; use actual renderer visibility and independent assertions. Far
+  hull/wing/fairing/nacelles/open exhaust/cannons form the complete craft, with
+  retained opening/shape/material cues. Fine service detail may simplify, but
+  no modern static addition disappears from close membership/census. Boundary/
+  dead-band and invalid inputs hold state; actual cockpit/current-player access
+  forces close, unrelated cameras/on-foot first person do not. Resources, child
+  identities, colliders/anchors/berths/claims/components/weapons/source remain
+  unchanged through each switch. Far follows the real bank/visibility/destruction
+  lifecycle; no rebuilding per switch or duplicate recurring selector.
+- **Proof:** real OS0/existing exact markers/zero diagnostics for selected and
+  full checks; retain old missing-capability failure. Staged source distance and
+  existing same-view Forward+ captures are component/art proof only. Passive
+  native snapshots report actual camera/distance/current selection, including
+  inactive cached fleet entries, without inputs or actor writes. No ordinary
+  threshold crossing/frame sequence or native GPU result is inferred; full Light
+  journey, ordinary art, hardware and final fleet qualification remain OPEN.
+- **Budget/stop:** original assessment start2026-11-05 09:42:11UTC; all-in
+  deadline11:12:11, including mapping/implementation/checkpoint/push/cleanup.
+  Existing ART one cause-bound correction round total; no reset. Freeze source,
+  actions and checks before execution; first unexpected failure stops dependent
+  checks, final correction failure or deadline parks unique source/results.
+  Existing component300s, capture90s internal/110s outer and ordinary900s/960s
+  remain. Stop if the real complete census misses budget; never hide geometry
+  or relax thresholds to manufacture a pass.
+- **Close:** accepted source gets clean-commit Windows/Linux checkpoint, three
+  strict startup checks and paired package audit, merge/push and owned cleanup.
+  All Godot Dummy; rendered work private Xvfb/explicit x11/software Vulkan. Hosted
+  CI remains disabled. Parked cases retain their original reopen requirements.
+
+
 **Shared Rime arrival guidance: DELIVERED on5bc9a1705.** Both the host objective
 and blocked repeat-action toast use the existing contract’s correct shared-survey
 message. STAND IN CABIN, Aurora/solo/other-phase guidance and survey/authority/
