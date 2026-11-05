@@ -33195,3 +33195,63 @@ worktree removal and exact-tip local branch deletion after remote-ref/ownership
 checks (remote task branch absent). Only records.tar.gz and closeout.json remain
 in the owned raw root. All source/test failures and the export failure are
 preserved;there is no unmerged task branch or stray worktree left behind.
+
+
+<a id="exported-dedicated-launch-delivered-20261105"></a>
+### Exported dedicated launch delivered — 2026-11-05
+
+Source24ed6bc86c49dd15e2a2cf55cadc536949ef45b8 (launch81e7a6712 plus
+shutdown correction). Existing SERVER-BASELINE launch capability only: normal
+Boot validates explicit dedicated port/capacity/optional guest threshold,
+retains nonplaying Main, hosts through its existing adapter, reports actual
+listener operands and uses ordinary disconnect/ownership retirement and
+orderly shutdown. Default offline/information paths retain focused coverage.
+Omitted exit-after-guests keeps serving. No second transport, export test script,
+new admin protocol or validator family was introduced.
+
+Actual results: isolated import/CLI privacy/startup-loading regressions pass;
+real ENet suite118 assertions passes with zero diagnostics. Independent semantic
+and correction reviews GO. Clean official pinned4.7.1 Windows/Linux exports;
+three strict menu startups (Windows payload under Linux Godot, Linux direct,
+Linux archive) each actualOS0/one STARTUP_MENU_READY_OK/zero diagnostics.
+Actual ordinary Linux ELF in private user/network namespace: invalid port exits2
+without readiness; valid Boot listens39461/max2/peer1 once; early authenticated
+guest departure leaves it unarmed; two distinct concurrent admissions arm2;
+first departure leaves server/B live; final departure closes both normally.
+Whole probe36.808s, four positiveOS0/zero diagnostics/all owned PIDs absent.
+Fresh production data confirms crash state clean, safe-start clean_shutdown,
+session start0/end664 ticks and11.0666667 physics seconds. Guests use actual
+source adapters, not packaged gameplay clients. Checkpoint24ed6bc EXE/ZIP/notes
+and matching Linux archive are in this repository's builds directories.
+The existing paired package audit passes all nine predicates with identical
+complete1531-entry Windows/Linux inventories, pinned Windows code section,
+Linux export/archive identity and exact Windows EXE+notes ZIP members.
+
+Retained failures: initial RED fixture called an instance API on a script class;
+corrected fixture produced the intended missing-capability RED. First GREEN
+network test passed117 assertions but invoked an old callback after captured
+fixtures were freed; that run is unaccepted. The saved callable is disconnected
+before freeing, with all assertions retained. First exported81e7a67 run reached
+all admissions/departures and clean markers but emitted one shutdown diagnostic;
+it is unaccepted. Pinned upstream SceneCacheInterface connects tree_exited with
+a bound ObjectID but clear disconnects the unbound callable. The dedicated-only
+correction retires that empty session's cache membership synchronously by
+removing/re-adding the same adapter before the existing peer reset. Its exact
+identity/path/parent/order is regression-checked; no general adapter behavior was
+changed. Both bounded amendments were independently reviewed and recorded
+explicitly within the original23:39:08→00:54:08UTC75min clock; no acceptance
+criterion or deadline was relaxed and no dirty run was promoted.
+
+Remaining: full packaged two-client ordinary flight/home/exit/reuse caller,
+complete Boot/Main/adapter identity observation fields, exact final candidate,
+other named baseline members, capacity/endurance and applicable native/device
+qualification remain OPEN/NOT_RUN. All337 canonical IDs/names/parents/kinds/order
+and Done cells are unchanged; only SERVER-BASELINE State records this narrower
+capability. PLAN-NEXT remains definition-only DONE; all36 product parents and
+ten phase exits remain OPEN. GitHub Actions stays disabled.
+
+Raw logs, private profiles, safe admission receipts, failed candidate identity,
+helpers and exact upstream source excerpts are retained outside the repo in
+/srv/mudds-work/packaged-dedicated-authority/launch-20261105; closure consolidates
+these records before removing the owned worktree and branch. No complete
+packaged flight or native Windows/GPU/audio/human pass is implied.

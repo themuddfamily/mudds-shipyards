@@ -4,13 +4,14 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **f0d6796** — [Windows ZIP](builds/windows/MuddsShipyards-f0d6796-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-f0d6796-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-f0d6796-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-f0d6796-linux-notes.txt)).
-Credits now name ambientCG Fabric069 and the Poly Haven coating source, with
-their recorded CC0 notices. The overall note acknowledges these external scans.
-Existing Bulwark feedback remains accepted; its ordinary gunner journey stays parked.
+Latest playable checkpoint: **24ed6bc** — [Windows ZIP](builds/windows/MuddsShipyards-24ed6bc-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-24ed6bc-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-24ed6bc-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-24ed6bc-linux-notes.txt)).
+Production Boot now supports an explicitly configured nonplaying dedicated
+server and optional orderly shutdown after its authenticated guests leave.
+The actual exported Linux lifecycle passed with source-adapter guests; complete
+packaged multiplayer flight remains OPEN. [Exact delivery and remaining scope](docs/ROADMAP_BACKLOG.md#packaged-dedicated-authority-contract).
 
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
 337 records, their IDs, parents, kinds and accepted proof scopes. These include

@@ -1,0 +1,13 @@
+Mudd's Shipyards Linux checkpoint 24ed6bc
+Source: 24ed6bc86c49dd15e2a2cf55cadc536949ef45b8
+
+Production Boot can now launch a nonplaying headless dedicated authority using the normal networking and gameplay owners. Explicit port/capacity arguments are validated before listening. Optional exit-after-guests arms only after the requested authenticated guests are present together, then waits for their ordinary departure and ownership cleanup before a clean process exit. Omitting that option keeps serving.
+
+Linux example (choose an available port):
+./MuddsShipyards-24ed6bc.x86_64 --headless --audio-driver Dummy -- --dedicated-server --network-port=39461 --network-max-clients=2 --exit-after-guests=2
+
+Actual validation
+Clean isolated import; startup CLI/privacy check; startup-loading regression; real ENet suite118 assertions, all exit0/zero diagnostics. Clean-commit Windows/Linux exports with pinned official Godot4.7.1 templates. Actual exported Linux Boot listener, invalid-port rejection, early guest departure, two concurrent authenticated guests and staged ordinary departures:36.808s, four positive processes exit0/zero diagnostics, all owned PIDs absent. Real persisted crash/safe-start markers are clean; production session clock advances0 to664 ticks. Guests were source-adapter probes, not packaged gameplay clients. Strict Windows-payload/Linux-binary/Linux-archive menu startups each exit0/one STARTUP_MENU_READY_OK/zero diagnostics. Automated Godot uses Dummy audio. Package inventory audit is retained separately once this ZIP is frozen.
+
+Scope
+Windows payload smoke uses Linux Godot; native Windows/GPU/physical input/audio/human and final-release gates remain unqualified. This proves exported server launch/authentication/one-session shutdown, not the complete packaged two-client flight journey, capacity or endurance. Full launch-observation IDs and final-candidate qualification remain open. Earlier ordinary gameplay journeys were not rerun.
