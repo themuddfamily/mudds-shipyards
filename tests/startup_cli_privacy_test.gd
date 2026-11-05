@@ -1,6 +1,5 @@
 extends SceneTree
 
-const NativeSortieObserverType := preload("res://scripts/diagnostics/native_sortie_observer.gd")
 const StartupLoaderType := preload("res://scripts/game/startup_loader.gd")
 
 class TitleHUD extends Control:
@@ -508,6 +507,10 @@ func _run() -> void:
 		StartupLoaderType.format_cli_output(&"unknown") == "",
 		"unsupported output mode remains empty"
 	)
+	# Keep the early Boot cache guards above uncontaminated by this late compile.
+	var native_observer_script: Script = load("res://scripts/diagnostics/native_sortie_observer.gd") as Script
+	_check(native_observer_script != null and native_observer_script.can_instantiate(),
+		"admitted native observer compiles after lazy Boot privacy checks")
 	if _failures.is_empty():
 		print("STARTUP_CLI_PRIVACY_TEST_OK")
 		quit(0)
