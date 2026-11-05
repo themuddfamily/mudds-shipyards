@@ -60,6 +60,10 @@ func _run() -> void:
 
 	await _test_pre_guide_freeplay_fire_contract(game, authority, pulse, opponent, fleet)
 	await _test_whole_main_reentry(game, world, audio, authority, resolver, pulse, opponent, fleet)
+	if not _failures.is_empty():
+		await _clean_up(game)
+		_finish()
+		return
 	await _test_destroyed_source_impact_ordering(game, pulse, fleet)
 	await _clean_up(game)
 	await _test_queued_main_reentry_restore()
@@ -67,6 +71,8 @@ func _run() -> void:
 	_finish()
 
 
+# The outer coroutine owns pause restoration even when setup or a comparison
+# returns early. The original replay/resource fixture remains the inner case.
 func _test_whole_main_reentry(
 	game: GameFlow,
 	world: Node3D,
@@ -76,6 +82,26 @@ func _test_whole_main_reentry(
 	pulse: PulseWeaponPresentation,
 	opponent: Node3D,
 	fleet: Array[HeroShip]
+	) -> void:
+	var prior_pause: bool = paused
+	var component_cut: Dictionary = {}
+	await _test_whole_main_reentry_paused(game, world, audio, authority, resolver,
+		pulse, opponent, fleet, component_cut)
+	paused = prior_pause
+	if not prior_pause and _failures.is_empty() and bool(component_cut.get("ready", false)):
+		await _observe_normal_component_repair(component_cut)
+
+
+func _test_whole_main_reentry_paused(
+	game: GameFlow,
+	world: Node3D,
+	audio: AudioDirector,
+	authority: LiveCombatAuthority,
+	resolver: CombatResolver,
+	pulse: PulseWeaponPresentation,
+	opponent: Node3D,
+	fleet: Array[HeroShip],
+	component_cut: Dictionary
 	) -> void:
 	var world_owner := world as ShipyardWorld
 	var opponent_ship := opponent as RangeOpponent
@@ -172,6 +198,20 @@ func _test_whole_main_reentry(
 		"a re-entered Main-owned Damageable accepts fresh reset and direct damage"
 	)
 
+	# This is a declared staged source cut, not combat or ordinary access proof.
+	# Keep the original six-direct combat roster; census the complete live fleet
+	# independently, after the accepted replay target/request setup above.
+	var all_craft: Array[HeroShip] = game.get_flyable_ships()
+	var roster: Dictionary = game.get_live_combat_source_roster_audit()
+	var census_valid: bool = all_craft.size() == 9 and bool(roster.get("valid", false)) \
+		and int(roster.get("actual_source_count", 0)) == 13
+	_check(census_valid, "component cut uses the settled nine-craft/thirteen-source composition")
+	if not census_valid:
+		return
+	paused = true
+	if not _prepare_component_cut(game, world_owner, authority, all_craft, component_cut):
+		return
+
 	var hero_receipt_id := 91001
 	var opponent_receipt_id := 91002
 	var world_receipt_id := 91003
@@ -244,6 +284,13 @@ func _test_whole_main_reentry(
 	var expected_destroyed_targets := game.destroyed_targets
 	var expected_active_ship := game.active_ship
 	var expected_world_built := bool(world.get("_built"))
+	# Torrent's original deferred 6.5 damage and every original queue are now
+	# staged. The baseline is measured here, never assumed to be 0.9H.
+	for entry: Dictionary in component_cut["entries"]:
+		entry["baseline"] = _component_cut_snapshot(entry)
+		print("MAIN_COMPONENT_BASELINE: ", entry["ship_id"], " ", entry["baseline"])
+	component_cut["ready"] = true
+
 	var fixed_tree_ids := _descendant_instance_ids(game)
 	var fixed_audio_player_ids := _instance_ids_by_name(
 		audio.find_children("*", "AudioStreamPlayer", true, false)
@@ -263,6 +310,9 @@ func _test_whole_main_reentry(
 
 		parent.remove_child(game)
 		await process_frame
+		if not _compare_component_cut(game, component_cut, authority, cycle, false):
+			return
+
 		var detached_audio := audio.get_synthesis_report()
 		var opponent_replay_rejected := true
 		var world_replay_rejected := true
@@ -325,6 +375,9 @@ func _test_whole_main_reentry(
 		await physics_frame
 		await process_frame
 		await _await_settled_roster(game)
+		if not _compare_component_cut(game, component_cut, authority, cycle, true):
+			return
+
 		var restored_audio := audio.get_synthesis_report()
 		var restored_resource_ids := restored_audio.resource_instance_ids as Dictionary
 		var unique_resource_ids := {}
@@ -458,6 +511,280 @@ func _test_whole_main_reentry(
 			and damageable_events.size() == queued_events,
 		"a queued Main-owned Damageable rejects direct health and reset mutation atomically"
 	)
+
+
+# All references come from the settled composition. Snapshot helpers only read
+# existing objects; in particular they never ensure a role or component owner.
+func _prepare_component_cut(
+	game: GameFlow, world: ShipyardWorld, authority: LiveCombatAuthority,
+	craft: Array[HeroShip], cut: Dictionary
+	) -> bool:
+	var entries: Array[Dictionary] = []
+	var identities: Dictionary = {}
+	cut["player"] = game.player
+	cut["entries"] = entries
+	if not _component_player_is_unclaimed(game):
+		_check(false, "component cut starts on foot without transition or role claim")
+		return false
+	for ship: HeroShip in craft:
+		var model: ShipComponentDamage = ship.get_component_damage()
+		var home: ShipBerth = world.get_berth_node(ship.get_home_berth_id())
+		var area: ShipBoardingArea = ship.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+		var role: CrewSeatRoleAuthority = null
+		if ship.has_method(&"get_crew_role_authority"):
+			role = ship.call(&"get_crew_role_authority") as CrewSeatRoleAuthority
+		var entry: Dictionary = {"ship": ship, "ship_id": ship.get_ship_id(),
+			"model": model, "home": home, "area": area, "role": role,
+			"source_id": authority.get_source_id(ship), "player": game.player, "game": game}
+		var valid: bool = model != null and model.is_configured() and home != null \
+			and area != null and ship.ship_definition != null \
+			and ship.get("_pilot_seat_anchor") != null and ship.get_rid().is_valid() \
+			and not ship.find_children("*", "CollisionShape3D", true, false).is_empty() \
+			and not identities.has(ship.get_ship_id()) \
+			and int(entry["source_id"]) > 0 \
+			and _connection_count(model, &"component_state_changed", Callable(ship, "_on_component_state_changed")) == 1 \
+			and _connection_count(model, &"component_repair_committed", Callable(ship, "_on_component_repair_committed")) == 1
+		_check(valid, "component cut resolves unique existing model/home/boarding/source: %s" % ship.get_ship_id())
+		if not valid:
+			return false
+		identities[ship.get_ship_id()] = true
+		entries.append(entry)
+		if not _capture_null_role_discovery(entry):
+			return false
+		if not _component_entry_is_quiescent(entry):
+			_check(false, "component cut has healthy settled unclaimed own-home craft: %s" % ship.get_ship_id())
+			return false
+		var hit: Vector3 = Vector3.INF
+		for component: Dictionary in model.get_component_states():
+			if StringName(component["id"]) == &"port_wing":
+				hit = ship.to_global(component["local_position"] as Vector3)
+		var hull_before: float = float(ship.get("_hull"))
+		_check(hit.is_finite() and is_equal_approx(hull_before, ship.maximum_hull),
+			"component cut begins healthy with actual port-wing anchor: %s" % ship.get_ship_id())
+		if not hit.is_finite() or not is_equal_approx(hull_before, ship.maximum_hull):
+			return false
+		ship.apply_damage(ship.maximum_hull * 0.1, hit, Vector3.ZERO)
+		var hit_accepted: bool = is_equal_approx(float(ship.get("_hull")), hull_before - ship.maximum_hull * 0.1) \
+			and model.get_component_integrity(&"port_wing") < 1.0
+		_check(hit_accepted, "located staged .1H hit reaches actual hull and port ledger: %s" % ship.get_ship_id())
+		if not hit_accepted:
+			return false
+	return true
+
+
+func _component_player_is_unclaimed(game: GameFlow) -> bool:
+	if not is_instance_valid(game.player):
+		return false
+	var solo_authority: CrewSeatRoleAuthority = game.get("_solo_crew_authority") as CrewSeatRoleAuthority
+	return (solo_authority == null or (solo_authority.get_snapshot().get("assignments", []) as Array).is_empty()) \
+		and game.player.get("_seat_anchor") == null and not bool(game.player.call(&"is_seated")) \
+		and not bool(game.player.call(&"is_station_seated")) \
+		and not bool(game.get("_piloting")) and not bool(game.get("_station_seated")) \
+		and not bool(game.get("_transition_busy")) \
+		and not bool(game.get("_ground_transition_active")) \
+		and not bool(game.get("_landing_request_active")) \
+		and StringName(game.get("_active_activity_id")).is_empty() \
+		and game.get("network_session") == null \
+		and StringName(game.get("_solo_crew_role")).is_empty() \
+		and game.get("_solo_crew_ship") == null and game.get("_solo_crew_seat") == null
+
+
+func _component_entry_is_quiescent(entry: Dictionary) -> bool:
+	var ship: HeroShip = entry["ship"] as HeroShip
+	var home: ShipBerth = entry["home"] as ShipBerth
+	var area: ShipBoardingArea = entry["area"] as ShipBoardingArea
+	var role: CrewSeatRoleAuthority = entry["role"] as CrewSeatRoleAuthority
+	var player: Node = entry["player"] as Node
+	var game: GameFlow = entry["game"] as GameFlow
+	if not is_instance_valid(ship) or not is_instance_valid(home) \
+			or not is_instance_valid(area) or not is_instance_valid(player):
+		return false
+	var at_home: bool = not ship.is_inside_tree() or ship.global_transform.is_equal_approx(home.get_dock_transform())
+	return at_home and not player.has_meta(ship.get_solo_crew_occupant_metadata_key()) \
+		and StringName(ship.get("_planetary_cruise_state")) == HeroShip.PLANETARY_CRUISE_STATE_INACTIVE \
+		and bool(ship.get("_landed")) and not ship.is_destroyed() \
+		and not ship.is_landing_active() and not ship.is_piloted() \
+		and not ship.is_remote_piloted() and ship.velocity.is_zero_approx() \
+		and not area.is_reserved() and area.get_reservation_token() == null \
+		and (role == null or (role.get_snapshot().get("assignments", []) as Array).is_empty()) \
+		and home.get_occupant() == ship and home.get_reservation_owner() == ship \
+		and home.get_reserved_ship_id() == ship.get_ship_id() \
+		and not home.get_reservation_token(ship).is_empty() \
+		and (game.get("_berth_tokens") as Dictionary).get(ship.get_instance_id(), &"") == home.get_reservation_token(ship) \
+		and (game.get("_reserved_berth_ids") as Dictionary).get(ship.get_instance_id(), &"") == ship.get_home_berth_id()
+
+
+func _component_cut_snapshot(entry: Dictionary) -> Dictionary:
+	var ship: HeroShip = entry["ship"] as HeroShip
+	if not is_instance_valid(ship):
+		return {"ship": 0}
+	var model: ShipComponentDamage = ship.get_component_damage()
+	var home: ShipBerth = entry["home"] as ShipBerth
+	var area: ShipBoardingArea = entry["area"] as ShipBoardingArea
+	if not is_instance_valid(model) or not is_instance_valid(home) or not is_instance_valid(area):
+		return {"ship": ship.get_instance_id(), "model": _retained_id(model),
+			"home": _retained_id(home), "boarding": _retained_id(area)}
+	var shapes: Array[Dictionary] = []
+	for node: Node in ship.find_children("*", "CollisionShape3D", true, false):
+		var shape: CollisionShape3D = node as CollisionShape3D
+		var owner: CollisionObject3D = shape.get_parent() as CollisionObject3D
+		shapes.append({"node": shape.get_instance_id(), "resource": _retained_id(shape.shape),
+			"transform": shape.transform, "disabled": shape.disabled,
+			"owner": _retained_id(owner), "layers": owner.collision_layer if owner != null else 0,
+			"mask": owner.collision_mask if owner != null else 0})
+	var actual_role: CrewSeatRoleAuthority = null
+	if ship.has_method(&"get_crew_role_authority"):
+		actual_role = ship.call(&"get_crew_role_authority") as CrewSeatRoleAuthority
+	return {"ship": ship.get_instance_id(), "transform": ship.transform,
+		"definition": _retained_id(ship.ship_definition),
+		"body_rid": ship.get_rid(), "model": _retained_id(model),
+		"hull": float(ship.get("_hull")), "ledger": model.get_ledger_snapshot(),
+		"revision": model.get_revision(), "generation": model.get_ledger_generation(),
+		"states": model.get_component_states(), "elapsed": float(ship.get("_elapsed")),
+		"shapes": shapes, "seat": _retained_id(ship.get("_pilot_seat_anchor") as Object),
+		"boarding": area.get_instance_id(), "boarding_transform": area.transform,
+		"boarding_reserved": area.is_reserved(), "boarding_token": area.get_reservation_token(),
+		"role": _retained_id(actual_role),
+		"assignments": actual_role.get_snapshot().get("assignments", []) if actual_role != null else [],
+		"piloted": ship.is_piloted(), "remote_piloted": ship.is_remote_piloted(),
+		"home": home.get_instance_id(), "home_id": ship.get_home_berth_id(),
+		"home_occupant": _retained_id(home.get_occupant()),
+		"home_owner": _retained_id(home.get_reservation_owner()),
+		"home_ship_id": home.get_reserved_ship_id(), "home_token": home.get_reservation_token(ship),
+		"component_connections": _component_connection_snapshot(model),
+		"null_role_discovery": _null_role_discovery_snapshot(entry)}
+
+
+# These two discovery spheres belong to the null-role Cinder station owners,
+# not physical hull collision. Their existing clear_for_detach() retires them.
+# This does not qualify an active role or require discovery to become available.
+func _capture_null_role_discovery(entry: Dictionary) -> bool:
+	var bindings: Array[Dictionary] = []
+	entry["null_role_discovery"] = bindings
+	var ship: HeroShip = entry["ship"] as HeroShip
+	if not ship is CinderCargoHauler:
+		return true
+	var hauler: CinderCargoHauler = ship as CinderCargoHauler
+	var paths: Array[NodePath] = [
+		NodePath("WalkableInterior/LoadmasterCabin/LoadmasterStationInteraction"),
+		NodePath("WalkableInterior/LoadmasterCabin/NavigatorStationInteraction"),
+	]
+	var owners: Array[Area3D] = [hauler.get_loadmaster_interaction(), hauler.get_navigator_interaction()]
+	var valid: bool = hauler.get_crew_role_authority() == null
+	for index: int in paths.size():
+		var owner: Area3D = owners[index]
+		var shape: CollisionShape3D = owner.get_node_or_null("InteractionShape") as CollisionShape3D if is_instance_valid(owner) else null
+		valid = valid and is_instance_valid(owner) and is_instance_valid(shape) \
+			and ship.get_node_or_null(paths[index]) == owner \
+			and not bool(owner.call(&"is_available")) \
+			and owner.collision_layer == PhysicsLayers.INTERACTABLE_AREA_LAYER and owner.collision_mask == 0
+		bindings.append({"path": paths[index], "owner": owner, "shape": shape})
+	valid = valid and bindings.size() == 2 and owners[0] != owners[1]
+	_check(valid, "null-role Cinder discovery binds exactly the retained Loadmaster/Navigator interaction spheres, both unavailable")
+	return valid
+
+
+func _null_role_discovery_snapshot(entry: Dictionary) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for binding: Dictionary in entry["null_role_discovery"]:
+		var owner: Area3D = binding["owner"] as Area3D
+		var shape: CollisionShape3D = binding["shape"] as CollisionShape3D
+		result.append({"path": binding["path"], "owner": _retained_id(owner),
+			"shape": _retained_id(shape),
+			"available": bool(owner.call(&"is_available")) if is_instance_valid(owner) else true})
+	return result
+
+
+func _expected_component_cut_snapshot(entry: Dictionary) -> Dictionary:
+	var expected: Dictionary = (entry["baseline"] as Dictionary).duplicate(true)
+	var bindings: Array = entry["null_role_discovery"]
+	if bindings.is_empty():
+		return expected
+	var hauler: CinderCargoHauler = entry["ship"] as CinderCargoHauler
+	if bindings.size() != 2 or not is_instance_valid(hauler) or hauler.get_crew_role_authority() != null:
+		return {}
+	var matches: int = 0
+	for binding: Dictionary in bindings:
+		var owner: Area3D = binding["owner"] as Area3D
+		var shape: CollisionShape3D = binding["shape"] as CollisionShape3D
+		if not is_instance_valid(owner) or not is_instance_valid(shape) \
+				or shape.get_parent() != owner or hauler.get_node_or_null(binding["path"]) != owner \
+				or bool(owner.call(&"is_available")):
+			return {}
+		for row: Dictionary in expected["shapes"]:
+			if int(row["node"]) == shape.get_instance_id() and int(row["owner"]) == owner.get_instance_id():
+				row["disabled"] = true
+				matches += 1
+	# Every other raw shape field and the complete authority snapshot are still
+	# compared. Raw initial enabled bits remain in the printed baseline unchanged.
+	return expected if matches == 2 else {}
+
+
+func _retained_id(value: Object) -> int:
+	return value.get_instance_id() if is_instance_valid(value) else 0
+
+
+func _component_connection_snapshot(model: ShipComponentDamage) -> Array[String]:
+	var result: Array[String] = []
+	for signal_info: Dictionary in model.get_signal_list():
+		var signal_name: StringName = signal_info["name"]
+		for connection: Dictionary in model.get_signal_connection_list(signal_name):
+			var callback: Callable = connection["callable"]
+			result.append("%s:%d:%s:%d" % [signal_name, callback.get_object_id(),
+				callback.get_method(), int(connection["flags"])])
+	result.sort()
+	return result
+
+
+func _compare_component_cut(
+	game: GameFlow, cut: Dictionary, authority: LiveCombatAuthority, cycle: int, live: bool
+	) -> bool:
+	var player_valid: bool = paused and game.player == cut["player"] and _component_player_is_unclaimed(game)
+	_check(player_valid, "component cycle %d live=%s retains the same unclaimed on-foot Player" % [cycle + 1, live])
+	var valid: bool = player_valid
+	for entry: Dictionary in cut["entries"]:
+		var ship: HeroShip = entry["ship"] as HeroShip
+		var actual: Dictionary = _component_cut_snapshot(entry)
+		var expected: Dictionary = _expected_component_cut_snapshot(entry)
+		var matches: bool = not expected.is_empty() and actual == expected and _component_entry_is_quiescent(entry) \
+			and ship.is_inside_tree() == live \
+			and authority.get_source_id(ship) == (int(entry["source_id"]) if live else 0)
+		print("MAIN_COMPONENT_CYCLE: ", cycle + 1, " live=", live,
+			" ship=", entry["ship_id"], " actual=", actual)
+		_check(matches, "component cycle %d live=%s retains actual ledger/hull/shape/empty claims/home/source: %s" \
+			% [cycle + 1, live, entry["ship_id"]])
+		valid = valid and matches
+	_check(valid, "component cycle %d live=%s passes all retained-authority comparisons with zero paused repair advancement" % [cycle + 1, live])
+	return valid
+
+
+func _observe_normal_component_repair(cut: Dictionary) -> void:
+	# Every craft stayed landed, intact and not landing during the cut. Observe
+	# actual completed production ticks; do not advance the ledger from the test.
+	for frame: int in 12:
+		await physics_frame
+		for entry: Dictionary in cut["entries"]:
+			if not _component_entry_is_quiescent(entry):
+				_check(false, "normal repair keeps every craft eligible on physics observation %d" % frame)
+				return
+	for entry: Dictionary in cut["entries"]:
+		var ship: HeroShip = entry["ship"] as HeroShip
+		var model: ShipComponentDamage = ship.get_component_damage()
+		var before: Dictionary = entry["baseline"]
+		var elapsed: float = float(ship.get("_elapsed")) - float(before["elapsed"])
+		var valid: bool = elapsed > 0.0 and model == entry["model"] \
+			and model.get_ledger_generation() == int(before["generation"]) \
+			and model.get_revision() > int(before["revision"]) \
+			and is_equal_approx(float(ship.get("_hull")), float(before["hull"]))
+		for component: Dictionary in before["states"]:
+			var expected: float = minf(1.0, float(component["integrity"]) + model.repair_rate_per_second * elapsed)
+			valid = valid and is_equal_approx(model.get_component_integrity(StringName(component["id"])), expected)
+		print("MAIN_COMPONENT_NORMAL_REPAIR: ", entry["ship_id"], " eligible_elapsed=", elapsed,
+			" before=", before["states"], " actual=", model.get_component_states(),
+			" revision=", model.get_revision(), " generation=", model.get_ledger_generation())
+		_check(valid, "normal production repair matches actual eligible elapsed without hull heal or generation reset: %s" % entry["ship_id"])
+		if not valid:
+			return
 
 
 func _test_queued_main_reentry_restore() -> void:
@@ -903,7 +1230,10 @@ func _audio_timers_stopped(audio: AudioDirector) -> bool:
 
 func _clean_up(game: Node) -> void:
 	if is_instance_valid(game):
-		game.queue_free()
+		if game.is_inside_tree():
+			game.queue_free()
+		else:
+			game.free()
 	await process_frame
 	await process_frame
 	await process_frame
