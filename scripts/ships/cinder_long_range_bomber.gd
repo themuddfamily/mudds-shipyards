@@ -351,9 +351,9 @@ func _build_exterior_lod() -> void:
 					mesh_copy.mesh = _formed_pressure_mesh(Vector3(5.6, 2.65, HULL_SIZE.z), null, true, 0.0, true, true)
 				"PortPressureShoulder", "StarboardPressureShoulder":
 					var side := -1.0 if source_name.begins_with("Port") else 1.0
-					mesh_copy.mesh = _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), null, true, -side * 1.12, false, true)
+					mesh_copy.mesh = _formed_pressure_mesh(Vector3(1.85, 1.8, 12.8), original.mesh.surface_get_material(0), true, -side * 1.12, false, true)
 				"PortWingRootFairing", "StarboardWingRootFairing":
-					mesh_copy.mesh = _formed_wing_root_mesh(-1.0 if source_name.begins_with("Port") else 1.0, null, true)
+					mesh_copy.mesh = _formed_wing_root_mesh(-1.0 if source_name.begins_with("Port") else 1.0, original.mesh.surface_get_material(0), true)
 				"LongRangeTailplane":
 					mesh_copy.mesh = _formed_aero_mesh(AFT_TAILPLANE_SIZE, false, true)
 				"PortBomberFin", "StarboardBomberFin":

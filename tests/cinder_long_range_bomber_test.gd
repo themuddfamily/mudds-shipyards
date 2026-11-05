@@ -525,6 +525,12 @@ func _test_whole_exterior_lod(craft: CinderLongRangeBomber) -> void:
 		"PortRecessedThroat", "StarboardRecessedThroat", "LongRangeSensor", "SensorProtectiveCowl"]:
 		_check(far.get_node_or_null(NodePath(macro)) is GeometryInstance3D,
 			"complete distant exterior retains bomber macro %s" % macro)
+	for macro in ["PortPressureShoulder", "StarboardPressureShoulder", "PortWingRootFairing", "StarboardWingRootFairing"]:
+		var original := craft.get_variant_visual_root().get_node(NodePath(macro)) as MeshInstance3D
+		var distant := far.get_node(NodePath(macro)) as MeshInstance3D
+		_check(original.mesh.surface_get_material(0) != null
+			and distant.mesh.surface_get_material(0) == original.mesh.surface_get_material(0),
+			"distant %s retains the original non-null authored surface coating" % macro)
 	var passive := true
 	for node: Node in far.find_children("*", "", true, false):
 		passive = passive and node is GeometryInstance3D and node.get_script() == null
