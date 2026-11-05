@@ -68,6 +68,19 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertFalse(pilot.approximate(.94, .941))
         self.assertFalse(pilot.approximate(float('nan'), .94))
 
+    def test_station_flash_accepts_signed_live_resource_ids_and_rejects_absence(self):
+        sample = self.station_observation()
+        for name in native.StationFlashPilot.RESOURCE_IDS:
+            sample[name] = -abs(sample[name])
+        sample['solar']['presentation']['environment_instance_id'] = sample['environment_id']
+        sample['solar']['presentation']['sky_material_instance_id'] = sample['sky_material_id']
+        pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+        pilot.validate_observation(sample)
+        for name in native.StationFlashPilot.RESOURCE_IDS:
+            absent = copy.deepcopy(sample); absent[name] = 0
+            fresh = native.StationFlashPilot(); fresh.expected_pid = 42
+            with self.assertRaises(AssertionError): fresh.validate_observation(absent)
+
     def test_station_flash_rejects_report_only_claim_resource_swap_and_policy_drift(self):
         for mutate in (
             lambda s: s['solar']['presentation']['actual'].update(glow_intensity=.34),

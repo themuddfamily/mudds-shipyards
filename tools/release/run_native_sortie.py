@@ -5975,6 +5975,7 @@ class StationFlashPilot(Pilot):
     """Ordinary station UI episode; actual resources, never a visual/GPU claim."""
     IDS = ('pid', 'main_id', 'world_id', 'player_id', 'authority_id', 'source_id',
            'environment_node_id', 'environment_id', 'sky_id', 'sky_material_id')
+    RESOURCE_IDS = ('environment_id', 'sky_id', 'sky_material_id')
     CAPS = {
         'tonemap_exposure': (1.08, .94), 'glow_intensity': (.34, .18),
         'glow_strength': (1.05, .72), 'glow_bloom': (.006, .002),
@@ -6016,7 +6017,8 @@ class StationFlashPilot(Pilot):
 
     def validate_observation(self, s):
         require(s['mode'] == 'station-flash' and s['pid'] == self.expected_pid
-                and s['main_current'] and all(s[k] > 0 for k in self.IDS), 'exact station process and current identities')
+                and s['main_current'] and all(type(s[k]) is int and (s[k] != 0 if k in self.RESOURCE_IDS else s[k] > 0)
+                                             for k in self.IDS), 'exact station process and current identities')
         if self.initial is None:
             self.initial = copy.deepcopy(s)
         require(all(s[k] == self.initial[k] for k in self.IDS), 'same station Main Player authority input and resources')
