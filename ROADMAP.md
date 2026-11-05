@@ -23,6 +23,61 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan reachable own berth
+
+Approved proposal child4 before passengers/cargo. Readiness22:39:21UTC2026-11-05;
+**60min all-in, absolute23:39:21UTC**, including site inspection/card preparation.
+One high implementer owns new Titan berth module/script/test plus production
+`scenes/world/shipyard_world.tscn` and the existing observation-spur script/test
+only. Root reviews/integrates/packages/cleans; one independent reviewer checks
+clearance, topology and actual Player proof. No recursive agents, GameFlow,
+Titan hull/access, existing craft/berth retuning, cargo, weapons or network work.
+
+Candidate world-local Titan dock root **(154,.38,38), yaw−90°**. This puts the
+stern toward the observation spur and the nose/departure toward open east space.
+New module has an actual16×32m deck, floor coincident with this dock root, own
+`titan_home_berth` accepting only `titan_transport`, identity craft-local receiver,
+strict half extents(7,7,14), capture center(0,10,−24)/half extents(25,17,38),
+max capture speed25/tilt65°, departure lift5 and original landing speed11.
+Use existing ShipBerth authority; do not consume or rename another berth.
+
+Connect observation-spur far bridge at world(132,.38,38) to the new deck's
+stern edge(138,.38,38) with ≥2.4m clear level supported walkway and real edge
+rails. Add an explicit default-CLOSED extension gate mode to the existing spur:
+only the production scene enables its new2.4m opening. Replace corresponding
+visible/collision rail together; retain old standalone geometry/contracts when
+closed. Provide physically honest route markers/signs and reuse existing route
+module/discovery hooks. No hidden disabled rail, jump, floating floor, teleport,
+new registry framework or evidence-only validator family.
+
+Prove in actual production world/Main: berth is discovered once and validates;
+wrong-tag craft cannot reserve it; all nine existing craft/berth transforms,
+compatibility and access remain unchanged. With the accepted Titan staged at
+this exact berth (not yet a production fleet registration), query the complete
+closed/deployed geometry,5m upward departure sweep and camera/approach volumes
+against actual neighboring geometry. Keep deployed x±6,z−9..13,y0..6.5 and
+normal interaction-range stern-side control clear. If this inspected candidate
+fails, stop dependent work and report the concrete blocker before changing site;
+no smaller hull/deck, relaxed gate or silent alternative goal.
+
+One actual Player starts at normal production spawn and physically reaches the
+Titan stern apron and reachable control via normal movement/input, with support
+and capsule clearance, no pose writes after initial setup/jump/rescue. Stage only
+the absent Titan asset/fixture admission as needed; this is production-world walk
+proof, not ordinary packaged Main boarding/pilot flight. Freeze observed route
+waypoints before executing it; do not replace physical traversal with ray grids.
+Extend the nearest spur check and one focused berth test; keep default spur and
+existing station route/berth checks relevant to changed contracts. Stop when the
+berth/walk/clearance outcome is demonstrated, not after a test-count target.
+
+All Godot calls use pinned4.7.1, Dummy audio/headless and isolated profiles.
+Rendered review uses privateXvfb/x11/Dummy plus abort/cleanup. Preserve raw failed
+operands. Routine fixes stay within this deadline; geometry/site changes need
+causal review with the approved contract intact. First live station milestone
+must receive a clean-source paired checkpoint with strict startups/full package
+audit; finish source/checks by23:20 to leave closure time. Titan Main/pilot
+composition is the next child;9/17 and full-craft gates remain open.
+
 ### Titan construction — standalone children1 and2 DONE
 
 **Hull/pilot foundation834cc50a3**, pushed via dded94bda: original editable
