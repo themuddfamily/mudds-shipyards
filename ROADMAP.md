@@ -23,99 +23,32 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan physical stern access and cabin walk
+### Titan construction — standalone children1 and2 DONE
 
-Approved proposal child2; base **834cc50a3**. Readiness starts22:22:07UTC2026-11-05;
-**60min all-in, absolute23:22:07UTC** (includes root card preparation). One high-effort implementer owns the
-existing Titan script/scene/definition and its focused test only; one independent
-reviewer checks access physics and proof. Root integrates/pushes/cleans up.
-No Main/GameFlow/station/shared-controller/cargo/passenger/combat/network edits.
-No nested agents. Finish implementation/check by23:05 to leave closure time.
+**Hull/pilot foundation834cc50a3**, pushed via dded94bda: original editable
+12×18×5m hull, exact approved definition/pilot/eye, convex shell/engine collision,
+clear cabin volume and inherited spool/thrust/braking/neutral shutdown. Focused
+suite40checks PASS; all committed hashes match guarded inputs. Source and two
+inspected software-rendered views retained in the verified standalone task archive.
 
-Deliver the exact approved2.4m stern route: ramp x±1.2,z13→8 from decky0 to
-cabiny.8; hatch atz8 with2.4m clear width and2.5m clear height, sliding vertically
-within maxy6.5. Keep closed12×18×5m envelope and deployed x±6,z−9..13,y0..6.5.
-Provide continuous supported aisle x±1.3,z−6.8..8 atfloor.8, ≥1.4m clear width
-past fittings and ≥2.5m headroom. Reuse existing MovingInteriorFrame with exact
-approved walking bounds x±2.7,z−6.8..7.5,floor.8/height2.5. Keep exact pilot/eye,
-all16 handling fields, candidate identity and authored original design.
+**Physical access3b9f5617c**, pushed via4621bf485: real folding stern ramp,
+vertically sliding hatch with roof slot, matching moving collision, continuous
+floor and existing cabin frame. Actual Player walks apron→helm→apron after
+neutral shutdown; all224 inbound and222 outbound frames supported and capsule
+clear, endpoints within5cm. Actual unsupported exterior-access opening and
+open/moving-access departure refuse. Focused suite63checks/30.109s, OS0,
+sentinel1/diagnostics0/source-and-cache-stable; independent review GO. Closed/open
+renders inspected on isolated llvmpipe/X11/Dummy (OS0, one environment V-Sync
+warning). Complete raw/source/captures preserved in verified
+`/srv/mudds-work/titan-access-20261105/records.tar.gz`; owned branch/worktree and
+scratch removed. Original22:22:07→23:22:07UTC all-in budget retained and met.
 
-Replace the current stern blank with real state-matched hatch/ramp collision;
-resolve the existing full deck's ramp intersection and actual roof slider pocket
-in Titan geometry. No hidden shell/floor clipping, doorway teleport, jump,
-enlarged interaction reach or pose rescue. Unsafe open-access departure and
-unsupported exit must refuse through existing production access/controller hooks;
-if those hooks cannot compose locally, stop with exact missing seam, not a shared
-controller rewrite. Production berth/ordinary Main interaction remains child5.
-
-Focused acceptance extends the current Titan fixture. One real Player starts
-once on a supported fixture apron at(0,0,14.5), walks via normal movement commands
-up the deployed ramp, through the open hatch to the helm approach(0,.8,−4.2),
-then physically returns outside after an actual inherited neutral shutdown.
-Only initial fixture pose is staged; no later Player/ship pose writes, jump or
-teleport. Fixture access/pilot intent may call existing APIs; do not call this
-ordinary production boarding. Check actual supported contacts, clear head/capsule,
-closed/open/moving access collision, exact deployed envelope and unsafe-departure/
-unsupported-exit refusal, alongside all40 existing foundation checks. Keep one
-focused suite; no validator/tool families or source-string-only replacements.
-
-Run pinned4.7.1 with Dummy audio/headless and existing matrix source/import guards.
-Rendered review uses privateXvfb/x11/Dummy, independent abort and cleanup. This
-remains standalone until Main composition;9/17 stays unchanged. No approved
-geometry/handling retuning, smaller endpoint, budget reset or automatic successor.
-Routine repairs stay within the same deadline; substantive changes need measured
-cause and unchanged approved contract. Preserve complete failed operands.
-
-### Titan standalone hull and pilot fixture — DONE in standalone scope
-
-Source **834cc50a3**, merged and pushed in **dded94bda**. Actual focused fixture
-passes40checks/12.439s, OS0, one sentinel, diagnostics0 and stable source/cache;
-all six committed files match that run's hashes. It validates the exact definition,
-pilot/eye,12×18×5m convex/mesh envelope, outward normals, collision separation and
-whole reserved cabin physics clearance. Actual2s thrust reaches30.7745m/s with
-29.7745m forward travel;0.5s brake reduces speed to18.602m/s; neutral commands
-reach OFFLINE with zero thrust and no continuous engine audio authority.
-Independent front/stern visual inspection passes in isolated llvmpipe/OpenGL
-with Dummy audio/X11; OS0 and one environment V-Sync warning. This is no native
-GPU or human qualification. Source/raw runs/two renders preserved in verified
-`/srv/mudds-work/titan-standalone-20261105/records.tar.gz`; owned branch/worktree
-and scratch are removed.9/17 is unchanged: Main/berth/access/cargo/roles/weapons
-and full craft qualification remain outstanding. First production composition
-milestone must receive a fresh playable checkpoint. Next is the approved hatch,
-ramp and supported cabin route; freeze its card before implementation.
-
-Retained original card: owner-approved modern Titan proposal child1. **Start22:11:00UTC2026-11-05;
-45min all-in, absolute22:56:00UTC.** One medium implementation agent owns only
-new `assets/ships/titan_provisional.tres`, `scenes/ships/titan_medium_transport.tscn`,
-optional Titan-local script/material files and one focused
-`tests/titan_medium_transport_test.gd`; root integrates, validates and cleans up.
-No shared runtime, Main/GameFlow, station, registry, cargo, weapons, passenger
-claims or networking changes. No recursive agents.
-
-Deliver an editable original chamfered12×18×5m shuttle hull with short side
-engine boxes and recessed stern vestibule, finite convex shell/engine collision
-that preserves the approved future cabin void (no solid full-hull cabin box),
-correct candidate/provisional identity and all16 exact approved handling fields.
-Reuse HeroShip control; fit exact pilot anchor/camera from the proposal. Physical
-hatch/ramp/cabin walking, berth and production composition belong to later children.
-
-Acceptance: definition validation passes; scene instantiates without diagnostics;
-authored mesh/collision bounds and transforms are finite and inside the approved
-closed envelope; collision interiors do not overlap or fill the future cabin;
-actual inherited engine OFFLINE→STARTING→ONLINE and physical thrust/braking/neutral
-shutdown work in one isolated fixture with no sibling retuning. The focused test
-must exercise these behaviors, not only search source strings. All automated
-Godot calls use Dummy audio/headless; any rendered inspection uses privateXvfb
-with explicit x11. Use pinned4.7.1 engine and existing matrix/import guards.
-Stop at this standalone asset.9/17 remains unchanged until production composition
-and qualification; no ordinary boarding/Main delivery or historical model claim.
-
-Do not add validators, generated evidence families or unrelated tests. Correct
-routine implementation mistakes inside this same budget; one substantive design
-correction requires concrete causal evidence and unchanged approved geometry/
-handling. Missing shared-controller capability stops this child for a separate
-bounded integration decision. Commit/push accepted source and remove owned task
-branch/worktree after integration; archive rejected unique source before cleanup.
+These are standalone children of the [approved Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md).
+**9/17 remains unchanged.** Main boarding, reachable berth, production pilot exit,
+passengers/cargo/weapon/lifecycle and full craft qualification remain OPEN. Next:
+child4 reachable own berth, then child5 minimum live Main composition ahead of
+passenger/cargo work. That first playable milestone requires a fresh paired
+Windows/Linux checkpoint; native Windows/GPU/human gates remain NOT_RUN.
 
 ### Hauler ordinary mass-driver hit, miss and home — PARKED, unaccepted
 
