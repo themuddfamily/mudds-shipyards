@@ -85,6 +85,12 @@ neither the17-family container nor rendered/device/GPU qualification.
   cause and cumulative-cost decision; no reset on new candidate/cause. First
   unexpected failure stops dependent checks; failed correction/deadline parks
   the entire delivery with unique source/results and exact reopening condition.
+  Initial803a2aaa3 Python suite fails3/306 before engines: two new negative
+  tests expect the wrong exception; prepended mode changes existing source-order
+  contract. Sole correction authorized20:29:11UTC (12.05min cumulative), also
+  closing independently reviewed actual-E/current-input/full-other-settings/live-
+  authority observation gaps before acceptance. Preserve old tests and selectors;
+  no criterion relaxation. No correction remains after this candidate.
   Native runner and independent supervisor release input and reap game/helper/
   private Xvfb. No active-desktop run. No automatic successor by closure.
 
