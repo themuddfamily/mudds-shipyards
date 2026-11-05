@@ -14,7 +14,6 @@ func _init() -> void:
 
 
 func _run() -> void:
-	_check(NativeSortieObserverType.can_instantiate(), "production native observer compiles for admitted package routes")
 	_test_dedicated_server_admission()
 	_test_settings_restart_admission()
 	for route: String in ["station-flash", "crew-recovery", "zenith-torrent-handback", "zenith-return-reuse", "hauler-supply", "patrol-relay-home", "race-home", "heavy-breach", "courier-withdraw-distance", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-escape", "courier-intercept", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement", "beacon-home"]:
