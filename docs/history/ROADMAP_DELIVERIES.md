@@ -34119,3 +34119,83 @@ regressions, clean Windows/Linux exports, three strict startups, paired package
 audit, repository EXE/ZIP/notes, push and exact branch/worktree cleanup are still
 required. Full world/hardware/human/final gates stay OPEN. Selection is not a
 runtime pass and no completion state advances with this decision.
+
+
+<a id="landed-crew-admission-ui-entry-stop-20261105"></a>
+## Landed-crew reopening stopped before Manual Join 20261105
+
+**PARKED/NOT_ACCEPTED**, reopened candidate
+f703d0100a876a867d4af5e32ed51afaddd21390 based on
+578793dffcc154a025b8472c41b0869c5a5d4f09. The reviewed reopening decision above
+was committed/pushed before source restoration or the additional edit. Original
+archive bca4ee96ae8bfafff2cb270057c3b980aef2854d9901849e76219646efed0463
+and its closeout remain unchanged. This is the same production capability and
+original05:26:18start/06:56:18hardstop, not a reset or a different passing target.
+Prior31.423minute closeout, this review/restoration/run and final cleanup all
+remain cumulative. The original failed05:51source gate remains historical.
+
+Exactly five archived source hashes were restored, then only bridge970's
+eligible declaration gained explicit bool typing. Four other file hashes stayed
+identical. Cumulative corrections are two: original fixture grouping plus this
+explicitly reviewed declaration. No further correction was authorized. The
+reopened import passes/no diagnostics. Direct isolated GameFlow, bridge, ENet
+adapter, HUD and shared-cruise fixture checks all exit0/raw diagnostics0 before
+the separately reviewed06:05readiness gate. The earlier compilation blocker is
+resolved in the candidate; these parses do not establish gameplay acceptance.
+
+The required live --ember-landed-crew-admission run then exits143/163.263s,
+one coordinator interruption diagnostic/no success marker. The owned raw-peer
+monitor records client.log as first diagnostic source and reaps the exact suite.
+Client.done contains two checks/one failure: “visible enabled HUD action:
+ServerBrowserButton”. The fixture returns immediately at this existing browser
+step. It never sets browser fields or presses Manual Join; authentication,
+explicit join-current-crew request, fresh body and physical walking are not
+reached. Host.progress does retain real ACTIVE/index1/count2/unpaid/return-beacon
+state from the disclosed staged initial approach/host positions.
+
+Actual client Main-ready wall1793858690.01447 and done1793858769.48787 differ
+79.47340s, including waiting for host.progress at1793858764.18134. That interval
+is not a measured button timeout. Raw logs do not capture which button predicate
+member failed (existence, visibility or enabled state), HUD._started, or pause
+visibility. No invented per-field observation is substituted for that absence.
+Source gives a strong entry-path explanation: inherited _run calls
+GameFlow.start_shift directly; it sets phase/control/HUD mode without setting
+HUD._started. HUD pause input requires _started, which normal HUD._begin sets.
+The new pause-browser route therefore assumes a normal GUI startup transition
+that the base fixture bypasses. This remains a source-supported explanation,
+not a copied runtime flag value or observed admission rejection.
+
+No new UI admission/auth/body/berth-selection/security/cabin/hatch/surface gate
+completes. Legacy regressions, Windows/Linux exports, strict startup checks,
+paired package audit and new checkpoint are NOT_RUN. No further patch, helper
+clock reset, alternative controller or retry follows this failure. Full world
+cases, native Windows/GPU/device/human and final release remain OPEN. Accepted
+runtime/latest d525554 checkpoint are unchanged; only terminal notes are pushed.
+
+Independent terminal review confirms failure order and scope. A future selection
+must first establish a genuine GUI-startup entry seam through ordinary controls,
+record exact UI operands at the first failed boundary, and obtain separate
+bounded/cumulative-priority authorization before any fresh live attempt. All
+original substantive goals and caps remain; no new allowance is granted here.
+
+Verified reopened archive:
+`/srv/mudds-work/landed-crew-admission-20261105/reopened-records.tar.gz`,
+68 regular members/4,035,181bytes, SHA256
+5b01f7af7d60744813b249b666d0a4f470fb07989dc64487a818f17936a6c669.
+It retains the five full compiled-candidate files, original/restored patches,
+verified incremental Git bundle against retained main578793dff, source hashes,
+all five direct parse results/raw logs, live command/results/peer logs/receipts/
+private profiles, cumulative decision and reviews. Every member hash was checked
+after archive creation. Template symlinks were recorded/excluded, not followed.
+Original records.tar.gz and original closeout.json were independently rehashed
+before and after cleanup and remain byte-for-byte unchanged.
+
+Fresh remote-tip/worktree ownership checks found no task remote branch. The
+clean owned worktree was removed and exact local tip compare-and-swap deleted
+after both source/archive verifications. No owned engine/supervisor/display
+remains; main is the sole branch/worktree. The case retains only original and
+reopened archives and their two closeout files. Cleanup observed06:16:34UTC,
+**50.280minutes cumulative from original05:26:18**, not a new-window cost.
+Final notes/push remain charged to the same06:56:18 hard stop. All337 canonical
+records and complete table cells remain unchanged. No product/parent/phase
+completion advances; accepted runtime and d525554 checkpoint remain unchanged.

@@ -3637,6 +3637,23 @@ leaf. Existing source costs, original caps and all substantive standing/body/
 hatch/surface/negative/package criteria remain binding; this record selects no
 new attempt or allowance. [Exact failed gate and retained source](history/ROADMAP_DELIVERIES.md#landed-crew-admission-compile-stop-20261105).
 
+**Cumulative reopening — PARKED at the first browser action.** Independently
+reviewed root decision578793dff retained original05:26:18start/06:56:18hardstop,
+allowed only the observed explicit-bool declaration and kept cumulative
+corrections at two. All five changed scripts/dependencies now pass isolated
+checks before the new06:05gate. Candidatef703d0100a876a867d4af5e32ed51afaddd21390
+remains unmerged. The live run stops on visible/enabled ServerBrowserButton,
+before Manual Join/authentication/crew request. Individual button and HUD-started
+operands were not captured. Source inspection indicates inherited direct
+GameFlow.start_shift bypasses the normal HUD._begin transition required for
+pause, but no runtime flag value or per-member failure is proven. No admission
+rejection/body/walking result follows. Original and reopened source/raw archives
+remain distinct and verified; all elapsed time stays on the original clock.
+Any future attempt first needs a reviewed genuine GUI-startup seam and actual
+first-failure UI operands, separate bounded/cumulative authorization, and all
+unchanged live/negative/regression/package gates. No further fix/run was
+selected in this reopening. [Terminal scope](history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105).
+
 Implement a distinct explicit normal **join-current-landed-crew request** through
 the existing GameFlow/NetworkPlanetaryJourneyBridge/boarding ledger owners:
 
