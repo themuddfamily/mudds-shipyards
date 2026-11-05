@@ -35554,3 +35554,114 @@ Owned profiles/caches/helpers/loose source removed;only records.tar.gz and
 closeout.json remain. Cleanup16:37:35.519UTC,25.475min from original start;
 final docs/push stay charged to the same90min window. No rejected code was
 merged to make its branch deletable and no accepted role/choice subset claimed.
+
+
+<a id="hauler-whole-lod-delivered-20261105"></a>
+## Cinder Hauler whole-craft LOD runtime and checkpoint — delivered 2026-11-05
+
+**PASS:** bounded CRAFT-ACCEPT-CINDER-HAULER static-exterior runtime/checkpoint
+member. Accepted source `c60face0560e15e27b22fa0cfa8d75715468df4b`, merged and
+pushed on `47e8684033ba46ba19256fe22bfc657bdea49c19`. It adds a retained complete
+simplified exterior to the existing banking/visibility root, selected by the
+actual current viewport camera: initial close, far strictly >120m, close strictly
+<100m, boundaries/dead band retain, negative/nonfinite input ignored. Only its own
+cockpit, aboard Player or actual boarding/disembarking camera forces close.
+Foreign camera/actor/seat/craft ownership is rejected.
+
+Ramp, canopy, damage shoulders, plumes, weapon effects and cabin remain shared,
+consumer-owned presentation. Original close paths, geometry hashes, transforms,
+allocations/resources and collisions are preserved. Static far geometry is
+5,092/30,556 triangles (16.7%) and13/79 submissions; all actual Mesh/MultiMesh
+surfaces and active visible copies are counted. Unknown nonempty renderer
+membership fails. No frame-rate/native-GPU improvement is inferred from counts.
+
+The complete selected source/capture/package contract was frozen in main
+`b643e098a`; the exact original card and executed shell/Python commands remain
+in the records archive below. Source ownership was four existing files:
+`scripts/ships/cinder_cargo_hauler.gd`, `tests/cinder_cargo_hauler_test.gd`,
+`tests/main_reentry_quality_test.gd`, and
+`tests/capture_cinder_cargo_crew_consoles.gd`.
+
+| Complete source suite | Assertions | Seconds | Actual result |
+| --- | --- | --- | --- |
+| cinder_cargo_hauler_test | 133 | 28.978 | PASS |
+| cinder_cargo_hauler_hull_resource_sharing_test | 14 | 3.728 | PASS |
+| cinder_cargo_hauler_damage_feedback_test | 8 | 3.661 | PASS |
+| cinder_cargo_hauler_silhouette_test | 4 | 3.467 | PASS |
+| main_reentry_quality_test | 201 | 73.261 | PASS |
+| cinder_cargo_hauler_freight_frame_visual_test | 19 | 151.019 | PASS |
+| cinder_cargo_hauler_failed_engine_silhouette_test | 4 | 179.433 | PASS |
+
+All seven exit0, exactly one original success marker, zero raw diagnostics and
+stable source/import guards. The first five use their actual headless catalog
+mode; the last two use private Xvfb/x11 Forward+/llvmpipe. Existing Main assertions
+are retained; the extension compares real definition/component/weapon/claim/home
+and node/resource identities within each lifecycle epoch, with original re-entry
+resets rather than invented preservation of active claims.
+
+Opt-in existing console capture keeps the default1600×900 mode unchanged.
+Its actual ShipCamera/CockpitCamera near/far/cockpit images are each640×720,
+with an unscaled1920×720 strip whose three pixel regions exactly match originals.
+Actual camera distances23.115242/153.085861/3.360476m select close/far/close;
+exterior envelope8/8 remains in frame. Root and reviewer viewed all four originals:
+coherent tan cargo hull, shoulders, paired engine rings, canopy and CH-051 mark;
+corresponding distant silhouette; readable centre cockpit instruments and clear
+forward view. Staged own-camera views do not establish an ordinary journey or
+transition-frame/art/full-craft/native-GPU qualification. Source12,011 and
+protected import/class/UID252 files match before/after. The270s inner watchdog
+was configured, but its expiry was not exercised; outer supervision was300s.
+
+**Checkpoint:** clean-commit official4.7.1 Windows/Linux exports pass.
+Windows payload under Linux editor, direct Linux ELF and extracted Linux archive
+each pass `--startup-check`: exit0, one `STARTUP_MENU_READY_OK`, raw diagnostics0
+(26.002/21.887/21.833s). The existing unchanged package audit passes all nine
+predicates for all1,531 entries and unchanged inputs. PE text matches pinned
+Windows template; Linux ELF/TAR/export-result/helpers and exact two-file Windows
+ZIP/notes bind to the accepted source. Seven checkpoint files were copied to
+repository builds with hash/mode equality:
+[Windows ZIP](../../builds/windows/MuddsShipyards-c60face-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-c60face-notes.txt),
+[Linux TAR](../../builds/linux/MuddsShipyards-c60face-linux-x86_64.tar.gz),
+[Linux notes](../../builds/linux/MuddsShipyards-c60face-linux-notes.txt).
+
+Three corrections were explicitly frozen before implementation and all spent,
+without changing the runtime candidate after `c60face056` or weakening a case:
+
+1. Pre-engine review showed real pilot board/exit transitions may supply a null
+   frame. Exact own-seat/null-frame ownership was added; foreign-seat/frame
+   negatives remain. Initial82998f9 was never engine-qualified.
+2. The checkpoint continuation wrapper wrongly required six regular TAR members.
+   The existing exporter intentionally creates one directory plus five files.
+   The correction validates exact names/types/modes/safe extraction and byte-equal
+   ELF, then runs only the first unperformed archive startup. Passed exports and
+   first two probes were not repeated; original failed wrapper status is retained.
+3. Old-package comparison initially assumed the Hauler compiled script was the
+   sole raw hash change. Reimport generates PackedScene `_bundled.node_ids`.
+   Individually checked all62 exported RSRC and four imported RSCC/zstd scenes:
+   typed array spans/counts and every other decoded byte match; all1,464 other
+   entries are raw-identical, no paths added/removed. The sole runtime-code delta
+   is Hauler.gdc. One task-local helper/report records exact per-scene spans,
+   hashes and equality; the expected complete map retains the independent prior
+   baseline except those proved metadata values and the pinned intended script.
+   Windows/Linux complete raw maps match; the existing nine-predicate audit
+   still compares exact raw sizes/hashes. No production validator was added.
+
+All automation uses Dummy audio, headless/private Xvfb and owned profiles;
+GitHub Actions remains disabled. Ordinary cargo/crew/flight/home/LOD transitions,
+full-craft art, native Windows, target GPU and physical-device gates remain OPEN.
+Other parked candidates/costs/reopening conditions are unchanged.
+
+**Closure:** independent reviewer GO on all six frozen cases. Started16:44:20UTC;
+owned cleanup17:37:53UTC,53.56min, inside original18:14:20UTC/90min deadline.
+Final documentation/push time is recorded in closeout. Exact fresh remote main
+contained the accepted tip, owned worktree was normally removed, and local branch
+was exact-CAS deleted atc60face056. Remote task branch was absent. Recorded
+supervisors/descendants are absent; generated profiles/extracted duplicate and
+scratch were removed after archive verification. Accepted files remain in builds.
+
+Retained exceptions: only `/srv/mudds-work/hauler-whole-lod-20261105/records.tar.gz`
+and `closeout.json`. The archive has107 regular members,9,811,168 bytes,
+SHA256 `a49e4c0d0efd04c1ae37450ee9d598f44342fbf56be8f6495e5569575c687ab9`.
+Every archived member hash was verified, including exact-source Git bundle,
+original card, raw commands/logs/source/import guards, originals, corrections and
+package maps/audit. No successor is selected automatically by this closure.
