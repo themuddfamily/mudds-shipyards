@@ -25,6 +25,66 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan minimum playable Main pilot loop
+
+Approved proposal child5, before passenger/cargo work. Readiness23:17:40UTC
+2026-11-05 (root integration-seam inspection included); **60min all-in,
+absolute00:17:40UTC2026-11-06**. One high implementer owns Main scene/GameFlow,
+Titan-local scene/script and one focused Main integration test/helper; existing
+flyable-roster consumer tests may receive only legitimate9→10 expectation updates.
+Root owns package/render/integration/cleanup; independent high reviewer checks
+actor/lease/access lifecycle and proof. No recursive agents. Aim source/checks
+by23:55UTC to leave the full checkpoint/closure within the original budget.
+
+Add exactly one `titan_provisional` Main instance using its accepted definition,
+standard_fighter rig and own `titan_home_berth`. Use the existing generic flyable
+registry, settings/audio, physical boarding/crew-seat/cabin and landing hooks.
+Existing nine identities/transforms/compatibility, controls and activities stay
+unchanged. Preserve all16 approved tuning values, pilot/eye, hatch/ramp/cabin,
+strict/capture settings and accepted site. Combat remains disabled until its
+approved child; no passenger, cargo, networking, persistence framework or sibling
+retuning. Additional shared ownership needs an exact actual missing seam first.
+
+One fresh normal Boot/Begin Shift admits the same Player at normal spawn. Follow
+the accepted21-leg production route to Titan's real control, then use normal
+interaction and supported ramp/hatch/cabin route to the pilot. Prove actual
+current pilot anchor/reservation, Player identity and transition completion;
+exterior admission must not phase through shell or floor. Normal production-owned
+seat/dock motion is allowed; no test/caller pose/velocity/engine/state writes,
+private board/land bypass, rescue, fake target/lease or zero-duration transition.
+Keep interaction reach unchanged. Add only the local access/seat composition
+needed for existing providers to find the real external control and interior helm.
+
+With access fully sealed, normal pilot thrust must wake the inherited3.4s engine,
+release the home lease and genuinely depart with healthy220 hull. Reach own
+berth-local(0,10,−30), within2m and≤.5m/s, via actual flight/control; observe
+FREE_FLIGHT and ≥30m forward displacement beyond strict fit, ≥5m departure lift.
+Query the actual whole hull before commanded legs. Use normal L only while the
+unchanged capture gate accepts. Landing must restore exactly the own occupied
+lease at root error≤.05m and speed≤.05m/s, then90 neutral OFFLINE physics ticks.
+Normal interaction returns the same Player through existing cabin/exit ownership;
+physically walk down the real access to supported apron(0,0,14.5) in craft-local
+coordinates, ≥1m exterior walking, with capsule clearance. End normal Main Quit
+with OS0 and actual clean-shutdown markers. Preserve production unsafe-access/
+unsupported-exit refusals. Source fixture commands must enter the normal input
+samplers; API intent cannot stand in for actual boarding/flight/landing results.
+
+Extend nearest existing integration style and reuse accepted berth-route data.
+One focused loop plus relevant registry/interaction/settings/re-entry regressions;
+no validator families or evidence-only task. First source freeze must pass the
+whole endpoint; keep all failed raw operands and fix routine mistakes inside this
+same deadline. If an existing hook is missing, report its exact producer/consumer
+rather than build a new framework or reduce the endpoint. No clock reset,
+smaller success claim or automatic successor after a substantive stop.
+
+Every Godot invocation uses pinned4.7.1 and Dummy audio/headless with isolated
+profiles; rendered tests only privateXvfb/x11/Dummy and independent abort.
+After a clean immutable candidate and focused passes, create fresh paired Windows/
+Linux checkpoint,3strict startups/all9package predicates and actual packaged
+loop proof. Native Windows/GPU/device/human and full Titan craft acceptance stay
+NOT_RUN. Only a proven live Main minimum loop may advance the implemented-craft
+count; full roles/functions/qualification remain separately OPEN.
+
 ### Titan own reachable berth — DONE in berth scope
 
 Source **6bb77845f**, pushed via **e3d42b6a8**. Own compatible berth/deck at
