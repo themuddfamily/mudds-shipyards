@@ -36076,3 +36076,79 @@ worktree removed normally and local task ref deleted with exact-tip compare-and-
 swap; no rejected source is merged to make deletion possible. Private profiles,
 cache, recovery repository and all remaining owned scratch are removed. Only main
 and its original worktree remain. No retained process/branch/scratch exception.
+
+
+<a id="station-flash-startup-test-compile-stop-20261105"></a>
+## Station Reduced Flash ordinary package/UI — startup-test compile stop, 2026-11-05
+
+**PARKED / unaccepted, pending explicit user reprioritization.** Existing
+COMFORT-FLASH station solar/environment ordinary member; no rendered output,
+Forward+/installed-launch or flight/Cinder retry. Base72f5b80b3101022c27e9f1ec07b2e14ec7d6f8d6;
+initial803a2aaa392768a67952f8e71a51577e7e39cda5;
+sole corrected7e50fdf6510f8f95b5091d0e712d64ae5c696241. Neither source is merged.
+
+Frozen result: a normal empty-profile Boot/E/actual supported spawn uses actual
+OS keyboard Pause/Settings/ReducedFlashControl OFF→ON→OFF→ON, compares real CPU
+environment/sky readbacks with independently calculated existing baseline caps,
+keeps exact Main/Player/support/input/resource identity and generation, preserves
+other settings and live flight/combat/cargo/reward/claims, then actual Save/Back/
+Exit/OS0/both durable clean markers and input/helper/game/Xvfb cleanup. Existing
+CAP300/independent360 and all six source/Python/paired-export/startup/full package
+audit gates remain. Shared preference cold/Reset3649b4b reused; actual resource
+property proof cannot close pixels/native GPU/device/human or17-family comfort.
+
+One medium-effort implementer owned startup loader, existing passive observer,
+native runner and existing privacy/Python tests; independent medium reviewer
+checked the finite acceptance, immutable source, API/type/actual property and
+process boundaries; root owned freeze, execution/cost/cleanup. No nested agents,
+active-desktop input, audible output or hosted CI.
+
+| Check / candidate | Actual outcome |
+| --- | --- |
+| Initial803 Python | FAIL3/306/14.485s before engines. Two new negative tests expect RuntimeError while existing require raises AssertionError; prepended station selector changes an existing handback source-order assertion. Initial tool stdout is truncated by a huge source dump: no complete original raw log exists. Retained summary says so; diagnostic148-test stdout is retained separately and cannot replace the original full run. |
+| Sole correction | Root GO20:29:11UTC,12.05min cumulative. Correct exception expectations; append mode/classes preserving old prefixes; close review gaps for actual native E, actual current command source, every nonflash setting and live stable authority projections. No expected-value/time-limit relaxation. |
+| Corrected7e50 Python | Agent308PASS/14.333s and independent root full308PASS/14.147s, OS0; both complete raw logs retained. |
+| Corrected7e50 import/privacy | Import20.513s. First matrix suite actual OS1, zero assertions/success markers, two diagnostics. Exact test17 parse error below. Source/import guards true. Supervisor483472 terminal1 and absent; no dependent source suite runs. |
+| Remaining | Other five source suites, actual packaged station episode/identity/CPU property/UI/Save/close claims, exports, strict startups, full package audit and all external qualification NOT_RUN. No candidate checkpoint files or gameplay published. |
+
+Exact engine error:
+`Cannot call non-static function "can_instantiate()" on the class "res://scripts/diagnostics/native_sortie_observer.gd" directly. Make an instance instead.`
+Location `tests/startup_cli_privacy_test.gd:17`. No station runtime failure or
+successful ordinary episode is established; this is an added test's compile
+error. Independent source review missed this misuse; the engine gate catches it.
+
+Concrete unapplied proposal: remove the one invalid can_instantiate assertion;
+keep `const NativeSortieObserverType := preload(...)`, which supplies the actual
+production compile dependency. Retain every privacy/admission, complete source,
+ordinary OFF/ON/OFF/ON/Save/close, numeric policy, identity/authority and package
+case. No alternate renderer or visual/policy change. Root asked the user for
+**one additional correction**, original deadline21:32:08UTC and all prior cost
+retained. That explicit reprioritization is PENDING, not inferred from automatic
+continuation. No source fix or engine retry was launched after the terminal gate.
+
+Original all-in start20:17:08UTC;75-minute estimate/absolute21:32:08UTC deadline;
+sole allowance exhausted at failed gate. Owned cleanup completes20:38:29UTC,
+21.35min from original start; final documentation/push time is in closeout and
+retains the same original deadline. The user's extra-correction answer remains
+PENDING at closure; this record grants no retry.
+
+Retained `/srv/mudds-work/flash-station-20261105/` contains only
+`records.tar.gz` and `closeout.json`. Archive27 regular members,
+4,389,988 uncompressed bytes /1,401,872 archived bytes;
+SHA256 `77f4dd8b1f3f695055e7b3d66ee4e32a9c5660cfe9afaddc939ab781da65189e`.
+All member sizes/hashes are verified twice, then independently reviewed.
+Source bundle SHA256
+`c1482df7858916f79cfc946a48b09619e1af73c66cdd0f944e4f4e21d3d59397`,
+requiring retained base72f5b80b3101022c27e9f1ec07b2e14ec7d6f8d6;
+actual pack unbundles successfully and all five changed files recover exactly.
+The unapplied one-line patch, initial raw-log limitation/diagnosis and all
+complete corrected/root Python and Godot logs are retained. No complete original
+Python raw log is claimed or manufactured.
+
+Source supervisor483472 is terminal/absent; no native game/Xvfb/input helper was
+launched. Fresh remote tips show main9ff3df6a9 and no task remote branch. Exact
+registered clean owned worktree/tip checked, worktree removed normally and local
+branch deleted using exact-tip compare-and-swap. Private profiles/cache/recovery
+repository and all other owned scratch removed; no source merged to delete a
+branch. Only main/original worktree remain, with the two verified retained
+record files as explicit exceptions. No pending process or candidate build.

@@ -26,89 +26,27 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: station Reduced Flash ordinary package/UI episode
+### Station Reduced Flash ordinary package/UI episode — PARKED
 
-**COMFORT-FLASH / station solar-environment member.** Deliver the existing
-[ordinary station episode](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations)
-as an executable opt-in package check. Existing production policy/component
-3fb8e0359 and shared preference/cold/Reset3649b4b remain accepted; this closes
-neither the17-family container nor rendered/device/GPU qualification.
+COMFORT-FLASH station member; candidates803a2aaa3→7e50fdf65 remain unmerged.
+Corrected Python checks pass308/14.147s. The first Godot gate fails before any
+assertion: startup/privacy test line17 calls non-static `can_instantiate()` on
+the preloaded observer class. Source/import guards match; zero success markers,
+two diagnostics, OS1. The other five source suites, actual station/UI episode,
+exports/startups and package audit are **NOT_RUN**. No gameplay or checkpoint
+from this attempt is accepted.
 
-- **Candidate/start:** clean f912120b3 source baseline; fresh normal Boot and
-  empty private profile; ordinary Begin Shift reaches supported authored spawn.
-  One actual process, original Player/world/environment/sky. No seeded settings,
-  actor placement, gameplay calls, animation seeking or injected setting events.
-- **Owners/files:** one medium-effort implementer owns
-  `scripts/game/startup_loader.gd`,
-  `scripts/diagnostics/native_sortie_observer.gd`,
-  `tools/release/run_native_sortie.py`, existing
-  `tests/startup_cli_privacy_test.gd` and `tools/release/test_native_sortie.py`.
-  Observer stays passive. Root owns commands/build/integration/cleanup; one
-  independent reviewer checks actual versus expected, startup admission and
-  input/process cleanup. No unrelated UI/gameplay/policy changes.
-- **Dependencies:** existing station presentation and UI work; native runner's
-  private Xvfb/x11/Dummy/dummy-renderer path. The parked Forward+/installed-launch
-  and flight/capture attempts are not selected or used as prerequisites. No
-  external device, audible authorization or design choice is needed for this
-  property-only source/package scope.
-- **Literal command:** after source checks and clean paired export/startup,
-  `python3 -B tools/release/run_native_sortie.py ABS_LINUX_ELF --output
-  /srv/mudds-work/flash-station-20261105/ordinary --route station-flash`.
-  Existing CAP300s from initial launch and independent outer360s, original
-  window/input waits and strict diagnostics remain. Exact new selector is
-  `--native-sortie-observer=station-flash`, admitted only under existing private
-  input ownership, x11/Dummy restrictions; malformed/conflicting modes refuse.
-- **Proof:** existing native result/log/observation outputs bind exact package
-  hash/PID/Main/Player/support/phase/UI events/environment and resource identities,
-  captured baseline, actual readbacks and policy report. No new validator,
-  schema/version, status protocol, evidence family or alternative input harness.
-  Use existing Godot approximate-float comparison semantics (relative/absolute
-  epsilon1e-5) for resource floats, not altered safety caps.
-- **Source commands:** full existing Python `python3 -B tools/release/test_native_sortie.py`;
-  matrix pinned Godot4.7.1/headless/Dummy/jobs1/timeout300 and exact scopes
-  `startup_cli_privacy_test`, `station_solar_readability_presentation_test`,
-  `reduced_flash_settings_ui_test`, `settings_persistence_feedback_ui_test`,
-  `runtime_settings_production_persistence_test`, `main_reentry_quality_test`.
-  Import always for first suite, never thereafter; each original marker once,
-  actual OS0, raw diagnostics0 and stable source/import guards. Ensure changed
-  observer is compiled before package by the focused startup suite dependency.
-- **Package/close:** existing clean-commit Windows/Linux export helpers; Windows
-  PCK-under-Linux, direct Linux and extracted-archive strict --startup-check:
-  exit0/one STARTUP_MENU_READY_OK/zero diagnostics. Complete paired inventories
-  and all nine existing package-audit predicates. Publish seven repository
-  checkpoint files only after all frozen cases pass; notes state property-only
-  ordinary UI scope and actual limitations. Merge/push accepted source; verify
-  archived unique source/results before owned branch/worktree/process/scratch
-  cleanup. No Downloads or GitHub Actions.
-- **Budget/stop:** readiness starts20:17:08UTC2026-11-05;75min all-in estimate,
-  absolute deadline21:32:08UTC. **One correction total**, only with measured
-  cause and cumulative-cost decision; no reset on new candidate/cause. First
-  unexpected failure stops dependent checks; failed correction/deadline parks
-  the entire delivery with unique source/results and exact reopening condition.
-  Initial803a2aaa3 Python suite fails3/306 before engines: two new negative
-  tests expect the wrong exception; prepended mode changes existing source-order
-  contract. Sole correction authorized20:29:11UTC (12.05min cumulative), also
-  closing independently reviewed actual-E/current-input/full-other-settings/live-
-  authority observation gaps before acceptance. Preserve old tests and selectors;
-  no criterion relaxation. No correction remains after this candidate.
-  Native runner and independent supervisor release input and reap game/helper/
-  private Xvfb. No active-desktop run. No automatic successor by closure.
-
-| Frozen case | Ordinary action / initial state | Expected result | Actual / proof |
-| --- | --- | --- | --- |
-| Boot and supported identity | Empty-profile normal Boot→E Begin Shift; wait for actual supported spawn | Authored OFF, same Main/Player and default input, on-floor unseated/unpiloted; record settled pose/support, world/WorldEnvironment/Environment/Sky/material IDs and captured baseline/presentation generation | NOT_RUN |
-| Actual UI OFF→ON→OFF→ON | Escape→focused SettingsOpenButton→actual ReducedFlashControl; native keys only | Every phase checkbox/runtime/report agree; same actor/support/pose/resources/baseline/generation; actual environment/sky values match independently computed baseline-bounded policy below; no flight/fire/cargo/reward/claim change | NOT_RUN |
-| Save and ordinary close | Actual SettingsSaveButton after final ON→SettingsBackButton→normal ExitButton | SETTINGS SAVED/dirty cleared; actual private primary boolean true, protected other settings/non-settings data preserved through Save; actual OS0/both clean markers. Input released, game/helper/Xvfb reaped; no diagnostics | NOT_RUN |
-| Production and regression gates | Complete named Python/six source suites, reviewed clean exports, strict startups, actual native command and full paired package audit | Every command/case passes on the same immutable source with source/import guards; accepted source merged/pushed, checkpoint available and owned cleanup complete | NOT_RUN |
-
-Literal OFF→ON caps, always respecting that instance's captured baseline:
-exposure1.08→.94; glow intensity.34→.18, strength1.05→.72, bloom.006→.002,
-threshold floor1.45→1.65, HDR scale2→1.35, luminance3→2.4, sun scatter.04→.015,
-volumetric anisotropy.35→.2; glow-level caps[0,.7,.5,.18,0,0,0]→
-[0,.38,.22,.06,0,0,0]. Halo OFF restores captured baseline; ON=min(baseline,.08).
-Compare actual CPU resource properties with these literal expectations and the
-existing report, not a report compared with itself. Dummy rendering supplies
-no pixel/readability, physical-device or native-GPU result.
+The sole correction was spent on exact Python failure causes and the reviewed
+native-E/input-owner/protected-settings/live-authority gaps. No automatic retry.
+The concrete next proposal removes that one unnecessary static call, retaining
+the production observer preload and every original test/ordinary/package gate.
+**Explicit user reprioritization for one additional correction is requested and
+pending; no approval is inferred.** The original21:32:08UTC deadline and all
+20:17:08UTC-start costs remain binding. Until an answer, this attempt is PARKED.
+[Exact failure, retained source/proposal and cleanup](docs/history/ROADMAP_DELIVERIES.md#station-flash-startup-test-compile-stop-20261105).
+Existing station policy3fb8e0359 and shared cold/Reset3649b4b stay accepted only
+in their original scopes. The parked Forward+/installed-rendered-launch attempt
+is separate and is not reopened by this proposal.
 
 ### Cinder remote pilot exterior-body handoff — PARKED, unaccepted
 

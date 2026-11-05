@@ -17643,6 +17643,22 @@ Codex work, not an external device dependency. First failure stops for cause
 review; failed correction/deadline parks the same attempt. Source bindings close
 the definition field only; ordinary episodes and external gates remain OPEN.
 
+**Station ordinary episode attempt PARKED2026-11-05:** initial803a2aaa3's
+Python tests fail three expectations/source-order assertions; sole corrected
+7e50fdf65 passes308 Python tests, then the first Godot privacy gate fails at
+its added line17: non-static can_instantiate() invoked on the preloaded observer
+class. No privacy assertions, ordinary station input/resource observation,
+other source suite, export or checkpoint passes. All source/import guards remain
+stable; no candidate source is merged. [Exact results, retained one-line proposal
+and cleanup](history/ROADMAP_DELIVERIES.md#station-flash-startup-test-compile-stop-20261105).
+Default one-correction allowance is exhausted. An explicit extra-correction
+reprioritization question is pending; automatic continuation is not an answer.
+The proposed removal retains the actual observer preload and all original
+OFF/ON/OFF/ON, Save, identity/authority, normal close, regression and package
+checks, within the original21:32:08UTC deadline and cumulative cost. No retry is
+selected until answered; rendered-installed-launch and all other parked gates
+remain separate. Existing production policy/component proof stays accepted.
+
 **Literal remaining work and owners, not an automatic queue:**
 
 - **Shared executable preference proof DONE3649b4b:** real embedded native Linux
