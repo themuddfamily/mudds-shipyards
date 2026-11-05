@@ -11,79 +11,47 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **e388031** — [Windows ZIP](builds/windows/MuddsShipyards-e388031-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-e388031-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-e388031-linux-x86_64.tar.gz).
-This adds ordinary packaged UI qualification of the existing station Reduced Flash
-policy; it adds no craft or new graphics policy. The previous Jovian exterior LOD
-checkpoint remains included. Native Windows/GPU, rendered visibility and full
-COMFORT-FLASH qualification remain open.
+Latest playable checkpoint: **6bb7784** — [Windows ZIP](builds/windows/MuddsShipyards-6bb7784-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-6bb7784-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-6bb7784-linux-x86_64.tar.gz).
+A signed Titan candidate berth now extends the observation spur's far return loop
+through a real rail opening and level supported connector. **The bay is empty**:
+Titan Main fleet/pilot composition is next. Current nine craft are unchanged.
+Paired clean exports, three strict startups, actual packaged-content Main walk,
+full package/inventory audit and isolated module render review pass in their
+stated scopes. Native Windows/GPU/human/full craft gates remain open.
 Earlier accepted changes, including Hauler/Bomber distant exteriors, remain
 included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan reachable own berth
+### Titan own reachable berth — DONE in berth scope
 
-Approved proposal child4 before passengers/cargo. Readiness22:39:21UTC2026-11-05;
-**60min all-in, absolute23:39:21UTC**, including site inspection/card preparation.
-One high implementer owns new Titan berth module/script/test plus production
-`scenes/world/shipyard_world.tscn` and the existing observation-spur script/test
-only. Root reviews/integrates/packages/cleans; one independent reviewer checks
-clearance, topology and actual Player proof. No recursive agents, GameFlow,
-Titan hull/access, existing craft/berth retuning, cargo, weapons or network work.
-Narrow shared ownership expansion22:46UTC: `shipyard_world.gd` and existing
-`station_route_registry_integration_test.gd` must include the real eighth module,
-its world-owned hub endpoint at(132,.38,38), and10th production berth. Existing
-fixed7-module/9-berth cache checks otherwise reject legitimate new content. Reuse
-the current module→hub scheme and preserve the nine old placements/compatibility
-and six old feedback placements; no discovery bypass or new registry framework.
-Original deadline/site/physical proof remain unchanged.
+Source **6bb77845f**, pushed via **e3d42b6a8**. Own compatible berth/deck at
+(154,.38,38), yaw−90°, plus6m supported connector and default-closed/production-open
+spur gate. The new eighth module is registered through the normal world hub;
+10berths are discovered while old nine craft placements/compatibility and six
+feedback placements stay unchanged. Wrong-tag reserve and rogue audit refusal
+pass. Actual Main Player traverses all21 frozen route legs from normal spawn,
+reaches the normal-range control and opens the staged Titan hatch:2589 source
+observations supported/capsule-clear. Complete closed/deployed shape sweeps,
+continuous5m lift and actual inherited20m/.55m camera sphere/arm/near boundary pass.
 
-Candidate world-local Titan dock root **(154,.38,38), yaw−90°**. This puts the
-stern toward the observation spur and the nose/departure toward open east space.
-New module has an actual16×32m deck, floor coincident with this dock root, own
-`titan_home_berth` accepting only `titan_transport`, identity craft-local receiver,
-strict half extents(7,7,14), capture center(0,10,−24)/half extents(25,17,38),
-max capture speed25/tilt65°, departure lift5 and original landing speed11.
-Use existing ShipBerth authority; do not consume or rename another berth.
+Final committed matrix176checks/OS0/sentinel1each/diagnostics0/guards stable;
+spur default/enabled72checks pass. Windows packaged-content replay from a blank
+source directory passes25checks and2562 supported/clear observations; excluded
+tests and raw runtime.gd are absent. Three strict startup probes and all nine
+paired package-audit predicates pass; full1541-entry Win/Linux raw maps match.
+Four authored-module render views inspected at production poses on private
+llvmpipe/X11/Dummy (OS0, one environment V-Sync warning). Staged hull image is
+fit evidence; the actual production bay remains empty. Source/artifact review GO.
 
-Connect observation-spur far bridge at world(132,.38,38) to the new deck's
-stern edge(138,.38,38) with ≥2.4m clear level supported walkway and real edge
-rails. Add an explicit default-CLOSED extension gate mode to the existing spur:
-only the production scene enables its new2.4m opening. Replace corresponding
-visible/collision rail together; retain old standalone geometry/contracts when
-closed. Provide physically honest route markers/signs and reuse existing route
-module/discovery hooks. No hidden disabled rail, jump, floating floor, teleport,
-new registry framework or evidence-only validator family.
-
-Prove in actual production world/Main: berth is discovered once and validates;
-wrong-tag craft cannot reserve it; all nine existing craft/berth transforms,
-compatibility and access remain unchanged. With the accepted Titan staged at
-this exact berth (not yet a production fleet registration), query the complete
-closed/deployed geometry,5m upward departure sweep and camera/approach volumes
-against actual neighboring geometry. Keep deployed x±6,z−9..13,y0..6.5 and
-normal interaction-range stern-side control clear. If this inspected candidate
-fails, stop dependent work and report the concrete blocker before changing site;
-no smaller hull/deck, relaxed gate or silent alternative goal.
-
-One actual Player starts at normal production spawn and physically reaches the
-Titan stern apron and reachable control via normal movement/input, with support
-and capsule clearance, no pose writes after initial setup/jump/rescue. Stage only
-the absent Titan asset/fixture admission as needed; this is production-world walk
-proof, not ordinary packaged Main boarding/pilot flight. Freeze observed route
-waypoints before executing it; do not replace physical traversal with ray grids.
-Extend the nearest spur check and one focused berth test; keep default spur and
-existing station route/berth checks relevant to changed contracts. Stop when the
-berth/walk/clearance outcome is demonstrated, not after a test-count target.
-
-All Godot calls use pinned4.7.1, Dummy audio/headless and isolated profiles.
-Rendered review uses privateXvfb/x11/Dummy plus abort/cleanup. Preserve raw failed
-operands. Routine fixes stay within this deadline; geometry/site changes need
-causal review with the approved contract intact. First live station milestone
-must receive a clean-source paired checkpoint with strict startups/full package
-audit; finish source/checks by23:20 to leave closure time. Titan Main/pilot
-composition is the next child;9/17 and full-craft gates remain open.
+Seven checkpoint files are published above. Complete records/source/captures are
+in verified `/srv/mudds-work/titan-berth-20261105/records.tar.gz`; owned branch,
+worktree/processes and scratch removed. Original22:39:21→23:39:21UTC all-in
+budget retained and met. **9/17 remains unchanged**. Main/pilot/ordinary packaged
+Titan flight/home and native/human gates remain OPEN. Next: child5 minimum live
+Main composition, before passenger/cargo work, with a fresh playable checkpoint.
 
 ### Titan construction — standalone children1 and2 DONE
 
@@ -108,7 +76,7 @@ scratch removed. Original22:22:07→23:22:07UTC all-in budget retained and met.
 These are standalone children of the [approved Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md).
 **9/17 remains unchanged.** Main boarding, reachable berth, production pilot exit,
 passengers/cargo/weapon/lifecycle and full craft qualification remain OPEN. Next:
-child4 reachable own berth, then child5 minimum live Main composition ahead of
+child5 minimum live Main composition ahead of
 passenger/cargo work. That first playable milestone requires a fresh paired
 Windows/Linux checkpoint; native Windows/GPU/human gates remain NOT_RUN.
 
