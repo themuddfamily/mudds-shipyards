@@ -237,7 +237,12 @@ also a prerequisite of the still-open motion startup caller.
   This supplies an executable release capability, not a new control scheme.
 - **Start/owner:** clean0acc2ae0d; implementation owns only existing
   `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py` and
-  `scripts/diagnostics/native_sortie_observer.gd`. Root owns frozen package/
+  `scripts/diagnostics/native_sortie_observer.gd`. Before check/source freeze,
+  review identified that the actual decorated telemetry is temporary. Root also
+  owns the passive publication signal in `scripts/ui/hud.gd` so the observer can
+  read the real input separately from the cue's transformed output; no inferred
+  ingress or duplicate decoration substitutes for this predicate.
+  Root owns frozen package/
   artifact preparation, export/checkpoint, integration/docs/cleanup. Independent
   review covers passive readback, default-route preservation and safety gates.
 - **Dependencies:** accepted ordinary Guided driver/exit, actual flight/camera/
