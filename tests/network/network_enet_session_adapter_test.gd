@@ -729,11 +729,20 @@ func _test_dedicated_server_lifecycle() -> void:
 	_check(host.is_server() and runtime.exit_codes.is_empty() and main.shutdown_calls == 0
 		and stopped_in_callback.size() == 2 and not stopped_in_callback.has(true),
 		"ordinary disconnect callbacks retire ledgers without synchronous shutdown or premature body retirement")
+	var session_identity: int = host.get_instance_id()
+	var session_path: NodePath = host.get_path()
+	var session_parent: Node = host.get_parent()
+	var session_index: int = host.get_index()
+	var cache_retirements: Array[int] = [0]
+	host.tree_exited.connect(func() -> void: cache_retirements[0] += 1, CONNECT_ONE_SHOT)
 	main.remaining_bodies = 0
 	await _pump_until(func() -> bool: return not runtime.exit_codes.is_empty(), 3.0)
 	_dedicated_observe("orderly_stop", runtime, main, host)
 	_check(runtime.exit_codes == [0] and main.shutdown_calls == 1 and main.orderly_calls == 1 and not host.is_session_active(),
 		"deferred post-retirement stop performs one existing shutdown, clean marker and successful process-exit intent")
+	_check(cache_retirements == [1] and host.get_instance_id() == session_identity
+		and host.get_parent() == session_parent and host.get_path() == session_path and host.get_index() == session_index,
+		"dedicated shutdown retires RPC cache membership without replacing the adapter or changing its path and order")
 	host.peer_disconnected.disconnect(observe_disconnect)
 	runtime.free()
 	main.free()

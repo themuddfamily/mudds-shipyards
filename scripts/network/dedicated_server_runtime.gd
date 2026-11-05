@@ -203,6 +203,24 @@ func _finish_when_retired() -> void:
 	_check_pending = false
 	if _stopping or not _armed or not _ownership_is_retired():
 		return
+	# Godot 4.7.1 tracks RPC nodes with a bound tree_exited callback, but its
+	# peer-reset cache clear tries to disconnect the unbound callback. Retire
+	# this empty session's cache membership before the existing shutdown resets
+	# its peer. Re-enter synchronously so Main and the adapter retain their
+	# ordinary multiplayer access; no transport or session is recreated.
+	var session_parent: Node = _session.get_parent()
+	var session_path: NodePath = _session.get_path()
+	var session_index: int = _session.get_index()
+	if not is_instance_valid(session_parent) or _main.call(&"get_network_session") != _session:
+		_fail("session ownership changed before shutdown")
+		return
+	session_parent.remove_child(_session)
+	session_parent.add_child(_session)
+	session_parent.move_child(_session, session_index)
+	if not _session.is_inside_tree() or _session.get_path() != session_path \
+			or _session.get_parent() != session_parent or not bool(_session.call(&"is_server")):
+		_fail("session cache retirement changed authority")
+		return
 	_stopping = true
 	set_process(false)
 	var stopped: Dictionary = _main.call(&"shutdown_network_session", &"dedicated_guests_departed")
