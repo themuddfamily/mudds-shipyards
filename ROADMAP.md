@@ -227,6 +227,87 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+**Active bounded deliveries (two independent owners):** both assessments start
+2026-11-05 11:17:51UTC; hard stop12:47:51UTC, including selection, checks,
+integration and cleanup. Each retains one total cause-bound correction; first
+unexpected failure stops its dependent checks, and a failed final correction or
+deadline parks that whole goal. No parked Guided, capture or KIT-RELOAD retry.
+
+**Exported Jovian first kit-delivery caller.** Existing
+[PLAY-JOVIAN-KIT](docs/ROADMAP_BACKLOG.md#proof-activity) full journey and
+[HUD-CARGO prerequisite](docs/ROADMAP_BACKLOG.md#hud-cargo-contract).
+
+- **Result:** a supported `--route jovian-kit-delivery` completes the entire first
+  delivery through ordinary OS input on the release executable. Existing source
+  fixture acceptance is reused; its injected input/direct test quit is not an
+  exported caller or normal HUD Exit. This new capability does not close the
+  three-process HUD-CARGO reset/selection/cold sequence or retry KIT-RELOAD.
+- **Start/owners:** clean14c2e1c07, fresh real profile/no prepared JSON, normal menu,
+  cargoIDLEg0/stock6/0/no transfer or payment. Implementation owns existing
+  `tools/release/run_native_sortie.py`, `scripts/diagnostics/native_sortie_observer.gd`,
+  `scripts/game/startup_loader.gd`, `tools/release/test_native_sortie.py` and
+  `tests/startup_cli_privacy_test.gd`. Root owns review, artifacts/build/docs/cleanup;
+  production cargo/data owners remain unchanged.
+- **Action/pass:** actual Begin Shift/Cargo keyboard selection≤5s each; authored
+  Freight goals≤15s each/.30m horizontal/.8m vertical/15 supported settled ticks;
+  hatch E/pilot boarding≤12s. Same Player/Jovian/default sampler/no provider;
+  ordinary thrust releases lease and travels≥5m on initial nose/ACTIVEg1≤10s;
+  brake≤10s to≤.5m/s for60physics ticks, Start transaction elapsed0 and original
+  activity180s deadline. Ordinary landing press accepted≤8s, strict current home
+  dock≤120s/.05m/.5°/.05m/s; actual transfer2/stock4/2/one g1 ledger and durable
+  payment. Neutral automatic OFFLINE≤authored idle threshold+1s, physical exit
+  ≤2×canopy+disembark+1s, same supported Player walks≥.5m≤15s. Retain60post-delivery
+  ticks/no duplicate reward, normal HUD Quit/actualOS0/zero diagnostics, actual
+  completed durable file and both clean-close markers. No actor/pose/data writes.
+- **Proof:** old CLI rejects missing route before launch. Freeze source/Python/
+  startup privacy checks, then clean Windows/Linux exports, three strict startup
+  checks and exact paired package audit. One complete native run on the matching
+  archive-extracted Linux ELF: original300s inner/330s outer, private Xvfb/x11/
+  Dummy. Fixed external results `/srv/mudds-work/jovian-kit-native-caller-20261105`.
+  Numeric/source/isolated Linux results do not qualify native Windows/GPU/devices.
+- **Endpoint:** estimate65–80minutes through closure; source target≤12:10UTC.
+  After full pass only, EXE/ZIP/notes in builds/windows plus matching Linux,
+  merge/push and exact owned branch/worktree/process/scratch cleanup. Failure
+  retains unique source/raw and parks without a smaller accepted subset.
+
+**Halyard ordinary fresh-Main re-entry caller.** Existing
+[complete SERVER-BASELINE member](docs/ROADMAP_BACKLOG.md#server-main-reentry-binding).
+
+- **Result:** passenger B uses real RESTART SHIFT at strict dock, obtains a fresh
+  Boot/Main, rejoins through the browser, physically boards and flies again while
+  authority and pilot A remain current. Retained-Main reconnect cannot substitute.
+- **Start/owners:** same clean14c2e1c07; existing accepted original Halyard two-client
+  BOARD/seven MOVING barriers and return helpers. Implementation owns only existing
+  `tests/network/halyard_network_passenger_route_test.gd`; shared Jovian launch
+  helper changes require explicit file ownership before source freeze. Root owns
+  execution/docs/integration/cleanup; independent review covers lifecycle/identity/
+  timers/launch safety. No production Boot/HUD/GameFlow edits or staged actor state.
+- **Action/pass:** preserve all original BOARD/MOVING predicates, return≤20s,
+  landing edge≤8s/dock≤24s/both arrivals consumed≤8s. B actual Pause/focus/Restart
+  ≤5s; fresh Main≤60s, old Main/Player/adapter/body retired, old transport/claims/
+  streams/prediction/input cleared, one offline Player/zero adapters. Server retires
+  exactly old B body/claim; same A helm/hull/occupied lease. Fresh Begin/browser
+  Manual Join, exterior physical hatch candidate≤5s/E supported cabin≤12s/chair
+  ≤8s; exactly one fresh canonical adapter/body/seat and no retired identity controls.
+  Renewed same A/hull flight>5m/speed>.1/flying≤8s, both clients consume≤8s.
+  Full terminal handshake/all3actualOS0/zero diagnostics/released inputs/reaped children.
+- **Proof:** component `network_rehost_after_reentry_test.gd` under300s must pass
+  OS0/one NETWORK_REHOST_AFTER_REENTRY_TEST_OK/zero diagnostics. Implemented command:
+  `/srv/mudds-work/toolchains/godot-4.7.1-official/godot --headless --audio-driver Dummy --path /srv/mudds-worktrees/halyard-main-reentry-20261105 --script res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-main-reentry`,
+  supervised360s; require exact coordinator HALYARD_ORDINARY_TWO_CLIENT_MAIN_REENTRY_OK
+  after every child gate. Whole300s starts before launch; existing coordinator first
+  client.done120s starts after initial client Main readiness and also remains fixed
+  across reload. Its feasibility is to be measured, not assumed or given a larger
+  cap. All original per-action caps and10s exit grace remain. Private headless host,
+  separate Xvfb/x11/Dummy clients, actual launch/driver receipts; no desktop/audio.
+  Results `/srv/mudds-work/halyard-main-reentry-20261105`. Source-only input harness
+  acceptance does not qualify exported clients, hardware or the whole baseline.
+- **Endpoint:** estimate85minutes including existing assessment/root preparation;
+  source target≤12:10UTC. Only complete source-call capability passes. Merge/push
+  and owned archive/process/worktree/ref cleanup; no playable change or new build
+  claimed by test-only source changes. Final/native/package gates remain open.
+
+
 **Guided flight-observation caller: PARKED/unaccepted.** Candidates9401d65c5
 and ca5a49c17 remain unmerged. The first actual run stops at launch-deck clearance;
 the single correction reaches the same range centre with clearance intact. The
