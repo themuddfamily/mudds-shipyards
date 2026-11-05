@@ -111,6 +111,13 @@ observable result. Its card must still bind the host/client setup, permitted
 identities, exact action sequence, deadlines and expected observations from the
 existing contract. This example selects no trial and reopens no parked task.
 
+Freeze the action and pass conditions before implementation. Record the actual
+observation beside each expected result at closure. A failed result cannot be
+made successful by weakening its threshold, dropping a case or substituting a
+component check. Changing an intended requirement is an explicit scope decision;
+retain the original failure and explain the change before selecting work under
+the revised requirement.
+
 If a result needs several independently deliverable behaviors, split those
 behaviors before starting and give each its own pass check. Keep the complete
 journey as a required integration gate. Do not split by research, validator,
@@ -126,7 +133,7 @@ behavior. Record missing integration, hardware and human checks explicitly.
 | Goal | Existing ID and one observable player or build result |
 | Start | Exact source/package, saved state, location and participants |
 | Action | Literal command or ordered ordinary player steps |
-| Pass | Observed endpoint and expected value for every included case |
+| Pass | Expected endpoint/value for every included case, fixed before work; actual observations at closure |
 | Proof | Actual log, screenshot, artifact or physical observation; identify its environment |
 | Prerequisites | Existing IDs and required results, or the exact missing answer/artifact and owner |
 | Budget and stop | Estimate, absolute deadline, original test limits, correction allowance and independent abort |
