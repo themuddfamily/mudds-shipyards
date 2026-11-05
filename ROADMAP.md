@@ -23,9 +23,25 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan standalone hull and pilot fixture
+### Titan standalone hull and pilot fixture — DONE in standalone scope
 
-Owner-approved modern Titan proposal child1. **Start22:11:00UTC2026-11-05;
+Source **834cc50a3**, merged and pushed in **dded94bda**. Actual focused fixture
+passes40checks/12.439s, OS0, one sentinel, diagnostics0 and stable source/cache;
+all six committed files match that run's hashes. It validates the exact definition,
+pilot/eye,12×18×5m convex/mesh envelope, outward normals, collision separation and
+whole reserved cabin physics clearance. Actual2s thrust reaches30.7745m/s with
+29.7745m forward travel;0.5s brake reduces speed to18.602m/s; neutral commands
+reach OFFLINE with zero thrust and no continuous engine audio authority.
+Independent front/stern visual inspection passes in isolated llvmpipe/OpenGL
+with Dummy audio/X11; OS0 and one environment V-Sync warning. This is no native
+GPU or human qualification. Source/raw runs/two renders preserved in verified
+`/srv/mudds-work/titan-standalone-20261105/records.tar.gz`; owned branch/worktree
+and scratch are removed.9/17 is unchanged: Main/berth/access/cargo/roles/weapons
+and full craft qualification remain outstanding. First production composition
+milestone must receive a fresh playable checkpoint. Next is the approved hatch,
+ramp and supported cabin route; freeze its card before implementation.
+
+Retained original card: owner-approved modern Titan proposal child1. **Start22:11:00UTC2026-11-05;
 45min all-in, absolute22:56:00UTC.** One medium implementation agent owns only
 new `assets/ships/titan_provisional.tres`, `scenes/ships/titan_medium_transport.tscn`,
 optional Titan-local script/material files and one focused

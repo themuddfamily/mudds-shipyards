@@ -1,6 +1,6 @@
 # Titan implementation proposal — APPROVED MODERN BASELINE
 
-Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. Standalone hull/pilot foundation (child1) is implemented in 834cc50a3, integrated via dded94bda. Production composition and full craft qualification remain outstanding.
 
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
@@ -98,7 +98,7 @@ Do not wait until child 6 or 13 to package a meaningful working gameplay checkpo
 
 | Child / budget | Owner and bounded change | Objective acceptance and stop condition |
 | --- | --- | --- |
-| 1 / 45m | Titan implementer: definition, scene and original hull around a pilot position. Use existing HeroShip controller; no cargo/network integration yet. | Isolated fixture loads Titan with the proposed candidate identity, finite non-overlapping collision and usable pilot flight/start/stop. Definition validation passes. Stop with the standalone craft; do not report production delivery. |
+| 1 / 45m — DONE834cc50a3 (standalone only) | Titan implementer: definition, scene and original hull around a pilot position. Use existing HeroShip controller; no cargo/network integration yet. | Isolated fixture loads Titan with the proposed candidate identity, finite non-overlapping collision and usable pilot flight/start/stop. Definition validation passes. Stop with the standalone craft; do not report production delivery. |
 | 2 / 60m | Titan implementer: cabin floor, hatch/ramp, access markers and moving-interior bounds in Titan files. | Ordinary walking reaches cabin and helm from a fixture deck, then returns outside after shutdown; no jumping, stuck collision, external hull clipping or unsupported steps. Stop once the continuous route works. |
 | 3 / 45m | Titan implementer/root seat owner: two passenger anchors through existing seat authority, no specialist roles. | Two distinct seat claims succeed; duplicate/stale claims fail; stand/reseat and moving-cabin support work without stealing pilot input. Stop before remote-peer composition. |
 | 4 / 60m | Root station owner: one compatible berth and supported signed route in station files. | From production spawn, walk to Titan's boarding marker; docked hull/access and departure sweep clear neighbouring routes/craft. A mismatched craft cannot claim the berth. Stop with one real reachable berth. |
