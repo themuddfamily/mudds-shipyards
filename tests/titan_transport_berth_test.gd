@@ -62,6 +62,12 @@ func _run() -> void:
 		"wrong-tag compatibility and reservation refuse without mutating rightful Titan lease")
 	var registry := world.get_station_route_registry_report()
 	_check(registry.valid and registry.modules.has(&"titan-transport-berth"), "new module joins the existing real route registry: %s" % registry.errors)
+	var graph := world.get_station_navigation_graph_report()
+	var edge := (graph.get("edges", {}) as Dictionary).get(&"hub-titan-transport-berth", {}) as Dictionary
+	_check(bool(graph.get("valid", false)) and is_equal_approx(float(edge.get("length", -1)), 1.5)
+		and edge.get("hub_node_id") == &"station-hub:hub-titan-transport-berth"
+		and edge.get("module_node_id") == &"titan-transport-berth:approach",
+		"real supported 1.5m Titan connector edge keeps the complete navigation graph valid")
 	_check(bool(world.get_ship_berth_feedback_audit_report().valid), "existing six feedback placements remain valid with the legitimate tenth berth")
 	var ship := game.get_node("TitanMediumTransport") as HeroShip
 	var titans := 0
