@@ -215,6 +215,14 @@ or completed definition is not a readiness verdict: the card must resolve its
 literal actions, observations, dependencies and stop before implementation.
 Keep the card in ROADMAP.md; do not grow a parallel task/evidence inventory.
 
+Distinguish an undefined acceptance contract from missing executable support.
+If the player action and expected endpoint are fixed but the runtime or ordinary
+test caller is absent, implementing that support is a bounded delivery goal.
+Its qualification remains gated until the support works. This distinction never
+permits a staged/component check to replace the complete ordinary journey.
+Select qualification of existing behavior as well as implementation of missing
+behavior; do not invent a code change just to make a qualification selectable.
+
 **Literal prerequisite convention for all337 records.** Parent numbers are
 coverage relationships, not prerequisite IDs. A pure Decision/Resource input
 has prerequisites **none**, except any prerequisite explicitly named in its

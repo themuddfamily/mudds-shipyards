@@ -24,362 +24,60 @@ Earlier Ember passive progress, save/terminal retry, Aurora/Rime settled resume
 retirement, Arrow guidance and dedicated startup remain included in their
 recorded scopes.
 
-Latest Ember outbound trial remains **PARKED**: actual Host takeover and strict
-caldera/OFFLINE reached, but the driver incorrectly requires station gravity
-during planetary disembark. Supported exit and normal Quit remain unproved;
-source is archived unmerged; its whole journey remains unaccepted.
-[Exact failure and retained scope](docs/history/ROADMAP_DELIVERIES.md#ember-outbound-surface-gravity-stop-20261105).
+## Read this as a delivery plan
 
-Latest Jovian retained-cabin readmission attempt is **PARKED/unaccepted**.
-The real three-peer run reached strict home/OFFLINE and B's normal disconnect,
-then stopped when A's publication state/tick became invalid. Helm, ownership
-and home remained intact in the captured operands. Fresh join/berth/engineer
-claim were not reached; no candidate was merged or checkpoint produced.
-[Failure, concrete reopening gate and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-cabin-readmission-parked-20261105).
+The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
+retains the original requirements and their detailed acceptance contracts.
+Its 337 records include containers, definitions and decisions; **337 is not the
+number of coding tasks left**. The [36 original outcomes and ten phase gates](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
+remain open. Accepted and failed attempts belong in the
+[delivery history](docs/history/ROADMAP_DELIVERIES.md), not in the next-work queue.
 
-The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
-337 records, their IDs, parents, kinds and accepted proof scopes. These include
-containers, decisions and definitions; **337 is not a count of coding tasks left**.
-[Completed and parked work](docs/history/ROADMAP_DELIVERIES.md#roadmap-front-page-status-snapshot-archived-2026-10-27)
-is history, not the next work queue.
+Use these three levels:
+
+| Level | What it means | When it closes |
+| --- | --- | --- |
+| Product outcome | A complete craft, activity, world journey or release requirement | Every named child and its complete integration gate passes |
+| Delivery goal | One independently usable game behavior or executable build capability | The fixed player/build action passes, accepted code is merged/pushed, required checkpoint is available and owned cleanup is complete |
+| Qualification goal | One named journey, package, hardware or device check | Its original complete cases pass on the declared candidate and environment |
+
+A source map, specification, test fixture or passing component check does not
+close a delivery goal for a behavior it has not demonstrated. A completed child
+does not close its parent. An unavailable owner decision or device is a named
+blocked dependency, not an indefinite coding assignment.
 
 <a id="current-planning-goal-finish-the-executable-breakdown"></a>
 
 ## Breakdown defined; readiness checked per task
 
-**PLAN-NEXT is DONE as a definition task.** The337 existing records now have
-finite cases, prerequisite rules, actions/endpoints, limits and proof contracts,
-or exact owner-controlled inputs/artifacts. Three disjoint reviews checked the
-records; the [closure and dependencies](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
-record the result. All36 product parents and ten phase exits remain OPEN.
+**PLAN-NEXT is DONE as a definition task.** Reuse the existing
+[contracts and dependencies](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next);
+do not start another inventory or rewrite every contract before shipping work.
+Before selecting a child, resolve its contract into the short card below. If a
+field is missing, supply that field or name its blocker. Do not treat a broad
+heading or a linked document as an executable assignment.
 
-This does not mean every task is ready to run. Missing production capabilities
-and ordinary callers remain implementation work. Owner decisions, unavailable
-artifacts/access and actual qualification retain their named gates. Proposed
-commands are not executable support; accepted results and failed attempts keep
-their source scopes, costs and reopening conditions.
+A ready delivery goal must answer all five questions:
 
-Select a bounded capability from its existing contract. Freeze exact source/
-package, owned files, input/profile, expected result, proof output, original
-limits and cleanup before editing. Split implementation that cannot close within
-90minutes; complete journeys/soaks retain their full clocks. Do not repeat the
-completed source maps or create another roadmap inventory.
+1. **What changes for the player?** One observable behavior, or one executable
+   build/release result. No standalone research or validator milestone.
+2. **What exactly do we do to prove it?** Fixed initial state, participants and
+   ordered actions or command; name every included case.
+3. **What observations pass or fail it?** Expected values, preserved behavior,
+   existing limits and the environment in which they are measured.
+4. **What must already work?** Exact dependencies with actual accepted results;
+   name any missing decision, artifact, caller or device and its owner.
+5. **Where does this assignment end?** Owned files, total estimate, deadline,
+   correction limit, deliverables and cleanup. No automatic successor task.
 
-[Bulwark pilot handling/combat](docs/ROADMAP_BACKLOG.md#bulwark-pilot-combat-contract)
-now binds zero-lift departure, finite input/camera observations, one real50-point
-DRONE-01 hit and strict home/exit, preserving gunner DRONE-03's baseline.
-[Nonfatal contact/repair](docs/ROADMAP_BACKLOG.md#bulwark-nonfatal-contact-repair-contract)
-binds actual solid shell patches, bounded damage, pilot/gunner consequences and
-same-ledger repair; damaged gunner proof uses an airborne handoff before repair.
-[Hostile loss/recovery](docs/ROADMAP_BACKLOG.md#bulwark-hostile-loss-recovery-contract)
-binds H300/lethal receipts, natural Dock03 reset/cabin cleanup and recovered
-pilot fire. [Home and fresh reuse](docs/ROADMAP_BACKLOG.md#bulwark-home-reuse-contract)
-now binds supported clear/reapproach, a fresh input stream, second no-FIRE flight
-and second strict home/exit. Missing ordinary callers and original parked
-access/gunner prerequisites remain open; these definitions select no retry or run.
-[Editable source/cold reconstruction](docs/ROADMAP_BACKLOG.md#bulwark-editable-source-handoff)
-now names the procedural source, complete snapshot, clean import/scoped checks
-and handoff outputs. Archive assembly/comparison and actual reproduction remain
-open; no missing Blender prerequisite or new visual-review roster is introduced.
-
-[Zenith hostile loss/recovery](docs/ROADMAP_BACKLOG.md#zenith-hostile-loss-recovery-contract)
-now binds actual H68/lethal receipts, natural same-craft reset/canopy-wing cleanup
-and fresh pilot operation. Its earlier incoming-startup crash still needs an
-actionable symbolized callsite/causal correction; no new attempt is selected.
-Accepted Zenith pilot/hit/reuse/Main/handback results retain their exact scopes.
-The [parked core/repair recipe](docs/ROADMAP_BACKLOG.md#zenith-parked-core-repair-contract)
-was already specified; its exact fields and unproved generation/Picket/failure-
-path checks are now linked. It stays unaccepted behind the same startup gate.
-[Remaining Zenith contact/repair fields](docs/ROADMAP_BACKLOG.md#zenith-remaining-contact-repair-contract)
-now bind fixed-patch pose targets, stage budgets and real repaired consumers;
-engine restoration requires actual airborne thrust. Solver/readbacks and physical
-qualification remain open, with no new incoming trial or relaxed core recipe.
-
-[Arrow's remaining contact/repair fields](docs/ROADMAP_BACKLOG.md#arrow-remaining-contact-repair-contract)
-now bind offset-aim pose targets, completed-fan damage bands, real wing/engine
-consumers and same-life repaired use. Its existing Header core recipe is unchanged;
-ordinary control/readbacks and actual physical qualification remain open.
-
-[Jovian hostile loss/recovery](docs/ROADMAP_BACKLOG.md#jovian-hostile-loss-recovery-contract)
-now binds H260/lethal receipts, natural frame/access/ramp/tool cleanup and fresh
-650m/70-damage pilot operation. Its affected native departure motion/source-pin
-cause remains a prerequisite; no cargo refill or remote engineer pass is inferred.
-[Engineer stand/release](docs/ROADMAP_BACKLOG.md#jovian-engineer-stand-retirement-contract)
-now distinguishes the detached crew ledger from retained repair stock, and names
-each required observation before an assertion. Its two failed trials remain
-parked; the correction and full return route are still unproved.
-
-Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
-binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
-Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller)
-binds ordinary Save/cold/Reset stages,animation/camera observations and retained
-limits. [Rest,remote and planetary motion](docs/ROADMAP_BACKLOG.md#motion-rest-remote-world-callers)
-now has finite actions/seams/pass observations; three planetary executions still
-need actual SOLO caller/handoff prerequisites. [Aurora/Rime solo contracts](docs/ROADMAP_BACKLOG.md#solo-aurora-rime-ordinary-contracts)
-now bind canonical crafts/routes/objectives/rewards/home returns and explicit
-first native limits; Rime has a separate natural cold/restart member.
-[Ember surface/save/return](docs/ROADMAP_BACKLOG.md#solo-ember-surface-return-contract)
-now binds all three objectives and exact Host ownership. Its [Save Progress integration](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands)
-is delivered on52820a9a3 with actual button/disk and paid-errand acknowledgement
-checks; full ordinary route qualification remains open. [Colour paint/view requirements](docs/ROADMAP_BACKLOG.md#colour-ordinary-paint-and-view-contract)
-now distinguish actual gameplay states from256 component cases and bind one
-ordinary rendered cell. Callers and qualification remain open; parked journeys
-keep their reopening conditions.
-[Caption episode/service contracts](docs/ROADMAP_BACKLOG.md#caption-ordinary-episode-contract)
-now bind normal producer actions,queue/expiry and actual single-service output.
-The [Cinder receipt repair](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract)
-remains open:its source candidate passed146checks,but checkpoint publication
-[parked on export-template discovery](docs/history/ROADMAP_DELIVERIES.md#cinder-loadmaster-receipt-checkpoint-parked-20261027)
-after the allowed correction was spent. No new playable build or runtime merge.
-The failed shared writer and overflow choice stay open.
-[Reduced-flash ordinary actions](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations)
-now bind all17 existing families to real triggers/readbacks and name missing
-callers, including the atmospheric Arrow HUD feed. Execution remains open.
-[Halyard/Hauler/Bomber contacts](docs/ROADMAP_BACKLOG.md#crew-cargo-bomber-contact-budget)
-now have explicit component/hull budgets and recovery predicates. The
-[Hauler range-header route](docs/ROADMAP_BACKLOG.md#hauler-range-header-contact-route)
-also binds an existing obstacle,intact input stages and real Heavy Breach
-skirmisher damage for fatal recovery. Its controller/observer remain unimplemented;
-the unsupported critical-hull ram candidate is withdrawn.
-[Halyard/Bomber sibling members](docs/ROADMAP_BACKLOG.md#halyard-bomber-contact-actions)
-now bind their distinct contact geometry,real weapon/payload gates and fatal
-pellet counts. Actual callers and gameplay qualification remain open.
-[Handback and retained-Main fields](docs/ROADMAP_BACKLOG.md#current-craft-handback-and-main)
-now fix one counterpart per current craft,physical control/reclaim endpoints and
-the missing component/claim/home assertions in the existing Main fixture.
-Accepted routes retain their original scope;new callers and assertions are open.
-[Halyard engineer movement/return](docs/ROADMAP_BACKLOG.md#halyard-engineer-moving-return)
-now has explicit peer/flight/repair limits. Its ordinary exterior handback needs
-a concrete runtime repair:current cleanup recalls its passenger to spawn
-instead of using its hatch/airstair. Implementation and proof remain open.
-[Engineer active-work cuts](docs/ROADMAP_BACKLOG.md#halyard-engineer-active-cuts)
-now specify E stand and normal browser disconnect,host token/stock checks and
-fresh reclaim. Actual UI timing and gameplay proof remain unrun.
-[Halyard remote Loadmaster](docs/ROADMAP_BACKLOG.md#halyard-loadmaster-remote-actions)
-now has fixed input/dispatch,moving,clear/disconnect/rejoin and full-route limits.
-Its parked local trial and missing remote implementation remain open.
-[Halyard remote gunner](docs/ROADMAP_BACKLOG.md#halyard-gunner-remote-damage-loss)
-now specifies real target damage across moving reseat,disconnect/reclaim and
-physical exit/reentry,with exact ownership and combined-route bounds. The
-ordinary caller and shared physical-egress repair remain unimplemented.
-[Jovian engineer elapsed work](docs/ROADMAP_BACKLOG.md#jovian-engineer-elapsed-progress)
-now has exact host token/progress/commit and remote HUD observations in its
-existing staged fixture. Those assertions remain unimplemented;the broader
-ordinary moving-role journey remains open.
-[Jovian moving engineer](docs/ROADMAP_BACKLOG.md#jovian-engineer-moving-handback)
-now has three-peer chair,movement,strict home and physical reuse requirements.
-Its [earned-engine action](docs/ROADMAP_BACKLOG.md#jovian-earned-engine-contact)
-now binds two forward truss contacts that preserve the second approach and
-leave the engine operable. Actual clearance,input control and timed paid-repair
-proof remain unimplemented/unrun.
-[Bulwark remote gunner loss](docs/ROADMAP_BACKLOG.md#bulwark-remote-gunner-owner-loss)
-now binds moving damage,live-charge UI disconnect and fresh ownership. Its
-return controller,combined caller and physical-egress repair remain unimplemented.
-[Jovian active-work cuts](docs/ROADMAP_BACKLOG.md#jovian-engineer-active-cuts)
-now specify E interruption and normal browser loss,including the missing safe
-standing-berth admission after reconnect. The [plain Halyard passenger](docs/ROADMAP_BACKLOG.md#halyard-passenger-contract)
-now has an explicit return/exit/reentry caller target and combined limit;it
-reuses the same missing physical-egress repair. [Cinder remote crew](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback)
-now bind movement,home,loss/ramp handback and one conserved supply outcome.
-Safe readmission,guest ramp eligibility and authenticated remote terminal
-handoff are named production gaps;their implementation remains open.
-[Canonical repeat rest/resource fields](docs/ROADMAP_BACKLOG.md#canonical-repeat-rest-resource)
-now bind same-Main physical home,reboarding,paid progress and streamed-owner
-retirement. The repeat caller is missing;cycle count/elapsed and native resource
-inputs remain with their existing owners. No endurance run is claimed.
-[Shared Aurora](docs/ROADMAP_BACKLOG.md#shared-aurora-baseline-contract) and
-[Rime baselines](docs/ROADMAP_BACKLOG.md#shared-rime-baseline-contract) now name
-host pilot,two independent crew,surface survey,durable paid result and all-crew
-home endpoints. Missing ordinary callers and the original Aurora artifact/Rime
-landing-failure gates remain open;no existing two-peer component is broadened.
-[Three landed late-join cases](docs/ROADMAP_BACKLOG.md#shared-world-landed-late-join)
-now fix the late companion,checkpoint-one state and full continuation. Safe live
-late-berth admission is missing. Its [bounded reopening is PARKED at browser entry](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105):
-all five source checks pass, but the live fixture stops before Manual Join.
-No fresh-body/admission/walking proof or runtime merge resulted. Ember passive
-publication is delivered in its fresh-observer/staged-HUD component scope;
-no physical late case is accepted.
-Baseline/Aurora artifact/Rime parked gates remain intact.
-[Three surface reconnect cases](docs/ROADMAP_BACKLOG.md#shared-world-surface-reconnect)
-now fix the transport cut,recovery and fresh crew handback. Safe exterior-loss
-recovery and Rime's conserved-checkpoint resume are missing production work;
-restarting the survey from zero cannot qualify progress conservation. The
-exterior-loss recovery candidate is [PARKED before its native cut](docs/history/ROADMAP_DELIVERIES.md#exterior-session-loss-recovery-parked-20261105):
-the client never reached its physical exterior cut-ready point. No recovery
-proof, runtime merge or new checkpoint resulted from that attempt.
-[Three pilot-loss cases](docs/ROADMAP_BACKLOG.md#shared-world-pilot-loss-safe-return)
-now choose actual host authority shutdown and safe same-craft Mudds recovery,
-with durable progress protected before teardown. Preflight-safe recovery,
-client embodiment/home handoff and ordinary case callers remain production work.
-[Three cancellation cases](docs/ROADMAP_BACKLOG.md#shared-world-outbound-cancel)
-now bind real flight/approach controls,connected home return,earned-record
-preservation and fresh admission/departure. Aurora/Rime residency-only retirement
-is delivered on 6474bda; full ordinary callers and complete cancellation
-qualification remain open.
-[Three OS-interruption cases](docs/ROADMAP_BACKLOG.md#shared-world-os-interrupt)
-now fix committed saves,owned kill/fresh Boot and one-payment shared continuation.
-Ember's in-tree save/shared resume and ordinary restored-crew intake remain
-production gaps;existing solo/same-process fixtures are not shared acceptance.
-[Three repeat-visit cases](docs/ROADMAP_BACKLOG.md#shared-world-repeat-visit)
-now bind two complete voyages in the same live three-peer session,ordinary
-home reboarding and fresh visit ownership. Ember earns a distinct repeat-survey
-reward;Aurora/Rime retain their one-time paid surveys. The ordinary two-visit
-caller and full qualification remain open.
-[Solo edge goals](docs/ROADMAP_BACKLOG.md#solo-world-edge-cases) now name
-the existing cancellation,refusal,cold-failure and repeat actions and their
-conserved outcomes. Native callers and safe lifecycle-rescue settlement remain
-production work;durable/repeat aggregate inputs stay with their existing owners.
-[Exact world-save boundaries](docs/ROADMAP_BACKLOG.md#world-save-exact-boundaries)
-now bind saved records,exit/restart cuts,owed/paid outcomes and physical home.
-Ember live terminal-publication retry is delivered ona01d0fba6, alongside
-Aurora/Rime settled resume retirement35a4845d4. Actual packaged kill/restart
-callers and full physical qualification remain open; normal Quit cannot qualify
-an OS kill.
-[Ten Torpedo authority cases](docs/ROADMAP_BACKLOG.md#torpedo-authority-executable-goals)
-now name actual peers/targets,cuts,retained state and terminal/fresh-flight
-endpoints. Internal lifecycle tests are distinguished from ordinary controls;
-missing independent callers and the parked full play trial remain open.
-[Convoy actor goals](docs/ROADMAP_BACKLOG.md#convoy-actor-lifecycle-goals) now
-bind the actual tender/raider,current/late death/reset observations and retained
-solo restoration. Ordinary escort and missing tender-death network proof remain
-implementation work;the parked full Convoy trial stays closed.
-[Picket actor/lance/crew](docs/ROADMAP_BACKLOG.md#picket-actor-lifecycle-goals)
-and [Emberline travelling bolts](docs/ROADMAP_BACKLOG.md#emberline-flight-lifecycle-goals)
-now have finite actual-flight/current/late/terminal/restoration goals. Combined
-ordinary callers remain missing;held-flight fixtures are not lifetime proof.
-[Halyard late-join presentation](docs/ROADMAP_BACKLOG.md#halyard-late-presentation-render-contract)
-now specifies the actual role cameras,finite supported view candidates,images/
-receipts and original300/360s limits. The current caller disables rendering;
-the opt-in rendered observer remains implementation work.
-[Fleet access continuations](docs/ROADMAP_BACKLOG.md#fleet-cabin-reverse-clear-reboard)
-now bind the nine craft's real cabin/exit/clear-reboard owners and clearance
-observations. Accepted reuse is retained;large-craft egress and uncovered
-ordinary geometry/continuation work remain open.
-[Installed recovery cuts](docs/ROADMAP_BACKLOG.md#installed-recovery-exact-cuts)
-now specify nine context selectors,activity/world cuts,exact final installation
-identity and restart/data/control outcomes. Existing probes are reused;missing
-ordinary callers and four owner policy decisions remain open.
-[Station relationship gaps](docs/ROADMAP_BACKLOG.md#station-relationships-exact-gaps)
-now distinguish registered motifs,unregistered intervals and missing scale/build/
-continuity evidence. B3 room and C1 VIP wording is corrected;exact source access
-and inspection remain open rather than being assumed unavailable.
-[Central operational view](docs/ROADMAP_BACKLOG.md#central-standing-operational-view)
-now names the measured player camera,real directory row,supported route,live
-services,image and clearance checks. The rendered observer remains unimplemented
-and the original capture stall stays parked.
-[Aft and Habitat views](docs/ROADMAP_BACKLOG.md#aft-habitat-normal-view-contracts)
-now distinguish lower consoles/upper deck and common entry/bunk wake/garden
-access,with real camera/text/door/capsule checks. Missing ordinary arrivals and
-rendered observers remain open;neither parked capture is reopened.
-[Freight and Zenith threshold views](docs/ROADMAP_BACKLOG.md#freight-fleet-normal-view-contracts)
-now bind real markers/signs,cameras,images and door/gantry/berth comparisons.
-Accepted standalone Freight and Zenith flights stay scoped;ordinary integrated
-framing and missing room arrival remain implementation work.
-
-[Annex/Observation](docs/ROADMAP_BACKLOG.md#annex-observation-normal-view-contracts),
-[Salvage/VIP](docs/ROADMAP_BACKLOG.md#salvage-vip-normal-view-contracts) and
-[four service views](docs/ROADMAP_BACKLOG.md#service-normal-view-contracts) now
-bind the remaining station candidates,actual text/controls,camera/image and
-live-motion/clearance predicates. Salvage lower inspections and elevated pad
-are distinct;VIP retains its exact stair failure and reopening prerequisite.
-All13 station subject definitions are source-bound;ordinary continuation,
-capture/inspection and final qualification remain open.
-
-[Four craft-identity goals](docs/ROADMAP_BACKLOG.md#four-craft-identity-claims)
-now name literal shipped claims,registered source anchors,unsupported propositions
-and exact missing evidence or explicit owner approval. Torrent/Zenith stay
-bounded partial reconstructions;Arrow/Jovian name-to-model remains unknown.
-Those dependencies remain open;definition work does not authenticate a craft.
-
-[Station module/graph proof](docs/ROADMAP_BACKLOG.md#station-module-graph-proof)
-now fixes the seven registered modules,exact bounds/slots,derived graph,
-retained-Main lifecycle,finite void probes and delivered berth migrations.
-These source checks retain their limits;ordinary walking/flight,actual visual
-review,native performance and final-candidate qualification remain open.
-
-[Race HUD reset/reload](docs/ROADMAP_BACKLOG.md#race-hud-reset-contract)
-now fixes the separate page/Board authorities,literal saved state/debt,
-enabled actions,confirmation and fresh-Main readbacks. No discrepancy or
-owner-unification repair is inferred;the ordinary caller remains missing.
-
-[Final signing](docs/WINDOWS_CODE_SIGNING.md#sign-final-finite-artifacts-trust-context-and-acceptance)
-now binds game/setup/uninstaller members,signing order,expected identity and
-applicable trust verification. Credential/context inputs and signed-package
-reader/repackaging support remain open;native Windows stays excluded/NOT_RUN.
-
-[Current craft LOD goals](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)
-now distinguish real whole-ship switching from partial detail culling. Torrent
-retains its existing policy;Zenith needs its modern airframe integrated,while
-seven craft need whole-craft LOD capability. Exact initial implementation
-thresholds,budgets,authority invariants and proof limits are defined;no new
-LOD implementation or visual acceptance is claimed.
-
-[Craft destruction aftermath](docs/ROADMAP_BACKLOG.md#craft-destruction-aftermath-contract)
-now fixes actual nine-craft debris counts,lifetime/cooling/fade,receipt fencing
-and world-root cleanup. Generic fragments are distinguished from real ship
-loss/recovery;ordinary rendered observation remains open.
-
-[Arrow core contact/repair](docs/ROADMAP_BACKLOG.md#arrow-core-header-contact-contract)
-now specifies an existing obstacle,finite input stages,two measured nonfatal
-hits,actual targeting consequences and strict repaired return/reuse. The
-analytical trajectory is checked;ordinary controller/receipt implementation
-and execution remain open. Zenith's parked startup failure stays untouched.
-
-[Fleet role-budget goals](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract)
-now define the full role metrics,normalization,same-band comparisons and
-immediate-access proof. Current-nine checks and historical subset tables are
-distinguished;production budget/consumer implementation and eight accepted
-missing-craft specifications remain prerequisites to final17 qualification.
-
-[Arrow hostile loss/recovery](docs/ROADMAP_BACKLOG.md#arrow-hostile-loss-recovery-contract)
-now binds real Heavy admission,hostile lethal receipts,WITHDRAWN/no-credit
-ordering,natural berth regeneration and usable fresh reboarding/flight.
-The fatal caller/readbacks remain implementation work;no combat run is claimed.
-
-[Cinder Light loss/recovery](docs/ROADMAP_BACKLOG.md#light-hostile-loss-recovery-contract)
-now binds its nested craft identity,hostile loss,natural Dock06 reset,live
-markers and recovered repeater consumer. The original unproved codec fixture
-and parked-attempt limits remain prerequisites;no new run or correction is selected.
-
-[Cinder Light failed-engine capture/repair](docs/ROADMAP_BACKLOG.md#light-failed-engine-capture-repair-contract)
-now defines a controlled failed pose, finite hostile-contact endpoints, zero
-manual propulsion, normal landing and same-ledger repair/restored second flight.
-[Non-engine contact/consumer/repair](docs/ROADMAP_BACKLOG.md#light-nonengine-contact-consumer-repair)
-now binds front localized damage, weak-wing fire refusal and failed-core manual
-aiming, with actual exposed faces, finite damage and restored-use predicates.
-Ordinary callers and the retained codec prerequisite remain open; no run is claimed.
-
-[Current-fleet audio acceptance](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
-already has nine finite cases and [literal output criteria](docs/ROADMAP_BACKLOG.md#audio-native-output-contract).
-The expanded-fleet gate now references them: missing ordinary callers are Codex
-implementation; device, authorization, mix and numeric targets are named owner
-inputs. Audio definition no longer calls for another grammar/source survey.
-
-The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
-names the existing capture views, ordinary gameplay gaps and finite world/settings
-comparisons. Missing production-camera observation and solar/weather feed remain
-implementation work; actual visual inspections and repairs remain open.
-
-**Delivered source capability — headless multiplayer authority.** The full
-ordinary Jovian return/reclaim/redepart journey now supports an actual headless
-server with two isolated graphical clients:7362 checks, zero failures, all three
-OS exits0 and clean logs after one receipt-reader correction. Actual drivers and
-OS launch arguments are verified. [Accepted scope and preserved failed run](docs/history/ROADMAP_DELIVERIES.md#jovian-headless-authority-accepted-20261027).
-Playable checkpointf0d6796 is unchanged; complete baseline, endurance and final
-release qualification remain open.
-
-The [real-client command gate](docs/ROADMAP_BACKLOG.md#server-command-proof-binding)
-is delivered on5c5868645: five authenticated RPC cases,refusal-state preservation
-and exactly-once consumption,with all three actual peer exits0/clean diagnostics.
-Four focused local suites pass313assertions; this qualifies that source capability.
-The [landing-target contention fixture](docs/ROADMAP_BACKLOG.md#server-initial-contention)
-is delivered on50cb617bd: actual two-client reserve/refusal, winner abort and
-original-loser retry/commit; two focused suites pass with all three peer exits0
-and clean logs. Physical docking and ordinary initial pilot-seat contention remain open.
+If several behaviors can ship independently, give each its own card before
+implementation. Keep their complete journey as a separate required integration
+gate. Do not invent easier thresholds or replace ordinary player access with
+staged setup merely to make a small task pass.
 
 ## How we will work from this roadmap
 
-A coding assignment delivers **one observable game or build result** and has a
+Each coding assignment delivers **one observable game or build result** and has a
 written pass/fail check before editing begins. Broad features below are completion
 containers; their existing children live in the [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
 A missing driver is an implementation task. An unanswered design choice or
@@ -435,10 +133,12 @@ behavior. Record missing integration, hardware and human checks explicitly.
 | Budget and stop | Estimate, absolute deadline, original test limits, correction allowance and independent abort |
 | Close | PASS/FAIL/BLOCKED/PARKED; merge/push accepted work, checkpoint when required, owned cleanup |
 
-A missing command, endpoint or criterion makes the goal **BLOCKED definition**.
-An unavailable decision/device makes it **BLOCKED input**. Neither enters the
-implementation queue. A definition task supplies only that exact missing field
-in the same contract and stops; it cannot expand into a new roadmap audit.
+An undefined action, endpoint or expected value makes the goal **BLOCKED
+definition**. An unavailable decision/device makes it **BLOCKED input**. Supply
+only that exact missing field in the same contract; do not expand into another
+roadmap audit. A missing implementation or test caller is different: building it
+can be a delivery goal once its intended behavior and acceptance are fixed.
+Qualification waits until that implementation and its caller actually work.
 “Improve”, “polish”, “finish” or “usable” without a linked literal check is not a
 ready assignment. Existing full-journey and hardware gates keep their limits.
 
@@ -453,7 +153,9 @@ Stop at the first unexpected failure. A correction needs a demonstrated cause,
 remaining frozen allowance and explicit cumulative-cost decision; a failed final
 correction or hard deadline parks the task. New labels/branches never reset costs,
 limits or allowance. Preserve failed source/results. Reopening a parked task
-requires its recorded causal condition; a wording change does not authorize it.
+requires its recorded causal condition. An exhausted allowance or deadline also
+requires later explicit user reprioritization, retaining prior cost; neither a
+wording change nor automatic continuation authorizes a retry.
 Dependent checks launch only after prerequisites actually pass.
 
 Completed results stay closed in their stated source/package scope. New unrelated
@@ -519,7 +221,13 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active task: Cinder retained-cabin standing readmission.** Existing
+**Roadmap clarification delivered (documentation only).** The front page now
+distinguishes product outcomes, bounded deliveries and qualification, and fixes
+the readiness/proof/closure rules. All337 canonical rows are unchanged; local
+roadmap links resolve and independent review checked the selection rules. No
+gameplay result or qualification is claimed by this documentation change.
+
+**Unfinished implementation, preserved while this requested planning work is handled:** Cinder retained-cabin standing readmission. Existing
 [Cinder remote-crew capability 1](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback),
 independent of parked physical egress and remote cargo transfer.
 
@@ -609,19 +317,20 @@ PARKED at its station-spawn jump; Ember outbound stays PARKED at its planetary-
 gravity caller comparison. Their source/raw, failures, costs and reopening gates
 are preserved; neither is qualified by this checkpoint.
 
-Select one independent ready production capability from its existing contract.
-A parked task needs its recorded causal reopening condition and cumulative-cost
-review; a changed name or automatic continuation does not clear a terminal stop.
+Select a ready delivery or qualification goal from its existing contract.
+Parked work retains the causal reopening and explicit reprioritization rules
+above; a changed name or automatic continuation does not clear a terminal stop.
 Verified official editor and Windows/Linux release templates remain available in
 `/srv/mudds-work/toolchains/godot-4.7.1-official/`.
 
 ## Selecting work after the breakdown
 
-Select one ready capability from an existing row; write its contract before
-editing. A broad craft/activity/world container is never one assignment. Follow
+Select one ready delivery or qualification goal from an existing row; fill its
+card before editing or running checks. A broad craft/activity/world container is never one assignment. Follow
 literal prerequisite IDs; independent ready capabilities may run in parallel
 with disjoint ownership. A parked task needs its recorded causal reopening
-condition and cumulative-cost decision before selection.
+condition and cumulative-cost decision before selection; exhausted limits also
+require the explicit user reprioritization described above.
 
 Close each assignment before moving on: actual result and proof, merge/push
 accepted changes, required playable checkpoint, and owned branch/worktree/process
