@@ -35073,3 +35073,109 @@ Reopening requires a measured native-look cause/bounded correction plus later
 explicit user reprioritization retaining prior cost and exhausted allowance.
 Keep the exact alignment/tick/deadline and complete prefix/parent requirements;
 no new label,tolerance reduction,game tuning or automatic retry is selected.
+
+
+<a id="main-nine-component-claims-home-qualified-20261105"></a>
+## Shared retained Main: all-nine component,empty-claim and home source qualification — accepted
+
+**PASS2026-11-05 for this declared staged source cut.** All nine current craft
+retain actual component/model/hull/shape/home identities and empty claims through
+the original three whole-Main detach/re-entry cycles;normal eligible passive
+repair resumes afterward. This closes the missing shared source dependency in
+[the existing handback/Main contract](../ROADMAP_BACKLOG.md#current-craft-handback-and-main),
+not ordinary player access,active-claim restoration,network travel,new OS process,
+complete craft/LOD,rendered/native/device or release qualification. No runtime
+repair is inferred or delivered. Latest playable remains5bc9a17;test-only
+qualification does not select a duplicate Windows/Linux checkpoint.
+
+Qualified source `00f801b1e518e990c476bd92e3d28edfd9665b04`;accepted/pushed merge
+`54b11c70cf231fba2b96f1137d354b87ec228cf8` differs only in task-card Markdown;
+all runtime/test blobs are identical. Existing
+`tests/main_reentry_quality_test.gd` SHA256
+`a9dc46159fd4eebee6df1c895d4f8a0910c617c53736818814a02e46ae4f96a4`.
+Only that existing test changed;no new suite,validator,schema,goal ID,capture or
+hosted-CI work. One implementation agent and one independent lifecycle reviewer;
+root froze the card,executed,integrated and cleaned up. Original assessment
+13:43UTC,estimate40–45min,hard15:13UTC all-in. All prior failures/correction/
+review/import/qualification/integration/archive/cleanup/push stay charged.
+
+**Exact runtime boundary.** Existing six-direct-craft combat fixture remains;
+a separate real census settles nine current craft/thirteen sources. One staged
+.1H hit at each actual port-wing anchor precedes the original hero-receipt/hull
+baseline. Original Torrent6.5 deferred damage,opponent/world queues,captured
+replay and COMPLETE/destroyed_targets7/activeArrow/guided sentinels remain.
+Real SceneTree pause spans final actual snapshots and all three original cycles.
+No setup reset/heal/copied expected state supplies preservation. Model and ledger
+IDs/generation/revision/integrity,hulls,body/shape resources/transforms/layers,
+Player,pilot/boarding/role emptiness,home occupant/reservation/token and source
+registration are observed from production owners;duplicate-free model callbacks
+are established before comparison. Prior pause is restored on every return,
+then later original stale-Main/world/receipt cases execute normally.
+
+**First result preserved,not reclassified as a pass.** Initial candidate
+`e40998d52c627436304f55014813a70b161c0392`;cold import20.433s passes. First suite
+31.620s fails at detached cycle1 Cinder Hauler:exactly two descendant discovery
+shape disabled bits change false→true;all other captured fields are identical.
+47positive assertions and two failed labels,including an aggregate Player/cut
+label which does not establish an independent Player or repair failure.
+
+Source and original-contract review establish the cause: the actual
+`WalkableInterior/LoadmasterCabin/LoadmasterStationInteraction/InteractionShape`
+and corresponding `NavigatorStationInteraction/InteractionShape` are legacy
+role-discovery areas. Cinder clear_for_detach intentionally disables them. With
+retained role authority null,both actual interactions are unavailable;strict
+restoration of their initial enable bits is not an original component/reference
+or root-physics requirement. No production bug or active-role repair is asserted.
+
+The sole independently approved fixture correction captures those exact two
+owner/shape references at their verified paths. Raw initial/current bits remain
+logged. Only their expected disabled=true is phase-bound after detach/re-entry,
+requiring retained null authority,both actual unavailable and exactly two
+matching shapes. No broad Area/layer exception,field deletion,staged authority,
+new grant or runtime edit. Every other field,physical collider,ledger,claim,
+home/source and original assertion remains strict. Independent Player labeling
+is corrected. This exhausts the one-correction allowance;original3cycles/300s
+and13:43–15:13UTC limits were not reset or extended.
+
+**Actual corrected complete result:** fresh private profile/import-always6.424s;
+full existing suite69.166s,actualOS0,exactly one
+`MAIN_REENTRY_QUALITY_TEST_OK: 176 assertions`,zero warnings/script/engine/leak
+diagnostics. Source_manifest_match and godot_cache_stable both true. Root
+independently checked every raw import/suite log,terminal status,clean frozen
+source and actual snapshot membership. All original resource/combat/replay/
+queue/audio/currentness assertions pass;this is no accepted subset.
+
+| Required observation | Actual result |
+| --- | --- |
+| Actual nine-craft/thirteen-source cut | PASS;all nine live baselines recorded |
+| Each of three detached phases | Nine actual snapshots;retained required fields,empty claims and zero current source registration |
+| Each of three re-entered phases | Nine actual snapshots;paused ledger/hull/identities retained,current homes/sources restored,empty claims |
+| Paused repair | Actual ship elapsed/component snapshots unchanged through all cuts |
+| Genuine resumed repair | All nine observed after ordinary processing;actual eligible elapsed.18333333333333s,port integrity.6→.71366666666667,matching.62/s;hull and ledger generation unchanged,revision advances |
+| Original later suite cases | PASS,including destroyed-source impact,queued stale Main and world deferred-receipt currentness |
+| Terminal/guards/cleanup | OS0/sentinel1/diagnostics0;source/cache stable;both exact supervisors absent |
+
+Execution uses pinned official4.7.1.stable.official.a13da4feb/SHA256
+`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`,
+headless/Dummy audio and private XDG profiles. Existing matrix jobs1/import-always/
+main_reentry_quality_test/timeout300 and independent suite_process1530 outer
+cover import1200+suite300+cleanup,without increasing the suite limit. No display,
+synthetic input,audible output,renderer or device qualification was selected.
+
+Verified [records archive](/srv/mudds-work/craft-main-nine-20261105/records.tar.gz):
+33regular members/8,862,023bytes/SHA256
+`877f04b4124338b6f9460337bcc8d185ce4337bb90e279226050afcc571a921d`.
+Every member hash verified. Contains original/corrected full logs,per-cycle raw
+snapshots/matrix guards/private profiles,frozen card/correction decision,full
+corrected test and verified bundle with both candidate commits. Bundle prerequisite
+620bfb11c remains in pushed main. Test code is accepted in main;no diagnostic
+instrumentation was merged into gameplay.
+
+Fresh remote tips confirm accepted main54b11c70c/no task branch;clean registered
+worktree/exact00f801b1e tip and containment verified before normal worktree removal
+and exact-CAS local branch deletion. Owned profiles/caches/helpers removed at
+14:12:49.562350UTC,29.826minutes through cleanup;only records.tar.gz/closeout.json
+remain. Both original/corrected owners384368/386912 are absent. Final docs/review/
+push time is retained in closeout.json and charged to this same card. No owned
+branch/worktree/process remains. Reuse this closed source scope;ordinary/active-
+role/network/restart/LOD/final-package requirements remain open at their owners.
