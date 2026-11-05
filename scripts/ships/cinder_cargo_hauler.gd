@@ -733,7 +733,11 @@ func _exterior_lod_camera_forces_close(camera: Camera3D) -> bool:
 	var own_seat := is_instance_valid(seat) and is_ancestor_of(seat)
 	var exterior_exit := state == PlayerController.EmbodimentState.DISEMBARKING \
 		and not (actor.get("_transition_waypoints") as Array).is_empty()
-	if transition and frame == self and (own_seat or exterior_exit):
+	# GameFlow's exterior pilot handoff keeps the exact retained seat but
+	# supplies no moving frame. Cabin handoffs supply this craft as their frame.
+	if transition and own_seat and (frame == null or frame == self):
+		return true
+	if transition and exterior_exit and frame == self:
 		return true
 	var cabin := actor.get("_cabin_frame") as Node3D
 	return is_instance_valid(cabin) and (cabin == self or is_ancestor_of(cabin)) \
