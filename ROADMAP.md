@@ -196,6 +196,61 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
+### Selected: Cinder Hauler whole-craft LOD runtime and checkpoint
+
+**Goal/contract:** CRAFT-ACCEPT-CINDER-HAULER,missing whole-craft static-exterior
+LOD capability in the [current-craft contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract).
+Result: a retained simplified distant Hauler exterior switches from its actual
+current camera and is delivered in a playable checkpoint. Full ordinary LOD/art,
+cargo/crew journey and whole-craft acceptance remain separate original gates.
+There is no prior parked Hauler LOD attempt. Other parked Cinder/LOD/UI work and
+its cumulative costs/reopening conditions remain unchanged;reuse no rejected code.
+
+**Start/owner:** main26da9a745,healthy settled OFFLINE Hauler with empty claims.
+Prerequisites:existing authored/procedural Hauler+definition and accepted shared
+retained-Main all-nine source result54b11c70c;root's pinned4.7.1/export toolchain
+and private Xvfb/lvp setup are available. One implementer owns only
+scripts/ships/cinder_cargo_hauler.gd,tests/cinder_cargo_hauler_test.gd,
+tests/main_reentry_quality_test.gd and tests/capture_cinder_cargo_crew_consoles.gd
+in one owned worktree. Independent reviewer;root owns actual executions,raw image
+inspection,paired checkpoint,integration/push and owned cleanup.
+
+| Case/action | Fixed expected result | Actual/proof |
+| --- | --- | --- |
+| Focused actual current-camera and explicit boundary/invalid-distance cases | Initial close;far strictly>120m,close strictly<100m;exact100/120 and dead band retain;negative/nonfinite ignore. Exact own cockpit/aboard interior/real boarding-disembarking camera forces close;foreign camera/actor/craft does not | NOT_RUN |
+| Complete actual renderer classification and Mesh/MultiMesh surface/copy census | Exactly one complete static exterior active;far static triangles≤25%close and submissions≤close. Explicit shared stateful nodes retain their consumer state;unknown/new nonempty renderers fail,zero geometry preserves exact node/resource without empty tangent tools | NOT_RUN |
+| Existing close regression and actual authority/resource snapshots across switches and retained-Main cut | All original node paths,geometry hashes,instance transforms,allocation/resource-sharing and collision assertions preserved. Ramp/canopy/damage shoulders/engine/weapon/cabin state stays consumer-owned. No far authority;actual body/shapes/anchors/claims/home/components/source/resources stable within each epoch and original lifecycle expectations preserved | NOT_RUN |
+| Full declared source suites in their actual catalog modes | Every original assertion plus new switch/resource cases passes;exit0,one existing marker,zero raw diagnostics,stable source/import guards;no failed or parked ordinary route rerun | NOT_RUN |
+| Opt-in production-camera review in existing console harness | Default1600×900console witness unchanged. New near20m/far150m/cockpit mode uses actual ShipCamera/CockpitCamera,fixture-only far maximum,three real640×720PNG panels plus1920×720strip;assert actual dimensions/layout before success. Complete matching cargo-hull/shoulder/engine silhouette and readable cockpit,no doubled/missing hull or lost stateful cues;no resized substitute or review camera | NOT_RUN |
+| Clean commit paired checkpoint and package startup/audit | Fresh WindowsEXE/ZIP/notes in builds/windows plus matching LinuxELF/TAR. WindowsPCK-underLinux,directLinux,extractedLinux startup each exit0+oneSTARTUP_MENU_READY_OK+rawdiag0. Existing full-map/nine-predicate audit passes;only intended compiled Hauler runtime payload difference | NOT_RUN |
+
+**Commands/proof:** existing run_test_matrix.sh --jobs1 --timeout300 with
+separate headless scopes cinder_cargo_hauler_test,cinder_cargo_hauler_hull_resource_sharing_test,
+cinder_cargo_hauler_damage_feedback_test,cinder_cargo_hauler_silhouette_test,
+main_reentry_quality_test. Actual catalog independently lists
+cinder_cargo_hauler_freight_frame_visual_test and
+cinder_cargo_hauler_failed_engine_silhouette_test as graphical:run each full
+scope once using --mode graphical --display-driver x11 on private Xvfb/Forward+.
+Explicit capture_cinder_cargo_crew_consoles.gd -- --lod-review --output-dir=ABS
+uses private Xvfb1920×720/x11/Forward+/llvmpipe/Dummy,300s outer/270s inner and
+independent abort/reap. All Godot invocations Dummy audio;fresh owned profiles.
+Existing safe exporters/package_inventory.py only. Raw outputs in
+/srv/mudds-work/hauler-whole-lod-20261105/. Native Windows/GPU/device/ordinary
+journey qualification remains open;no new validator/schema/required capture set.
+
+**Budget/stop:** start16:44:20UTC2026-11-05 (readiness included),estimate80–85min
+through checkpoint/integration/cleanup;hard18:14:20UTC90min. Implementation ready
+17:20,source checks complete17:35,capture starts17:40,checkpoint begins17:50.
+Freeze **three total corrections**,chosen up front for the separate static-geometry,
+lifecycle and rendering/package integration phases;this is a fresh Hauler task,
+not a reset of any parked task's allowance. Each correction still requires a
+literal demonstrated cause and explicit cumulative-cost review within the same
+hard deadline. First unexpected failure stops dependent checks;failed final
+correction or deadline parks the whole selected delivery. Never lower thresholds,
+drop cases or accept a passing subset. Close only after actual fixed cases,
+independent review,merge/push,checkpoint and owned cleanup;otherwise archive
+unique source/results and park at the failed predicate. No automatic successor.
+
 **Cinder Light live role-choice card: PARKED/unaccepted.** Candidates
 6eef191c6→38b51455f→50134b4c2 are archived unmerged. Registry59,nine-craft
 separation311 and Main boarding59 checks pass. The first actual full HUD suite
