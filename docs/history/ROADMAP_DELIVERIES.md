@@ -35299,3 +35299,108 @@ removal/exact-CAS local ref deletion and owned profile/cache/helper cleanup at
 records.tar.gz,closeout.json and the one original cropped review PNG;no duplicate
 loose source/cache/builds. Final docs/review/push time remains charged in closeout.
 No task branch/worktree/process remains;no unrelated folders were deleted.
+
+
+<a id="bulwark-lod-cockpit-clearance-stop-20261105"></a>
+## Bulwark whole-craft LOD candidate — parked at existing cockpit clearance, 2026-11-05
+
+**PARKED / NOT_ACCEPTED.** No production source merged and no playable checkpoint.
+The selected delivery required retained static-exterior LOD plus complete source,
+existing staged-camera and paired-checkpoint gates. It did not select full ordinary
+LOD/art or CRAFT-ACCEPT-BULWARK. Source passes and correct image dimensions cannot
+accept a smaller subset. Latest accepted playable remains5bc9a17.
+
+Frozen start15:22:38UTC,80–85min estimate,hard16:52:38UTC90min all-in;source300s
+per suite,capture300s/inner270s,original ordinary900/960 unchanged. One implementer
+owned only runtime bulwark_heavy_gunship.gd,its existing focused test and existing
+capture_bulwark_camera_views.gd;one independent reviewer. Root owned execution,
+image inspection,checkpoint gating,integration and cleanup. One correction total;
+all preparation,failed and corrected checks,review/archive/docs/push count.
+Base/pushed main6fed36a015213ceb312644f5d9c3463c95ac3cf4;
+initial28c54b64270e63ef851f08a62ccfb49df4bf59ad;
+corrected a2ad76cfd2cbc6f3a5579cb30a5830c191609bd3.
+
+**Unaccepted candidate behavior.** Actual viewport-current-camera120/100m strict
+hysteresis/boundary/invalid retention;exact own cockpit,aboard interior and actual
+transition overrides. Retained close hierarchy/resources and far profiles/fitout;
+shared canopy/cabin/gunner/damage/engine/muzzle presentation remains under the
+original visual banking/destruction owner. Complete Mesh/MultiMesh/static geometry
+census,unknown rejection,no new authority and within-epoch resource/authority
+snapshots before/after actual retained-Main re-entry. Source coverage is staged;
+no ordinary camera crossing,full craft or native GPU qualification is inferred.
+
+Initial import20.485s passes;full focused suite fails37.027s with184positive
+checks. Original portal clipping leaves StarboardCanopyHingeMount's retained
+ArrayMesh with zero surfaces. The candidate attempted tangent generation on an
+empty SurfaceTool (UV diagnostic),then failed to register that static leaf.
+Quiet snapshots also compared fresh defensive copies returned by the existing
+gunner weapon getter,so unchanged states differed by Resource identity.
+No dependent production/Main/capture/export gate ran on the failed candidate.
+
+Independent causal/cumulative review approved the sole correction at15:41UTC:
+explicit exact empty portal-stock classification/zero-cost and identity checks;
+no empty tool creation;actual owned gunner resource identity/property values;
+prime normal emitter discovery before node enumeration;log literal differing
+field/node/index operands. Public defensive-copy behavior,all old assertions,
+unknown/nonempty rejection,geometry/camera thresholds and budgets are preserved.
+Corrected import6.467s passes;the corrected immutable diff received review GO.
+
+| Actual corrected source gate | Result |
+| --- | --- |
+| Full Bulwark focused |276checks/36.897s/exit0/one original BULWARK_HEAVY_GUNSHIP marker/raw diagnostics0 |
+| Full Bulwark production |31checks/24.448s/exit0/one original BULWARK_PRODUCTION_INTEGRATION marker/raw diagnostics0 |
+| Existing all-nine Main |176checks/69.544s/exit0/one MAIN_REENTRY_QUALITY_TEST_OK/raw diagnostics0 |
+| Static exterior |far3134/close35829triangles (Main35605),74/74submissions;fixed≤25%/≤close satisfied |
+
+Each complete matrix has unchanged before/after source manifest and stable
+import cache. Original armor-shell4800 ceiling,camera/actor negatives,shared
+powered-engine/open-canopy/failed-vane state,39quiet snapshot equalities and both
+Main epochs pass. No assertion was dropped;no BULWARK_LOD_DIFF remains.
+
+**Required capture FAIL.** One actual private Xvfb1920×720/x11/Forward+ run on
+pinned official4.7.1, Vulkan1.4.305/llvmpipeLLVM19.1.7, Dummy audio, separate
+private profile. Followed the same live owner through slow first rendering;
+no restart,renderer fallback or image resizing. Terminal exit1,success marker0,
+exactly two ERROR/FAIL diagnostics from the original unchanged predicates:
+
+- slab and nose must terminate below the physical cockpit floor;
+- dorsal spine must terminate behind the cockpit rear pressure wall.
+
+Both assertion bodies are byte-unchanged from base;candidate source changes no
+original close mesh/transform construction. Static source shows the retained
+floor/portal geometry differs from those broad bounding-box assumptions. Actual
+failed runtime bounds were not printed,so neither a new product collision defect
+nor a passing clearance requirement is established. Reopening must log literal
+slab/nose maxima,floor minimum,spine minimum,rear-wall maximum and original margins,
+then reconcile the original geometry/camera requirement without silently deleting
+or weakening either predicate. Exhausted allowance additionally requires later
+explicit user reprioritization with prior cost and a new bounded stop.
+
+Actual camera distances17.1274/153.0858/3.3889m select close/far/close. All three
+original640×720 panels and1920×720strip are genuinely saved and dimension-checked.
+Root inspected all four original full-size PNGs:blue close hull/paired engines,
+corresponding small far hull and cockpit instruments in the lower/right view;
+no full art/clearance acceptance. All12,011tracked files and252protected imported/
+class/UID cache files are byte-identical before/after rendering. Shader caches
+are normal generated runtime data,not part of that protected-import claim.
+Inner watchdog expiry is not exercised. No export,EXE,ZIP,TAR,startup/package audit
+or checkpoint notes were admitted after this failure.
+
+**Preservation and cleanup.**
+`/srv/mudds-work/bulwark-whole-lod-20261105/records.tar.gz` retains253regular
+members/17,053,096bytes,SHA256
+`ef1f6a402a506dd49164c0dd025e362e1afbe484aa37455dfb77bffa67118d8f`.
+Every member's bytes/type was verified against its loose source before deletion.
+It contains all raw failed/corrected matrices/manifests,render log/all four PNGs,
+source/import guards,toolchain/command/profile records,frozen card/cost decision,
+all three complete corrected files and verified source.bundle. Bundle tipa2ad76cfd
+contains both source commits and requires pushed-main ancestor6fed36a01.
+
+Fresh HTTPS tips/registered ownership and exact localtip/clean source were checked;
+normal worktree removal followed exact expected-tip ref deletion. All owned
+engine/Xvfb/supervisor processes are absent;profiles,caches/helpers/loose sources
+removed. Cleanup15:52:55UTC,30.290min from original start;docs/push remain charged
+to the same90min window. Only records.tar.gz,closeout.json and intentionally kept
+original review/bulwark_camera_views.png remain in the owned directory. ReviewPNG
+SHA256 `3673b13346f3ffccd1678cf196694564468b66ea5c9f4461449dbbf1a633a042`.
+No task branch exists remotely;no rejected runtime source was merged to delete it.
