@@ -23,7 +23,28 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Hauler ordinary mass-driver hit, miss and home
+### Hauler ordinary mass-driver hit, miss and home — PARKED, unaccepted
+
+Final retained source **8c56e9d15**. No source from this attempt is merged and
+no checkpoint is published. Actual native **c94f4867f** passes ordinary approach,
+boarding, neutral90, departure/clearance and a genuine travelling hit: source1109,
+correct weapon/sequence/current target, positive-age advancing flight,26damage
+and100→74health. The run then stops after80.504s in `miss_aim`: the caller
+asserts terminal+42ticks before waiting. Diagnostics0; every input/process cleaned.
+The final Python-only wait-gate fix passes317 tests but has no native run.
+Distinct lifetime miss, reverse route, strict home, physical exit, normal Quit
+and final nine-predicate package audit remain **NOT_RUN**. Full craft and the
+ordinary member remain OPEN. Seven source suites, paired exports/three strict
+startups pass on c94; those do not close the missing full journey.
+
+Original20:40:26UTC start and22:10:26UTC all-in deadline retained; one substantive
+correction used, with routine observer/float/caller repairs recorded separately.
+No time reset, smaller endpoint or automatic successor. Unique source, all raw
+runs and exact false-miss/fixed-hit Linux packages are preserved in the verified
+`/srv/mudds-work/hauler-weapon-20261105/records.tar.gz` with closeout metadata.
+The frozen contract below is retained for audit, not an active assignment.
+Next construction selection is Titan proposal child1 (standalone authored hull,
+definition and pilot fixture), with a new concrete card required before starting.
 
 **CRAFT-ACCEPT-CINDER-HAULER / travelling pilot weapon member**, reusing the
 [existing firing-role map](docs/WEAPON_DEFINITION_CONTRACT.md) and accepted
@@ -113,7 +134,7 @@ oblique target regression in `cinder_cargo_mass_driver_bolt_test.gd`, and retain
 the original range/occlusion/source/faction/once-only damage rules. Observer and
 Python timing/representation repairs retain real airborne proof and exact26
 once-only damage. The original22:10:26UTC all-in deadline is unchanged; failed
-native records remain retained. Full hit/miss/home delivery is still NOT_RUN.
+native records remain retained. Full hit/miss/home delivery remains unaccepted; the actual hit later passed but the caller stopped before miss/home.
 
 ### Station Reduced Flash ordinary package/UI episode — integrated
 
