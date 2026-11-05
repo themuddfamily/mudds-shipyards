@@ -114,7 +114,7 @@ func _run() -> void:
 	var settings := game.get_runtime_settings()
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 	_check(
-		hud != null and audio != null and combat_audio != null and settings != null and fleet.size() == 9,
+		hud != null and audio != null and combat_audio != null and settings != null and fleet.size() == 10,
 		"the production fixture exposes the HUD, both audio owners, the settings resource, and the full fleet"
 	)
 	if hud == null or audio == null or combat_audio == null or settings == null or fleet.is_empty():

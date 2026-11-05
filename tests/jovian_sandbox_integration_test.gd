@@ -48,7 +48,7 @@ func _run() -> void:
 	var combat_authority := game.get_combat_authority()
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
 
-	_check(fleet.size() == 9, "main scene registers exactly nine flyable craft")
+	_check(fleet.size() == 10, "main scene registers exactly ten flyable craft")
 	_check(fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian) and fleet.has(zenith) and fleet.has(halyard), "expanded fleet retains the five named hulls used by this scenario")
 	_check(game.get_guided_ship() == torrent, "Torrent remains the explicit guided-activity craft")
 
@@ -74,7 +74,7 @@ func _run() -> void:
 		observed_sources[craft.get_ship_id()] = source_id
 		if source_id > 0:
 			source_ids[source_id] = true
-	_check(ship_ids.size() == 9, "all nine registered flyables have unique stable ship IDs")
+	_check(ship_ids.size() == 10, "all ten registered flyables have unique stable ship IDs")
 	_check(berth_ids.size() == 9, "all nine registered flyables have unique home-berth IDs")
 	_check(
 		source_ids.size() == 9 and observed_sources == expected_sources,

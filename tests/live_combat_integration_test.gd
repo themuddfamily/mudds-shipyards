@@ -289,7 +289,7 @@ func _run() -> void:
 		if not (flyable.get_node_or_null("AuthoritativeDamageable") is DamageableScript):
 			undamageable.append(String(flyable.get_ship_id()))
 	_check(
-		game.get_flyable_ships().size() == 9 and undamageable.is_empty(),
+		game.get_flyable_ships().size() == 10 and undamageable.is_empty(),
 		"all nine flyable craft are valid targets, armed or not (missing: %s)"
 			% ", ".join(undamageable)
 	)

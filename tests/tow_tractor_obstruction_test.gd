@@ -395,7 +395,7 @@ func _test_the_tractor_took_no_authority(
 		world: ShipyardWorld,
 		tractor: TowTractor
 	) -> void:
-	_check(game.get_flyable_ships().size() == 9, "the fleet registry still holds exactly nine flyable craft")
+	_check(game.get_flyable_ships().size() == 10, "the fleet registry still holds exactly ten flyable craft")
 	_check(
 		tractor.collision_layer == PhysicsLayers.WORLD
 		and (tractor.collision_layer & PhysicsLayers.SHIP) == 0,

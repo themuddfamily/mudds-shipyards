@@ -604,7 +604,7 @@ func _test_every_flyable_ship_is_boardable_on_foot(
 			stranded.append("%s at %s" % [ship.name, str(boarding_position)])
 	print("STRANDED_SHIPS: ", stranded)
 	_check(
-		fleet.size() == 9,
+		fleet.size() == 10,
 		"the production GameFlow exposes the complete nine-craft flyable roster"
 	)
 	_check(

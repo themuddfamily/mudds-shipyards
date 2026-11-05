@@ -1,8 +1,8 @@
 extends HeroShip
 
 ## Owner-approved original modern shell. Historical evidence supports name/role
-## only. Physical fixture access/cabin; no production Main boarding, passenger,
-## cargo or combat composition.
+## only. Physical Main pilot access/cabin; passenger, cargo and combat
+## composition remain separate work.
 ## All editable points are metres in ship-local coordinates, -Z forward.
 const PILOT_ORIGIN := Vector3(0.0, 0.75, -5.8)
 const PILOT_EYE := Vector3(0.0, 2.51, -6.05)
@@ -30,6 +30,14 @@ func _sample_ship_command() -> ShipCommand:
 	if _canopy_open or _access_fraction > 0.0001:
 		return _neutralized_command_snapshot(command)
 	return command
+
+
+## This transport's approved spool is part of its live pilot controls. The
+## shared fighter wake hook is immediate; reuse the inherited timed owner here
+## rather than replacing the engine clock or changing any existing craft.
+func _wake_engine_for_automatic_demand(_release_dock_latch: bool = true) -> void:
+	if _engine_state == ENGINE_OFFLINE:
+		request_engine_start()
 
 
 func request_engine_start() -> void:
@@ -60,6 +68,26 @@ func _has_supported_exterior_access() -> bool:
 				or absf(((hit.position as Vector3) - world).dot(up)) > 0.03:
 			return false
 	return true
+
+
+## Boarding discovery belongs at the helm. The stern control only opens the
+## physical hatch: players reach this station by walking the deployed ramp.
+func get_boarding_position() -> Vector3:
+	return get_boarding_entry_transform().origin
+
+
+func get_exterior_boarding_waypoints(_from_position: Vector3 = Vector3.INF) -> Array[Transform3D]:
+	# A nonempty physical route also identifies an already-carried cabin walker
+	# to Main's existing interior-to-seat handoff. No shell-crossing direct climb.
+	var result: Array[Transform3D] = []
+	for point in [Vector3(0, 0, 14.5), Vector3(0, 0, 13),
+			Vector3(0, 0.4, 10.5), Vector3(0, 0.8, 8), Vector3(0, 0.8, 6.5)]:
+		result.append(global_transform * Transform3D(Basis.IDENTITY, point))
+	return result
+
+
+func has_supported_exterior_access() -> bool:
+	return _has_supported_exterior_access()
 
 
 func get_interior_frame() -> MovingInteriorFrame:
@@ -172,7 +200,7 @@ func _build_ship() -> void:
 	_pilot_seat_anchor.set_meta("seat_type", &"physical")
 	_cockpit_root.add_child(_pilot_seat_anchor)
 	# Reuse camera mechanics and expose the real access/helm approach markers.
-	# Main boarding and berth registration remain later composition work.
+	# The stern marker remains the physical exterior access control.
 	_build_markers_and_camera()
 	_boarding_marker.position = Vector3(1.9, 0.8, 8.98)
 	_exit_marker.position = Vector3(0, 0, 14.5)
@@ -183,6 +211,19 @@ func _build_ship() -> void:
 	_boarding_entry_marker.name = "PilotApproach"
 	_boarding_entry_marker.position = Vector3(0, 0.8, -4.2)
 	_cockpit_root.add_child(_boarding_entry_marker)
+	# The standalone geometry fixture has no berth or Main pilot provider.
+	if not home_berth_id.is_empty():
+		var boarding := ShipBoardingArea.new()
+		boarding.name = "ShipBoardingArea"
+		boarding.position = Vector3(0, 0.8, -4.2)
+		boarding.prompt_text = "[ E ] TAKE TITAN PILOT SEAT"
+		var boarding_collision := CollisionShape3D.new()
+		boarding_collision.name = "BoardingRange"
+		var boarding_shape := SphereShape3D.new()
+		boarding_shape.radius = 4.5
+		boarding_collision.shape = boarding_shape
+		boarding.add_child(boarding_collision)
+		add_child(boarding)
 	_build_access_ramp(structure)
 	# A real canopy pivot lets the inherited motion clock and completion signal
 	# drive this variant without building any fighter canopy geometry.

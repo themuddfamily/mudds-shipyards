@@ -298,7 +298,9 @@ func _test_access(ship: HeroShip) -> void:
 	ship.set_piloted(true)
 	controls.brake = true
 	await _frames(5)
-	_check(ship.get("_engine_state") == HeroShip.ENGINE_ONLINE, "sealed fixture pilot intent wakes actual inherited propulsion")
+	_check(ship.get("_engine_state") == HeroShip.ENGINE_STARTING, "sealed fixture pilot intent begins approved timed propulsion startup")
+	await _frames(205)
+	_check(ship.get("_engine_state") == HeroShip.ENGINE_ONLINE, "sealed fixture pilot intent completes inherited 3.4s propulsion startup")
 	controls.brake = false
 	await _frames(95)
 	_check(ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE and ship.position.is_equal_approx(closed_origin),
