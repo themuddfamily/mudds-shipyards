@@ -1088,7 +1088,8 @@ func _run_bounded() -> void:
 		"the resumed visit holds a real lease for the same craft")
 	for _i in range(60):
 		await physics_frame
-	_check(bool((restore.get("retire", {}) as Dictionary).get("accepted", false))
+	var current_restore := resumed_game.get_rime_interrupted_visit_status().get("restore", {}) as Dictionary
+	_check(bool((current_restore.get("retire", {}) as Dictionary).get("accepted", false))
 			and not resumed_game.player.is_seated() and resumed_game.player.is_on_floor(),
 		"the receipt is retired and the resumed explorer stands on the ice")
 	_check(int(resumed_survey.snapshot().get("next_checkpoint_index", -1)) == 1

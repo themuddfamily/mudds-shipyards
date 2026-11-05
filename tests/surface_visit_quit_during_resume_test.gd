@@ -1,15 +1,16 @@
 extends SceneTree
 ## test-matrix-timeout-seconds: 600
 ## A resumed Aurora or Rime visit spends its first seconds streaming the world
-## back in. The interrupted-visit receipt is retired as soon as that resume is
-## admitted, so a player who quits (or restarts the shift) while the world is
-## still streaming must have the visit recorded again on the way out; otherwise
-## the next launch starts them back at Mudds and their survey progress is gone.
+## back in. Admission must leave the original receipt durable until the exact
+## current craft, lease and supported on-foot pilot have physically settled.
 ##
 ## Each world is exercised through the production store and whole-`Main`
 ## lifecycle: seed a receipt, boot a `Main` that begins resuming it, leave that
 ## `Main` while it is still `restoring`, and check that the next `Main` resumes
-## the same visit with the same survey progress.
+## the same visit with the same survey progress. Additional same-frame and
+## failed-retirement checks suppress orderly recapture before a fresh Main.
+## These seeded Halyard/component fixtures do not qualify an OS-kill restart
+## or a native whole-journey run.
 
 const MAIN := preload("res://scenes/main.tscn")
 const SUCCESS_MARKER := "SURFACE_VISIT_QUIT_DURING_RESUME_TEST_OK"
@@ -21,8 +22,19 @@ var _assertions := 0
 
 class RejectWritesFilesystem extends UserDataFilesystem:
 	var attempts := 0
+	var rejected_commit_id := ""
+	var write_delegate: UserDataFilesystem
 
-	func write_bytes_and_flush(_path: String, _bytes: PackedByteArray) -> Error:
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if not rejected_commit_id.is_empty():
+			var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+			var commit_id := ""
+			if document is Dictionary:
+				var metadata: Variant = document.get("commit", {})
+				if metadata is Dictionary:
+					commit_id = String(metadata.get("id", ""))
+			if commit_id != rejected_commit_id:
+				return write_delegate.write_bytes_and_flush(path, bytes)
 		attempts += 1
 		return ERR_CANT_CREATE
 
@@ -71,6 +83,8 @@ func _exercise(
 		"next_checkpoint_index": 1,
 		"failure_reason": "",
 	}
+	if world_id == &"rime":
+		progress["heat_s"] = 63.25
 	var seeded := binding.call(&"save_interrupted_visit", {
 		"visit_state": "surface",
 		"craft_home_berth_id": berth_id,
@@ -92,10 +106,15 @@ func _exercise(
 	_check(StringName(resuming.get("state")) == &"restoring",
 		"%s: the first relaunch is still streaming the world when the pilot quits (%s)"
 			% [world_id, resuming.get("state")])
+	var resuming_binding: RefCounted = resuming_game.get(binding_property)
+	var original: Dictionary = resuming_binding.call(&"load_interrupted_visit")
+	_check(bool(original.get("accepted", false))
+		and original.get("receipt_sha256") == seeded.get("receipt_sha256"),
+		"%s: the exact ORIGINAL receipt is loadable in the SAME frame as restoring admission" % world_id)
 	await _shut_down(resuming_game)
 
 	# --- the next launch must still hand the visit back ----------------------
-	var resumed_game := await _boot(true)
+	var resumed_game := await _boot(true, false)
 	var resumed: RefCounted = resumed_game.get(owner_property)
 	var second := (resumed_game.call(status_method) as Dictionary).get("restore", {}) as Dictionary
 	_check(bool(second.get("accepted", false)),
@@ -104,9 +123,94 @@ func _exercise(
 	var survey: RefCounted = resumed.get("survey")
 	_check(int((survey.call(&"capture") as Dictionary).get("next_checkpoint_index", -1)) == 1,
 		"%s: the survey progress carried into the resume is intact" % world_id)
-	# Leave nothing behind for the next world's section.
-	resumed.call(&"cancel")
+	var resumed_binding: RefCounted = resumed_game.get(binding_property)
+	var store := resumed_game.get("_runtime_settings_user_data_store") as UserDataStore
+	var before_retirement: Dictionary = resumed_binding.call(&"load_interrupted_visit")
+	var foreign := {"world": String(world_id), "keep": "foreign-settlement-parent"}
+	var payload := store.get_snapshot()
+	payload["surface_resume_foreign"] = foreign
+	_check(bool(store.commit(payload, store.get_generation(), "%s-resume-foreign" % world_id).get("accepted", false)),
+		"%s: a legitimate foreign payload advances the original receipt's parent" % world_id)
+	var filesystem: RefCounted = store.get("_filesystem")
+	var rejecting := RejectWritesFilesystem.new()
+	# Only the exact retirement transaction fails here. Other production
+	# writers remain live and must not count as premature retirement attempts.
+	rejecting.rejected_commit_id = "%s-active-visit-retire-%s" % [world_id, berth_id]
+	rejecting.write_delegate = filesystem as UserDataFilesystem
+	store.set("_filesystem", rejecting)
+	# Prevent a slow streaming frame's catch-up physics ticks from settling
+	# before the fixture can disable controls. Resume normal Player physics as
+	# soon as arrival is observed, then test its genuine supported body below.
+	resumed_game.player.set_physics_process(false)
+	var support_deadline := Time.get_ticks_msec() + 30_000
+	while resumed.get("state") == &"restoring" and Time.get_ticks_msec() < support_deadline:
+		await process_frame
+		await physics_frame
+	resumed_game.player.set_control_enabled(false)
+	resumed_game.player.set_physics_process(true)
+	for _frame in 8:
+		await process_frame
+		await physics_frame
+	var without_controls: Dictionary = resumed_binding.call(&"load_interrupted_visit")
+	print("SURFACE_RESUME_RETIREMENT_GUARD ", JSON.stringify({
+		"world": String(world_id), "state": String(resumed.get("state")),
+		"retirement_attempts": rejecting.attempts,
+		"load_accepted": bool(without_controls.get("accepted", false)),
+		"original_digest_matches": without_controls.get("receipt_sha256") == before_retirement.get("receipt_sha256"),
+		"controls": resumed_game.player.is_control_enabled(),
+		"floor": resumed_game.player.is_on_floor(),
+		"physics": resumed_game.player.is_physics_processing(),
+	}))
+	_check(resumed.get("state") == &"surface" and rejecting.attempts == 0
+		and bool(without_controls.get("accepted", false))
+		and without_controls.get("receipt_sha256") == before_retirement.get("receipt_sha256"),
+		"%s: a physically arrived pilot without usable controls cannot retire the original" % world_id)
+	resumed_game.player.set_control_enabled(true)
+	var refused := await _wait_retirement(resumed_game, status_method)
+	store.set("_filesystem", filesystem)
+	var retained: Dictionary = resumed_binding.call(&"load_interrupted_visit")
+	_check(_settled_pilot(resumed_game, resumed) and not bool(refused.get("accepted", false))
+		and rejecting.attempts == 1 and bool(retained.get("accepted", false))
+		and retained.get("receipt_sha256") == before_retirement.get("receipt_sha256")
+		and retained.get("visit") == before_retirement.get("visit")
+		and store.get_snapshot().get("surface_resume_foreign") == foreign,
+		"%s: a refused actual settled retirement preserves the exact visit/progress/heat and foreign payload" % world_id)
+	for _frame in 8:
+		await process_frame
+		await physics_frame
+	var no_retry: Dictionary = resumed_binding.call(&"load_interrupted_visit")
+	_check(rejecting.attempts == 1 and bool(no_retry.get("accepted", false))
+		and no_retry.get("receipt_sha256") == retained.get("receipt_sha256"),
+		"%s: refused retirement does not retry or erase on later physics frames" % world_id)
+	# Deliberately prevent the normal Quit recapture. This proves the retained
+	# durable original, rather than an exit write, is enough for the next Main.
+	resumed.call(&"cancel", true)
 	await _shut_down(resumed_game)
+	var retry_game := await _boot(true, false)
+	var retry_owner: RefCounted = retry_game.get(owner_property)
+	var retry_binding: RefCounted = retry_game.get(binding_property)
+	var retry_status := (retry_game.call(status_method) as Dictionary).get("restore", {}) as Dictionary
+	var retry_original: Dictionary = retry_binding.call(&"load_interrupted_visit")
+	_check(bool(retry_status.get("accepted", false)) and retry_owner.get("state") == &"restoring"
+		and retry_original.get("receipt_sha256") == retained.get("receipt_sha256")
+		and retry_original.get("visit") == retained.get("visit"),
+		"%s: a fresh Main recovers the refused ORIGINAL without any orderly exit recapture" % world_id)
+	var retry_store := retry_game.get("_runtime_settings_user_data_store") as UserDataStore
+	var retry_payload := retry_store.get_snapshot()
+	retry_payload["surface_resume_foreign"] = foreign
+	_check(bool(retry_store.commit(retry_payload, retry_store.get_generation(), "%s-resume-retry-foreign" % world_id).get("accepted", false)),
+		"%s: settlement may refresh a current parent whose original visit is unchanged" % world_id)
+	var retired := await _wait_retirement(retry_game, status_method)
+	var gone: Dictionary = retry_binding.call(&"load_interrupted_visit")
+	_check(_settled_pilot(retry_game, retry_owner) and bool(retired.get("accepted", false))
+		and not bool(gone.get("accepted", false))
+		and retry_store.get_snapshot().get("surface_resume_foreign") == foreign,
+		"%s: only an actual current settled pilot retires the exact original while preserving foreign data" % world_id)
+	retry_owner.call(&"cancel", true)
+	await _shut_down(retry_game)
+	await _exercise_retirement_fences(world_id, owner_property, binding_property,
+		before_retirement.get("visit", {}) as Dictionary)
+	# Leave nothing behind for the next world's section.
 	var cleanup_game := await _boot(false)
 	var cleanup_binding: RefCounted = cleanup_game.get(binding_property)
 	var leftover := cleanup_binding.call(&"load_interrupted_visit") as Dictionary
@@ -116,6 +220,79 @@ func _exercise(
 			str(leftover.get("receipt_sha256", "")),
 			"%s-quit-during-resume-cleanup" % world_id)
 	await _shut_down(cleanup_game)
+
+
+func _settled_pilot(game: GameFlow, owner: RefCounted) -> bool:
+	return bool(owner.call(&"restored_surface_host_is_current")) \
+		and bool(owner.call(&"settled_surface_is_current")) and owner.get("state") == &"surface" \
+		and game.player.is_control_enabled() and game.player.is_on_floor() \
+		and not game.player.is_seated() and not game.player.is_sleeping()
+
+
+func _wait_retirement(game: GameFlow, status_method: StringName) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + 30_000
+	var retired: Dictionary = {}
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		await physics_frame
+		var current := (game.call(status_method) as Dictionary).get("restore", {}) as Dictionary
+		retired = current.get("retire", {}) as Dictionary
+		if not String(retired.get("reason", "")).ends_with("_pending_settlement"):
+			break
+	return retired
+
+
+func _exercise_retirement_fences(
+		world_id: StringName, owner_property: String, binding_property: String, visit: Dictionary,
+	) -> void:
+	for scenario: String in ["newer_receipt", "stale_context", "recapture"]:
+		var seed := await _boot(false)
+		var seed_binding: RefCounted = seed.get(binding_property)
+		var saved: Dictionary = seed_binding.call(&"save_interrupted_visit", visit,
+			"%s-retirement-%s-seed" % [world_id, scenario])
+		_check(bool(saved.get("accepted", false)), "%s/%s: original fixture saved" % [world_id, scenario])
+		await _shut_down(seed)
+		var game := await _boot(true, false)
+		var owner: RefCounted = game.get(owner_property)
+		var binding: RefCounted = game.get(binding_property)
+		var original: Dictionary = binding.call(&"load_interrupted_visit")
+		var expected_receipt := String(original.get("receipt_sha256", ""))
+		if scenario == "newer_receipt":
+			var newer := visit.duplicate(true)
+			newer.survey.generation = int(newer.survey.generation) + 1
+			var replaced: Dictionary = binding.call(&"save_interrupted_visit", newer,
+				"%s-retirement-newer" % world_id)
+			expected_receipt = String(replaced.get("receipt_sha256", ""))
+			_check(bool(replaced.get("accepted", false)) and expected_receipt != original.get("receipt_sha256"),
+				"%s: a newer legitimate visit replaces the original before settlement" % world_id)
+		elif scenario == "stale_context":
+			game.call(&"_invalidate_transition_generation")
+		else:
+			var recaptured: Dictionary = game.call(&"save_interrupted_aurora_visit" if world_id == &"aurora" else &"save_interrupted_rime_visit")
+			_check(bool(recaptured.get("accepted", false)) and recaptured.get("receipt_sha256") == expected_receipt,
+				"%s: a production recapture can own a newer receipt with IDENTICAL visit content" % world_id)
+		var deadline := Time.get_ticks_msec() + 30_000
+		while not _settled_pilot(game, owner) and Time.get_ticks_msec() < deadline:
+			await process_frame
+			await physics_frame
+		for _frame in 8:
+			await process_frame
+			await physics_frame
+		var protected: Dictionary = binding.call(&"load_interrupted_visit")
+		_check(_settled_pilot(game, owner) and bool(protected.get("accepted", false))
+			and protected.get("receipt_sha256") == expected_receipt,
+			"%s/%s: stale pending work cannot erase the durable receipt even after physical settlement" % [world_id, scenario])
+		# The stale-context case keeps the original generation unless unrelated
+		# production data committed. Only test the binding's stale fence where a
+		# newer write definitely exists; never let this probe remove the original.
+		if scenario != "stale_context":
+			var stale_retire: Dictionary = binding.call(&"retire_interrupted_visit",
+				int(original.get("store_generation", -1)), String(original.get("receipt_sha256", "")),
+				"%s-retirement-stale-probe" % world_id)
+			_check(not bool(stale_retire.get("accepted", false)),
+				"%s/%s: the original generation/digest cannot delete a newer receipt" % [world_id, scenario])
+		owner.call(&"cancel", true)
+		await _shut_down(game)
 
 
 ## Start Fresh declines the saved location, not observations or earned debt.

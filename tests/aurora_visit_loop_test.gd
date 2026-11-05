@@ -283,10 +283,11 @@ func _run() -> void:
 			and resumed_game.player.is_on_floor(),
 		"the resumed explorer has usable controls and physical support"
 	)
-	var retire := restore.get("retire", {}) as Dictionary
+	var current_restore := resumed_game.get_aurora_interrupted_visit_status().get("restore", {}) as Dictionary
+	var retire := current_restore.get("retire", {}) as Dictionary
 	_check(
 		bool(retire.get("accepted", false)),
-		"the interrupted-visit receipt is retired once the resume is accepted (%s/%s)"
+		"the interrupted-visit receipt is retired once the resume is settled (%s/%s)"
 			% [retire.get("reason", ""), retire.get("binding_reason", "")]
 	)
 

@@ -1221,6 +1221,9 @@ var _aurora_expedition_persistence_binding: AuroraExpeditionPersistenceBinding
 var _aurora_interrupted_visit_save_status: Dictionary = {}
 var _aurora_interrupted_visit_restore_status: Dictionary = {}
 var _aurora_interrupted_visit_restore_attempted := false
+## Admission is not a durable handoff. Retain the original receipt until its
+## exact live restore has a settled, supported and controllable surface pilot.
+var _surface_visit_pending_retirements: Dictionary = {}
 const AURORA_SHARED_SURVEY_SLOT := "aurora_shared_coastal_survey"
 const AURORA_DECLINED_SHARED_SURVEY_SLOT := AURORA_SHARED_SURVEY_SLOT + "_declined"
 var _aurora_shared_survey_checkpoint_pending := false
@@ -1520,6 +1523,7 @@ func _on_game_flow_tree_exiting() -> void:
 
 
 func _exit_tree() -> void:
+	_surface_visit_pending_retirements.clear()
 	_clear_network_halyard_repair_panel()
 	_disconnect_ship_service_consoles()
 	_activity_board_proximity_prompt_rendered = false
@@ -4309,6 +4313,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
 		_sync_production_runtime_settings_state()
 	# Only a successful transaction may retire the pending shared writer.
+	_surface_visit_pending_retirements.clear()
 	_aurora_shared_survey_checkpoint.clear()
 	_aurora_shared_survey_checkpoint_pending = false
 	return {"accepted": true, "reason": &"planetary_visits_declined"}
@@ -5701,11 +5706,13 @@ func _physics_process(delta: float) -> void:
 		var aurora_sample := _capture_cinder_actor_sample()
 		_planetary_journey.advance_aurora_visit(delta, aurora_sample)
 		_aurora_expedition.physics_tick(delta)
+		_advance_surface_visit_retirement(&"aurora", _aurora_expedition, _aurora_expedition_persistence_binding)
 		return
 	if _rime_expedition.is_active() and not _network_session_is_live():
 		# Rime rides the same surface-visit lane, admitted with Rime's world id.
 		_planetary_journey.advance_aurora_visit(delta, _capture_cinder_actor_sample())
 		_rime_expedition.physics_tick(delta)
+		_advance_surface_visit_retirement(&"rime", _rime_expedition, _rime_expedition_persistence_binding)
 		return
 	if is_instance_valid(network_session) and _network_session_mode == &"server":
 		# Piloted-craft poses ride the same authoritative snapshot as the
@@ -5752,8 +5759,10 @@ func _physics_process(delta: float) -> void:
 		actor_sample = _planetary_journey.advance_aurora_visit(delta, actor_sample).get("actor_sample", actor_sample)
 		if _planetary_journey.get_visit_world_id() == RimeExpeditionType.WORLD_ID:
 			_rime_expedition.physics_tick(delta)
+			_advance_surface_visit_retirement(&"rime", _rime_expedition, _rime_expedition_persistence_binding)
 		else:
 			_aurora_expedition.physics_tick(delta)
+			_advance_surface_visit_retirement(&"aurora", _aurora_expedition, _aurora_expedition_persistence_binding)
 	else:
 		actor_sample = _planetary_journey.advance_world(delta, actor_sample)
 	_network_planetary_journey.after_world_tick()
@@ -16465,6 +16474,8 @@ func save_interrupted_aurora_visit() -> Dictionary:
 			visit,
 			"aurora-active-visit-%s" % str(visit.get("craft_home_berth_id", "")),
 		)
+	if bool(_aurora_interrupted_visit_save_status.get("accepted", false)):
+		_surface_visit_pending_retirements.erase(&"aurora")
 	return _aurora_interrupted_visit_save_status.duplicate(true)
 
 
@@ -16544,9 +16555,8 @@ func retire_shared_aurora_survey_checkpoint() -> Dictionary:
 	return _flush_shared_aurora_survey_checkpoint()
 
 
-## Resumes exactly one recorded Aurora visit, once per `Main`. The receipt is
-## retired only after the resume is accepted, so an interrupted resume stays
-## retryable rather than losing the trip.
+## Resumes exactly one recorded Aurora visit, once per `Main`. Acceptance starts
+## streaming; only the eventual settled physical handoff may retire its receipt.
 func restore_interrupted_aurora_visit() -> Dictionary:
 	if _aurora_interrupted_visit_restore_attempted:
 		return {"accepted": false, "reason": &"aurora_visit_restore_already_attempted"}
@@ -16563,19 +16573,12 @@ func restore_interrupted_aurora_visit() -> Dictionary:
 	var restored := _aurora_expedition.restore_interrupted_visit(
 		loaded.get("visit", {}) as Dictionary
 	)
-	# Retire only behind an accepted resume. A refused one leaves the receipt
-	# where it is, so the trip is still there to hand back next time.
 	var retired := {
 		"accepted": false, "reason": &"aurora_visit_restore_refused",
 	}
 	if bool(restored.get("accepted", false)):
-		retired = _aurora_expedition_persistence_binding.retire_interrupted_visit(
-			int(loaded.get("store_generation", -1)),
-			str(loaded.get("receipt_sha256", "")),
-			"aurora-active-visit-retire-%s" % str(
-				(loaded.get("visit", {}) as Dictionary).get("craft_home_berth_id", "")
-			),
-		)
+		retired = _queue_surface_visit_retirement(&"aurora", _aurora_expedition,
+			_aurora_expedition_persistence_binding, loaded)
 	_aurora_interrupted_visit_restore_status = {
 		"accepted": bool(restored.get("accepted", false)),
 		"reason": restored.get("reason", &"aurora_visit_restore_refused"),
@@ -16583,6 +16586,99 @@ func restore_interrupted_aurora_visit() -> Dictionary:
 		"retire": retired.duplicate(true),
 	}
 	return _aurora_interrupted_visit_restore_status.duplicate(true)
+
+
+## The admission dictionary's identity distinguishes a later visit by the same
+## owner/craft from this restore, without saving or inventing any authority.
+func _queue_surface_visit_retirement(
+		world_id: StringName, owner: RefCounted, binding: RefCounted, loaded: Dictionary,
+	) -> Dictionary:
+	var craft := owner.get("_ship") as HeroShip
+	var home := owner.get("_home") as ShipBerth
+	_surface_visit_pending_retirements[world_id] = {
+		"owner": owner, "binding": binding, "store": _runtime_settings_user_data_store,
+		"world_id": world.get_instance_id(), "player_id": player.get_instance_id(),
+		"player_parent_id": player.get_parent().get_instance_id(),
+		"craft_id": craft.get_instance_id(), "home_id": home.get_instance_id(),
+		"transition_generation": _transition_generation,
+		"admission": owner.get("_last_admission"),
+		"receipt_sha256": String(loaded.get("receipt_sha256", "")),
+		"visit": (loaded.get("visit", {}) as Dictionary).duplicate(true),
+	}
+	return {"accepted": false, "reason": StringName("%s_visit_restore_pending_settlement" % world_id)}
+
+
+## A finite handoff: wait without writes, then inspect the current parent and
+## attempt one exact-receipt CAS. A prepublication refusal leaves the receipt for
+## the next Main; published-but-unsynced results retain UserDataStore semantics.
+## This never becomes a per-frame retry. A recapture owns its new data.
+func _advance_surface_visit_retirement(
+		world_id: StringName, owner: RefCounted, binding: RefCounted,
+	) -> void:
+	if not _surface_visit_pending_retirements.has(world_id):
+		return
+	var pending: Dictionary = _surface_visit_pending_retirements[world_id]
+	var craft := owner.get("_ship") as HeroShip
+	var home := owner.get("_home") as ShipBerth
+	var stale: bool = not is_inside_tree() or is_queued_for_deletion() \
+		or pending.owner != owner or pending.binding != binding \
+		or pending.store != _runtime_settings_user_data_store \
+		or not is_instance_valid(world) or not world.is_inside_tree() or world.is_queued_for_deletion() \
+		or world.get_instance_id() != int(pending.world_id) \
+		or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
+		or player.get_instance_id() != int(pending.player_id) \
+		or player.get_parent().get_instance_id() != int(pending.player_parent_id) \
+		or not is_instance_valid(craft) or craft.get_instance_id() != int(pending.craft_id) \
+		or not is_instance_valid(home) or home.get_instance_id() != int(pending.home_id) \
+		or _transition_generation != int(pending.transition_generation) \
+		or not is_same(owner.get("_last_admission"), pending.admission) \
+		or owner.get("state") not in [&"restoring", &"surface", &"landed"]
+	if stale:
+		_surface_visit_pending_retirements.erase(world_id)
+		return
+	var surface_context: Dictionary = owner.get("_restored_surface_context")
+	if not surface_context.is_empty():
+		if not pending.has("surface_context"):
+			pending["surface_context"] = surface_context
+			pending["restored_physics_frame"] = Engine.get_physics_frames()
+			return
+		if not is_same(surface_context, pending.surface_context):
+			_surface_visit_pending_retirements.erase(world_id)
+			return
+	# force_recovery_to_on_foot teleports the capsule. Its old floor flag is
+	# not a support witness; let Player run a real physics step at the new pose.
+	if not pending.has("restored_physics_frame") \
+			or Engine.get_physics_frames() <= int(pending.restored_physics_frame):
+		return
+	if not bool(owner.call(&"restored_surface_host_is_current")) \
+			or not bool(owner.call(&"settled_surface_is_current")) \
+			or owner.get("state") != &"surface" or _transition_busy or _recovering or _piloting \
+			or phase != Phase.APPROACH_SHIP or player.is_sleeping() or player.is_seated() \
+			or not player.is_control_enabled() or not player.is_physics_processing() or not player.is_on_floor() \
+			or player.collision_layer == 0 or player.collision_mask == 0 \
+			or int(player.get("_embodiment_state")) != PlayerController.EmbodimentState.ON_FOOT \
+			or bool(player.get("_boarding_completion_pending")) \
+			or bool(player.get("_disembarking_completion_pending")):
+		return
+	# Remove automatic work before any I/O. Refreshing the observed parent lets
+	# unrelated settings/activity commits coexist, but cannot adopt a newer visit.
+	_surface_visit_pending_retirements.erase(world_id)
+	var current: Dictionary = binding.call(&"load_interrupted_visit")
+	var retired: Dictionary = current.duplicate(true)
+	if bool(current.get("accepted", false)):
+		if String(current.get("receipt_sha256", "")) != String(pending.receipt_sha256) \
+				or current.get("visit", {}) != pending.visit:
+			retired = {"accepted": false, "reason": &"surface_visit_receipt_replaced"}
+		elif _runtime_settings_user_data_store.get_loaded_source() != &"primary":
+			retired = {"accepted": false, "reason": &"surface_visit_store_recovery_required"}
+		else:
+			retired = binding.call(&"retire_interrupted_visit",
+				int(current.get("store_generation", -1)), String(pending.receipt_sha256),
+				"%s-active-visit-retire-%s" % [world_id, String(pending.visit.get("craft_home_berth_id", ""))])
+	if world_id == &"aurora":
+		_aurora_interrupted_visit_restore_status["retire"] = retired.duplicate(true)
+	else:
+		_rime_interrupted_visit_restore_status["retire"] = retired.duplicate(true)
 
 
 ## Detached diagnostics for the interrupted-Aurora-visit bridge.
@@ -26769,12 +26865,12 @@ func save_interrupted_rime_visit() -> Dictionary:
 			visit,
 			"rime-active-visit-%s" % str(visit.get("craft_home_berth_id", "")),
 		)
+	if bool(_rime_interrupted_visit_save_status.get("accepted", false)):
+		_surface_visit_pending_retirements.erase(&"rime")
 	return _rime_interrupted_visit_save_status.duplicate(true)
 
 
-## Resumes exactly one recorded Rime visit, once per `Main`. The receipt is
-## retired only behind an accepted resume, so an interrupted resume stays
-## retryable.
+## Rime uses the same exact-receipt, settled physical handoff as Aurora.
 func restore_interrupted_rime_visit() -> Dictionary:
 	if _rime_interrupted_visit_restore_attempted:
 		return {"accepted": false, "reason": &"rime_visit_restore_already_attempted"}
@@ -26793,13 +26889,8 @@ func restore_interrupted_rime_visit() -> Dictionary:
 	) as Dictionary
 	var retired := {"accepted": false, "reason": &"rime_visit_restore_refused"}
 	if bool(restored.get("accepted", false)):
-		retired = _rime_expedition_persistence_binding.retire_interrupted_visit(
-			int(loaded.get("store_generation", -1)),
-			str(loaded.get("receipt_sha256", "")),
-			"rime-active-visit-retire-%s" % str(
-				(loaded.get("visit", {}) as Dictionary).get("craft_home_berth_id", "")
-			),
-		)
+		retired = _queue_surface_visit_retirement(&"rime", _rime_expedition,
+			_rime_expedition_persistence_binding, loaded)
 	_rime_interrupted_visit_restore_status = {
 		"accepted": bool(restored.get("accepted", false)),
 		"reason": restored.get("reason", &"rime_visit_restore_refused"),
