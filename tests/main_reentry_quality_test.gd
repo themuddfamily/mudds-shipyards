@@ -549,6 +549,8 @@ func _prepare_component_cut(
 			return false
 		identities[ship.get_ship_id()] = true
 		entries.append(entry)
+		if not _capture_null_role_discovery(entry):
+			return false
 		if not _component_entry_is_quiescent(entry):
 			_check(false, "component cut has healthy settled unclaimed own-home craft: %s" % ship.get_ship_id())
 			return false
@@ -649,7 +651,73 @@ func _component_cut_snapshot(entry: Dictionary) -> Dictionary:
 		"home_occupant": _retained_id(home.get_occupant()),
 		"home_owner": _retained_id(home.get_reservation_owner()),
 		"home_ship_id": home.get_reserved_ship_id(), "home_token": home.get_reservation_token(ship),
-		"component_connections": _component_connection_snapshot(model)}
+		"component_connections": _component_connection_snapshot(model),
+		"null_role_discovery": _null_role_discovery_snapshot(entry)}
+
+
+# These two discovery spheres belong to the null-role Cinder station owners,
+# not physical hull collision. Their existing clear_for_detach() retires them.
+# This does not qualify an active role or require discovery to become available.
+func _capture_null_role_discovery(entry: Dictionary) -> bool:
+	var bindings: Array[Dictionary] = []
+	entry["null_role_discovery"] = bindings
+	var ship: HeroShip = entry["ship"] as HeroShip
+	if not ship is CinderCargoHauler:
+		return true
+	var hauler: CinderCargoHauler = ship as CinderCargoHauler
+	var paths: Array[NodePath] = [
+		NodePath("WalkableInterior/LoadmasterCabin/LoadmasterStationInteraction"),
+		NodePath("WalkableInterior/LoadmasterCabin/NavigatorStationInteraction"),
+	]
+	var owners: Array[Area3D] = [hauler.get_loadmaster_interaction(), hauler.get_navigator_interaction()]
+	var valid: bool = hauler.get_crew_role_authority() == null
+	for index: int in paths.size():
+		var owner: Area3D = owners[index]
+		var shape: CollisionShape3D = owner.get_node_or_null("InteractionShape") as CollisionShape3D if is_instance_valid(owner) else null
+		valid = valid and is_instance_valid(owner) and is_instance_valid(shape) \
+			and ship.get_node_or_null(paths[index]) == owner \
+			and not bool(owner.call(&"is_available")) \
+			and owner.collision_layer == PhysicsLayers.INTERACTABLE_AREA_LAYER and owner.collision_mask == 0
+		bindings.append({"path": paths[index], "owner": owner, "shape": shape})
+	valid = valid and bindings.size() == 2 and owners[0] != owners[1]
+	_check(valid, "null-role Cinder discovery binds exactly the retained Loadmaster/Navigator interaction spheres, both unavailable")
+	return valid
+
+
+func _null_role_discovery_snapshot(entry: Dictionary) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for binding: Dictionary in entry["null_role_discovery"]:
+		var owner: Area3D = binding["owner"] as Area3D
+		var shape: CollisionShape3D = binding["shape"] as CollisionShape3D
+		result.append({"path": binding["path"], "owner": _retained_id(owner),
+			"shape": _retained_id(shape),
+			"available": bool(owner.call(&"is_available")) if is_instance_valid(owner) else true})
+	return result
+
+
+func _expected_component_cut_snapshot(entry: Dictionary) -> Dictionary:
+	var expected: Dictionary = (entry["baseline"] as Dictionary).duplicate(true)
+	var bindings: Array = entry["null_role_discovery"]
+	if bindings.is_empty():
+		return expected
+	var hauler: CinderCargoHauler = entry["ship"] as CinderCargoHauler
+	if bindings.size() != 2 or not is_instance_valid(hauler) or hauler.get_crew_role_authority() != null:
+		return {}
+	var matches: int = 0
+	for binding: Dictionary in bindings:
+		var owner: Area3D = binding["owner"] as Area3D
+		var shape: CollisionShape3D = binding["shape"] as CollisionShape3D
+		if not is_instance_valid(owner) or not is_instance_valid(shape) \
+				or shape.get_parent() != owner or hauler.get_node_or_null(binding["path"]) != owner \
+				or bool(owner.call(&"is_available")):
+			return {}
+		for row: Dictionary in expected["shapes"]:
+			if int(row["node"]) == shape.get_instance_id() and int(row["owner"]) == owner.get_instance_id():
+				row["disabled"] = true
+				matches += 1
+	# Every other raw shape field and the complete authority snapshot are still
+	# compared. Raw initial enabled bits remain in the printed baseline unchanged.
+	return expected if matches == 2 else {}
 
 
 func _retained_id(value: Object) -> int:
@@ -671,12 +739,14 @@ func _component_connection_snapshot(model: ShipComponentDamage) -> Array[String]
 func _compare_component_cut(
 	game: GameFlow, cut: Dictionary, authority: LiveCombatAuthority, cycle: int, live: bool
 	) -> bool:
-	var valid: bool = paused and game.player == cut["player"] and _component_player_is_unclaimed(game)
+	var player_valid: bool = paused and game.player == cut["player"] and _component_player_is_unclaimed(game)
+	_check(player_valid, "component cycle %d live=%s retains the same unclaimed on-foot Player" % [cycle + 1, live])
+	var valid: bool = player_valid
 	for entry: Dictionary in cut["entries"]:
 		var ship: HeroShip = entry["ship"] as HeroShip
 		var actual: Dictionary = _component_cut_snapshot(entry)
-		var baseline: Dictionary = entry["baseline"]
-		var matches: bool = actual == baseline and _component_entry_is_quiescent(entry) \
+		var expected: Dictionary = _expected_component_cut_snapshot(entry)
+		var matches: bool = not expected.is_empty() and actual == expected and _component_entry_is_quiescent(entry) \
 			and ship.is_inside_tree() == live \
 			and authority.get_source_id(ship) == (int(entry["source_id"]) if live else 0)
 		print("MAIN_COMPONENT_CYCLE: ", cycle + 1, " live=", live,
@@ -684,7 +754,7 @@ func _compare_component_cut(
 		_check(matches, "component cycle %d live=%s retains actual ledger/hull/shape/empty claims/home/source: %s" \
 			% [cycle + 1, live, entry["ship_id"]])
 		valid = valid and matches
-	_check(valid, "component cycle %d live=%s retains same on-foot Player and zero paused repair advancement" % [cycle + 1, live])
+	_check(valid, "component cycle %d live=%s passes all retained-authority comparisons with zero paused repair advancement" % [cycle + 1, live])
 	return valid
 
 
