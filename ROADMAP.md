@@ -11,17 +11,13 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **27e2955** — [Windows ZIP](builds/windows/MuddsShipyards-27e2955-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-27e2955-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-27e2955-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-27e2955-linux-notes.txt)).
-The Jovian now switches to a complete simplified exterior beyond 120m and
-restores close detail below 100m. Original close geometry, native roof LOD,
-furniture, access motion, engine/damage effects and crew state are preserved.
-All twelve source suites, original production-camera images, three strict startup
-checks and the complete paired package audit pass. Ordinary full-craft journeys,
-full art and native/GPU/device gates remain open.
-[Exact delivery and proof limits](docs/history/ROADMAP_DELIVERIES.md#jovian-whole-lod-delivered-20261105).
+Latest playable checkpoint: **e388031** — [Windows ZIP](builds/windows/MuddsShipyards-e388031-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-e388031-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-e388031-linux-x86_64.tar.gz).
+This adds ordinary packaged UI qualification of the existing station Reduced Flash
+policy; it adds no craft or new graphics policy. The previous Jovian exterior LOD
+checkpoint remains included. Native Windows/GPU, rendered visibility and full
+COMFORT-FLASH qualification remain open.
 Earlier accepted changes, including Hauler/Bomber distant exteriors, remain
 included in their recorded scopes.
 
@@ -109,30 +105,26 @@ and terminal observation, not cargo replay or full craft/eleven-binding closure.
 | Genuine miss/retirement | Wait normal .70s gate; physically aim/query station-UP corridor, native FIRE once | Distinct flight, real positive-age travel then lifetime miss; health74 stable, pool/authority active counts0, no abandonment/resurrection/duplicate, authored weapon/heat behavior retained | NOT_RUN |
 | Complete home and delivery | Fixed reverse route, original captured L/strict lease,90 neutral OFFLINE, physical E exit/apron walk/normal UI Quit | Exact occupied dock_04_cargo/root error≤.05m/speed≤.05m/s, supported same Player walk≥1m to accepted apron(8.8,4.18,90); actual OS0/both clean markers/diagnostics0; all source/native/package gates pass, pushed source/checkpoint and owned cleanup complete | NOT_RUN |
 
-### Resumed: station Reduced Flash ordinary package/UI episode
+### Station Reduced Flash ordinary package/UI episode — integrated
 
-COMFORT-FLASH station member; candidates803a2aaa3→7e50fdf65 remain unmerged.
-Corrected Python checks pass308/14.147s. The first Godot gate fails before any
-assertion: startup/privacy test line17 calls non-static `can_instantiate()` on
-the preloaded observer class. Source/import guards match; zero success markers,
-two diagnostics, OS1. The other five source suites, actual station/UI episode,
-exports/startups and package audit are **NOT_RUN**. No gameplay or checkpoint
-from this attempt is accepted.
+Source **e3880319c**, pushed in main **a7538b24e**. Actual packaged ordinary
+Boot/E, supported spawn, settings OFF→ON→OFF→ON, unchanged actor/resource
+identities and gameplay authority, exact presentation caps, explicit Save and
+independent durable settings, normal Exit and both clean markers pass in71.645s;
+zero diagnostics and all synthetic inputs/processes cleaned up. Six focused
+Godot suites pass on unchanged Godot sources;310 Python checks pass. The store
+negative-fixture suite deliberately produces four expected warnings; ordinary
+package/startup checks produce none. Paired exports, three strict startup probes
+and all nine package audit predicates pass. EXE/ZIP/notes and paired Linux
+checkpoint are in builds/. This is property/UI qualification, not pixel,
+native Windows/GPU or full COMFORT-FLASH acceptance.
 
-The prior stop remains preserved in its [failure record](docs/history/ROADMAP_DELIVERIES.md#station-flash-startup-test-compile-stop-20261105).
-The request for owner approval of the one-line compiler repair is withdrawn as
-an unnecessary process gate; silence is not treated as approval. Under the
-corrected routine-repair policy, remove that invalid static assertion while
-retaining the production observer preload and **every original frozen case,
-source/native/package check, numeric cap, input/identity/authority guard and
-clean-close requirement**. This is an ordinary test repair, not a scope decision.
-Original start20:17:08UTC,75min all-in and absolute21:32:08UTC deadline remain;
-all prior cost and failed-candidate records are retained. No budget reset or
-accepted runtime claim. Root owns this small repair and its original full
-validation in a separate worktree while the Hauler implementation proceeds.
-Existing station policy3fb8e0359 and shared cold/Reset3649b4b stay accepted only
-in their original scopes. The parked Forward+/installed-rendered-launch attempt
-is separate and is not reopened by this proposal.
+Original start20:17:08UTC and21:32:08UTC all-in deadline retained. Runtime,
+package audit, integration and push finished before the deadline; archive and
+branch housekeeping overran it. Do not count this as an on-budget completed
+sprint or reset its cost. Earlier failures remain in the preserved task archive
+and [initial failure record](docs/history/ROADMAP_DELIVERIES.md#station-flash-startup-test-compile-stop-20261105).
+No more station scope is opened by this result.
 
 ### Cinder remote pilot exterior-body handoff — PARKED, unaccepted
 
