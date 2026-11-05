@@ -26,79 +26,54 @@ included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Cinder remote pilot exterior-body handoff
+### Cinder remote pilot exterior-body handoff — PARKED, unaccepted
 
-**ROLE-CINDER-LOADMASTER / authoritative terminal handoff, pilot-body member.**
-Production implementation; cargo transfer and the full-role journey stay GATED.
-The six cases below are frozen in full, with these execution bindings:
+The selected ROLE-CINDER-LOADMASTER pilot-body member stopped on its final
+allowed correction. Candidates7a356bd18→a98e3b7ac→677c5c4f2→ae24ec526 remain
+unmerged. **No gameplay from this attempt is accepted; no checkpoint exported.**
 
-- **Result/start:** source fb7510fce, actual Main plus authenticated loopback
-  ENet A and foreign peer; Hauler pilot grant and live attached occupied Cinder
-  cargo berth. Fixture may arrange this initial craft/lease/platform state;
-  actor creation starts at the actual host pilot anchor. No actor-at-exit staging.
-- **Owners/files:** one implementation agent owns
-  `scripts/game/game_flow.gd`, `scripts/network/network_remote_body_simulation.gd`,
-  `scripts/network/network_enet_session_adapter.gd`,
-  `tests/network_remote_pilot_helm_test.gd`, and, if needed for body generation
-  regression, `tests/network_remote_body_simulation_test.gd`. Root owns this
-  card, execution, packaging, integration and cleanup; one independent reviewer
-  checks authority/lifecycle and actual results. No other production ownership.
-- **Dependencies:** accepted Hauler/Cinder cargo access and existing authenticated
-  pilot/body/berth authority. No owner input or parked B egress/readmission retry.
-- **Cases 1–5 command:** pinned Godot4.7.1, private Xvfb/x11, Dummy audio,
-  `--path WORKTREE --script res://tests/network_remote_pilot_helm_test.gd -- --cinder-pilot-exterior`.
-  This new selector must execute all five cases and print exactly one
-  `CINDER_REMOTE_PILOT_EXTERIOR_OK` after successful cleanup, exit0 and no raw
-  diagnostics. Outer300s from launch; exit motion≤10s, physical walking≤15s
-  (at most240 input iterations plus original3s settle), binding and retirement
-  each≤8s. A failed case stops dependent cases. No existing route limit changes.
-- **Case 6 source commands:** existing `run_test_matrix.sh --godot PIN --mode MODE
-  --audio-driver Dummy --jobs 1 --timeout 300 --import-gate always` for the first
-  suite, `never` thereafter, with separate result directories and exact scopes:
-  headless `network_remote_body_simulation_test`, `network_movement_authority_test`,
-  `network_moving_interior_authority_test`, `network_remote_body_intent_source_test`,
-  `network_boarding_authority_test`, `boarding_confirmation_game_flow_test`,
-  `cinder_cargo_hauler_test`, `cinder_cargo_activity_bridge_test`,
-  `main_reentry_quality_test`; graphical `network_remote_pilot_helm_test`
-  (complete unchanged default Halyard cases) and `cinder_cargo_access_test`.
-  Each original marker exactly once, OS0, stable source/import guards and zero
-  raw diagnostics. Graphical execution uses private Xvfb, explicit x11.
-- **Package/proof:** clean immutable reviewed source; existing safe Windows and
-  Linux export helpers, all three strict `--startup-check` probes, complete
-  paired inventories and all nine existing package audit predicates. Copy EXE,
-  ZIP, Linux package and actual notes to repository builds only after PASS.
-  Logs/commands/operand samples go to
-  `/srv/mudds-work/cinder-pilot-exterior-20261105/`; retain verified records and
-  unique source, then remove owned worktree/process/scratch and task branch.
-- **Budget/stop:** retain readiness cost from19:27:45UTC2026-11-05;
-  absolute all-in deadline20:57:45UTC (90min, no reset at code start).
-  Freeze three causal corrections total after the initial candidate; each needs
-  measured cause and cumulative-cost decision. Independent process supervisor
-  owns each launch/abort; no active-desktop input. First unexpected failure stops
-  dependent work. Final failed correction or deadline means PARKED, archive and
-  cleanup, never smaller-subset acceptance or automatic retry.
-- **Correction 1 (20:00:21UTC;32.6min cumulative):** independent review found
-  the initial exterior-owner guard rejects every later BOARD, regressing A's
-  existing pilot return. Preserve the exact same-A/same-craft supported hatch
-  BOARD path, retire exterior authority before confirmed helm binding and retire
-  client prediction before existing boarding presentation. Add that preserved
-  reboard/reclaim result to case4; no B route expansion. First candidate
-  7a356bd18 remains immutable until its running source suite terminates.
-  This spends one of three corrections; deadline and all original gates unchanged.
-- **Close:** all six cases NOT_RUN; no gameplay completion claimed. Report exact
-  results, cumulative cost, immutable source, review, build, push and cleanup.
+Final actual client/host ENet run exits1 after16 passing assertions: cabin-body
+promotion retirement, trusted fresh generation2 handoff, actual host pilot-anchor
+birth, early cargo-authorization refusal, real seat-exit completion, restored
+collision and on-floor state. Its next required check fails: the actual support
+is Hauler `CinderCargoVisual/BoardingRampSupport`, while the frozen assertion
+requires support beneath current Cinder access. Actual body position:
+(35.21464,-66.98969,-700). This is a measured support-owner mismatch, not proof
+of missing floor, a complete physical handoff or an accepted alternative.
+
+Walking/client binding, post-exit cargo eligibility, stale/foreign input,
+ordinary A reboard and all four retirement cuts remain **NOT_RUN**. Initial
+7a356's complete remote-body suite passes190 assertions/245.002s with stable
+source/import guards and zero diagnostics; it does not qualify the corrected
+final candidate. Remaining source suites and every package gate are NOT_RUN.
+
+Three corrections are spent: preserve the existing same-A pilot return (review
+found an unconditional boarding refusal), repair two multiline fixture lambda
+predicates, then explicitly type three WeakRef declarations under warnings as
+errors. No failed predicate, original case, threshold or deadline was waived.
+The fixed90-minute budget starts19:27:45UTC and ends20:57:45UTC2026-11-05;
+actual failure occurs before the deadline. Closure cost and verified retained
+source/results are in the [delivery record](docs/history/ROADMAP_DELIVERIES.md#cinder-pilot-exterior-support-owner-stop-20261105).
+
+**Reopening requires explicit user reprioritization**, retaining all prior cost
+and exhausted allowance, plus a bounded reconciliation of the actual supported
+Hauler-ramp exit with the original live-exit/Cinder support contract. Establish
+whether an actual further supported step is required; do not simply loosen the
+support-owner assertion. All original walking, eligibility, replay, pilot return,
+retirement, regression and checkpoint cases remain required. No retry or next
+implementation is selected by this closure. Parked B passenger work is separate.
 
 ### Next delivery chain: remote Cinder pilot and terminal
 
 These are separate members of the existing
 [ROLE-CINDER-LOADMASTER contract](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback),
-not new roadmap IDs. Execute in order; only the first member is selected above.
-The other members require their own frozen cards after prerequisites pass.
-The first member has a known production seam; do not repeat its readiness survey.
+not new roadmap IDs. Execute in order only after the recorded selection gates
+are satisfied. The first member is now PARKED above; the other members remain
+GATED. No readiness resurvey or automatic retry is selected.
 
 | Goal | Player-visible result | Fixed proof endpoint | Dependency / selection state |
 | --- | --- | --- | --- |
-| Host-authoritative pilot exit and walking body | Remote A leaves the Hauler pilot seat at the occupied Cinder berth and walks the same exterior actor on client and host | Host creates exactly one production body at its actual pilot anchor; real seat-exit completes onto support; authenticated input moves that same body≥1m; client/publication generations agree; host Player/camera stays unchanged. Foreign, duplicate and retired-generation input cannot move/recreate it; lease/source loss and disconnect retire it. Stock/payment unchanged. | Existing live Cinder berth/source/attachment and authenticated pilot grant. Selected implementation under the frozen card above; six-case contract below. Parked B passenger exit/readmission is not a prerequisite or a retry authorization. |
+| Host-authoritative pilot exit and walking body | Remote A leaves the Hauler pilot seat at the occupied Cinder berth and walks the same exterior actor on client and host | Host creates exactly one production body at its actual pilot anchor; real seat-exit completes onto support; authenticated input moves that same body≥1m; client/publication generations agree; host Player/camera stays unchanged. Foreign, duplicate and retired-generation input cannot move/recreate it; lease/source loss and disconnect retire it. Stock/payment unchanged. | Existing live Cinder berth/source/attachment and authenticated pilot grant. PARKED/unaccepted at the support-owner predicate above; six-case contract below remains binding. Parked B passenger exit/readmission is not a prerequisite or a retry authorization. |
 | Remote terminal interaction and one conserved transfer | A uses normal terminal E after its physical exit and delivers one existing crate | Real host body passes live exit≤2.5m eligibility; current terminal action reaches existing cargo owner; source/hold2→1, destination0→1, exactly one completion/reward. Duplicate/stale/foreign attempts change neither stock nor payment. Existing120s activity limit retained. | GATED on accepted pilot body handoff and the existing load/clear-gate/dock phases. Readiness alone is not cargo authority. |
 | Complete Loadmaster moving-crew journey | A pilots while B uses Loadmaster, then both complete the specified home/rejoin/handback route with the conserved delivery | Every original moving/chair/action/home/owner-loss/standing-rejoin/physical-exit/reuse case passes, all three processes exit0, no diagnostics, within original900s internal/960s outer bounds | GATED on both capabilities above, accepted standing readmission, guest ramp/exit and the missing ordinary caller. Two prerequisite attempts remain PARKED; their explicit reopening conditions still apply. |
 
@@ -142,7 +117,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 | [Bulwark whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105) | PARKED: required capture fails two unchanged cockpit-clearance assertions despite source and dimension passes | Log exact failed operands, reconcile original clearance contract, explicitly reprioritize with prior cost/exhausted allowance; no subset acceptance |
 | [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
 | [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |
-| [Cinder remote terminal handoff](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback) | Pilot-body capability is selected above; terminal transfer is GATED on its acceptance | Select the six-case pilot-body member above before terminal integration; terminal RPC alone cannot prove physical eligibility; parked B egress remains separate |
+| [Cinder remote terminal handoff](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback) | Pilot-body attempt is PARKED at the measured support-owner mismatch; terminal transfer remains GATED | Explicit reprioritization plus exact support-contract reconciliation is required before retry; all six cases and prior cost remain; parked B egress remains separate |
 | [Titan specification](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | BLOCKED input: prepared proposal awaits the user's design decision | Record adoption or exact revisions; no construction before approval |
 | [Halyard fresh-Main re-entry](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105) | PARKED: off-tree cabin-transform errors during actual HUD Restart Shift; no complete re-entry pass | Focused repair/retry request unanswered; original12:47:51UTC deadline expired. Requires explicit reprioritization, retaining cost and exhausted allowance |
 | [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |

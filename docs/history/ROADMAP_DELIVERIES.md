@@ -35993,3 +35993,86 @@ also point current players to ROADMAP's latest checkpoint rather than calling
 an old October record current. All original native/device/release gates remain
 open. Start19:08UTC; final closure time and verified records archive identity are
 in `/srv/mudds-work/checkpoint-storage-cleanup-20261105/closeout.json`.
+
+
+<a id="cinder-pilot-exterior-support-owner-stop-20261105"></a>
+## Cinder remote pilot exterior body — support-owner stop, 2026-11-05
+
+**PARKED / unaccepted.** Existing ROLE-CINDER-LOADMASTER authoritative terminal
+handoff, pilot-body member only; no terminal transfer or B-passenger retry.
+Base5e7609537; initial7a356bd18f631fee46a049d82cd47e1977cc0f29;
+correction1a98e3b7ace6d765a1d02008b7809fc2ce2d55193;
+correction2 677c5c4f293afd317e4ad0a5a4cad7f42b93efb0;
+finalae24ec5262ebe4049d1a58cc01eb4d6e1376989f. None is merged into main.
+
+One high-effort implementer owned GameFlow, NetworkRemoteBodySimulation, ENet
+adapter and the existing remote-pilot test in one worktree. One high-effort
+independent reviewer checked authority/lifecycle, actual client and raw outcomes;
+root owned the frozen card, commands, correction decisions and closure. No nested
+agents, active-desktop input, audible output or hosted CI. Every engine invocation
+uses Dummy; the selector runs under private Xvfb/explicit x11/dummy renderer.
+
+Frozen complete result: actual authenticated ENet A replaces its retired cabin
+body after pilot grant; host creates one production Player at its actual pilot
+anchor and runs existing exit motion; same actor walks≥1m from authenticated
+client input with advancing matching generation/publication and unchanged host
+Player/camera/stock; actual live-exit≤2.5m eligibility only after completion;
+foreign/duplicate/retired-generation+stream refusal; exact disconnect/lease/source/
+attachment retirement; preserved physical same-A pilot return; all eleven named
+regressions and clean paired checkpoint/full package audit. Six cases, no partial
+acceptance. Initial craft/berth/platform setup was staged and disclosed; no actor
+spawn at exit or terminal. Actual client Main has its own World3D.
+
+| Candidate / check | Actual result and retained boundary |
+| --- | --- |
+| Initial7a356 full remote-body suite/import | PASS190 assertions,245.002s suite; OS0, original marker, raw diagnostics0, source/import guards stable. Source-first supervisor473992 terminal0 and absent. Belongs only to7a356. |
+| Initial independent review | FAIL preserved pilot return: unconditional exterior-owner guard rejects every later BOARD. Correction1 permits only exact supported same-A/samecraft pilot hatch return after original7m lockout; retires exterior body/publication before helm, client prediction before existing boarding presentation. Case4 strengthened, not relaxed. |
+| a98 selector | OS1 before cases: missing multiline lambda continuation at test2235; same source class also found2268–2269. Correction2 repairs both; no runtime change. |
+| 677 selector | OS1 before cases: inferred Variant warnings treated as errors for weakrefs at1996,2127,2228. Correction3 explicitly types all three WeakRefs; independent narrow type/API audit. |
+| Finalae24 selector | OS1,16 PASS assertions, one raw ERROR, zero success marker. Real initial cabin body is retired by pilot promotion; trusted host generation2 actor starts at actual anchor; early authorization refuses actor; real exit completes≤10s, collision restored, on-floor true. Next frozen support-owner assertion fails. |
+| Remaining checks | Walking/binding, completed actor eligibility, replay/foreign, reboard, four retirement cuts, final-source eleven regressions and all package/export/startup/audit gates NOT_RUN. No checkpoint/build files or gameplay merged. |
+
+Exact final failure at `tests/network_remote_pilot_helm_test.gd:2048`:
+`host actor stands on the current Cinder access physical support`.
+Actual collider:
+`/root/CinderExteriorHost/ShipyardWorld/FleetExpansionProductionBinding/cinder_cargo_hauler/CinderCargoVisual/BoardingRampSupport`.
+Body position(35.21464,-66.98969,-700); generation2; attachment1;
+source cinder_cargo_hauler/entity_generation1/cinder_hauler_source_manifest/
+manifest_generation1. The raw log records the actual occupied lease token,
+owner/entity/body state, start transform, source, early refusal and client context.
+Client binding is stillfalse in that failure sample; no later result is inferred.
+This is a support-owner expectation failure, not evidence of missing floor or a
+completed physical handoff. No further probe or patch was launched.
+
+Reopening requires explicit user reprioritization preserving prior cost and
+exhausted allowance, plus a concrete reconciliation with the original physical
+exit/support contract: determine whether a real additional supported step from
+Hauler ramp to Cinder access is required. Do not loosen the ownership assertion
+to accept the current candidate. Preserve every remaining ordinary input,
+eligibility, replay, pilot-return, retirement, regression and checkpoint gate.
+Parked B egress/readmission remains separate. No automatic successor or retry.
+
+Budget start19:27:45UTC, absolute deadline20:57:45UTC (90min all-in; original
+readiness cost retained). All three corrections spent; actual final failure
+precedes the deadline. Owned cleanup completes20:15:58UTC,48.217min from the
+original start; final documentation/push time is recorded in closeout and remains
+inside the same deadline.
+
+Retained task folder `/srv/mudds-work/cinder-pilot-exterior-20261105/` contains
+only `records.tar.gz` and `closeout.json`. Archive40 regular members,
+8,239,386 uncompressed bytes; archive3,021,321bytes;
+SHA256 `e5f23c210484d0a659ff61c3de95eda6dfc44298da153afaec4ef0ccb0769b32`.
+Every member size/hash was checked twice against the manifest before scratch
+removal; the independent reviewer confirms archive/accounting and documentation.
+The unaccepted source bundle SHA256 is
+`7b54ccc7d8d4770d5a24024f9ffe054d5545829ef9bad5940e1f5b48268de850`,
+requiring retained base5e7609537eb196b88207d2bd4312fe35c14560b0.
+Actual bundle-pack unbundling succeeds and all four changed files recover
+byte-for-byte to the final candidate; the bundle retains every unique candidate.
+
+All four supervisors are terminal and absent. Fresh remote tips show main893900e44
+and no task remote branch. The exact registered clean worktree/tip is checked,
+worktree removed normally and local task ref deleted with exact-tip compare-and-
+swap; no rejected source is merged to make deletion possible. Private profiles,
+cache, recovery repository and all remaining owned scratch are removed. Only main
+and its original worktree remain. No retained process/branch/scratch exception.

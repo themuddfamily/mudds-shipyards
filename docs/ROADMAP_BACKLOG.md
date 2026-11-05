@@ -15429,6 +15429,21 @@ ping action and clear semantics remain separate from actual cargo delivery.
    already retired its cabin walking body. Thus there is no retained host-side
    A exterior actor to authorize. Codex must first implement the host-authoritative
    A disembark/body handoff within this existing member, then terminal intent.
+   **Pilot-body attempt PARKED/unaccepted2026-11-05:** candidates7a356bd18→
+   a98e3b7ac→677c5c4f2→ae24ec526 are archived unmerged. Actual authenticated
+   client/host departure creates generation2 at the host pilot anchor and
+   completes existing seat-exit with collision/floor support, then fails its
+   frozen support-owner check: actual Hauler BoardingRampSupport at
+   (35.21464,-66.98969,-700), expected descendant of current Cinder access.
+   Sixteen assertions pass before that failure; walking/client binding,
+   completed cargo eligibility, stale/foreign refusal, A reboard and retirement
+   remain NOT_RUN. Initial-source body190 passes do not qualify final source;
+   no remaining regression, export or checkpoint. All three corrections are
+   exhausted. [Exact source, raw result and cleanup](history/ROADMAP_DELIVERIES.md#cinder-pilot-exterior-support-owner-stop-20261105).
+   Reopening needs explicit reprioritization retaining cost/allowance and a
+   concrete reconciliation of real ramp support versus the original live-exit/
+   Cinder support contract, preserving every remaining case; no assertion
+   relaxation, renamed retry or B-passenger reopening is authorized.
    The [current local authorization owner](../scripts/game/game_flow.gd) passes
    only its local `player`; the [access owner](../scripts/world/cinder_cargo_access.gd)
    requires that exact actor within2.5m of the live exit. A secure terminal RPC
