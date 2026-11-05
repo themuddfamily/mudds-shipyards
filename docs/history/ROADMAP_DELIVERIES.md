@@ -34199,3 +34199,57 @@ reopened archives and their two closeout files. Cleanup observed06:16:34UTC,
 Final notes/push remain charged to the same06:56:18 hard stop. All337 canonical
 records and complete table cells remain unchanged. No product/parent/phase
 completion advances; accepted runtime and d525554 checkpoint remain unchanged.
+
+
+<a id="zenith-modern-lod-census-stop-20261105"></a>
+## Zenith modern LOD — census failure, parked 2026-11-05
+
+Selected existing CRAFT-ACCEPT-ZENITH/current-craft-LOD production integration,
+not the parked incoming/native sortie. The task card was pushed on
+`effa7669598a85fedb666314402a9d243d63d111` before editing. Original start
+06:27:25 UTC, source readiness 06:57:25, all-in hard stop 07:57:25; original
+focused300s/render120s bounds and one-correction ART allowance retained.
+
+Unaccepted candidate `994d1a8aba2fbf035cccb61e74253da49ada8dfc` changes only
+the Zenith controller, authored presentation and existing interceptor suite.
+It constructs retained complete modern near/far roots under the existing48±5m
+selector, retains shared modern canopy/cues, and adds cost/threshold/authority/
+berth/reentry checks. These are authored changes, **not delivered behavior**.
+Independent source review gave GO but missed a remaining generic Mesh API
+assumption; runtime acceptance supersedes that review.
+
+Import and all three changed scripts plus the external capture script parsed
+with exit0/zero diagnostics. First focused run stopped OS143/20.598s,
+six diagnostics/zero marker: valid nonindexed surfaces return a null index
+array; both new censuses assigned it to PackedInt32Array. At cumulative9.7min,
+the one cause-bound correction guarded optional arrays; original clock and
+criteria stayed fixed. Both corrected scripts parsed exit0/zero diagnostics.
+
+Final focused run stopped OS143/20.014s, four diagnostics/zero marker:
+`surface_get_primitive_type` does not exist on BoxMesh, called at production
+line3407/test3510. The failed close census then cascaded on missing `triangles`.
+Far-only9360triangles/34submissions/25meshes is partial output, not a proved
+close/far saving. Neither new modern sequence, quiet authority/occupied berth,
+shared canopy nor retained reentry acceptance completed.
+
+Both isolated Forward+/lavapipe/Xvfb render attempts stopped (OS143,
+46.103s and56.715s). The final capture hit the same production census error.
+One provisional1920×1080 forward-close PNG exists, but no completed observation
+file, close/far/transition/open-canopy set or success marker. It supplies no
+native GPU, ordinary player flight or Windows qualification. All engines used
+Dummy audio; rendered automation selected explicit x11/private display.
+
+**PARKED/unaccepted.** No further correction/retry, no candidate merge/export
+or checkpoint. Existing playable remainsd525554. Reopening requires correction
+of the demonstrated generic Mesh API assumptions and explicit cumulative-cost
+reprioritization retaining this terminal boundary; a renamed task does not
+reset it. Full Zenith/craft/ART/native/hardware gates remain OPEN/NOT_RUN.
+
+Verified archive: `/srv/mudds-work/zenith-modern-lod-20261105/records.tar.gz`
+(240 regular members, 7,381,382 bytes, SHA256
+`b0eaa38389042a062868666a82fcd86589db8cd54324767bcd4f0915b0099c60`).
+Source bundle/base/tip and every archived member hash verified before cleanup.
+Fresh remote check found no task branch; owned worktree removed and local ref
+CAS-deleted at candidate994d1a8. No owned engine/display processes remain.
+Only records.tar.gz and closeout.json remain in the case folder.
+Cleanup completed 2026-11-05T06:42:22.713930+00:00; cumulative 14.962min from the original start, within the90min cap.
