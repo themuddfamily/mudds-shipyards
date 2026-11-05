@@ -2,6 +2,16 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
+<a id="net-halyard-restart-detach"></a>
+## NET-HALYARD-RESTART-DETACH — Off-tree cabin recovery during Restart — **OPEN**
+
+- Severity: **P2**; owner/reporter: root, 2026-11-05. Diagnostic failure is observed; subsequent playability is unmeasured.
+- Reproduction: authority plus two ordinary Halyard clients; original BOARD/seven MOVING, return and strict home dock; seated passenger B uses visible Pause → RESTART SHIFT while A and authority remain current. Actual source caller candidate `cfcb7fae4` is archived unmerged; production GameFlow is unchanged from `89bea208b`.
+- Expected: retire seat/input/claim state without spatial work on detached nodes, then create a fresh Main, rejoin, physically reboard and resume the same A/hull flight without diagnostics.
+- Actual: seven off-tree transform errors begin with `!is_inside_tree()` / `get_global_transform` in `_cancel_network_engineer` at game_flow.gd:27377, called through `_cancel_station_seat_for_detach` → `_exit_tree` → `_restart_shift` → real HUD handler. Subsequent errors include cabin stand/berth transforms from `_bind_cabin_occupancy`. The B log has an eighth diagnostic after forced display shutdown, which is not attributed to the same cleanup cause. The supervisor aborts143 after156.818s; no fresh-Main/rejoin/renewal or all-three OS0 acceptance is claimed.
+- Evidence: `/srv/mudds-work/halyard-main-reentry-20261105/records.tar.gz`, member `profile-run/tmp/mudds-passenger-peers-356855/client_b.log`, plus both consumed-dock and actual-restart receipts. Private headless authority, separate Xvfb/x11 clients, Dummy audio/rendering; all actual OS argument/driver receipts match, and post-abort owned-process scan is empty. Native Windows/GPU/device/exported-client qualification is not implied.
+- Repair boundary: skip off-tree pose recovery **and** cabin rebinding before constructing a global pose, while preserving input restoration, seat/claim clearing and transition invalidation. This is a proposed boundary, not a verified fix. The caller's correction allowance is exhausted; explicit reprioritization was requested and remains unanswered. No production patch or further run is selected.
+
 ## LEGACY-CONVOY-RESET — Ambiguous old completion blocks Reset — **VERIFYING**
 
 - Severity: **P2**; owner/reporter: root, 2026-10-17. Fixed in `e085a95ca`; complete regression acceptance remains open.

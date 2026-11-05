@@ -34755,3 +34755,67 @@ exact-tip local ref and scratch removed; only archive/closeout remain. Cleanup
 2026-11-05T11:16:14.945480+00:00, 39.882 minutes from original assessment;
 final documentation/review/push remains charged to that same card. No task branch,
 worktree or owned process is retained. No runtime change is merged to obtain cleanup.
+
+<a id="halyard-fresh-main-offtree-stop-20261105"></a>
+## Halyard fresh-Main caller stopped at production teardown 20261105
+
+Existing SERVER-BASELINE fresh-Main member is **PARKED/NOT_ACCEPTED**. Candidate
+cfcb7fae4087ddc20026daaf16e33bcc27a931b0 changes only the existing Halyard source
+caller and remains unmerged. Pushed base89bea208bcf6df5f744c5bd3d0fdc2da695be79f
+retains its selected card. Original assessment11:17:51UTC;90minute all-in deadline
+12:47:51;one cause-bound correction. Original full BOARD/seven MOVING, strict
+return/dock, real B Restart Shift/Boot/fresh-Main retirement/browser/exterior
+reboard/renewed flight/all3OS0 requirements stay fixed. Coordinator first done120s
+after initial client readiness, whole300/outer360 and all local caps remain unchanged.
+
+Initial import0/24.880s/rawdiag0. Existing retained-Main rehost component passes
+83assertions/51.399s/one marker/OS0/zero diagnostics; it does not prove real restart.
+Independent source review found and resolved prefreeze harness-only strong body-
+source retention and missing actual OS argv observation. First frozen parse then
+fails17.018s/exit1/two diagnostics at new line7153: inferred owner has dynamic
+method return type. The sole correction is one explicit CrewSeatRoleAuthority
+annotation; independent reverse-byte comparison proves no other change.
+Corrected parse0/17.821s/zero diagnostics, source blob402bc5a05f72723b1356b34f30e0a556079d278d.
+
+Actual whole trial supervisor143/156.818s/marker0 aborts on the first child error.
+Original BOARD, all14 retained MOVING receipts across two clients, host strict
+dock/both consumed arrivals, host restart-go and B real HUD restart-sent exist.
+The first error is off-tree get_global_transform at GameFlow27377 through
+_cancel_network_engineer→_cancel_station_seat_for_detach→_exit_tree→_restart_shift
+and the real HUD handler. Six further off-tree B errors include cabin stand/berth
+reads from rebinding. B has eight total diagnostics: seven off-tree transform
+errors, then one static-string diagnostic after the explicitly killed X connection.
+The last is not attributed to the cleanup cause. Host/A logs have zero diagnostics; the
+parent's one diagnostic is supervisor interruption, not the child total.
+No fresh-menu/retired/joined markers or done/normal exit receipts exist. Actual
+fresh Main, retirement, browser rejoin, physical reboard, renewed flight and
+all3OS0 remain unproved. No alternate prefix/subset is accepted.
+
+Retained actual own-proc argv receipts independently match all three exact launch
+requests. Authority is actual headless/Dummy without Display/Wayland; clients
+are distinct private X11 displays :99/:100, explicit x11/Dummy and dummy rendering.
+After abort, an independent process scan finds no owned engine/wrapper/Xvfb.
+Native hardware, rendered pixels, exported clients and complete baseline remain
+NOT_RUN. Test-only changes produce no playable build; latest playable5bc9a17
+remains unchanged. No production GameFlow patch or extra engine probe is performed.
+
+The actual defect is recorded as NET-HALYARD-RESTART-DETACH in bugs.md. A focused
+repair proposal skips off-tree spatial recovery AND rebinding while preserving
+input/seat/claim/transition cleanup. It is not a verified fix. Explicit user
+reprioritization for that repair and one same full-case repeat has been requested;
+no approval is received and no dependent repair/retry is selected. Prior cost,
+exhausted allowance and original12:47:51 deadline remain; a later expired-boundary
+approval must address that expiry rather than reset costs automatically.
+
+Verified archive `/srv/mudds-work/halyard-main-reentry-20261105/records.tar.gz` has
+137 regular members/3,549,025bytes, SHA256
+`681b719eaf715a46542c3dd7a4f5baf9146442207740397a4effab9383fa3d85`. Every archived regular-file hash, final and original source
+snapshots and named-branch source bundle/base/tip verify. A first reverse-annotation
+archive guard selected an earlier identical declaration and rejected its hash;
+scoping the reconstruction to the new host function then matches the original
+frozen blob exactly, before any source/ref deletion. Fresh remote tips show no
+owned remote branch. Registered ownership/clean tip checked; owned worktree,
+exact-CAS local ref, profiles and scratch removed. Only archive/closeout remain.
+Cleanup2026-11-05T12:06:16.308405+00:00, 48.422minutes from original assessment;
+final documentation/review/push remains charged to that same card. Unique unaccepted
+source is retained in the verified archive; no task branch or process remains.

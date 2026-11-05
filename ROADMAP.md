@@ -227,11 +227,13 @@ packaged gameplay participation and full qualification remain open.
 
 ## Current work and next selection
 
-**Active bounded deliveries (two independent owners):** both assessments start
-2026-11-05 11:17:51UTC; hard stop12:47:51UTC, including selection, checks,
-integration and cleanup. Each retains one total cause-bound correction; first
-unexpected failure stops its dependent checks, and a failed final correction or
-deadline parks that whole goal. No parked Guided, capture or KIT-RELOAD retry.
+**Active delivery: exported Jovian first kit-delivery caller.** Assessment starts
+2026-11-05 11:17:51UTC; hard stop12:47:51UTC includes selection, checks, package,
+integration and cleanup. Its sole correction fixes an observer identity mismatch:
+the cargo destination module and physical ShipBerth are distinct objects. Both
+identities are now checked; stock, deadlines and complete journey stay fixed.
+Any subsequent unexpected failure parks the whole goal. No parked Guided,
+capture, Halyard or KIT-RELOAD retry is selected automatically.
 
 **Exported Jovian first kit-delivery caller.** Existing
 [PLAY-JOVIAN-KIT](docs/ROADMAP_BACKLOG.md#proof-activity) full journey and
@@ -270,43 +272,23 @@ deadline parks that whole goal. No parked Guided, capture or KIT-RELOAD retry.
   merge/push and exact owned branch/worktree/process/scratch cleanup. Failure
   retains unique source/raw and parks without a smaller accepted subset.
 
-**Halyard ordinary fresh-Main re-entry caller.** Existing
-[complete SERVER-BASELINE member](docs/ROADMAP_BACKLOG.md#server-main-reentry-binding).
+**Halyard fresh-Main re-entry: PARKED/unaccepted.** Candidatecfcb7fae4 is
+archived unmerged. The actual three-process run reaches BOARD/seven MOVING,
+strict dock/both consumed arrivals and B's real HUD Restart Shift. Production
+cleanup then queries cabin transforms after their nodes leave the tree and emits
+seven transform errors; the supervisor aborts. One further B diagnostic follows
+forced display shutdown. Fresh Main/retirement/rejoin/
+physical reboarding/renewed flight and all3normalOS0 remain unproved. The single
+correction was spent on an earlier compile annotation; no subset is accepted.
+[Exact record and cleanup](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105),
+[production defect](bugs.md#net-halyard-restart-detach).
 
-- **Result:** passenger B uses real RESTART SHIFT at strict dock, obtains a fresh
-  Boot/Main, rejoins through the browser, physically boards and flies again while
-  authority and pilot A remain current. Retained-Main reconnect cannot substitute.
-- **Start/owners:** same clean14c2e1c07; existing accepted original Halyard two-client
-  BOARD/seven MOVING barriers and return helpers. Implementation owns only existing
-  `tests/network/halyard_network_passenger_route_test.gd`; shared Jovian launch
-  helper changes require explicit file ownership before source freeze. Root owns
-  execution/docs/integration/cleanup; independent review covers lifecycle/identity/
-  timers/launch safety. No production Boot/HUD/GameFlow edits or staged actor state.
-- **Action/pass:** preserve all original BOARD/MOVING predicates, return≤20s,
-  landing edge≤8s/dock≤24s/both arrivals consumed≤8s. B actual Pause/focus/Restart
-  ≤5s; fresh Main≤60s, old Main/Player/adapter/body retired, old transport/claims/
-  streams/prediction/input cleared, one offline Player/zero adapters. Server retires
-  exactly old B body/claim; same A helm/hull/occupied lease. Fresh Begin/browser
-  Manual Join, exterior physical hatch candidate≤5s/E supported cabin≤12s/chair
-  ≤8s; exactly one fresh canonical adapter/body/seat and no retired identity controls.
-  Renewed same A/hull flight>5m/speed>.1/flying≤8s, both clients consume≤8s.
-  Full terminal handshake/all3actualOS0/zero diagnostics/released inputs/reaped children.
-- **Proof:** component `network_rehost_after_reentry_test.gd` under300s must pass
-  OS0/one NETWORK_REHOST_AFTER_REENTRY_TEST_OK/zero diagnostics. Implemented command:
-  `/srv/mudds-work/toolchains/godot-4.7.1-official/godot --headless --audio-driver Dummy --path /srv/mudds-worktrees/halyard-main-reentry-20261105 --script res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-main-reentry`,
-  supervised360s; require exact coordinator HALYARD_ORDINARY_TWO_CLIENT_MAIN_REENTRY_OK
-  after every child gate. Whole300s starts before launch; existing coordinator first
-  client.done120s starts after initial client Main readiness and also remains fixed
-  across reload. Its feasibility is to be measured, not assumed or given a larger
-  cap. All original per-action caps and10s exit grace remain. Private headless host,
-  separate Xvfb/x11/Dummy clients, actual launch/driver receipts; no desktop/audio.
-  Results `/srv/mudds-work/halyard-main-reentry-20261105`. Source-only input harness
-  acceptance does not qualify exported clients, hardware or the whole baseline.
-- **Endpoint:** estimate85minutes including existing assessment/root preparation;
-  source target≤12:10UTC. Only complete source-call capability passes. Merge/push
-  and owned archive/process/worktree/ref cleanup; no playable change or new build
-  claimed by test-only source changes. Final/native/package gates remain open.
-
+A focused production repair has been requested from the user: skip off-tree pose
+recovery AND cabin rebinding while preserving seat/input/claim cleanup, then
+repeat the same full case once. **No approval received; no repair/retry selected.**
+Original11:17:51 start,12:47:51UTC deadline, prior cost and exhausted allowance
+remain recorded. Owned worktree/ref/profiles/processes are cleaned; source/raw
+remain recoverable from the verified archive. No runtime change was merged.
 
 **Guided flight-observation caller: PARKED/unaccepted.** Candidates9401d65c5
 and ca5a49c17 remain unmerged. The first actual run stops at launch-deck clearance;
