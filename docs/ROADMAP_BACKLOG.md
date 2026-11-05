@@ -11940,8 +11940,23 @@ Original day/night/cloud-shadow coverage therefore still needs an actual support
 production solar/weather observation feed and its view binding under existing
 world owners. A controlled recipe in a composed fixed shore view can prove
 presentation only; it cannot prove an ordinary solar clock/weather model or
-journey. This missing runtime capability is Codex work,not an external artifact
-or permission problem. Do not close it with another capture/evidence layer.
+journey. Codex owns the runtime capability; a capture/evidence layer cannot
+supply its missing production inputs.
+
+**Readiness check2026-11-05: BLOCKED definition for these exact fields.**
+`planetary_atmosphere_world_rig.gd` authenticates immutable authored body-to-sun
+UP and rejects changed light orientation. Its ordinary atmosphere/weather clock
+advances cloud wind only; it supplies no solar ephemeris, rotation or accepted
+time-to-sun-direction equation. The retained exposure recipe additionally needs
+`gust_factor_unitless` and `shelter_scalar`; existing wind strength/interior blend
+have no accepted mapping to those quantities. Fixed sunlight is not day/night
+acceptance, and airless Ember must not acquire Aurora wind through dormant wrappers.
+Before selecting implementation, Codex must bind a concrete supported solar-time/
+body-orientation source and weather/exposure mapping with literal pause/restart,
+units and expected observations; propose any genuinely new pacing/interpretation
+choice for owner decision. No numerical cycle or exposure value is selected here.
+This exact missing field record replaces an indefinite “add the feed” assignment;
+it does not reopen the completed content inventory or authorize a parked capture.
 
 #### Acceptance and stopping rule
 
