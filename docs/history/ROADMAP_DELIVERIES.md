@@ -33563,3 +33563,92 @@ remain in that same budget. Future causal selection retains this elapsed cost,
 full route and limits; it needs actual operation/branch ownership observations,
 not an unchanged replay. GitHub Actions and native Windows/GPU/human gates remain
 unperformed. No parent or phase exit is closed by this failed attempt.
+
+
+<a id="surface-resume-retirement-delivered-20261105"></a>
+### Aurora/Rime saved visits survive unsettled resume — delivered 2026-11-05
+
+Accepted source35a4845d400b3275b61c2d1ef1f727942f9a6d11 from
+fc9fceab68069a465ab6bc67dcdbca9e66632630, integrated/pushed. Actual runtime
+capability under WORLD-SAVE-DEFINE: both consumers keep the original durable
+active visit after restore acceptance while the world streams. A single shared
+pending owner binds original visit/digest, admission dictionary, Main world/
+player/parent/craft/home/store/binding/transition identities and the eventual
+restored surface context. Retirement waits for a post-teleport physics step,
+current streamed scene/occupied lease/DOCKED/OFFLINE and awake supported
+controllable ON_FOOT Player with no pending transition. Only unchanged original
+visit/digest can refresh the observed parent before the existing CAS.
+
+Successful recapture invalidates pending retirement even for identical content;
+accepted Start Fresh and Main exit clear it. Newer receipts/stale context cannot
+erase current data. One settled prepublication refusal leaves the record
+retryable next Main without per-frame filesystem retries. No save schema,
+reward/seat/lease/command authority or world physics was changed. Existing
+published=true/directory-sync-failed result remains unaccepted store semantics;
+no universal postpublication rollback/preservation guarantee is claimed.
+
+Selection02:17:02UTC, estimate60min/hard03:47:02 including closure, source-ready
+cutoff02:42:02, one total correction. Runtime/source frozen02:25; sole corrected
+fixture frozen02:35:33, within original cutoff. Import20.714s and initial
+parse16.623s OS0/zero diagnostics. First new Main/store suite was independently
+aborted85.799s/OS143 after the Aurora controls-disabled compound failed;
+following checks began before root observed the first failure. The operands
+were unlogged. One explicitly reviewed diagnostic of only that first boundary
+ran60.964s/OS1 and stopped there; it is not acceptance. Actual state=surface,
+controlsfalse/floortrue/restored+settled true, exact original digest present,
+pending retirement still present; only attempts1 versus expected0 is false.
+Because runtime erases pending before retirement I/O, this counted write was
+unrelated, not a demonstrated retirement bypass. Its exact other producer was
+not identified. No unsupported physics-starvation/timeout cause is inferred.
+
+The sole causal correction scopes the existing fault stub to the exact actual
+retirement commit.id and delegates unrelated writes to the original filesystem.
+Default reject-all remains for existing Start Fresh cases. No production change,
+dropped guard, new deadline or timeout relaxation; both failed/diagnostic costs
+remain charged. Corrected parse16.359s clean. Full corrected lifecycle suite
+107 assertions/460.119s/OS0/zero diagnostics within original600s; includes exact
+same-frame original, disabled-control zero retirement writes, actual settled
+refusal/no retry/next-Main original without orderly recapture, foreign parent,
+newer receipt, stale transition, identical recapture, existing Start Fresh and
+unpaid-debt cases. Existing Aurora loop67/319.032s and Rime59/306.208s also OS0/
+zero diagnostics at original900s caps. Their only test migration reads current
+retirement status after the unchanged60-frame settle, instead of an earlier
+detached snapshot. Independent source/correction reviews GO.
+
+These are actual source/Main/store fixtures: visits are seeded and Halyard is
+used for both worlds in the lifecycle suite; the loops retain staged distance/
+direct-action scope. Full canonical physical voyages and packaged distinct-OS
+SIGKILL-during-restoring/restart qualification remain OPEN/NOT_RUN. Source abort
+and the diagnostic are not that crash gate. No broader world, native GPU,
+physical device, Windows execution, human or final-release qualification closes.
+
+Clean official pinned4.7.1 Windows export27.596s/Linux25.984s pass. Windows payload
+under Linux25.990s, Linux ELF23.026s and Linux archive22.726s each actualOS0/
+exactly one STARTUP_MENU_READY_OK/zero diagnostics, silent isolated profiles.
+Frozen paired package audit PASS1531 entries: compiled source, official Windows
+text/template pin, identical approved complete inventories, exact Linux export/
+archive and two-member EXE+notes ZIP, unchanged inputs. Repository builds/windows
+contains35a4845 EXE/checkpointZIP/notes; builds/linux has matching ELF/archive/
+export record/notes. All seven public copies hash-match the audited candidates.
+
+All automated Godot used Dummy/headless; no owned engine remains. Source/raw
+archive and exact branch/worktree cleanup are recorded below. All337 canonical
+identities/kinds/order/Done contracts and parent/phase gates are preserved;
+only WORLD-SAVE-DEFINE State records this delivered capability. GitHub Actions
+remains disabled. Parked Halyard egress/Ember outbound scopes remain unchanged.
+
+Verified source/raw archive:
+/srv/mudds-work/surface-resume-retirement-20261105/records.tar.gz,
+93regular members/6,875,966bytes, SHA256
+4892ee5006a90e727cf863664bb1bd7de6add25f0cfd5960e3a91e40461a2ee6.
+All extracted stream hashes and the incremental source bundle verify. It retains
+both original failed/diagnostic runs, exact operands and temporary diagnostic
+source, final patch, source/check/package results and actual profile data.
+closeout.json records the member hashes and excluded durable-template symlinks;
+cleanup removes links without dereferencing their toolchain target. Source tip
+35a4845d4 is contained in pushed main; current remote task branch absent, exact
+registered owned worktree removed, local feat/surface-resume-retirement deleted
+with expected35a4845d4 CAS after archive verification. Only records.tar.gz and
+closeout.json remain in the case. No owned engine remains. Cleanup completed at
+03:06:28UTC, within the original03:47:02 cutoff; final docs/commit/push
+follow within that same allowance. No retained branch/worktree exceptions.

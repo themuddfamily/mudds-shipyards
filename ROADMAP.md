@@ -4,22 +4,23 @@
 exist. All 36 original parent outcomes and ten phase exit gates remain open.
 There is no evidence-backed completion percentage or finish date.
 
-Latest playable checkpoint: **52820a9** — [Windows ZIP](builds/windows/MuddsShipyards-52820a9-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-52820a9-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-52820a9-linux-x86_64.tar.gz)
-([notes](builds/linux/MuddsShipyards-52820a9-linux-notes.txt)).
-Ember's on-foot Save Progress now routes through the real activity controls even
-when Cinder storage is out of range. Paid caldera errands are acknowledged from
-the validated durable reward record; unsupported unpaid partial errands refuse
-saving visibly. The previously parked Save candidate is finished in source/UI/
-disk scope; full ordinary expedition qualification remains OPEN/PARKED.
-[Exact integration and retained failures](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands).
-Earlier Arrow guidance and server deliveries retain their recorded scopes.
+Latest playable checkpoint: **35a4845** — [Windows ZIP](builds/windows/MuddsShipyards-35a4845-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-35a4845-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-35a4845-linux-x86_64.tar.gz)
+([notes](builds/linux/MuddsShipyards-35a4845-linux-notes.txt)).
+Aurora and Rime now keep the original saved visit while Resume streams the
+world, retiring it only after the current craft, surface lease and supported
+on-foot player settle. Newer saves and stale contexts cannot retire the wrong
+record. Lifecycle/store and both visit-loop source checks pass; the full packaged
+kill/restart and canonical journeys remain OPEN.
+[Actual implementation, checks and limits](docs/history/ROADMAP_DELIVERIES.md#surface-resume-retirement-delivered-20261105).
+Earlier Ember Save Progress, Arrow guidance and server deliveries retain their
+recorded scopes.
 
 Latest Ember outbound trial remains **PARKED**: actual Host takeover and strict
 caldera/OFFLINE reached, but the driver incorrectly requires station gravity
 during planetary disembark. Supported exit and normal Quit remain unproved;
-source is archived unmerged and checkpoint52820a9 remains the playable build.
+source is archived unmerged; its whole journey remains unaccepted.
 [Exact failure and retained scope](docs/history/ROADMAP_DELIVERIES.md#ember-outbound-surface-gravity-stop-20261105).
 
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
@@ -208,8 +209,9 @@ conserved outcomes. Native callers and safe lifecycle-rescue settlement remain
 production work;durable/repeat aggregate inputs stay with their existing owners.
 [Exact world-save boundaries](docs/ROADMAP_BACKLOG.md#world-save-exact-boundaries)
 now bind saved records,exit/restart cuts,owed/paid outcomes and physical home.
-Ember terminal-write retry and crash-safe Aurora/Rime restore settlement are
-explicit production gaps;normal Quit evidence cannot qualify an OS kill.
+Ember terminal-write retry remains a production gap. Aurora/Rime settled resume
+retirement is delivered on35a4845d4; the actual packaged kill/restart caller and
+qualification remain open. Normal Quit evidence cannot qualify an OS kill.
 [Ten Torpedo authority cases](docs/ROADMAP_BACKLOG.md#torpedo-authority-executable-goals)
 now name actual peers/targets,cuts,retained state and terminal/fresh-flight
 endpoints. Internal lifecycle tests are distinguished from ordinary controls;
@@ -458,18 +460,20 @@ production launch and packaged participation still need implementation.
 
 ## Current work and next selection
 
-No implementation assignment is currently running. The latest bounded
-[Halyard physical passenger exit repair](docs/history/ROADMAP_DELIVERIES.md#halyard-physical-egress-parked-20261105)
-is **PARKED/unaccepted**: the real three-peer check receives departure confirmation,
-then observes the same Player at station spawn before continuous hatch/airstair
-exit. Exact fallback/recovery gate cause is not established. Unique source/raw
-are verified archived and the task branch/worktree removed; no runtime merge,
-checkpoint or further trial. Its original costs and reopening boundary remain.
+No implementation assignment is currently running. The latest
+[Aurora/Rime settled resume retirement capability](docs/history/ROADMAP_DELIVERIES.md#surface-resume-retirement-delivered-20261105)
+is **DELIVERED** on35a4845d4 with a new playable checkpoint. The original receipt
+survives loading; exact physical settlement gates retirement, and current-parent
+CAS protects newer saves. Source/Main and staged visit-loop qualification is
+recorded; full packaged kill-during-restore/restart remains OPEN/NOT_RUN.
 
-Ember Save Progress, Arrow atmospheric guidance and exported dedicated startup
-are delivered in their recorded source/package scopes; do not select them again
-as missing implementations. Latest playable remains52820a9. Ember outbound is
-parked separately at its planetary-gravity caller comparison.
+The independent [Halyard physical passenger exit repair](docs/history/ROADMAP_DELIVERIES.md#halyard-physical-egress-parked-20261105)
+remains PARKED/unaccepted at its station-spawn jump. Ember outbound is parked
+separately at its planetary-gravity caller comparison. Their unique source/raw,
+failed checks, original costs and reopening boundaries remain preserved; neither
+is closed by this checkpoint. Ember Save Progress, Arrow guidance and exported
+dedicated startup are also delivered in their stated scopes; do not select them
+again as missing implementations.
 
 Select one independent ready production capability from its existing contract.
 A parked task needs its recorded causal reopening condition and cumulative-cost
