@@ -16,6 +16,12 @@ disk scope; full ordinary expedition qualification remains OPEN/PARKED.
 [Exact integration and retained failures](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands).
 Earlier Arrow guidance and server deliveries retain their recorded scopes.
 
+Latest Ember outbound trial remains **PARKED**: actual Host takeover and strict
+caldera/OFFLINE reached, but the driver incorrectly requires station gravity
+during planetary disembark. Supported exit and normal Quit remain unproved;
+source is archived unmerged and checkpoint52820a9 remains the playable build.
+[Exact failure and retained scope](docs/history/ROADMAP_DELIVERIES.md#ember-outbound-surface-gravity-stop-20261105).
+
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves
 337 records, their IDs, parents, kinds and accepted proof scopes. These include
 containers, decisions and definitions; **337 is not a count of coding tasks left**.

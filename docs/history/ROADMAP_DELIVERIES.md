@@ -33415,3 +33415,86 @@ the temporary reopening case directory was removed. Cleanup completed by
 20m11s reopening work through cleanup plus prior20m27s (40m38s cumulative active
 work); the closure commit/push follows within that same budget. No failed branch
 was merged merely to make it deletable; prior unique source remains archived.
+
+
+<a id="ember-outbound-surface-gravity-stop-20261105"></a>
+### Ember outbound reaches strict landing; automatic-exit guard stops trial — 2026-11-05
+
+PARKED/NOT_ACCEPTED source959bc45ff19cbf72c213d1e3cbdc5c2a60cba5f5 plus
+caller e5b15c102d1e85e339b1a6037a769b8ed8437207, unmerged. Five original
+8219fa013 commits were semantically restored on5e5bacfa3 without replacing
+current routes, dedicated CLI or accepted gameplay. Passive observer and driver
+now bind the actual default source and exact Host child, independent streams/
+generations/frame/location/modes/retained actors and original boarding token.
+Actual viewport/window conversion, whole1800/outer1860 and all physical controls,
+transit/rebase/strict landing/OFFLINE/automatic no-E exit/Quit gates remain.
+
+Original archive scale/records.tar.gz SHA256d17c2d98408d7cff96f8484066cc4c68cb060453655c56c693d3c0b500d86009
+and full74.6867127167min prior cost including notes/push are retained. Root
+explicit cumulative-priority selection allowed60min01:00:05→02:00:05UTC, maximum
+134.6867min active including previous work; old Oct27 absolute deadline remains
+expired/PARKED. Source ready before01:10:05; Host263.083s/OS0/zero diagnostics,
+Python317/15.473s (initial raw prefix truncated, summary disclosed), fresh
+import6.221/observer parse15.769/privacy1.072 all clean. Clean959bc45 Linux/
+Windows exports and three strict startups each OS0/one menu marker/zero
+unexpected diagnostics. These are private candidates, not accepted checkpoints.
+
+First native launched01:15:43.157UTC. Independent early raw audit identified an
+actual signed RefCounted frame ObjectID−9223371730234373200 while the caller
+required frame>0. Root independently aborted the exact owned driver before the
+handoff, after217.252s, retaining the cancelled/unaccepted raw legs and complete
+input/helper/game/Xvfb cleanup. One explicit reviewed amendment changed only
+frame-triad equality+positive into equality+nonzero; positive Node IDs and logical
+generations/pilot/phase fences stayed strict. Actual negative64-bit/zero/stale/
+wrong-identity regressions pass; full Python318/14.382s(14.946subprocess)/OS0 has
+complete raw capture. Only two tool files differ, so shipping/observer byte
+identity permits exact same959bc45 PCK reuse; caller commit is separate.
+
+One final corrected attempt launched01:23:14.636UTC before revised01:24:05
+cutoff, retaining the same02:00:05 hard stop, prior costs and1800/1860 limits.
+It FAILS1100.474s at the default-controls/tuning aggregate. Raw receipts prove
+exact default→Host child at31819, approach/descent/surface approach and neutral
+landing source/session/frame fences, strict/exact caldera lease/actual same Arrow
+occupant, LANDED33046 and OFFLINE33137. Automatic disembark starts33138 with no
+native E or thrust.776consecutive committed origin shifts and same actors/hull/
+authored ship controls/60Hz/time_scale1 are recorded. This is partial runtime
+observation, not a complete outbound acceptance or a retroactive8219 pass.
+
+First false tuning member at33139 is exactly walk gravity: default1.0 versus
+0.08999584118525188. Every other walk value, default_controls, tuning_unchanged,
+ship tuning, definition/home,60Hz/time_scale1 matches. Current Host
+_sample_and_compose_gravity2422–2483 applies −tangent_gravity.y/project_gravity
+in DISEMBARKING/SURFACE_OUTBOUND/ON_FOOT/BOARDING; this phase boundary matches
+actual observations. No runtime physics defect is established. Terminal33141
+shows exact neutral Host child, matching signed frame identity/generation777,
+sessionlanded and
+strict/exact leased caldera/OFFLINE/full hull; Player is unseated but control-
+disabled, unsupported, with boarding token still retained. surface_exited and
+exit_ui receipts are absent. No completed awake supported exit, normal UIOS0
+or clean-Quit result is proved. Raw game leg exit_code=null/reaped=false stays
+unchanged; global input/helper/game/Xvfb cleanup=true, diagnostic_count0.
+
+No third correction/trial, source merge or public checkpoint follows this stop.
+Future causal work must bind the current authoritative planetary gravity and
+phase/Host/frame/actor evidence while keeping every other walk/input constant;
+never accept arbitrary gravity or retune runtime to satisfy the station check.
+Full ordinary outbound/three-objective/save/home/abandonment/native GPU/physical
+hardware/Windows/human/final gates remain OPEN/NOT_RUN. Canonical337 IDs/names/
+parents/kinds/order/Done cells remain unchanged; only the two existing Ember
+States record the failed prerequisite. Main gameplay/checkpoint52820a9 remains.
+
+Both actual trial logs/results, exact failed Linux archive/export identities,
+all five full source files/final patch and verified two-commit Git bundle are
+preserved in /srv/mudds-work/ember-outbound-20261027/scale/
+reopened-20261105-records.tar.gz:56 regular members/210,098,479bytes, each
+stream hash verified; archive SHA256
+ aecc434ac39ca3b97cf724bd554f08b0d72d8e43a54627848c68ff6b8ce7ebb9.
+Original records.tar.gz retains its original hash unchanged. Matching
+reopened-20261105-closeout.json records source identities, excluded symlink
+without dereferencing its durable toolchain target, and completed cleanup.
+No owned engine remains; remote task branch absent, owned worktree removed and
+local feat/ember-outbound deleted with exact expected e5b15c102 tip after verified
+archive preservation. Temporary reopening case removed. Cleanup completed by
+01:55UTC within the original02:00:05 deadline; final commit/push follows within
+that same allowance. Only terminal documentation is integrated. Unaccepted
+implementation is not merged merely for cleanup; GitHub Actions stays disabled.
