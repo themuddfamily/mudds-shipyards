@@ -33250,8 +33250,14 @@ and Done cells are unchanged; only SERVER-BASELINE State records this narrower
 capability. PLAN-NEXT remains definition-only DONE; all36 product parents and
 ten phase exits remain OPEN. GitHub Actions stays disabled.
 
-Raw logs, private profiles, safe admission receipts, failed candidate identity,
-helpers and exact upstream source excerpts are retained outside the repo in
-/srv/mudds-work/packaged-dedicated-authority/launch-20261105; closure consolidates
-these records before removing the owned worktree and branch. No complete
-packaged flight or native Windows/GPU/audio/human pass is implied.
+Accepted work is merged/pushed througha49a7033f. The owned worktree is removed;
+its local branch was deleted with its exact expected tip after verifying pushed
+main containment and remote branch absence. No branch exceptions remain.
+Raw logs, private profiles, safe admission receipts, rejected Linux package,
+helpers and exact upstream source excerpts are consolidated outside the repo in
+/srv/mudds-work/packaged-dedicated-authority/launch-20261105/records.tar.gz:
+101 regular members/99,260,351bytes, verified SHA256
+96c4f6eaf375dcf08d887982d7fcb1193ad49ffc7ab950e305b36787038f8792.
+Only that archive and closeout.json remain in the owned case directory. Accepted
+artifacts were copied and hash-verified in the main repository before cleanup.
+No complete packaged flight or native Windows/GPU/audio/human pass is implied.
