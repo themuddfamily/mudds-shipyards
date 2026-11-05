@@ -24,6 +24,93 @@ full art and native/GPU/device gates remain open.
 Earlier accepted changes, including Hauler/Bomber distant exteriors, remain
 included in their recorded scopes.
 
+## Current work and next selection
+
+**No gameplay assignment selected.** This clarification changes the plan only;
+it does not start implementation, reopen a parked attempt or select an engine
+run. The last playable checkpoint remains 27e2955. Planning changes earn no
+gameplay completion credit.
+
+### Next delivery chain: remote Cinder pilot and terminal
+
+These are separate members of the existing
+[ROLE-CINDER-LOADMASTER contract](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback),
+not new roadmap IDs. Execute in order; none is READY until its task card binds
+the candidate, literal commands, case deadlines, exact files and all-in deadline.
+The first member has a known production seam; do not repeat its readiness survey.
+
+| Goal | Player-visible result | Fixed proof endpoint | Dependency / selection state |
+| --- | --- | --- | --- |
+| Host-authoritative pilot exit and walking body | Remote A leaves the Hauler pilot seat at the occupied Cinder berth and walks the same exterior actor on client and host | Host creates exactly one production body at its actual pilot anchor; real seat-exit completes onto support; authenticated input moves that same body≥1m; client/publication generations agree; host Player/camera stays unchanged. Foreign, duplicate and retired-generation input cannot move/recreate it; lease/source loss and disconnect retire it. Stock/payment unchanged. | Existing live Cinder berth/source/attachment and authenticated pilot grant. UNSCHEDULED implementation; exact six-case contract below. Parked B passenger exit/readmission is not a prerequisite or a retry authorization. |
+| Remote terminal interaction and one conserved transfer | A uses normal terminal E after its physical exit and delivers one existing crate | Real host body passes live exit≤2.5m eligibility; current terminal action reaches existing cargo owner; source/hold2→1, destination0→1, exactly one completion/reward. Duplicate/stale/foreign attempts change neither stock nor payment. Existing120s activity limit retained. | GATED on accepted pilot body handoff and the existing load/clear-gate/dock phases. Readiness alone is not cargo authority. |
+| Complete Loadmaster moving-crew journey | A pilots while B uses Loadmaster, then both complete the specified home/rejoin/handback route with the conserved delivery | Every original moving/chair/action/home/owner-loss/standing-rejoin/physical-exit/reuse case passes, all three processes exit0, no diagnostics, within original900s internal/960s outer bounds | GATED on both capabilities above, accepted standing readmission, guest ramp/exit and the missing ordinary caller. Two prerequisite attempts remain PARKED; their explicit reopening conditions still apply. |
+
+The first delivery has this finite case membership. This is the acceptance
+contract, **not a claim of execution or a completed start card**:
+
+| Case | Setup/action | Expected observation |
+| --- | --- | --- |
+| 1. Actual pilot exit | Actual Main, authenticated ENet A, exact current Hauler pilot grant and occupied attached Cinder berth; request ordinary confirmed departure | Exactly one host production Player starts at the actual host pilot anchor and follows existing seat-exit motion; collision restored and floor support established at the live exit. No fixture spawn at the exit or actor teleport. |
+| 2. Walk and publication | After physical completion, send fresh authenticated walking input | Same body moves≥1m under host simulation; publication advances with matching client/body generation. Host local Player/camera and stock/payment snapshots remain unchanged. |
+| 3. Physical eligibility | Try existing cargo actor authorization before and after completion | No authorization before completion; actual completed body qualifies only under the existing live source/lease/attachment and≤2.5m exit rule. This does not perform or prove a transfer. |
+| 4. Rejected ownership/replay | Submit foreign-peer input, duplicate departure and old body-generation/stream input | No second body, unauthorized movement, authorization, debit or reward. Replacement generation is authority-issued and retires the old input stream. |
+| 5. Retirement | Separately disconnect A, invalidate the berth lease and remove the current source/attachment | Each cut retires its body, movement authority and publication once; later packets cannot resurrect or authorize it. |
+| 6. Integration and delivery | Run complete existing Halyard remote-pilot/body regressions and the new Cinder cases, then clean-commit checkpoint export and isolated startup | Original regression cases pass; each required command exits0 with its exact success marker and zero diagnostics. Package startup exits0 with exactly one STARTUP_MENU_READY_OK. Accepted source is merged/pushed; build notes state the scoped result; owned cleanup completes. |
+
+Implementation owners are GameFlow, NetworkRemoteBodySimulation and the ENet
+adapter, with the existing remote-pilot test extended. Freeze exact paths,
+commands, per-case limits, remaining correction allowance and absolute≤90-minute
+all-in deadline on the selected card **before code**. If that cannot fit, stop
+selection and split the production capability; do not quietly omit a case.
+No full-role, cargo, native-hardware or general exterior-networking completion
+is implied by the pilot-body member.
+
+### Closed work and retained exceptions
+
+| Result | Status / retained boundary | Proof |
+| --- | --- | --- |
+| Checkpoint duplicate cleanup | 298 verified duplicates removed /50.2GB reclaimed; five permission mismatches retained and three Linux candidates NOT_RUN at cutoff. Remaining cleanup PARKED. | [Accounting, archive and restore checks](docs/history/ROADMAP_DELIVERIES.md#checkpoint-duplicate-cleanup-cutoff-20261105) |
+| Jovian distant exterior | Scoped runtime/image/package PASS; complete craft and native qualification OPEN | [Delivery](docs/history/ROADMAP_DELIVERIES.md#jovian-whole-lod-delivered-20261105) |
+| Hauler distant exterior | Scoped runtime/image/package PASS; complete craft and native qualification OPEN | [Delivery](docs/history/ROADMAP_DELIVERIES.md#hauler-whole-lod-delivered-20261105) |
+| Bomber distant exterior | Scoped runtime/image/package PASS; complete craft and native qualification OPEN | [Delivery](docs/history/ROADMAP_DELIVERIES.md#bomber-whole-lod-delivered-20261105) |
+| Shared retained-Main all-nine | Source identity/claim/home/repair scope PASS; ordinary journey/restart/networking OPEN | [Delivery](docs/history/ROADMAP_DELIVERIES.md#main-nine-component-claims-home-qualified-20261105) |
+| Bulwark editable source | Scoped handoff/reproduction PASS; gameplay/art/LOD OPEN | [Delivery](docs/history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105) |
+| Player-motion retained images | Nine image hashes match; source/run/inspection binding missing. GATED; no unchanged search or recapture selected. | [Exact missing artifacts and search boundary](docs/history/ROADMAP_DELIVERIES.md#player-motion-retained-binding-stop-20261105) |
+
+These are selection constraints, **not a list of tasks running in parallel**:
+
+| Existing goal/member | Current result or blocker | Condition before further work |
+| --- | --- | --- |
+| [Cinder Light role-choice card](docs/history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105) | PARKED: added line needs73px inside63px body in all six existing fit cases | Explicit reprioritization and bounded text packing that preserves exact trade-off/full instructions/facts/state,normal fonts and original case/tolerance limits;retain cost/exhausted allowance |
+| [Bulwark whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105) | PARKED: required capture fails two unchanged cockpit-clearance assertions despite source and dimension passes | Log exact failed operands, reconcile original clearance contract, explicitly reprioritize with prior cost/exhausted allowance; no subset acceptance |
+| [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
+| [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |
+| [Cinder remote terminal handoff](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback) | Pilot-body capability is missing and UNSCHEDULED; terminal transfer is GATED on that capability | Select the six-case pilot-body member above before terminal integration; terminal RPC alone cannot prove physical eligibility; parked B egress remains separate |
+| [Titan specification](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | BLOCKED input: prepared proposal awaits the user's design decision | Record adoption or exact revisions; no construction before approval |
+| [Halyard fresh-Main re-entry](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105) | PARKED: off-tree cabin-transform errors during actual HUD Restart Shift; no complete re-entry pass | Focused repair/retry request unanswered; original12:47:51UTC deadline expired. Requires explicit reprioritization, retaining cost and exhausted allowance |
+| [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
+| [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
+| [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
+| [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED: typed mesh-array membership fails on Node3D | Type-safe correction and explicit reprioritization retaining exhausted allowance |
+| [Zenith whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105) | PARKED: ArrayMesh-only method called on BoxMesh | Concrete mesh-type correction and explicit reprioritization retaining exhausted allowance |
+| [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
+| [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
+| [Landed-crew browser entry](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105) | PARKED: failed before admission; no joining feature accepted | Satisfy its recorded reopening conditions; no subset pass |
+
+Every parked source/result remains recoverable from its linked delivery record.
+Owned branches/worktrees/scratch for the closed attempts are cleaned up. Their
+complete routes, failures, original budgets and correction limits stay binding;
+a new label or automatic continuation cannot reset them.
+
+Previously accepted [Rime arrival guidance](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-guidance-delivered-20261105),
+[retired-world residency](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
+and [Ember passive progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
+remain closed in their recorded scopes. Aurora/Rime settled resume retirement,
+Ember Save Progress, Arrow guidance and exported dedicated startup also retain
+their accepted scopes. Halyard physical egress and Ember outbound remain parked
+at their previously recorded station-spawn and planetary-gravity caller failures.
+Do not reselect accepted components or use them to pass an unperformed full journey.
+
 ## Read this as a delivery plan
 
 The [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
@@ -195,170 +282,6 @@ now has a concrete Boot/CLI, listening, orderly one-session exit and packaged
 two-client acceptance contract. The accepted source harness remains narrower;
 normal Boot launch and optional orderly session exit are delivered on24ed6bc86;
 packaged gameplay participation and full qualification remain open.
-
-## Current work and next selection
-
-### Checkpoint storage cleanup — stopped at the fixed verification cutoff
-
-Owner-requested housekeeping supporting PACKAGE-FINAL; no gameplay or release
-qualification credit. **298 exact archived binary duplicates removed:
-50,170,821,576 bytes (50.2 GB).** All archives/notes/export records remain.
-The latest three complete checkpoint sets, four installers and 28 directly
-referenced older binaries were protected. All 21 latest-set files retain their
-recorded hashes/modes; Windows/Linux archive-restoration samples reproduce exact
-removed bytes and permissions.
-
-Of306 frozen candidates,303 were checked. Five Windows binaries remain because
-loose mode0644 differs from archive0755:1d095ad,5010203,52b7b6e,71f681d,7f23a80.
-Three Linux binaries remain **NOT_RUN** at the19:24UTC cutoff:f8b5f86,fb396ab,
-fdae1cb. The housekeeping assignment is PARKED for these remaining candidates;
-no unverified bytes were deleted and no deadline/safety check was relaxed.
-
-One allowed driver correction parallelized only unfinished independent files
-under the same cutoff after measured sequential throughput missed the plan.
-Start19:08UTC; hard19:28UTC all-in, unchanged. No engine, new checkpoint, branch
-or worktree was needed. [Exact accounting and retained records](docs/history/ROADMAP_DELIVERIES.md#checkpoint-duplicate-cleanup-cutoff-20261105).
-[Restoring an older loose executable](docs/LINUX_BUILD.md#restoring-an-archived-checkpoint-binary).
-No further cleanup retry is selected; retained exceptions are explicit.
-
-### Delivered: Jovian distant exterior and playable checkpoint
-
-**CRAFT-ACCEPT-JOVIAN / whole-craft LOD runtime member: PASS.**
-Source `27e2955c33b58b5883ee04f9db64c82734435ac7`, integrated in pushed main
-`7d76b8ebe`. The complete ordinary craft/LOD/art journey remains open.
-
-| Frozen case | Expected result | Actual result and proof |
-| --- | --- | --- |
-| Current camera, boundaries and ownership | Initial close; far only >120m, close only <100m; boundaries/dead band retain; invalid inputs ignored; only own cockpit/aboard/real transition forces close | PASS in full 794-assertion Jovian suite, including foreign and real seat/frame cases |
-| Exhaustive final membership and static census | Complete exterior with all 26 source macros; far triangles ≤25%close and submissions ≤close; actual visible MultiMesh copies counted | PASS: 17,907/83,538 triangles (21.44%), 36/124 submissions; 26 nonempty macros, no unknown renderer |
-| Original close geometry/native roof LOD/furniture and dynamic/authority state | Preserve original arrays/LOD indices/resources/batching, split aperture, access/engine/damage/crew state and within-epoch identities through switches/Main cuts | PASS: actual source hashes/resource IDs, non-default motion/engine cases and original cabin/crew/batching checks; full Main251 retains Hauler/Bomber coverage and all three cycles |
-| Twelve complete source suites | Each exit0, one original marker, no raw diagnostics, stable source/import guards | PASS: twelve headless suites, 1,299 assertions; independent actual log/hash/manifest review |
-| Actual production-camera images | Three native640×720 panels and1920×720 unscaled strip; complete exterior envelope, matching hull/four engines and readable centre cockpit | PASS: actual77.467/157.458/8.982m cameras select close/far/close, exterior8/8 corners; four originals independently reviewed; original default four-image gate unchanged/unperformed |
-| Clean paired checkpoint and full audit | Three strict menu-ready startups, exact complete inventories/all nine predicates, seven repository checkpoint files | PASS: each exit0/one readiness marker/no diagnostics; all1,531 entries audited; files copied with hash/mode equality |
-
-[Commands, measured results, correction and retained records](docs/history/ROADMAP_DELIVERIES.md#jovian-whole-lod-delivered-20261105).
-One of three frozen corrections was used: five new test calls used a Bomber-only
-seat accessor, aborting fixture cleanup. The inherited Jovian pilot-seat API
-restored that path; the full rerun clears all subsequent failures. No runtime,
-original assertion, threshold, scope or deadline changed for the correction.
-
-Started18:22:34UTC; owned cleanup19:03:32UTC (40.98min), within the original
-19:52:34UTC/90min all-in deadline. Source is merged/pushed; owned branch, worktree,
-processes and generated scratch are removed. Only the verified161-member records
-archive and closeout remain in the task folder. Final documentation/push time is
-recorded in closeout. No next task is selected by closure; all parked attempts
-and owner decisions retain their existing gates.
-
-**Cinder Light live role-choice card: PARKED/unaccepted.** Candidates
-6eef191c6→38b51455f→50134b4c2 are archived unmerged. Registry59,nine-craft
-separation311 and Main boarding59 checks pass. The first actual full HUD suite
-fails all six Light viewport/UI-scale cases:body73px versus63px available,
-under the unchanged no-scroll criterion. No screenshot,export,checkpoint or
-runtime merge. The sole correction fixed three read-only negative-fixture arrays.
-[Exact operands,source and invocation history,archive and cleanup](docs/history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105).
-Reopening needs explicit reprioritization with prior cost/exhausted allowance and
-a concrete text-packing proposal preserving normal fonts,complete instructions/
-role/speed/hull/state,the exact trade-off and all original cases. This member
-belongs to CRAFT-ACCEPT-CINDER-LIGHT's production-choice contract;the initial
-card's CRAFT-GAPS definition ID was a mistaken ownership reference,not a reopened
-completed definition or a fresh task/budget. **No further work on this member is selected.**
-
-**Retained player-motion binding: GATED; bounded check closed2026-11-05.**
-All nine original2560×1440 PNGs match their existing manifest's byte counts and
-SHA256. However,the recorded Player controller hash differs from documented
-sourceed359040c;the capture-script hash alone cannot bind that source. The
-original complete run log/source-import guard record and exact inspected-image
-binding were not found in the declared retained locations. No recapture,registry
-upgrade,pixel reinspection,engine run or gameplay change.
-[Exact mismatch and search boundary](docs/history/ROADMAP_DELIVERIES.md#player-motion-retained-binding-stop-20261105).
-Reopen this binding only with the actual source/run/inspection artifacts;do not
-repeat this search unchanged. This closes the16:03:04UTC selection within its
-20-minute/16:23:04UTC bound. **No further work on this member is selected.**
-
-**Bulwark whole-craft LOD runtime/checkpoint: PARKED/unaccepted.**
-Candidates28c54b642→a2ad76cfd are archived unmerged. Corrected source gates pass
-276focused/31production/176Main checks;static far3134/close35829 (35605 in Main)
-triangles and74/74submissions satisfy the fixed budget. Required Forward+ capture
-exits1 on two unchanged cockpit-clearance assertions. Actual three640×720 panels
-and1920×720strip/current-camera selections pass;far is153.1m. Correct images and
-source passes cannot accept a smaller delivery. No export,checkpoint or runtime
-merge. The sole correction was spent on empty portal-stock geometry and actual
-owned weapon-resource snapshots.
-[Exact failure, images, archived source and cleanup](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105).
-Reopening requires literal failed clearance operands and reconciliation with the
-original geometry/camera contract,plus explicit user reprioritization retaining
-prior cost/exhausted allowance and all remaining gates. No further work on this member selected.
-
-**Closed: concrete-goal working plan — documentation PASS, 2026-11-05.**
-Independent review: GO. All337 canonical identities/order/kinds and the original
-36-parent/ten-phase tables are preserved. Only Scan's selection state and two
-stale definition instructions changed in canonical rows; all17 added local links
-and whitespace checks pass. Scan now names its missing original failure record;
-the blocker register exposes seventeen unresolved travel maxima; final
-reconciliation uses its already-defined contract. Gameplay requirements remain
-unchanged. This closes the15:16UTC documentation selection within its20-minute
-budget/15:36UTC deadline; no gameplay, checkpoint or parked retry is selected.
-No task branch/worktree/process/scratch was created. That documentation task
-selected no implementation; subsequent runtime deliveries are linked below.
-
-**Halyard whole-craft LOD runtime: PARKED/unaccepted.** Candidates
-8fc3d5d64→663649230 are preserved unmerged. Corrected Halyard541/Main176 source
-checks pass;static exterior is12928/51768triangles and70/83submissions. Actual
-Forward+/llvmpipe capture exits0/diag0 and selects far at154.1m,but the four
-standalone images are1280×900 and composite1280×720,cropping the four-view layout.
-The required panels1280×720/strip5120×720 were not produced. Root inspected all
-five originals;no source success accepts that visual assembly failure.
-No exports,checkpoint or runtime merge. The single correction was spent on
-classifying three exact late-created Loadmaster cabin cues.
-[Exact results,original cropped image and retained source](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105).
-Reopening requires explicit user reprioritization for a harness-only viewport/
-content-scale correction,retaining prior cost/exhausted allowance and unchanged
-geometry,cameras,thresholds,300s capture and full checkpoint gates. Actual new
-images must meet the same dimensions;existing PNG resizing is not proof.
-**No further implementation or qualification is selected.**
-
-Accepted recent results stay closed in their stated scopes:
-
-| Goal/member | Accepted result and proof | Still outside that result |
-| --- | --- | --- |
-| Shared retained-Main all-nine source qualification | [Actual identity/empty-claim/home retention and normal passive repair](docs/history/ROADMAP_DELIVERIES.md#main-nine-component-claims-home-qualified-20261105) | Ordinary input, OS restart, networking and whole-craft acceptance |
-| Bulwark editable-source handoff | [Complete editable archive and clean reproduction](docs/history/ROADMAP_DELIVERIES.md#bulwark-editable-source-handoff-accepted-20261105) | Gameplay, art, LOD and native acceptance |
-| Hauler distant exterior runtime/checkpoint | [Complete frozen source/image/package delivery](docs/history/ROADMAP_DELIVERIES.md#hauler-whole-lod-delivered-20261105) | Ordinary LOD transitions, full craft/art and native hardware qualification |
-| Bomber distant exterior runtime/checkpoint | [Complete frozen source/image/package delivery](docs/history/ROADMAP_DELIVERIES.md#bomber-whole-lod-delivered-20261105) | Ordinary LOD transitions, full craft/art and native hardware qualification |
-
-These are selection constraints, **not a list of tasks running in parallel**:
-
-| Existing goal/member | Current result or blocker | Condition before further work |
-| --- | --- | --- |
-| [Cinder Light role-choice card](docs/history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105) | PARKED: added line needs73px inside63px body in all six existing fit cases | Explicit reprioritization and bounded text packing that preserves exact trade-off/full instructions/facts/state,normal fonts and original case/tolerance limits;retain cost/exhausted allowance |
-| [Bulwark whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105) | PARKED: required capture fails two unchanged cockpit-clearance assertions despite source and dimension passes | Log exact failed operands, reconcile original clearance contract, explicitly reprioritize with prior cost/exhausted allowance; no subset acceptance |
-| [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
-| [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |
-| [Cinder remote terminal handoff](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback) | GATED implementation: remote pilot disembark retires helm without supplying the host an exterior A actor | Codex first implements that existing member’s authoritative disembark/body handoff; terminal RPC alone cannot prove physical eligibility; parked B egress remains separate |
-| [Titan specification](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | BLOCKED input: prepared proposal awaits the user's design decision | Record adoption or exact revisions; no construction before approval |
-| [Halyard fresh-Main re-entry](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105) | PARKED: off-tree cabin-transform errors during actual HUD Restart Shift; no complete re-entry pass | Focused repair/retry request unanswered; original12:47:51UTC deadline expired. Requires explicit reprioritization, retaining cost and exhausted allowance |
-| [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
-| [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
-| [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
-| [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED: typed mesh-array membership fails on Node3D | Type-safe correction and explicit reprioritization retaining exhausted allowance |
-| [Zenith whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105) | PARKED: ArrayMesh-only method called on BoxMesh | Concrete mesh-type correction and explicit reprioritization retaining exhausted allowance |
-| [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
-| [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
-| [Landed-crew browser entry](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105) | PARKED: failed before admission; no joining feature accepted | Satisfy its recorded reopening conditions; no subset pass |
-
-Every parked source/result remains recoverable from its linked delivery record.
-Owned branches/worktrees/scratch for the closed attempts are cleaned up. Their
-complete routes, failures, original budgets and correction limits stay binding;
-a new label or automatic continuation cannot reset them.
-
-Previously accepted [Rime arrival guidance](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-guidance-delivered-20261105),
-[retired-world residency](docs/history/ROADMAP_DELIVERIES.md#retired-world-residency-delivered-20261105)
-and [Ember passive progress](docs/history/ROADMAP_DELIVERIES.md#ember-passive-progress-delivered-20261105)
-remain closed in their recorded scopes. Aurora/Rime settled resume retirement,
-Ember Save Progress, Arrow guidance and exported dedicated startup also retain
-their accepted scopes. Halyard physical egress and Ember outbound remain parked
-at their previously recorded station-spawn and planetary-gravity caller failures.
-Do not reselect accepted components or use them to pass an unperformed full journey.
 
 ## Selecting work after the breakdown
 
