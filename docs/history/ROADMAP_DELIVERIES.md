@@ -33912,3 +33912,92 @@ selection; final documentation/push stays charged to this closure. All337
 canonical records keep IDs/parents/kinds/order/Done text; only the two matching
 State cells describe the delivered component. No parent, phase or full shared
 case is closed; latest playable checkpoint remains the accepted d525554.
+
+
+<a id="exterior-session-loss-recovery-parked-20261105"></a>
+## Exterior stopped-session recovery candidate parked 20261105
+
+**PARKED/NOT_ACCEPTED**, candidate
+f47bb9bd0a1d5929afa9949f19500da0276264ad based on
+be3a97aa3a45c62a87ab6ae8560bf4d43b77e3ca. Four changed files remain unmerged:
+GameFlow, existing passenger/shared-cruise fixtures and existing visit gate test.
+No accepted runtime change or new build; latest playable remains d525554.
+The selected missing capability belongs to the existing three shared-world
+RECONNECT contracts; only an Ember native component proof was selected, not
+full canonical journeys, fresh rejoin/admission, or Aurora/Rime cuts.
+
+Goal was stopped-session same-Player supported Mudds recovery<=8s, ordinary
+supported walk>.6m<=15s and normal Pause/Resume, after a genuine current exterior
+cut via host ENet disconnect_peer(peer) with its default one-argument form.
+Actual actor/session/journey/body ownership must be captured before bridge
+detach, retired coherently and recalled through the existing embodiment owner;
+stale/foreign/replaced callbacks must not affect a new session or body. Existing
+cabin-only recovery remains separate. Proposed code also bound the stopped
+callback to its adapter and rejected an active reused adapter before teardown.
+These source changes have static review, not runtime acceptance.
+
+Card start04:59:39UTC includes initial source mapping; estimate60min/cap90min,
+source cutoff05:24:39UTC, original hard stop06:29:39UTC. Source frozen05:11:47UTC.
+Source/test ownership stayed disjoint: implementation owned three files;
+independent production reviewer wrote the one isolated negative gate test,
+which root reviewed. No nested agents or agent engine/commit runs.
+
+A temporary detached base checkout contained the unchanged old GameFlow and
+exactly the same two selected fixture files. It created no extra branch. Planned
+RED had to reach actual native loss and fail the missing supported-Mudds endpoint;
+a parse/setup/missing-method failure could not count. Candidate checkout stayed
+separate. Old/candidate imports both exit0, no diagnostics. First fixture parses
+both fail warning-as-error at1047/1144: weakref-return Variant inferred with :=.
+The sole reviewed correction adds explicit WeakRef types on exactly those two
+fixture declarations, identically in both checkouts; no actions/limits change.
+Corrected old/candidate parses both exit0/no diagnostics before source cutoff.
+
+**Unexpected failure before the intended RED cut:** selected baseline run takes
+280.669s, coordinator OS143 after diagnostic-triggered owned-process reap,
+eight diagnostics and no success marker. Coordinator records missing client.done,
+host.done and client.exit/route/OS-exit failures. Host.done has15checks/one failure,
+waiting client.loss_cut_ready. That receipt never exists, so the intentional
+one-argument disconnect was not reached. The client log proves genuine supported
+cabin boarding/prediction and then only the start of its landed hatch walk; it
+has no completed exterior walk/cut-ready observation.
+
+Actual client.main_ready wall1793855786.14267; host.loss_landed at
+1793855906.72764, genuine production ACTIVE/index1/count2/unpaid:120.58497s later.
+The source parent starts a120s client completion wait after Main readiness, but
+its exact polling start was not recorded. Budget exhaustion is a plausible
+source/timing explanation, not a copied failed deadline operand or demonstrated
+movement/controller cause. Client hatch walk starts1793855910.48135 and does
+not complete before abort. Ordinary teardown after a failed setup cannot count
+as the intended native cut. No conclusion about old recovery behavior follows.
+
+No candidate GREEN native probe, negative-unit execution, cabin authority-stop
+regression, prior passive-Ember regression, exports, startup check or checkpoint.
+One correction is spent; no further fix/probe/rerun or cap/clock reset selected.
+Native Windows/GPU/device/human and all full shared-world qualification stay
+NOT_RUN/OPEN. Reopening needs an executable measured readiness/controller seam
+that reaches the supported exterior cut within its frozen declared bounds,
+actual operands at the first missing boundary, and independent cumulative-cost
+review. Preserve old selectors' caps and8s/15s/UI/exit endpoints; obtain actual
+native baseline RED before candidate acceptance. This record grants no new
+allowance, renamed retry or automatic reopening.
+
+Verified archive:
+`/srv/mudds-work/exterior-session-loss-20261105/records.tar.gz`,
+73 regular members/7,602,263bytes, SHA256
+72da6738f05c918d9dbe8f42381f007c06f497bde9823d6f6c560ac27668d806.
+It retains all four complete candidate files, initial/corrected patches and
+initial fixture, verified incremental Git bundle against retained main base,
+unchanged old-runtime source/hash and exact overlaid fixture hashes, commands/
+results/raw peer logs/receipts/profile records, independent reviews and all337
+canonical before-records. Every archived regular-file hash was verified after
+creation. Template symlinks were recorded/excluded without following targets.
+
+Fresh remote-tip and registered-worktree ownership checks found no task remote
+branch. After archive/bundle verification, both the owned detached baseline and
+clean candidate worktrees were removed, then the exact-tip local candidate ref
+was compare-and-swap deleted. No owned engine/supervisor/Xvfb remains; main is
+the sole local branch/worktree. Only records.tar.gz/closeout.json remain in the
+case folder. Cleanup observed05:25:09UTC,25.513minutes from selection; final
+notes/push stay charged to this closure. All canonical IDs/parents/kinds/order/
+Done/State cells remain intact. No product, parent or phase outcome is closed;
+accepted runtime and d525554 checkpoint remain unchanged.

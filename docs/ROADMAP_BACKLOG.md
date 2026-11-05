@@ -3753,6 +3753,24 @@ but establishes no supported recovery pose/world/frame handoff. Existing cabin
 loss proof does not qualify an exterior actor,and conditional yard-fall recall
 is not a guaranteed transaction. No fall or terrain unload was tested here.
 
+**Attempt2026-11-05 — PARKED/unaccepted.** Candidatef47bb9bd0a1d5929afa9949f19500da0276264ad
+was archived unmerged. New selected --ember-exterior-session-loss fixture was
+compiled with one WeakRef typing correction, then overlaid on the unchanged old
+runtime for the required RED. It reached real supported cabin boarding and host
+landed ACTIVE/index1/count2/unpaid, but no client.loss_cut_ready arrived. Host
+waiting for that receipt and coordinator client.done/host.done/exit checks fail;
+no intentional native disconnect occurred. This does not reproduce the old
+recovery failure or validate the candidate. Client main-ready to host landed
+was120.585s against the nominal120s completion window; actual parent polling
+start was not logged, so timing exhaustion is an explanation to investigate,
+not a proved failed operand. Only the client hatch-walk start is recorded.
+The sole correction is spent; candidate native proof, units/regressions and
+exports remain NOT_RUN. Reopening first needs a measured executable readiness/
+controller contract that reaches the actual supported exterior cut within its
+frozen limits, actual missing-boundary operands, and independent cumulative-cost
+review before a new attempt. Do not rename/reset/widen inherited caps to retry.
+[Terminal scope and retained source](history/ROADMAP_DELIVERIES.md#exterior-session-loss-recovery-parked-20261105).
+
 Capture the actual former surface actor/context before detach destroys it,then
 route stopped-session exterior recovery through the existing embodiment owner
 that explicit authenticated visit retirement uses to recall to Mudds

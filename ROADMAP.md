@@ -193,7 +193,10 @@ Baseline/Aurora artifact/Rime parked gates remain intact.
 [Three surface reconnect cases](docs/ROADMAP_BACKLOG.md#shared-world-surface-reconnect)
 now fix the transport cut,recovery and fresh crew handback. Safe exterior-loss
 recovery and Rime's conserved-checkpoint resume are missing production work;
-restarting the survey from zero cannot qualify progress conservation.
+restarting the survey from zero cannot qualify progress conservation. The
+exterior-loss recovery candidate is [PARKED before its native cut](docs/history/ROADMAP_DELIVERIES.md#exterior-session-loss-recovery-parked-20261105):
+the client never reached its physical exterior cut-ready point. No recovery
+proof, runtime merge or new checkpoint resulted; d525554 remains latest.
 [Three pilot-loss cases](docs/ROADMAP_BACKLOG.md#shared-world-pilot-loss-safe-return)
 now choose actual host authority shutdown and safe same-craft Mudds recovery,
 with durable progress protected before teardown. Preflight-safe recovery,
