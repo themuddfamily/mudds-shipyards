@@ -20,6 +20,134 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def station_observation(self, enabled=False, sequence=1):
+        baseline = dict(tonemap_exposure=1.2, glow_intensity=.4, glow_strength=1.2,
+                        glow_bloom=.01, glow_hdr_threshold=1.2, glow_hdr_scale=2.2,
+                        glow_hdr_luminance_cap=4., fog_sun_scatter=.1,
+                        volumetric_fog_anisotropy=.5, glow_levels=[1.]*7)
+        actual = (dict(tonemap_exposure=.94, glow_intensity=.18, glow_strength=.72,
+                       glow_bloom=.002, glow_hdr_threshold=1.65, glow_hdr_scale=1.35,
+                       glow_hdr_luminance_cap=2.4, fog_sun_scatter=.015,
+                       volumetric_fog_anisotropy=.2, glow_levels=[0., .38, .22, .06, 0., 0., 0.])
+                  if enabled else
+                  dict(tonemap_exposure=1.08, glow_intensity=.34, glow_strength=1.05,
+                       glow_bloom=.006, glow_hdr_threshold=1.45, glow_hdr_scale=2.,
+                       glow_hdr_luminance_cap=3., fog_sun_scatter=.04,
+                       volumetric_fog_anisotropy=.35, glow_levels=[0., .7, .5, .18, 0., 0., 0.]))
+        sky_baseline = dict(sun_direction='(1, 0, 0)', sun_focus=260., sun_halo=.18, sun_halo_focus=48.)
+        sky = dict(sky_baseline, sun_halo=.08 if enabled else .18)
+        p = dict(active=True, generation=1, environment_instance_id=7, sky_material_instance_id=9,
+                 baseline=baseline, actual=actual, current=copy.deepcopy(actual),
+                 sky=sky, sky_baseline=sky_baseline, reduced_flash=enabled)
+        return dict(mode='station-flash', sequence=sequence, frame=sequence, pid=42,
+                    main_id=2, world_id=3, player_id=4, authority_id=5, source_id=6,
+                    environment_node_id=8, environment_id=7, sky_id=10, sky_material_id=9,
+                    main_current=True, default_sampler=True, seated=False, piloted=False,
+                    native_begin=False, native_gameplay=dict(fire=False, movement=False, landing=False, interact=False),
+                    authority=dict(cargo={'manifest':1}, reward={'receipts':0}, claims={'occupancies':[]},
+                                   craft={'hull':100, 'submitted_sequence':0}),
+                    transition_busy=False, solar=dict(active=True, runtime_settings_bound=True,
+                    reduced_flash=enabled, presentation=p, attach_count=1, detach_count=0),
+                    recovery=dict(settings=dict(reduced_flash=enabled, reduced_motion=False,
+                                                 payload_visual_intensity=2)), ui=dict(flash_pressed=enabled))
+
+    def test_station_flash_actual_resources_match_independent_policy_all_toggle_phases(self):
+        pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+        for sequence, enabled in enumerate((False, True, False, True), 1):
+            pilot.validate_observation(self.station_observation(enabled, sequence))
+        self.assertEqual(pilot.last_state['sequence'], 4)
+        baseline = copy.deepcopy(pilot.initial['solar']['presentation']['baseline'])
+        baseline.update(tonemap_exposure=.5, glow_intensity=.01, glow_levels=[.01]*7,
+                        glow_hdr_threshold=2.)
+        expected = pilot.expected_policy(baseline, True)
+        self.assertEqual(expected['tonemap_exposure'], .5)
+        self.assertEqual(expected['glow_intensity'], .01)
+        self.assertEqual(expected['glow_hdr_threshold'], 2.)
+        self.assertEqual(expected['glow_levels'], [0., .01, .01, .01, 0., 0., 0.])
+        self.assertTrue(pilot.approximate(.94, .94000001))
+        self.assertFalse(pilot.approximate(.94, .941))
+        self.assertFalse(pilot.approximate(float('nan'), .94))
+
+    def test_station_flash_accepts_signed_live_resource_ids_and_rejects_absence(self):
+        sample = self.station_observation()
+        for name in native.StationFlashPilot.RESOURCE_IDS:
+            sample[name] = -abs(sample[name])
+        sample['solar']['presentation']['environment_instance_id'] = sample['environment_id']
+        sample['solar']['presentation']['sky_material_instance_id'] = sample['sky_material_id']
+        pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+        pilot.validate_observation(sample)
+        for name in native.StationFlashPilot.RESOURCE_IDS:
+            absent = copy.deepcopy(sample); absent[name] = 0
+            fresh = native.StationFlashPilot(); fresh.expected_pid = 42
+            with self.assertRaises(AssertionError): fresh.validate_observation(absent)
+
+    def test_station_flash_rejects_report_only_claim_resource_swap_and_policy_drift(self):
+        for mutate in (
+            lambda s: s['solar']['presentation']['actual'].update(glow_intensity=.34),
+            lambda s: s['solar']['presentation']['actual'].update(glow_levels=[0., .39, .22, .06, 0., 0., 0.]),
+            lambda s: s['solar']['presentation']['sky'].update(sun_halo=.18),
+            lambda s: s.update(environment_id=77),
+            lambda s: s.update(authority_id=55),
+            lambda s: s['solar']['presentation'].update(generation=2),
+            lambda s: s['solar']['presentation']['baseline'].update(glow_bloom=.02),
+            lambda s: s['ui'].update(flash_pressed=False),
+            lambda s: s['recovery']['settings'].update(reduced_motion=True),
+            lambda s: s['recovery']['settings'].update(mouse_sensitivity=999),
+            lambda s: s.update(default_sampler=False),
+        ):
+            pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+            pilot.validate_observation(self.station_observation())
+            changed = self.station_observation(True, 2); mutate(changed)
+            with self.assertRaises(AssertionError): pilot.validate_observation(changed)
+
+    def test_station_flash_begin_shift_uses_and_observes_actual_ordinary_e(self):
+        pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+        s = self.station_observation()
+        s.update(menu_ready=True, position=[0, 1, 0], phase='INTRO', window_focused=True)
+        s['ui']['controls'] = {'IntroBeginShiftButton': dict(visible=True, enabled=True)}
+        pilot.validate_observation(s)
+        self.assertEqual(pilot.update(s, 10)[0], {'e'})
+        self.assertEqual(pilot.stage, 'begin_shift')
+        self.assertFalse(pilot.native_begin_seen)
+        pressed = copy.deepcopy(s); pressed.update(sequence=2, frame=2, native_begin=True)
+        pilot.validate_observation(pressed)
+        self.assertTrue(pilot.native_begin_seen)
+        self.assertTrue(pilot.receipts['native_begin_shift']['native_begin'])
+
+    def test_station_flash_live_authority_pose_and_native_input_are_preserved(self):
+        for change in ('cargo', 'reward', 'claims', 'craft', 'position', 'native'):
+            pilot = native.StationFlashPilot(); pilot.expected_pid = 42
+            initial = self.station_observation()
+            initial.update(phase='APPROACH_SHIP', control_enabled=True, grounded=True, paused=True,
+                           support_fresh=False, support=dict(supported=True, collider_id=123),
+                           position=[0, 1, 0], rotation=[0, 0, 0])
+            pilot.validate_observation(initial)
+            pilot.settled = copy.deepcopy(initial); pilot.stage = 'settings'
+            changed = copy.deepcopy(initial); changed.update(sequence=2, frame=2)
+            if change in ('cargo', 'reward', 'claims', 'craft'): changed['authority'][change] = {'changed':True}
+            elif change == 'position': changed['position'][0] = 1
+            else: changed['native_gameplay']['fire'] = True
+            with self.assertRaises(AssertionError): pilot.validate_observation(changed)
+
+    def test_station_flash_explicit_save_after_ordinary_auto_persist_is_still_sent(self):
+        pilot = native.StationFlashPilot(); pilot.stage = 'save'; pilot.toggle_index = 3
+        sample = dict(frame=1, position=[0, 0, 0], phase='APPROACH_SHIP', window_focused=True,
+                      ui=dict(dirty=False, focus_name='SettingsSaveButton', controls={
+                          'SettingsSaveButton': dict(visible=True, enabled=True, path='/Save', focused=True)}))
+        pilot.last_state = sample
+        with patch.object(pilot, 'disk', return_value={'payload': {}}) as disk:
+            keys, _, _, fire = pilot.update(sample, 100)
+        self.assertEqual(keys, {'Return'}); self.assertFalse(fire)
+        self.assertEqual(pilot.stage, 'saved'); disk.assert_called_once_with('before-save')
+        self.assertIsNone(pilot.saved)
+
+    def test_station_flash_cannot_succeed_without_actual_save_toggles_and_exit(self):
+        pilot = native.StationFlashPilot()
+        for code in (0, 1):
+            with self.assertRaises(AssertionError): pilot.finish(code)
+        self.assertEqual(pilot.protected(dict(runtime_settings={'x':1}, cargo={'credits':4})),
+                         {'cargo': {'credits':4}})
+
     def outbound_observation(self, sequence=1, **changes):
         s = dict(pid=42, mode='beacon-home', sequence=sequence, frame=sequence,
                  paused=False, main_id=2, player_id=3, ship_id=4,

@@ -35,6 +35,7 @@ Use --route life-tow for Central service coexistence during real walking/boardin
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
 Use --route crew-recovery for ordinary Jovian engineer admission, owned kill and cold helm continuation.
+Use --route station-flash for actual supported-spawn Reduced Flash UI and resource readbacks.
 The default is Guided through normal HUD Exit and actual process exit zero.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -5970,6 +5971,221 @@ class ZenithReturnReusePilot(ArrowReturnReusePilot):
         return self.result
 
 
+class StationFlashPilot(Pilot):
+    """Ordinary station UI episode; actual resources, never a visual/GPU claim."""
+    IDS = ('pid', 'main_id', 'world_id', 'player_id', 'authority_id', 'source_id',
+           'environment_node_id', 'environment_id', 'sky_id', 'sky_material_id')
+    RESOURCE_IDS = ('environment_id', 'sky_id', 'sky_material_id')
+    CAPS = {
+        'tonemap_exposure': (1.08, .94), 'glow_intensity': (.34, .18),
+        'glow_strength': (1.05, .72), 'glow_bloom': (.006, .002),
+        'glow_hdr_threshold': (1.45, 1.65), 'glow_hdr_scale': (2., 1.35),
+        'glow_hdr_luminance_cap': (3., 2.4), 'fog_sun_scatter': (.04, .015),
+        'volumetric_fog_anisotropy': (.35, .2),
+    }
+    LEVELS = ([0., .7, .5, .18, 0., 0., 0.], [0., .38, .22, .06, 0., 0., 0.])
+
+    def __init__(self):
+        super().__init__()
+        self.expected_pid = None
+        self.initial = self.settled = self.last_state = None
+        self.receipts = {}
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.quit_requested = False
+        self.toggle_index = 0
+        self.native_begin_seen = False
+        self.save_before = self.saved = None
+        self.profile = self.output = None
+
+    @staticmethod
+    def approximate(a, b):
+        # Godot is_equal_approx: equal first, then max(epsilon, epsilon*abs(a)).
+        return (math.isfinite(a) and math.isfinite(b)
+                and (a == b or abs(a-b) < max(1e-5, 1e-5*abs(a))))
+
+    @classmethod
+    def expected_policy(cls, baseline, enabled):
+        result = {}
+        for key, caps in cls.CAPS.items():
+            value = baseline[key]
+            require(isinstance(value, (float, int)) and math.isfinite(value), 'finite captured station baseline')
+            result[key] = (max if key == 'glow_hdr_threshold' else min)(value, caps[int(enabled)])
+        require(len(baseline['glow_levels']) == 7, 'seven actual baseline glow levels')
+        result['glow_levels'] = [min(a, b) for a, b in zip(baseline['glow_levels'], cls.LEVELS[int(enabled)])]
+        return result
+
+    def validate_observation(self, s):
+        require(s['mode'] == 'station-flash' and s['pid'] == self.expected_pid
+                and s['main_current'] and all(type(s[k]) is int and (s[k] != 0 if k in self.RESOURCE_IDS else s[k] > 0)
+                                             for k in self.IDS), 'exact station process and current identities')
+        if self.initial is None:
+            self.initial = copy.deepcopy(s)
+        require(all(s[k] == self.initial[k] for k in self.IDS), 'same station Main Player authority input and resources')
+        if self.last_state is not None:
+            require(s['sequence'] > self.last_state['sequence'] and s['frame'] >= self.last_state['frame'],
+                    'ordered station observations')
+        if s['native_begin'] and self.stage == 'begin_shift':
+            self.native_begin_seen = True
+            self.receipts.setdefault('native_begin_shift', copy.deepcopy(s))
+        require({k: v for k, v in s['recovery']['settings'].items() if k != 'reduced_flash'}
+                == {k: v for k, v in self.initial['recovery']['settings'].items() if k != 'reduced_flash'},
+                'all non-flash runtime settings retain their actual initial values')
+        require(s['default_sampler'] and not s['seated'] and not s['piloted'] and not s['transition_busy'],
+                'station setting cannot change control or pilot authority')
+        solar, p = s['solar'], s['solar']['presentation']
+        initial_p = self.initial['solar']['presentation']
+        require(solar['active'] and solar['runtime_settings_bound'] and p['active']
+                and p['generation'] == initial_p['generation']
+                and solar['attach_count'] == self.initial['solar']['attach_count']
+                and solar['detach_count'] == self.initial['solar']['detach_count']
+                and p['environment_instance_id'] == s['environment_id']
+                and p['sky_material_instance_id'] == s['sky_material_id']
+                and p['baseline'] == initial_p['baseline'] and p['sky_baseline'] == initial_p['sky_baseline'],
+                'same live presentation generation and immutable captured baseline')
+        enabled = s['recovery']['settings']['reduced_flash']
+        require(type(enabled) is bool and solar['reduced_flash'] == enabled
+                and p['reduced_flash'] == enabled and s['ui']['flash_pressed'] == enabled,
+                'real checkbox runtime world and presentation agree')
+        expected = self.expected_policy(p['baseline'], enabled)
+        for key, value in expected.items():
+            values = value if isinstance(value, list) else [value]
+            for actual_key in ('actual', 'current'):
+                actual = p[actual_key][key]
+                actuals = actual if isinstance(actual, list) else [actual]
+                require(len(actuals) == len(values) and all(self.approximate(a, b) for a, b in zip(actuals, values)),
+                        'actual station %s %s equals independently bounded baseline' % (actual_key, key))
+        halo = min(p['sky_baseline']['sun_halo'], .08) if enabled else p['sky_baseline']['sun_halo']
+        require(self.approximate(p['sky']['sun_halo'], halo)
+                and all(p['sky'][key] == p['sky_baseline'][key] for key in ('sun_direction', 'sun_focus', 'sun_halo_focus')),
+                'same authored sky with only baseline-bounded halo')
+        require(not s['recovery']['settings']['reduced_motion']
+                and s['recovery']['settings']['payload_visual_intensity'] == 2, 'independent comfort defaults retained')
+        if self.settled is not None:
+            require(s['authority'] == self.settled['authority']
+                    and not any(s['native_gameplay'].values()),
+                    'live flight combat cargo rewards and claims unchanged with no gameplay input')
+            require(s['phase'] == 'APPROACH_SHIP' and s['control_enabled'] and s['grounded']
+                    and s['support']['supported'] and s['support']['collider_id'] == self.settled['support']['collider_id']
+                    and s['position'] == self.settled['position'] and s['rotation'] == self.settled['rotation'],
+                    'same settled supported Player pose throughout settings and normal exit')
+            if self.stage != 'pause' or s['paused']:
+                require(s['paused'] and not s['support_fresh'], 'settings episode retains actual paused tree and stale physics support')
+        self.last_state = s
+
+    def disk(self, label):
+        path = Path(self.last_state['recovery']['store']['path'])
+        require(path.resolve().is_relative_to(self.profile/'data') and path.name == 'mudds_user_data.json'
+                and path.is_file() and not path.is_symlink(), 'actual primary inside owned private profile')
+        raw = path.read_bytes()
+        (self.output/(label+'.json')).write_bytes(raw)
+        document = json.loads(raw)
+        self.receipts[label] = dict(path=str(path), bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest(), document=document)
+        return document
+
+    @staticmethod
+    def protected(payload):
+        return {k: v for k, v in payload.items() if k != 'runtime_settings'}
+
+    def update(self, s, now):
+        require(self.last_state is s, 'latest validated station observation')
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_key = None
+            self.ui_release_until = now+.10
+            return set(), 0, 0, False
+        if self.quit_requested or now < self.ui_release_until: return set(), 0, 0, False
+        require(s['window_focused'], 'owned actual game window has UI focus')
+        key = None
+        ui = s['ui']
+        def activate(name):
+            control = ui['controls'][name]
+            require(control['visible'] and control['enabled'] and control['path'], 'visible enabled normal '+name)
+            if control['focused']:
+                self.receipts[name+'-'+str(self.toggle_index)] = copy.deepcopy(s)
+                return 'Return'
+            require(ui['focus_name'], 'real UI keyboard focus')
+            return 'Tab'
+        if self.stage == 'boot':
+            if s['menu_ready']:
+                control = ui['controls']['IntroBeginShiftButton']
+                require(control['visible'] and control['enabled'], 'ordinary Begin Shift is ready')
+                self.enter('begin_shift', s)
+                key = 'e'
+        elif self.stage == 'begin_shift':
+            if s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['support']['supported'] and norm(s['velocity']) < 1e-5:
+                require(self.native_begin_seen and not any(s['native_gameplay'].values()),
+                        'actual ordinary E observed then released before supported spawn')
+                require(not s['recovery']['settings']['reduced_flash'], 'fresh ordinary authored OFF preference')
+                self.settled = copy.deepcopy(s)
+                self.receipts['settled'] = copy.deepcopy(s)
+                self.enter('pause', s)
+                key = 'Escape'
+        elif self.stage == 'pause':
+            if s['paused'] and ui['main_visible']:
+                key = activate('SettingsOpenButton')
+                if key == 'Return': self.enter('settings', s)
+        elif self.stage == 'settings':
+            if ui['settings_visible']:
+                key = activate('ReducedFlashControl')
+                if key == 'Return':
+                    require(not ui['flash_pressed'], 'actual visible initial OFF')
+                    self.receipts['off'] = copy.deepcopy(s)
+                    self.enter('toggle', s)
+        elif self.stage == 'toggle':
+            expected = (True, False, True)[self.toggle_index]
+            require(ui['settings_visible'] and ui['flash_visible'] and ui['focus_name'] == 'ReducedFlashControl'
+                    and ui['flash_pressed'] == expected, 'one acknowledged real flash toggle')
+            self.receipts['toggle-'+str(self.toggle_index)] = copy.deepcopy(s)
+            self.toggle_index += 1
+            if self.toggle_index < 3: key = 'Return'
+            else: self.enter('save', s)
+        elif self.stage == 'save':
+            key = activate('SettingsSaveButton')
+            if key == 'Return':
+                # Normal controls already persist accepted changes; explicit Save
+                # must still be observed as one additional accepted transaction.
+                self.save_before = self.disk('before-save')
+                self.enter('saved', s)
+        elif self.stage == 'saved':
+            persistence = s['recovery']['persistence']
+            before = self.receipts['SettingsSaveButton-3']['recovery']['persistence']
+            require(persistence['save_success_count'] == before['save_success_count']+1
+                    and persistence['last_save_status']['accepted'] and not persistence['unsaved_changes']
+                    and not ui['dirty'] and ui['status_visible'] and ui['status_text'] == 'SETTINGS SAVED',
+                    'one actual successful Save and cleared dirty feedback')
+            self.saved = self.disk('saved')
+            require(self.saved['payload']['runtime_settings']['values'] == s['recovery']['settings']
+                    and self.saved['payload']['runtime_settings']['values']['reduced_flash'] is True
+                    and self.protected(self.saved['payload']) == self.protected(self.save_before['payload']),
+                    'actual disk ON and unchanged unrelated payload on ordinary Save')
+            self.enter('back', s)
+        elif self.stage == 'back':
+            key = activate('SettingsBackButton')
+            if key == 'Return': self.enter('exit', s)
+        elif self.stage == 'exit':
+            require(ui['main_visible'] and not ui['settings_visible'] and not ui['dirty'], 'normal clean Back returns to pause')
+            key = activate('ExitButton')
+            if key == 'Return':
+                require(ui['controls']['ExitButton']['text'] == 'EXIT TO DESKTOP', 'ordinary Exit owner')
+                self.receipts['exit_ui'] = copy.deepcopy(s)
+                self.quit_requested = True
+                self.enter('quit_wait', s)
+        if key:
+            self.ui_key, self.ui_until = key, now+.08
+            return {key}, 0, 0, False
+        return set(), 0, 0, False
+
+    def finish(self, code):
+        require(code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and self.toggle_index == 3 and self.saved is not None, 'station ordinary UI exit OS0 after all four phases')
+        self.result = dict(normal_ui_exit=True, exit_code=code, receipts=self.receipts,
+                           same_actor_identities={k: self.initial[k] for k in self.IDS},
+                           rendered_visibility='NOT_RUN', native_gpu='NOT_RUN', human_review='NOT_RUN',
+                           shared_save_cold_reset_reused='3649b4b')
+        return self.result
+
+
 class GuidedExitPilot(Pilot):
     """Unchanged Guided flight, followed by ordinary pause controls and OS0."""
     IDS = ('pid', 'main_id', 'world_id', 'player_id', 'ship_id', 'source_id',
@@ -10584,7 +10800,7 @@ def game_leg_umask(route, future_format):
 
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
-    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol", "station-flash"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     require((route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save')) == (retained_data is not None),
@@ -10738,10 +10954,11 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                              HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-escorted-withdrawal": CourierEscortedWithdrawalPilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()))
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol"), "station-flash": StationFlashPilot}[route]()))
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
-                    if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot)): pilot.expected_pid = game.pid
+                    if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot)): pilot.expected_pid = game.pid
+                    if isinstance(pilot, StationFlashPilot): pilot.profile, pilot.output = profile, output
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -10749,7 +10966,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                             while pilot.result is None:
                                 if game.poll() is not None:
                                     code = record_terminal_game_exit(game, leg_result, output/'game.log')
-                                    if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                    if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot, StationFlashPilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
                                         tail = (game_leg_output_lines(output/'game.log',leg_log_offset) if unsupported_files else
                                                 (output/'game.log').read_bytes().splitlines())
@@ -10769,10 +10986,10 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                         if corrupt_files: corrupt_files.finish_leg(leg, pilot)
                                         if unsupported_files: unsupported_files.finish_leg(leg, pilot)
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
-                                        if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot)):
+                                        if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot)):
                                             leg_result['exit_ui'] = pilot.receipts['exit_ui']
                                             result['post_exit_user_data'] = capture_guided_shutdown(profile, output)
-                                            if isinstance(pilot, ZenithTorrentHandbackPilot):
+                                            if isinstance(pilot, (ZenithTorrentHandbackPilot, StationFlashPilot)):
                                                 closed = result['post_exit_user_data']
                                                 require(closed.get('captured') and closed.get('crash_recovery_state') == 'clean'
                                                         and closed.get('safe_start_recovery_state') == 'clean_shutdown',
@@ -10801,7 +11018,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                             received_at = time.monotonic()
                                             for observation in observations:
                                                 outbound_timing.observe(observation, received_at)
-                                        if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                        if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot, StationFlashPilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
@@ -10955,6 +11172,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                     board_since=pilot.board_since, clear_since=pilot.clear_since,
                     zenith_corner_required=pilot.walker.zenith_corner_required(),
                     zenith_corner_safe=pilot.walker.zenith_corner_safe(pilot.last_state) if pilot.last_state else None)
+            if isinstance(pilot, StationFlashPilot):
+                result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts)
             if isinstance(pilot, GuidedExitPilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts,
                                                guided_prerequisite=pilot.guided_result)
@@ -11075,8 +11294,8 @@ def main():
                         help='unsupported-save format, default outer; settings/legacy require primary and their dedicated fixture')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-escorted-withdrawal wounds the runner once, waits for both actual escorts, kills the defender and verifies withdrawal through strict home/physical exit; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol', 'station-flash'), default='guided',
+                        help='station-flash checks ordinary station OFF/ON/OFF/ON, final Save and normal UI exit using actual property readbacks; zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-escorted-withdrawal wounds the runner once, waits for both actual escorts, kills the defender and verifies withdrawal through strict home/physical exit; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')

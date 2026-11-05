@@ -2,6 +2,9 @@ extends Node
 
 ## Read-only exported-game telemetry. No input, actor writes, gameplay actions,
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
+var _station_flash: bool = false
+var _station_flash_sequence: int = 0
+var _station_flash_support: Dictionary = {}
 var _game: GameFlow
 var _guided := false
 var _guided_sequence := 0
@@ -119,6 +122,10 @@ func on_startup_completed(main: Node) -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_station_flash = "--native-sortie-observer=station-flash" in OS.get_cmdline_args()
+	if _station_flash:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
 	_crew_recovery = "--native-sortie-observer=crew-recovery" in OS.get_cmdline_args()
 	if _crew_recovery:
 		_life_mode = "life-gantry"
@@ -832,6 +839,10 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if _station_flash and _game != null:
+		_station_flash_sequence += 1
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_station_flash_observation(), "", true, true))
+		return
 	if _crew_recovery and _game != null:
 		_crew_sequence += 1
 		var crew_sample: Dictionary = _habitat_restart_pause_observation() if get_tree().paused else _crew_recovery_observation()
@@ -2621,3 +2632,102 @@ func _crew_recovery_observation() -> Dictionary:
 		"command_throttle": command.throttle if command != null else 0.0,
 		"flight_demand": craft.has_manual_flight_intent(), "native_forward": Input.is_action_pressed("move_forward")}, true)
 	return result
+
+
+## Paused samples retain the last real physics support query explicitly as stale.
+## No setting, focus, camera, actor, or process mutation belongs to this observer.
+func _station_flash_observation() -> Dictionary:
+	var hud: GameHUD = _game.hud
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var settings_page: Control = hud.get("_settings_page") as Control
+	var main_page: Control = hud.get("_pause_main_page") as Control
+	var flash: CheckButton = settings_page.find_child("ReducedFlashControl", true, false) as CheckButton
+	var status: Label = hud.get("_settings_status_label") as Label
+	var environment_node: WorldEnvironment = _game.world.get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
+	var environment: Environment = environment_node.environment if environment_node != null else null
+	var sky: Sky = environment.sky if environment != null else null
+	var material: ShaderMaterial = sky.sky_material as ShaderMaterial if sky != null else null
+	var support_fresh: bool = not get_tree().paused
+	if support_fresh:
+		var ray: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
+			_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid()])
+		var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+		var collider: Node = hit.get("collider") as Node
+		_station_flash_support = {"supported": is_instance_valid(collider) and _game.world.is_ancestor_of(collider),
+			"collider_id": collider.get_instance_id() if is_instance_valid(collider) else 0,
+			"collider_path": str(collider.get_path()) if is_instance_valid(collider) else "",
+			"frame": Engine.get_physics_frames()}
+	var controls: Dictionary = {}
+	for control_name: String in ["IntroBeginShiftButton", "SettingsOpenButton", "ReducedFlashControl", "SettingsSaveButton", "SettingsBackButton", "ExitButton"]:
+		var control: BaseButton = hud.find_child(control_name, true, false) as BaseButton
+		controls[control_name] = {"path": str(control.get_path()) if control != null else "",
+			"visible": control != null and control.is_visible_in_tree(),
+			"enabled": control != null and not control.disabled,
+			"text": control.text if control != null else "", "focused": control == focus}
+	var craft: HeroShip = _game.get_active_ship()
+	var source: LocalShipInputSource = craft.get("_default_local_command_source") as LocalShipInputSource
+	var command: ShipCommand = craft.get_last_ship_command()
+	var cargo: Dictionary = _game.cargo_delivery_activity.get_snapshot()
+	var reward: RefCounted = _game.get("_game_flow_reward_authority") as RefCounted
+	var reward_snapshot: Dictionary = reward.call(&"get_snapshot") as Dictionary if reward != null else {}
+	var boarding: Dictionary = _game.network_session.get_boarding_snapshot()
+	var area: ShipBoardingArea = craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var berth: ShipBerth = _game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	var reservation_owner: Node = berth.get_reservation_owner()
+	var occupant: Node = berth.get_occupant()
+	var local_token: Variant = area.get("_reservation_token")
+	var local_token_id: int = local_token.get_instance_id() if local_token is Object and is_instance_valid(local_token) else 0
+	var authority: Dictionary = {
+		"craft": {"id": craft.get_instance_id(), "position": _v(craft.global_position),
+			"rotation": _v(craft.global_rotation), "velocity": _v(craft.velocity),
+			"engine": str(craft.get("_engine_state")), "landed": bool(craft.get("_landed")),
+			"hull": float(craft.get("_hull")), "destroyed": craft.is_destroyed(),
+			"landing_active": craft.is_landing_active(),
+			"submitted_sequence": _game.combat_authority.get_last_submitted_sequence(craft),
+			"projectile_flights": _game.combat_authority.get_active_projectile_flight_count(),
+			"command": {"throttle": command.throttle if command != null else 0.0,
+				"yaw": command.yaw if command != null else 0.0,
+				"pitch": command.pitch if command != null else 0.0,
+				"roll": command.roll if command != null else 0.0,
+				"fire": command.fire if command != null else false,
+				"fire_pressed": command.fire_pressed if command != null else false,
+				"landing": command.landing if command != null else false,
+				"interact": command.interact if command != null else false}},
+		"cargo": {"inventory": _game.cargo_transfer_authority.to_dictionary(),
+			"state": cargo.get("state"), "generation": cargo.get("generation"),
+			"next_phase_index": cargo.get("next_phase_index"), "receipt": cargo.get("accepted_receipt")},
+		"reward": reward_snapshot.get("record", {}),
+		"claims": {"event_sequence": boarding.get("event_sequence"), "occupancies": boarding.get("occupancies"),
+			"local_reserved": bool(area.get("_has_reservation")), "local_token_id": local_token_id,
+			"home_id": berth.get_instance_id(), "lease_token": str(berth.get_reservation_token(craft)),
+			"reservation_owner_id": reservation_owner.get_instance_id() if is_instance_valid(reservation_owner) else 0,
+			"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0}}
+	return {"mode": "station-flash", "sequence": _station_flash_sequence,
+		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
+		"main_id": _game.get_instance_id(), "main_current": get_parent().call("get_main") == _game,
+		"world_id": _game.world.get_instance_id(), "player_id": _player.get_instance_id(),
+		"authority_id": _game.combat_authority.get_instance_id(), "source_id": source.get_instance_id(),
+		"default_sampler": source != null and craft.get("_command_source") == source and source.get_input_provider() == null,
+		"authority": authority, "native_begin": Input.is_physical_key_pressed(KEY_E),
+		"native_gameplay": {"fire": Input.is_action_pressed("fire"),
+			"movement": Input.is_action_pressed("move_forward") or Input.is_action_pressed("move_back") or Input.is_action_pressed("move_left") or Input.is_action_pressed("move_right"),
+			"landing": Input.is_action_pressed("landing_assist"), "interact": Input.is_action_pressed("interact")},
+		"phase": GameFlow.Phase.keys()[_game.phase], "paused": get_tree().paused,
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
+		"position": _v(_player.global_position), "rotation": _v(_player.global_rotation),
+		"velocity": _v(_player.velocity), "grounded": _player.is_on_floor(),
+		"support": _station_flash_support.duplicate(true), "support_fresh": support_fresh,
+		"seated": _player.is_seated(), "control_enabled": _player.is_control_enabled(),
+		"piloted": _game.get_active_ship().is_piloted(), "transition_busy": bool(_game.get("_transition_busy")),
+		"window_focused": _game.get_window().has_focus(),
+		"environment_node_id": environment_node.get_instance_id() if environment_node != null else 0,
+		"environment_id": environment.get_instance_id() if environment != null else 0,
+		"sky_id": sky.get_instance_id() if sky != null else 0,
+		"sky_material_id": material.get_instance_id() if material != null else 0,
+		"solar": _game.world.get_station_solar_readability_report(),
+		"recovery": _heavy_recovery_observation(),
+		"ui": {"settings_visible": settings_page.is_visible_in_tree(), "main_visible": main_page.is_visible_in_tree(),
+			"focus_name": str(focus.name) if focus != null else "", "controls": controls,
+			"flash_pressed": flash.button_pressed, "flash_visible": flash.is_visible_in_tree(),
+			"dirty": hud.has_unsaved_settings(), "status_text": status.text, "status_visible": status.is_visible_in_tree()}}
