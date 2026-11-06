@@ -165,6 +165,9 @@ func _test_geometry(ship: HeroShip) -> bool:
 	var envelope := AABB()
 	var first := true
 	var sections := 0
+	var shapes: Array[CollisionShape3D] = []
+	var polygons: Array[PackedVector2Array] = []
+	var section_bounds: Array[AABB] = []
 	for child in ship.get_children():
 		if not child is CollisionShape3D:
 			continue
@@ -175,6 +178,24 @@ func _test_geometry(ship: HeroShip) -> bool:
 		var mesh := ship.get_node("VortexOriginalShell/" + String(collision.name).trim_suffix("Collision")) as MeshInstance3D
 		var points := shape.points
 		var faces := mesh.mesh.get_faces()
+		var center := Vector3.ZERO
+		var polygon := PackedVector2Array()
+		var section_bound := AABB(points[0], Vector3.ZERO)
+		for point in points:
+			center += point / points.size()
+			section_bound = section_bound.expand(point)
+			polygon.append(Vector2(point.x, point.z))
+		shapes.append(collision)
+		polygons.append(Geometry2D.convex_hull(polygon))
+		section_bounds.append(section_bound)
+		var arrays := mesh.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		for index in vertices.size():
+			if normals[index].dot(vertices[index] - center) <= 0.0:
+				print("VORTEX_INWARD_SURFACE: ", mesh.name, " vertex=", vertices[index], " normal=", normals[index])
+				_check(false, "authored prism surfaces face outward for visible hull rendering")
+				return false
 		for point in points:
 			if not _check(point.is_finite() and _has_point(faces, point), "collision vertex on editable mesh " + collision.name):
 				return false
@@ -187,6 +208,20 @@ func _test_geometry(ship: HeroShip) -> bool:
 		sections += 1
 	if not _check(sections >= 15 and envelope.position.is_equal_approx(Vector3(-5, 0, -10))
 		and envelope.size.is_equal_approx(Vector3(10, 5, 20)), "actual authored10x20x5 hull/collision envelope"):
+		return false
+	for i in shapes.size():
+		for j in range(i + 1, shapes.size()):
+			if minf(section_bounds[i].end.y, section_bounds[j].end.y) - maxf(section_bounds[i].position.y, section_bounds[j].position.y) <= 0.0001:
+				continue
+			for polygon in Geometry2D.intersect_polygons(polygons[i], polygons[j]):
+				var area := 0.0
+				for k in polygon.size():
+					area += polygon[k].cross(polygon[(k + 1) % polygon.size()])
+				if absf(area) > 0.0001:
+					print("VORTEX_OVERLAP: ", shapes[i].name, " / ", shapes[j].name, " area=", absf(area) * 0.5)
+					_check(false, "convex shell and engines meet only at boundaries without overlapping interiors")
+					return false
+	if not _check(true, "actual convex sections have outward normals and nonoverlapping interiors"):
 		return false
 	var cabin := PhysicsShapeQueryParameters3D.new()
 	var clearance := BoxShape3D.new()
