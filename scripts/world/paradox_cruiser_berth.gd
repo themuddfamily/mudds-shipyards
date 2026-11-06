@@ -38,8 +38,9 @@ func _ready() -> void:
 	_rail("DeckSideStarboard", Vector3(10.12, 0.62, 1), Vector3(0.16, 1.24, 38), rail)
 	_rail("NoseRail", Vector3(0, 0.62, -18.12), Vector3(20.4, 1.24, 0.16), rail)
 	_rail("SternRail", Vector3(0, 0.62, 20.12), Vector3(20.4, 1.24, 0.16), rail)
-	_rail("SpurSideNose", Vector3(-31, 0.62, 17.48), Vector3(42, 1.24, 0.16), rail)
-	_rail("SpurSideStern", Vector3(-31, 0.62, 20.52), Vector3(42, 1.24, 0.16), rail)
+	# Start rails at world z=39.6, outside the old connector crossing.
+	_rail("SpurSideNose", Vector3(-30.2, 0.62, 17.48), Vector3(40.4, 1.24, 0.16), rail)
+	_rail("SpurSideStern", Vector3(-30.2, 0.62, 20.52), Vector3(40.4, 1.24, 0.16), rail)
 	for spec in [[&"approach", Vector3(-40, 0, 19)], [&"stern-apron", Vector3(0, 0, 19)], [&"hatch-control", Vector3(1.9, 0, 14.5)]]:
 		var marker := Marker3D.new()
 		marker.name = str(spec[0]).to_pascal_case()
@@ -157,7 +158,7 @@ func get_authority_contract() -> Dictionary:
 	contract["authority_ids"] = PackedStringArray([str(BERTH_ID)])
 	return contract
 func get_performance_contract() -> Dictionary:
-	return StationModuleContract.build_performance_contract(self, {"static_bodies": 8, "collision_shapes": 8, "mesh_instances": 105, "labels": 1, "lights": 0, "process_loops": 0, "physics_process_loops": 0})
+	return StationModuleContract.build_performance_contract(self, {"static_bodies": 8, "collision_shapes": 8, "mesh_instances": 103, "labels": 1, "lights": 0, "process_loops": 0, "physics_process_loops": 0})
 func set_module_enabled(enabled: bool) -> void:
 	_enabled = enabled
 	StationModuleContract.apply_enabled_state(StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _enabled, self)
