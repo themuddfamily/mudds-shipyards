@@ -60,11 +60,19 @@ func _run() -> void:
 	# along the actual cabin aisle. No pose/velocity writes or board-method calls.
 	var local_route := [Vector3(1.9, 0, 14.5), Vector3(0, 0, 14.5),
 		Vector3(0, 0, 13), Vector3(0, 0.4, 10.5), Vector3(0, 0.8, 8),
-		Vector3(0, 0.8, 6.5), Vector3(0, 0.8, -4.2)]
+		Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]
 	for point in local_route:
 		if not await _walk_to(_ship.to_global(point), 30):
 			await _fail_exit("physical stern/cabin walk failed")
 			return
+	for seat_id: StringName in [&"passenger_port_01", &"passenger_starboard_01", &"passenger_port_01"]:
+		if not await _passenger_round_trip(seat_id, identity):
+			await _fail_exit("physical passenger contract failed")
+			return
+	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 1.8)), 32) \
+			or not await _walk_to(_ship.to_global(Vector3(0, 0.8, -4.2)), 33):
+		await _fail_exit("physical passenger to helm walk failed")
+		return
 	await _tap(&"interact")
 	for frame in 240:
 		if _game._piloting and not _game._transition_busy: break
@@ -312,3 +320,48 @@ func _fail_exit(message: String) -> void:
 	_game.queue_free()
 	await _wait_frames(3)
 	quit(1)
+
+
+func _passenger_round_trip(seat_id: StringName, identity: int) -> bool:
+	var anchor := _ship.get_node("TitanOriginalShell/" + String(seat_id)) as Marker3D
+	var seat := anchor.get_node("SoloPassengerSeatInteraction") as ShipCrewSeat
+	var entry := seat.get_entry_transform()
+	if not await _walk_to(entry.origin, 31):
+		return false
+	await _aim(seat.global_position)
+	_check(_game.station_interaction_candidate == seat, "normal look discovers exact " + String(seat_id))
+	await _tap(&"interact")
+	for frame in 180:
+		if _game._station_seated and not _game._transition_busy: break
+		await _wait_frames(1)
+	var authority: CrewSeatRoleAuthority = _ship.call(&"get_crew_role_authority")
+	var assignment := authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID) if authority != null else {}
+	var metadata := _player.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	_check(_game._solo_crew_claim_is_current() and _player.is_seated_at(anchor)
+		and _player.get_instance_id() == identity and assignment.get("seat_id") == seat_id
+		and assignment.get("role") == &"passenger" and metadata.get("seat_id") == seat_id
+		and metadata.get("authority") == authority and metadata.get("craft") == _ship
+		and not _game._piloting and not _ship.is_piloted(), "actual Player and authority occupy exact " + String(seat_id))
+	var before := _ship.global_transform
+	Input.action_press(&"move_forward")
+	Input.action_press(&"fire")
+	await _wait_frames(12)
+	Input.action_release(&"fire")
+	_release_inputs()
+	_check(_ship.global_transform.is_equal_approx(before) and _ship.velocity.length() < 0.001
+		and StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE
+		and not bool(authority.authorize_action(1, GameFlow.SOLO_CREW_AVATAR_ID, CrewSeatRoleAuthority.CAPABILITY_SHIP_COMMAND).get("accepted", false))
+		and not bool(authority.authorize_action(1, GameFlow.SOLO_CREW_AVATAR_ID, CrewSeatRoleAuthority.CAPABILITY_WEAPON_CONTROL).get("accepted", false)),
+		"passenger flight/fire input has no propulsion or specialist authority")
+	await _tap(&"interact")
+	for frame in 180:
+		if not _game._station_seated and not _game._transition_busy: break
+		await _wait_frames(1)
+	await _wait_frames(5)
+	_check(not _player.is_seated() and _player.is_on_floor() and _player.get_instance_id() == identity
+		and _player.global_position.distance_to(entry.origin) < 0.05
+		and authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty()
+		and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META)
+		and _ship.call(&"get_crew_role_authority") == null and not _game._piloting,
+		"normal E stands supported and empties exact " + String(seat_id) + " claim")
+	return _failures.is_empty()

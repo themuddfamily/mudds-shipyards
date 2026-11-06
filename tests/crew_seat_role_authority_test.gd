@@ -17,6 +17,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_halyard_roster_and_single_seal()
 	_test_bulwark_roster()
+	_test_explicit_role_subset()
 	_test_server_claims_and_role_capabilities()
 	_test_generation_release_and_exactly_once_cleanup()
 	if _failures.is_empty():
@@ -136,3 +137,16 @@ func _check(condition: bool, description: String) -> void:
 	_checks += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+
+
+func _test_explicit_role_subset() -> void:
+	var authority := Authority.new(1)
+	authority.register_seat(&"pilot", &"transport", &"pilot")
+	authority.register_seat(&"passenger", &"transport", &"passenger")
+	_check(not authority.seal_roster().accepted, "default seal still requires all existing specialist roles")
+	for invalid in [[], [&"unknown"], [7], [null], [&"pilot", &"unknown"]]:
+		var before := authority.get_snapshot()
+		_check(not authority.seal_roster(invalid).accepted
+			and authority.get_snapshot() == before, "empty or malformed role requirements refuse without sealing")
+	_check(authority.seal_roster([&"pilot", &"passenger"]).accepted,
+		"explicit pilot/passenger subset seals without fictitious specialist slots")

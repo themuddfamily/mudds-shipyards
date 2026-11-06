@@ -155,12 +155,17 @@ func register_cinder_roster() -> Dictionary:
 
 ## The ship/session coordinator owns the roster boundary. Once sealed, a late
 ## or duplicate marker cannot silently become an authoritative seat.
-func seal_roster() -> Dictionary:
+func seal_roster(required_roles: Array = ROLES) -> Dictionary:
 	if _roster_sealed:
 		return _remember(_result(false, &"roster_already_sealed"))
 	if _seats.is_empty():
 		return _remember(_result(false, &"empty_roster"))
-	for role: StringName in ROLES:
+	if required_roles.is_empty():
+		return _remember(_result(false, &"invalid_required_roles"))
+	for role: Variant in required_roles:
+		if not (role is StringName or role is String) or not _valid_role(StringName(role)):
+			return _remember(_result(false, &"invalid_required_roles"))
+	for role: StringName in required_roles:
 		if not _has_role(role):
 			return _remember(_result(false, &"roster_missing_role", {"role": role}))
 	_roster_sealed = true

@@ -1,8 +1,8 @@
 extends HeroShip
 
 ## Owner-approved original modern shell. Historical evidence supports name/role
-## only. Physical Main pilot access/cabin; passenger, cargo and combat
-## composition remain separate work.
+## only. Physical Main pilot/access/cabin and two ordinary passenger chairs;
+## cargo, combat and network composition remain separate work.
 ## All editable points are metres in ship-local coordinates, -Z forward.
 const PILOT_ORIGIN := Vector3(0.0, 0.75, -5.8)
 const PILOT_EYE := Vector3(0.0, 2.51, -6.05)
@@ -13,6 +13,11 @@ const OUTLINE := [Vector2(-3.8, -9), Vector2(3.8, -9),
 const INNER := [Vector2(-3.2, -7.4), Vector2(3.2, -7.4),
 	Vector2(4.0, -6.6), Vector2(4.0, 7.2), Vector2(3.2, 8),
 	Vector2(-3.2, 8), Vector2(-4.0, 7.2), Vector2(-4.0, -6.6)]
+
+const PASSENGER_IDS := [&"passenger_port_01", &"passenger_starboard_01"]
+const CREW_FRAME_ID := &"titan_walkable_interior"
+var _passenger_anchors: Array[Marker3D] = []
+var _crew_role_authority: CrewSeatRoleAuthority
 
 const ACCESS_MOTION_SECONDS := 1.2
 var _access_fraction := 0.0
@@ -224,6 +229,7 @@ func _build_ship() -> void:
 		boarding_collision.shape = boarding_shape
 		boarding.add_child(boarding_collision)
 		add_child(boarding)
+	_build_passenger_chairs(structure, stripe)
 	_build_access_ramp(structure)
 	# A real canopy pivot lets the inherited motion clock and completion signal
 	# drive this variant without building any fighter canopy geometry.
@@ -351,3 +357,108 @@ func _on_cabin_occupancy_changed(_occupant: Node3D, _exit_velocity: Vector3 = Ve
 	if not _destroyed:
 		collision_mask = PhysicsLayers.SHIP_BODY_MASK & ~PhysicsLayers.PLAYER \
 			if _interior_frame.get_occupant_count() > 0 else PhysicsLayers.SHIP_BODY_MASK
+
+
+## Every chair publishes its own immutable authored identity and supported pose.
+func get_crew_seat_role_contract(anchor: Marker3D) -> Dictionary:
+	var index := _passenger_anchors.find(anchor)
+	if index < 0 or not is_instance_valid(anchor) or anchor.name != PASSENGER_IDS[index]:
+		return {}
+	var entry := global_transform * Transform3D(Basis.IDENTITY, Vector3(-0.9 if index == 0 else 0.9, 0.8, 1.8))
+	return {"role": &"passenger", "vessel_id": get_ship_id(), "seat_id": PASSENGER_IDS[index],
+		"seat": anchor, "entry_transform": entry, "exit_transform": entry,
+		"frame": _interior_frame, "seat_type": &"physical",
+		"role_label": "port passenger" if index == 0 else "starboard passenger"}
+
+
+func _install_solo_crew_seat() -> void:
+	if not is_inside_tree():
+		return
+	for anchor in _passenger_anchors:
+		if anchor.get_node_or_null("SoloPassengerSeatInteraction") == null:
+			ShipCrewSeat.install(anchor, self)
+
+
+func _crew_seat_records() -> Array[Dictionary]:
+	return [
+		{"seat_id": &"pilot_station", "role": &"pilot", "anchor_id": &"pilot_station"},
+		{"seat_id": PASSENGER_IDS[0], "role": &"passenger", "anchor_id": PASSENGER_IDS[0]},
+		{"seat_id": PASSENGER_IDS[1], "role": &"passenger", "anchor_id": PASSENGER_IDS[1]},
+	]
+
+
+## Register into the existing authority; this ship never owns a second ledger.
+func register_crew_seat_roster(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if authority == null:
+		return {"accepted": false, "status": &"authority_unavailable"}
+	for record in _crew_seat_records():
+		var result := authority.register_seat(record.seat_id, get_ship_id(), record.role, CREW_FRAME_ID, 1, record.anchor_id)
+		if not bool(result.get("accepted", false)):
+			return result
+	return authority.seal_roster([&"pilot", &"passenger"])
+
+
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if authority == null or (_crew_role_authority != null and _crew_role_authority != authority):
+		return {"accepted": false, "status": &"authority_unavailable"}
+	var snapshot := authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		return {"accepted": false, "status": &"roster_not_sealed"}
+	var seats: Array = snapshot.get("seats", [])
+	if seats.size() != 3:
+		return {"accepted": false, "status": &"titan_roster_mismatch"}
+	for expected in _crew_seat_records():
+		var matched := false
+		for record: Dictionary in seats:
+			if record.get("seat_id") == expected.seat_id and record.get("role") == expected.role \
+					and record.get("anchor_id") == expected.anchor_id and record.get("vessel_id") == get_ship_id() \
+					and record.get("frame_id") == CREW_FRAME_ID and int(record.get("seat_generation", 0)) == 1:
+				matched = true
+		if not matched:
+			return {"accepted": false, "status": &"titan_roster_mismatch"}
+	_crew_role_authority = authority
+	return {"accepted": true, "status": &"authority_attached"}
+
+
+func detach_crew_role_authority(authority: CrewSeatRoleAuthority) -> bool:
+	if authority == null or authority != _crew_role_authority \
+			or not (authority.get_snapshot().get("assignments", []) as Array).is_empty():
+		return false
+	_crew_role_authority = null
+	return true
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+func _build_passenger_chairs(structure: Material, cushion: Material) -> void:
+	for index in 2:
+		var x := -2.0 if index == 0 else 2.0
+		var label := "PortPassenger" if index == 0 else "StarboardPassenger"
+		# Narrow chairs leave x=-1.4..1.4 clear, including the 1.4m aisle.
+		_prism(label + "Pedestal", [Vector2(x - 0.25, 1.55), Vector2(x + 0.25, 1.55), Vector2(x + 0.25, 2.05), Vector2(x - 0.25, 2.05)], 0.8, 1.35, structure)
+		_prism(label + "Cushion", [Vector2(x - 0.5, 1.3), Vector2(x + 0.5, 1.3), Vector2(x + 0.5, 2.3), Vector2(x - 0.5, 2.3)], 1.35, 1.47, cushion)
+		_prism(label + "Back", [Vector2(x - 0.5, 2.3), Vector2(x + 0.5, 2.3), Vector2(x + 0.5, 2.43), Vector2(x - 0.5, 2.43)], 1.47, 2.65, structure)
+		var anchor := Marker3D.new()
+		anchor.name = PASSENGER_IDS[index]
+		anchor.position = Vector3(x, 0.75, 1.8)
+		anchor.set_meta("crew_role", &"passenger")
+		anchor.set_meta("seat_type", &"physical")
+		_visual_root.add_child(anchor)
+		_passenger_anchors.append(anchor)
+
+
+## The shared occupant handoff remains the only metadata/frame mutator. Fence
+## the complete Titan seat identity first, including current roster generation.
+func attach_solo_crew_role_occupant(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> Dictionary:
+	if _crew_role_authority == null or not is_instance_valid(seat) or seat.get_ship() != self:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	var assignment := _crew_role_authority.get_assignment(1, avatar_id)
+	var contract := seat.get_role_contract()
+	if contract.is_empty() or assignment.get("vessel_id") != get_ship_id() \
+			or assignment.get("seat_id") != contract.get("seat_id") or assignment.get("role") != &"passenger" \
+			or assignment.get("frame_id") != CREW_FRAME_ID or assignment.get("anchor_id") != contract.get("seat_id") \
+			or int(assignment.get("seat_generation", 0)) != 1:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	return super.attach_solo_crew_role_occupant(avatar_id, seat, occupant)

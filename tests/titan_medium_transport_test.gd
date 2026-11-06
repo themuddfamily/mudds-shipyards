@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Standalone component fixture, deliberately no Main, berth or boarding claim.
+## Standalone actual-component fixture, deliberately no Main or berth.
 const TITAN := preload("res://scenes/ships/titan_medium_transport.tscn")
 const DEFINITION := preload("res://assets/ships/titan_provisional.tres")
 const TITAN_SCRIPT := preload("res://scripts/ships/titan_medium_transport.gd")
@@ -19,9 +19,10 @@ class FixtureCommands:
 	extends ShipCommandSource
 	var throttle := 0.0
 	var brake := false
+	var yaw := 0.0
 
 	func _sample_controls() -> Dictionary:
-		return {"throttle": throttle, "brake": brake}
+		return {"throttle": throttle, "brake": brake, "yaw": yaw}
 
 
 func _init() -> void:
@@ -63,6 +64,7 @@ func _run() -> void:
 	_test_shell(ship)
 	await _test_access(ship)
 	await _test_flight(ship)
+	await _test_passengers(ship)
 	ship.set_piloted(false)
 	ship.queue_free()
 	await process_frame
@@ -126,13 +128,13 @@ func _test_shell(ship: HeroShip) -> void:
 	_check(nonoverlap, "convex shell and engines meet only at boundaries without overlapping interiors")
 	var query := PhysicsShapeQueryParameters3D.new()
 	var void_box := BoxShape3D.new()
-	void_box.size = TITAN_SCRIPT.CABIN_VOID.size - Vector3.ONE * 0.002
+	void_box.size = Vector3(1.4, 2.5, 14.3) - Vector3.ONE * 0.002
 	query.shape = void_box
 	query.margin = 0.0
 	query.transform = Transform3D(Basis.IDENTITY, TITAN_SCRIPT.CABIN_VOID.get_center())
 	query.collision_mask = PhysicsLayers.SHIP
 	_check(ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(),
-		"actual physics leaves whole reserved 5.4m wide cabin void clear above 0.8m floor for 2.5m headroom")
+		"actual physics leaves central 1.4m aisle clear above 0.8m floor for 2.5m headroom")
 	var slot_shape := BoxShape3D.new()
 	slot_shape.size = Vector3(2.398, 2.99, 0.198)
 	query.shape = slot_shape
@@ -408,3 +410,148 @@ func _aisle_clear(ship: HeroShip) -> bool:
 	query.collision_mask = PhysicsLayers.SHIP
 	query.margin = 0.0
 	return ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty()
+
+
+func _test_passengers(ship: HeroShip) -> void:
+	var frame := ship.call("get_interior_frame") as MovingInteriorFrame
+	var seats: Array[ShipCrewSeat] = []
+	var players: Array[PlayerController] = []
+	for index in 2:
+		var id: StringName = TITAN_SCRIPT.PASSENGER_IDS[index]
+		var anchor := ship.get_node("TitanOriginalShell/" + String(id)) as Marker3D
+		var seat := anchor.get_node("SoloPassengerSeatInteraction") as ShipCrewSeat
+		seats.append(seat)
+		_check(seat.get_role_contract().get("seat_id") == id and seat.get_role() == &"passenger"
+			and anchor.position.is_equal_approx(Vector3(-2 if index == 0 else 2, 0.75, 1.8)),
+			"anchor-specific physical ordinary passenger contract " + String(id))
+		var actor := preload("res://scenes/player/player.tscn").instantiate() as PlayerController
+		# One setup pose per actual body. Every subsequent displacement comes
+		# from the existing transition, locomotion and real ship/frame owners.
+		actor.transform = seat.get_entry_transform()
+		root.add_child(actor)
+		actor.set_control_enabled(false)
+		players.append(actor)
+	await _frames(10)
+	var unsealed := CrewSeatRoleAuthority.new(1)
+	_check(not bool(ship.call("attach_crew_role_authority", unsealed).get("accepted", false))
+		and ship.call("get_crew_role_authority") == null, "unsealed authority cannot attach or mutate Titan")
+	for changed_field in ["vessel_id", "seat_id", "role", "frame_id", "anchor_id", "seat_generation"]:
+		var wrong := CrewSeatRoleAuthority.new(1)
+		for record in ship.call("_crew_seat_records"):
+			var identity := {"seat_id": record.seat_id, "vessel_id": ship.get_ship_id(), "role": record.role,
+				"frame_id": TITAN_SCRIPT.CREW_FRAME_ID, "seat_generation": 1, "anchor_id": record.anchor_id}
+			if record.seat_id == TITAN_SCRIPT.PASSENGER_IDS[0]:
+				identity[changed_field] = 2 if changed_field == "seat_generation" else (&"pilot" if changed_field == "role" else &"wrong_identity")
+			wrong.register_seat(identity.seat_id, identity.vessel_id, identity.role, identity.frame_id, identity.seat_generation, identity.anchor_id)
+		wrong.seal_roster([&"pilot", &"passenger"])
+		var before := wrong.get_snapshot()
+		_check(not bool(ship.call("attach_crew_role_authority", wrong).get("accepted", false))
+			and ship.call("get_crew_role_authority") == null and wrong.get_snapshot() == before,
+			"wrong Titan roster " + changed_field + " refuses without mutation")
+	var authority := CrewSeatRoleAuthority.new(1)
+	_check(bool(ship.call("register_crew_seat_roster", authority).accepted) and bool(ship.call("attach_crew_role_authority", authority).accepted)
+		and (authority.get_snapshot().seats as Array).size() == 3,
+		"one exact sealed pilot and two-passenger ledger attaches")
+	for index in 2:
+		var avatar := StringName("fixture_passenger_" + str(index))
+		_check(authority.claim(1, 1, avatar, seats[index].get_seat_id(), &"passenger", index + 1).accepted,
+			"separate body claims separate chair " + str(index))
+		frame.unregister_occupant(players[index], false, &"seat_handoff")
+		_check(ship.attach_solo_crew_role_occupant(avatar, seats[index], players[index]).accepted,
+			"shared production occupant handoff attaches actual body " + str(index))
+		_check(players[index].begin_boarding(seats[index].get_entry_transform(), seats[index].get_seat_anchor(), 0.75, ship),
+			"existing Player begins ordinary passenger transition")
+	await _frames(50)
+	_check(players[0] != players[1] and players[0].is_seated_at(seats[0].get_seat_anchor())
+		and players[1].is_seated_at(seats[1].get_seat_anchor()) and frame.get_occupant_count() == 2,
+		"two real Players are simultaneously seated and carried at distinct chairs")
+	var before := authority.get_snapshot()
+	_check(not authority.claim(1, 2, &"duplicate", seats[0].get_seat_id(), &"passenger", 1).accepted
+		and not authority.release(1, 1, &"fixture_passenger_0", seats[0].get_seat_id(), 3, 2).accepted
+		and not authority.release(1, 1, &"fixture_passenger_0", seats[0].get_seat_id(), 1, 1).accepted
+		and authority.get_snapshot() == before, "occupied, stale sequence and stale generation refuse without ledger mutation")
+	var metadata := players[0].get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	_check(not ship.release_solo_crew_role_occupant(&"wrong_avatar", seats[0].get_seat_id(), players[0], 3, 1, authority).accepted
+		and not ship.release_solo_crew_role_occupant(&"fixture_passenger_0", seats[1].get_seat_id(), players[0], 3, 1, authority).accepted
+		and not ship.release_solo_crew_role_occupant(&"fixture_passenger_0", seats[0].get_seat_id(), players[0], 3, 2, authority).accepted
+		and players[0].get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) == metadata and authority.get_snapshot() == before,
+		"wrong identity/anchor/generation cannot release body, metadata or current claim")
+	_check(not ship.call("detach_crew_role_authority", authority), "occupied authority cannot detach")
+	var controls := FixtureCommands.new()
+	ship.add_child(controls)
+	ship.set_command_source(controls)
+	ship.set_piloted(true)
+	ship.request_engine_start()
+	await _frames(205)
+	var origin := ship.global_transform
+	controls.throttle = 0.18
+	controls.yaw = 0.12
+	await _frames(45)
+	for index in 2:
+		_check(players[index].begin_disembark(seats[index].get_exit_transform(), 0.65, ship), "real moving Player stand transition starts")
+	await _frames(45)
+	for index in 2:
+		var avatar := StringName("fixture_passenger_" + str(index))
+		_check(ship.release_solo_crew_role_occupant(avatar, seats[index].get_seat_id(), players[index], index + 3, 1, authority).accepted,
+			"normal supported stand releases exact passenger metadata and claim")
+		frame.register_occupant(players[index], {"require_inside_bounds": true})
+		players[index].set_cabin_containment(ship, TITAN_SCRIPT.CABIN_VOID, seats[index].get_exit_transform())
+	await _frames(5)
+	_check(players[0].is_on_floor() and players[1].is_on_floor()
+		and ship.to_local(players[0].global_position).distance_to(Vector3(-0.9, 0.8, 1.8)) < 0.08
+		and ship.to_local(players[1].global_position).distance_to(Vector3(0.9, 0.8, 1.8)) < 0.08,
+		"both stood bodies remain supported at own entry while actual Titan translates/rotates")
+	for index in 2:
+		players[index].set_control_enabled(true)
+		var local_target := Vector3(-0.9 if index == 0 else 0.9, 0.8, 0.5)
+		_check(await _walk_local_passenger(players[index], ship, local_target), "moving passenger physically walks over one metre with clear supported capsule")
+		_check(await _walk_local_passenger(players[index], ship, Vector3(local_target.x, 0.8, 1.8)), "moving passenger physically returns to own chair entry")
+		players[index].set_control_enabled(false)
+		players[index].clear_cabin_containment()
+		frame.unregister_occupant(players[index], false, &"reseat_handoff")
+		var avatar := StringName("fixture_passenger_" + str(index))
+		_check(authority.claim(1, 1, avatar, seats[index].get_seat_id(), &"passenger", index + 5).accepted
+			and ship.attach_solo_crew_role_occupant(avatar, seats[index], players[index]).accepted
+			and players[index].begin_boarding(seats[index].get_entry_transform(), seats[index].get_seat_anchor(), 0.75, ship),
+			"same body reseats through existing owners on moving Titan")
+		await _frames(50)
+	_check(ship.global_position.distance_to(origin.origin) > 2 and not ship.global_basis.is_equal_approx(origin.basis)
+		and players[0].is_seated_at(seats[0].get_seat_anchor()) and players[1].is_seated_at(seats[1].get_seat_anchor()),
+		"real controller translation/rotation carries both reseated passengers without test pose writes")
+	controls.throttle = 0
+	controls.yaw = 0
+	controls.brake = true
+	await _frames(120)
+	controls.brake = false
+	await _frames(95)
+	ship.set_piloted(false)
+	for index in 2:
+		ship.release_solo_crew_role_occupant(StringName("fixture_passenger_" + str(index)), seats[index].get_seat_id(), players[index], index + 7, 1, authority)
+		players[index].queue_free()
+	_check(ship.call("detach_crew_role_authority", authority), "empty fixture ledger detaches cleanly")
+	controls.queue_free()
+	await _frames(3)
+
+
+func _walk_local_passenger(player: PlayerController, ship: HeroShip, target: Vector3) -> bool:
+	var report := {"frames": 0, "supported": 0, "clear": 0, "ship_contacts": 0}
+	var reached := false
+	for tick in 180:
+		var offset := ship.to_global(target) - player.global_position
+		offset = offset.slide(ship.global_basis.y)
+		if offset.length() < 0.035:
+			reached = true
+			break
+		var direction := (player.get_node("%CameraYaw") as Node3D).global_basis.inverse() * offset.normalized()
+		for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+			Input.action_release(action)
+		var strength := 0.4 if offset.length() < 0.8 else 1.0
+		Input.action_press(&"move_right" if direction.x > 0 else &"move_left", absf(direction.x) * strength)
+		Input.action_press(&"move_back" if direction.z > 0 else &"move_forward", absf(direction.z) * strength)
+		await _frames(1)
+		_observe_walk_frame(player, ship, report)
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		Input.action_release(action)
+	await _frames(12)
+	print("TITAN_PASSENGER_WALK: local=", ship.to_local(player.global_position), " target=", target, " report=", report)
+	return reached and report.frames > 10 and report.supported == report.frames and report.clear == report.frames

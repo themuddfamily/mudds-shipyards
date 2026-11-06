@@ -3874,7 +3874,7 @@ func _solo_safe_recovery_craft() -> HeroShip:
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
 		return null
-	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID]:
+	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional"]:
 		return null
 	if context.mode in ["cabin", "rest", "crew"] and _solo_safe_recovery_cabin(craft).is_empty():
 		return null
@@ -10340,7 +10340,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var contract := seat.get_role_contract()
 	var retained_host_cabin := _can_reseat_host_remote_crew_seat(seat)
 	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_host_cabin) \
-			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID] \
+			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional"] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
 			or player.get_interaction_origin().distance_to(seat.global_position) > STATION_SEAT_MAX_REACH \
@@ -10378,6 +10378,8 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 			roster = _solo_crew_authority.register_jovian_roster()
 		elif craft is CinderCargoHauler:
 			roster = _solo_crew_authority.register_cinder_roster()
+		elif craft.get_ship_id() == &"titan_provisional":
+			roster = craft.call(&"register_crew_seat_roster", _solo_crew_authority)
 		else:
 			roster = _solo_crew_authority.register_bulwark_roster()
 		if not bool(roster.get("accepted", false)) \
