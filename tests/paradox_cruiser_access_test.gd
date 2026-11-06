@@ -201,8 +201,11 @@ func _interact(open: bool, safety: bool) -> bool:
 	# Deliver the ordinary edge before Player's next physics callback. The
 	# completed-tick observer already monitors this tick and every prior tick.
 	await physics_frame
+	_log_interact_input_phase("before_press",open,before)
 	Input.action_press(&"interact")
+	_log_interact_input_phase("after_press",open,before)
 	await _tick_observer.completed_tick
+	_log_interact_input_phase("first_completed_tick",open,before)
 	Input.action_release(&"interact")
 	if _failed:
 		return false
@@ -227,6 +230,25 @@ func _interact(open: bool, safety: bool) -> bool:
 	_commands.throttle = 0
 	_ship.set_piloted(false)
 	return _check(is_equal_approx(float(_ship.get("_access_fraction")),1.0 if open else 0.0),"inherited hatch motion reaches exact endpoint")
+
+
+func _log_interact_input_phase(phase: String, target_open: bool, before: int) -> void:
+	var discovered := false
+	for area: Area3D in (_player.get_node("InteractionArea") as Area3D).get_overlapping_areas():
+		if area == _hatch:
+			discovered = true
+	print("PARADOX_ACCESS_INTERACT_INPUT_OPERANDS: ", {
+		"phase": phase, "physics_frame": Engine.get_physics_frames(),
+		"in_physics_frame": Engine.is_in_physics_frame(),
+		"just_pressed": Input.is_action_just_pressed(&"interact"),
+		"pressed": Input.is_action_pressed(&"interact"),
+		"interactions_before": before, "interactions_current": _interactions,
+		"canopy_open": _ship.is_canopy_open(), "target_open": target_open,
+		"player_control_enabled": _player.is_control_enabled(),
+		"interact_handoff_blocked": _player.get("_interact_handoff_blocked"),
+		"hatch_available": _hatch.is_available(), "hatch_discovered": discovered,
+		"reach_distance": _player.get_interaction_origin().distance_to(_hatch.global_position),
+		"maximum_reach": ShipCabinHatch.MAX_REACH})
 
 
 func _walk_axis(axis: int, target: float, limit: int, require_endpoint: bool = true) -> bool:
