@@ -14,6 +14,59 @@ const INNER := [Vector2(-3.2, -7.4), Vector2(3.2, -7.4),
 	Vector2(4.0, -6.6), Vector2(4.0, 7.2), Vector2(3.2, 8),
 	Vector2(-3.2, 8), Vector2(-4.0, 7.2), Vector2(-4.0, -6.6)]
 
+
+## This original transport's sections sit on its actual nose, side-engine
+## boxes, roof core and aft header. Keep the inherited ledger, stage curve,
+## radii and repair owner; only the physical placement and nose binding differ.
+class TitanComponentDamage:
+	extends ShipComponentDamage
+
+	func _derive_layout(local_bounds: AABB) -> Dictionary:
+		var layout := super._derive_layout(local_bounds)
+		if layout.is_empty():
+			return layout
+		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0, 2.6, -8.2)
+		layout[COMPONENT_PORT_WING].local_position = Vector3(-5.4, 2.15, 4)
+		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(5.4, 2.15, 4)
+		layout[COMPONENT_CORE_SYSTEMS].local_position = Vector3(0, 4.75, 0)
+		layout[COMPONENT_ENGINE_BAY].local_position = Vector3(0, 3.9, 8.5)
+		return layout
+
+	func get_operational_modifiers() -> Dictionary:
+		var modifiers := super.get_operational_modifiers()
+		if modifiers.is_empty():
+			return modifiers
+		# A damaged nose limits safe propulsion through the same controller
+		# channel as the aft engine bay. The weaker surviving section wins.
+		var nose := _ledger.get_component_performance_multiplier(COMPONENT_FORWARD_HULL)
+		modifiers.mobility_multiplier = minf(float(modifiers.mobility_multiplier), nose)
+		modifiers.mobility_disabled = bool(modifiers.mobility_disabled) \
+			or _ledger.is_component_disabled(COMPONENT_FORWARD_HULL)
+		return modifiers
+
+
+## Transform round trips at this elevated, rotated deck can place supported
+## feet a few micrometres below y=.8. Normalize only that floor residue;
+## the authored walls, ceiling and real falls remain strict.
+class TitanInteriorFrame:
+	extends MovingInteriorFrame
+
+	func contains_world_position(world_position: Vector3) -> bool:
+		var moving := get_moving_frame()
+		if not world_position.is_finite() or not has_interior_bounds() \
+				or not is_instance_valid(moving) or not moving.is_inside_tree() \
+				or moving.is_queued_for_deletion():
+			return false
+		var pose := moving.global_transform
+		pose.basis = pose.basis.orthonormalized()
+		var point := pose.affine_inverse() * world_position
+		var bounds := get_interior_bounds()
+		if not point.is_finite() or not bounds.position.is_finite() or not bounds.size.is_finite():
+			return false
+		if point.y < bounds.position.y and point.y >= bounds.position.y - 0.0001:
+			point.y = bounds.position.y
+		return bounds.has_point(point)
+
 const PASSENGER_IDS := [&"passenger_port_01", &"passenger_starboard_01"]
 const CREW_FRAME_ID := &"titan_walkable_interior"
 var _passenger_anchors: Array[Marker3D] = []
@@ -101,6 +154,13 @@ func get_interior_frame() -> MovingInteriorFrame:
 	return _interior_frame
 
 
+## Opt this hull into the same current coordinator predicate for both physical
+## boarding discovery and Player's cached cabin containment. Player verifies
+## the live owner, exact bounds and registered occupant before using it.
+func get_cabin_containment_coordinator() -> MovingInteriorFrame:
+	return _interior_frame
+
+
 func get_in_flight_cabin_report() -> Dictionary:
 	var supported := not _destroyed and is_instance_valid(_interior_frame)
 	return {"supported": supported, "status": &"walkable_cabin" if supported else &"interior_unavailable",
@@ -135,6 +195,11 @@ func _build_ship() -> void:
 	if _built:
 		return
 	_built = true
+	var damage := TitanComponentDamage.new()
+	damage.name = "ShipComponentDamage"
+	add_child(damage)
+	install_shared_damage_presentation(Vector3(-5.4, 2.15, 4),
+		Vector3(0, 3.9, 8.5), Vector3(0, 4.75, 0), 12)
 	collision_layer = PhysicsLayers.SHIP_BODY_LAYER
 	collision_mask = PhysicsLayers.SHIP_BODY_MASK
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
@@ -245,7 +310,7 @@ func _build_ship() -> void:
 	_canopy_pivot.name = "AccessMotionClock"
 	_visual_root.add_child(_canopy_pivot)
 	_set_canopy_open_fraction(0.0)
-	_interior_frame = MovingInteriorFrame.new()
+	_interior_frame = TitanInteriorFrame.new()
 	_interior_frame.name = "MovingInteriorFrame"
 	var volume := Area3D.new()
 	volume.name = "CabinOccupancy"

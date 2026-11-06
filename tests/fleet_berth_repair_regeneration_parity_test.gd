@@ -23,20 +23,23 @@ const CRAFT_SCENES := {
 	"ZenithInterceptor": preload("res://scenes/ships/zenith_interceptor.tscn"),
 	"HalyardCrewTransport": preload("res://scenes/ships/halyard_crew_transport.tscn"),
 	"BulwarkHeavyGunship": preload("res://scenes/ships/bulwark_heavy_gunship.tscn"),
+	"TitanMediumTransport": preload("res://scenes/ships/titan_medium_transport.tscn"),
 }
 const CRAFT_SCRIPTS := {
 	"CinderLightInterceptor": preload("res://scripts/ships/cinder_light_interceptor.gd"),
 	"CinderCargoHauler": preload("res://scripts/ships/cinder_cargo_hauler.gd"),
 	"CinderLongRangeBomber": preload("res://scripts/ships/cinder_long_range_bomber.gd"),
 }
-const EXPECTED_CRAFT_COUNT := 9
+const EXPECTED_CRAFT_COUNT := 10
 const TICK := 1.0 / 60.0
 ## Generous ceiling on the passive repair window: FAILED -> NOMINAL at the shared
 ## 0.62 integrity/s rate is ~1.6 s. Anything slower is an outlier.
 const MAX_REPAIR_SECONDS := 4.0
 const DAMAGED_COMPONENTS: Array[StringName] = [
+	ShipComponentDamage.COMPONENT_FORWARD_HULL,
 	ShipComponentDamage.COMPONENT_ENGINE_BAY,
 	ShipComponentDamage.COMPONENT_PORT_WING,
+	ShipComponentDamage.COMPONENT_STARBOARD_WING,
 	ShipComponentDamage.COMPONENT_CORE_SYSTEMS,
 ]
 

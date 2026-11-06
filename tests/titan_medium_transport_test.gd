@@ -20,9 +20,10 @@ class FixtureCommands:
 	var throttle := 0.0
 	var brake := false
 	var yaw := 0.0
+	var fire := false
 
 	func _sample_controls() -> Dictionary:
-		return {"throttle": throttle, "brake": brake, "yaw": yaw}
+		return {"throttle": throttle, "brake": brake, "yaw": yaw, "fire": fire}
 
 
 func _init() -> void:
@@ -72,11 +73,240 @@ func _run() -> void:
 	await _test_access(ship)
 	await _test_flight(ship)
 	await _test_passengers(ship)
+	await _test_cabin_floor_roundoff()
+	await _test_components()
 	ship.set_piloted(false)
 	ship.queue_free()
 	await process_frame
 	await physics_frame
 	_finish()
+
+
+func _test_cabin_floor_roundoff() -> void:
+	var craft := TITAN.instantiate() as HeroShip
+	root.add_child(craft)
+	craft.set_physics_process(false)
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	root.add_child(player)
+	player.set_physics_process(false)
+	var cabin := craft.get_in_flight_cabin_report()
+	var frame := cabin.frame as MovingInteriorFrame
+	var bounds := cabin.local_bounds as AABB
+	frame.register_occupant(player, {"require_inside_bounds": false})
+	for pose: Transform3D in [Transform3D(Basis.IDENTITY, Vector3(1000, 90, -900)),
+			Transform3D(Basis(Vector3.UP, -PI * 0.5) * Basis(Vector3.RIGHT, 0.188), Vector3(184.7, 10.29, 38))]:
+		craft.global_transform = pose
+		player.global_position = craft.to_global(Vector3(0, 0.8, -4.2))
+		player.set_cabin_containment(craft, bounds, craft.get_boarding_entry_transform())
+		player.call("_resolve_cabin_containment")
+		_check(frame.contains_world_position(player.global_position)
+			and bool(player.get_cabin_containment_report().contained)
+			and int(player.get_cabin_containment_report().recall_count) == 0,
+			"actual authored Titan floor survives translated/rotated world-local round trip")
+		player.global_position = craft.to_global(Vector3(0, 0.79995, -4.2))
+		player.set_cabin_containment(craft, bounds, craft.get_boarding_entry_transform())
+		var before := player.global_position
+		for _index in 90:
+			player.call("_resolve_cabin_containment")
+		var report := player.get_cabin_containment_report()
+		print("TITAN_FLOOR_ROUNDOFF: ", {"pose": pose, "report": report, "position_unchanged": player.global_position == before})
+		_check(frame.contains_world_position(player.global_position) and bool(report.contained)
+			and int(report.recall_count) == 0 and int(report.clamp_count) == 0 and player.global_position == before,
+			"current translated/rotated Titan floor rounding agrees for admission/report and causes no false recall or pose write")
+		for outside: Vector3 in [Vector3(0, 0.799, -4.2), Vector3(-2.701, 0.8, -4.2),
+				Vector3(0, 0.8, 7.501), Vector3(0, 3.301, -4.2)]:
+			player.global_position = craft.to_global(outside)
+			_check(not frame.contains_world_position(player.global_position)
+				and not bool(player.get_cabin_containment_report().contained),
+				"Titan floor tolerance rejects real1mm fall and keeps walls/ceiling strict: %s" % outside)
+		player.global_position = craft.to_global(Vector3(0, 0.799, -4.2))
+		player.call("_resolve_cabin_containment")
+		_check(int(player.get_cabin_containment_report().recall_count) == 1,
+			"actual1mm fall still invokes existing cabin recall")
+	player.global_position = craft.to_global(Vector3(0, 0.79995, -4.2))
+	frame.set_interior_bounds(AABB(bounds.position + Vector3.UP * 0.01, bounds.size))
+	_check(not bool(player.get_cabin_containment_report().contained),
+		"changed coordinator bounds cannot relax Player's cached strict containment")
+	frame.set_interior_bounds(bounds)
+	craft.set("_destroyed", true)
+	_check(not bool(player.get_cabin_containment_report().contained),
+		"unsupported cabin cannot relax Player's cached strict containment")
+	craft.set("_destroyed", false)
+	frame.unregister_occupant(player, false)
+	_check(not bool(player.get_cabin_containment_report().contained),
+		"unregistered body cannot use Titan coordinator floor tolerance")
+	player.clear_cabin_containment()
+	player.queue_free()
+	craft.queue_free()
+	await _frames(2)
+
+
+func _test_components() -> void:
+	var anchors := [Vector3(0, 2.6, -8.2), Vector3(-5.4, 2.15, 4),
+		Vector3(5.4, 2.15, 4), Vector3(0, 4.75, 0), Vector3(0, 3.9, 8.5)]
+	var starts := [Vector3(0, 2.6, -12), Vector3(-9, 2.15, 4),
+		Vector3(9, 2.15, 4), Vector3(0, 8, 0), Vector3(0, 3.9, 12)]
+	var ends := [Vector3(0, 2.6, -7), Vector3(-5, 2.15, 4),
+		Vector3(5, 2.15, 4), Vector3(0, 4, 0), Vector3(0, 3.9, 8)]
+	var surfaces := ["ForwardGlazingCollision", "PortEngineBoxCollision",
+		"StarboardEngineBoxCollision", "ChamferedRoofCollision", "SternHeaderCollision"]
+	var crafts: Array[HeroShip] = []
+	var sources: Array[FixtureCommands] = []
+	# Independent fixtures spool concurrently through their real unchanged
+	# clocks; held brake keeps each ready until its bounded measurement begins.
+	for index in ShipComponentDamage.COMPONENT_ORDER.size():
+		var craft := TITAN.instantiate() as HeroShip
+		craft.position = Vector3(1000 + index * 100, 0, 0)
+		root.add_child(craft)
+		var source := FixtureCommands.new()
+		source.brake = true
+		craft.add_child(source)
+		craft.set_command_source(source)
+		craft.set_piloted(true)
+		craft.request_engine_start()
+		crafts.append(craft)
+		sources.append(source)
+	await _frames(205)
+	for index in ShipComponentDamage.COMPONENT_ORDER.size():
+		var id := ShipComponentDamage.COMPONENT_ORDER[index]
+		var craft := crafts[index]
+		var source := sources[index]
+		source.brake = false
+		# Independent fixture craft allow matched controller initial conditions;
+		# the ordinary Main journey below never changes Titan pose or velocity.
+		source.throttle = 1.0
+		await _frames(45)
+		craft.velocity = Vector3.ZERO
+		craft.global_basis = Basis.IDENTITY
+		source.yaw = 0.2
+		await _frames(30)
+		var healthy_speed := craft.velocity.length()
+		var healthy_turn := Quaternion(craft.global_basis).get_angle()
+		var model := craft.get_component_damage()
+		var presentation := craft.get_damage_presentation()
+		var report := model.get_component_report()
+		var section := (report.components as Array)[index] as Dictionary
+		var extents := (report.local_bounds as AABB).size * 0.5
+		var radius := extents.z * 0.55 if index in [0, 4] else (extents.x + extents.z) * 0.28 if index == 3 else extents.x * 0.55
+		_check(craft.find_children("*", "ShipComponentDamage", true, false).size() == 1
+			and presentation != null and section.local_position == anchors[index]
+			and is_equal_approx(section.local_radius, radius), "%s has one ledger, actual geometry anchor and inherited radius" % id)
+		if index in [1, 2]:
+			source.throttle = 0.0
+			source.yaw = 0.0
+			source.brake = true
+			await _frames(90)
+			await _test_fire_cadence(craft, source, [38, 39], "%s healthy" % id)
+			source.brake = false
+			source.throttle = 1.0
+			source.yaw = 0.2
+			await _frames(12)
+		if index == 3:
+			_test_core_aim(craft, 1000.0)
+		var ray := PhysicsRayQueryParameters3D.create(craft.to_global(starts[index]), craft.to_global(ends[index]), PhysicsLayers.SHIP)
+		var hit := craft.get_world_3d().direct_space_state.intersect_ray(ray)
+		var shape_name := ""
+		if not hit.is_empty():
+			shape_name = str(craft.shape_owner_get_owner(craft.shape_find_owner(int(hit.shape))).name)
+		_check(hit.get("collider") == craft and shape_name == surfaces[index], "%s ray strikes its actual authored surface %s" % [id, shape_name])
+		if hit.is_empty():
+			craft.queue_free()
+			await _frames(2)
+			continue
+		craft.apply_damage(22.0, hit.position, hit.normal)
+		await _frames(1)
+		_check(model.get_impaired_component_count() == 1 and model.get_component_state(id) == ShipComponentDamage.ComponentState.IMPAIRED
+			and presentation.get_active_component_effect_count() == 1
+			and presentation.get_component_effect_state(id) == ShipComponentDamage.ComponentState.IMPAIRED,
+			"%s actual physical hit impairs only that section and presents its localized cue" % id)
+		craft.velocity = Vector3.ZERO
+		craft.global_basis = Basis.IDENTITY
+		await _frames(30)
+		var impaired_speed := craft.velocity.length()
+		var impaired_turn := Quaternion(craft.global_basis).get_angle()
+		if index in [0, 4]:
+			print("TITAN_COMPONENT_MOTION: ", {"id": id, "healthy_speed": healthy_speed,
+				"impaired_speed": impaired_speed, "healthy_turn": healthy_turn,
+				"impaired_turn": impaired_turn, "turn_ratio": impaired_turn / healthy_turn})
+			_check(impaired_speed < healthy_speed * 0.68 and impaired_speed > healthy_speed * 0.50
+				and absf(impaired_turn / healthy_turn - 0.62) < 0.01,
+				"%s actual matched thrust/steering falls with .62 mobility: speeds %.3f/%.3f turns %.3f/%.3f" % [id, impaired_speed, healthy_speed, impaired_turn, healthy_turn])
+		source.throttle = 0.0
+		source.yaw = 0.0
+		source.brake = true
+		await _frames(90)
+		if index in [1, 2]:
+			await _test_fire_cadence(craft, source, [60, 61], "%s impaired" % id)
+		if index == 3:
+			_test_core_aim(craft, 734.0)
+		# A second real surface contact takes .6 integrity to .2 (FAILED).
+		ray = PhysicsRayQueryParameters3D.create(craft.to_global(starts[index]), craft.to_global(ends[index]), PhysicsLayers.SHIP)
+		hit = craft.get_world_3d().direct_space_state.intersect_ray(ray)
+		craft.apply_damage(22.0, hit.position, hit.normal)
+		await _frames(1)
+		_check(model.get_component_state(id) == ShipComponentDamage.ComponentState.FAILED
+			and presentation.get_component_effect_state(id) == ShipComponentDamage.ComponentState.FAILED,
+			"%s second actual contact fails the same physical section" % id)
+		if index in [0, 4]:
+			craft.velocity = Vector3.ZERO
+			craft.global_basis = Basis.IDENTITY
+			source.brake = false
+			source.throttle = 1.0
+			source.yaw = 0.2
+			await _frames(30)
+			_check(craft.velocity.length() < 0.001 and Quaternion(craft.global_basis).get_angle() < 0.001,
+				"%s failed mobility blocks actual thrust and steering" % id)
+		elif index in [1, 2]:
+			var blocked: Array[int] = []
+			var fired := func(_origin: Vector3, _direction: Vector3) -> void: blocked.append(1)
+			craft.projectile_fired.connect(fired)
+			source.fire = true
+			await _frames(90)
+			source.fire = false
+			_check(blocked.is_empty() and craft.get_weapon_fire_status().reason == &"weapon_component_failed", "%s failed section refuses actual held fire" % id)
+			craft.projectile_fired.disconnect(fired)
+		else:
+			_test_core_aim(craft, 300.0)
+		var hull := float(craft.get_telemetry().hull)
+		var damaged := model.get_ledger_snapshot()
+		craft.set_piloted(false)
+		craft.set_piloted(true)
+		await _frames(3)
+		_check(model.get_ledger_snapshot() == damaged and is_equal_approx(craft.get_telemetry().hull, hull), "%s seat cycle cannot heal hull or component" % id)
+		craft.set_piloted(false)
+		craft.queue_free()
+		await _frames(3)
+
+
+func _test_fire_cadence(craft: HeroShip, source: FixtureCommands, expected: Array, label: String) -> void:
+	var ticks: Array[int] = []
+	var fired := func(_origin: Vector3, _direction: Vector3) -> void: ticks.append(Engine.get_physics_frames())
+	craft.projectile_fired.connect(fired)
+	source.fire = true
+	await _frames(125)
+	source.fire = false
+	craft.projectile_fired.disconnect(fired)
+	_check(ticks.size() >= 2 and ticks[1] - ticks[0] in expected,
+		"%s actual held-fire cadence has expected physics interval %s: %s" % [label, expected, ticks])
+
+
+func _test_core_aim(craft: HeroShip, expected_distance: float) -> void:
+	# Recover the real shot's convergence distance from the distinct camera and
+	# muzzle lines. This exercises emitted aim, rather than checking a multiplier.
+	craft.set("_weapon_timer", 0.0)
+	var shots: Array[Dictionary] = []
+	var fired := func(origin: Vector3, direction: Vector3) -> void: shots.append({"origin": origin, "direction": direction})
+	craft.projectile_fired.connect(fired)
+	craft.call("_fire_weapon")
+	craft.projectile_fired.disconnect(fired)
+	var distance := -1.0
+	if shots.size() == 1:
+		var camera := craft.get_camera()
+		var camera_direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size * 0.5).normalized()
+		var shot_direction := shots[0].direction as Vector3
+		var cross := camera_direction.cross(shot_direction)
+		distance = ((shots[0].origin as Vector3) - camera.global_position).cross(shot_direction).dot(cross) / cross.length_squared()
+	_check(absf(distance - expected_distance) < 1.0, "core stage changes actual emitted aim convergence to %.1fm (measured %.3f)" % [expected_distance, distance])
 
 
 func _test_shell(ship: HeroShip) -> void:
