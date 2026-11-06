@@ -27,6 +27,59 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan pilot cannon — child 9a
+
+- **Goal / contract:** original fleet outcome, Titan proposal child9 split into
+  9a cannon and 9b component impairment/authorized service. The approved weapon is
+  the unchanged `assets/weapons/jovian_combat_pulse.tres`: hitscan,650m,70 damage,
+  0.62s cooldown, existing friendly policy/cyan/audio cues. Full child9 and full
+  craft qualification remain OPEN until both members pass.
+- **Result:** the physical Titan pilot fires its centre cannon through ordinary
+  held FIRE, sees existing heat/cycling/impact feedback, damages a real production
+  damageable target once per admitted shot, then completes the existing home route.
+- **Candidate / start:** clean pushed main75dce2ee7; one actual Titan at its own
+  berth, ordinary Boot/Begin/player spawn, same local Player. One staged production
+  opponent/damageable target may be positioned for deterministic aim in the test;
+  Titan pose, velocity, lease, actor, engine duration and transition owners may not
+  be overwritten. No claim that this staged target proves encounter discovery.
+- **Owner / files:** implementation agent titan_cannon_impl_1106 owns
+  `scripts/ships/titan_medium_transport.gd`, combat registration/profile/dispatch
+  seams in `scripts/game/game_flow.gd`, and existing tests
+  `titan_medium_transport_test.gd`, `live_combat_integration_test.gd`,
+  `zenith_fleet_dock_integration_test.gd`,
+  `cinder_light_interceptor_combat_production_test.gd`, and
+  `game_flow_titan_integration_test.gd`. Root owns docs, release, integration and
+  cleanup. Independent high-effort reviewer reads those exact changes; no edits.
+- **Dependencies:** accepted pilot/chairs/parcels source2794cfa via27f57a620 and
+  checkpoint2794cfa. No dependency on parked Hauler weapon candidate. Source1110
+  is free; retain every existing source1101..1109 and their weapon profiles.
+- **Proof / commands:** pinned `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`
+  with `--headless --audio-driver Dummy --path <owned-worktree> --script
+  res://tests/<listed-test>.gd`. Every test has an isolated XDG profile; freeze
+  source/cache before/after. Main exits via actual UI Quit and durable clean
+  markers, with exactly one GAME_FLOW_TITAN_INTEGRATION_TEST_PASS and exit0.
+  Other tests require their existing exact success marker, exit0 and zero raw
+  diagnostics. Records go to `/srv/mudds-work/titan-cannon-20261106/`.
+- **Budget / stop:** readiness01:58:12UTC2026-11-06 retained;75min all-in hard
+  deadline03:13:12UTC, including tests/builds/merge/push/archive/cleanup. One
+  demonstrated substantive production repair allowed; ordinary compiler/test
+  assertion fixes do not consume it. Stop dependent work at first unexpected
+  failure. Existing Main300s, standalone100s, shared combat300s, fleet300s,
+  Cinder100s limits; package startups120s each. Use existing suite_process.py
+  independent watchdog; release all synthetic input/reap owned workers. No CI.
+- **Close:** NOT_RUN. On complete pass: clean-source paired Windows/Linux exports,
+  strict startup checks, existing nine package predicates, actual packaged Main
+  replay, concise notes, source merge/push and verified task branch/worktree
+  removal. Native Windows/GPU/device/human gates stay NOT_RUN.
+
+| Case | Initial state and action | Expected result | Actual result and proof |
+| --- | --- | --- | --- |
+| Exact hardware/profile | Instantiate actual Titan and ordinary staged Main; inspect muzzle/resource/registration | One co-located centre muzzle at(0,1.1,-8.9), unique source1110, unchanged Jovian650m/70 profile/cadence/cues; existing sources/profiles retained; ten player sources | NOT_RUN |
+| Ordinary hit and miss | Full existing Begin/walk/cargo/chairs/start/flight route, normal FIRE toward staged production damageable then clear space | One emitted/admitted shot gives one70 damage event with Titan source; deliberate miss gives zero target damage; visible telemetry heat/cooldown reflects shot; no direct shot submission for this case | NOT_RUN |
+| Cadence and authority | Existing live integration extended for Titan; exercise cooldown, self, friendly, world occlusion, foreign/unregistered/stale source and client authority | Original resolver rejection/status invariants remain; early repeat cannot damage twice; self/friendly/blocked/invalid source never mutate protected hulls; no cross-craft weapon borrowing | NOT_RUN |
+| Preserved complete route | Continue normal Main after shots through own L landing,90 neutral OFFLINE ticks, physical hold return/exit and actual UI Quit | Same Player; healthy220 hull; supported/capsule-clear walking; conserved parcels locker4/Titan0; clean shutdown/recovery; old assertions and endpoints retained | NOT_RUN |
+| Regression and shipped artifact | Run all six named existing suites, clean paired exports, three startups, package audit and packaged full Main route | All required markers/exit0/raw diagnostics0; Win/Linux payload equality and nine predicates pass; EXE/ZIP/notes in builds/windows and paired Linux artifacts; source pushed and owned cleanup complete | NOT_RUN |
+
 ### Titan finite parcel transport and cold custody — DONE in parcel scope
 
 Source **2794cfa4c**, merged/pushed via **27f57a620**, delivers four inert sealed repair-kit
