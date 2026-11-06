@@ -90,18 +90,28 @@ func _test_components() -> void:
 		Vector3(5, 2.15, 4), Vector3(0, 4, 0), Vector3(0, 3.9, 8)]
 	var surfaces := ["ForwardGlazingCollision", "PortEngineBoxCollision",
 		"StarboardEngineBoxCollision", "ChamferedRoofCollision", "SternHeaderCollision"]
+	var crafts: Array[HeroShip] = []
+	var sources: Array[FixtureCommands] = []
+	# Independent fixtures spool concurrently through their real unchanged
+	# clocks; held brake keeps each ready until its bounded measurement begins.
 	for index in ShipComponentDamage.COMPONENT_ORDER.size():
-		var id := ShipComponentDamage.COMPONENT_ORDER[index]
 		var craft := TITAN.instantiate() as HeroShip
 		craft.position = Vector3(1000 + index * 100, 0, 0)
 		root.add_child(craft)
-		await _frames(2)
 		var source := FixtureCommands.new()
+		source.brake = true
 		craft.add_child(source)
 		craft.set_command_source(source)
 		craft.set_piloted(true)
 		craft.request_engine_start()
-		await _frames(205)
+		crafts.append(craft)
+		sources.append(source)
+	await _frames(205)
+	for index in ShipComponentDamage.COMPONENT_ORDER.size():
+		var id := ShipComponentDamage.COMPONENT_ORDER[index]
+		var craft := crafts[index]
+		var source := sources[index]
+		source.brake = false
 		# Independent fixture craft allow matched controller initial conditions;
 		# the ordinary Main journey below never changes Titan pose or velocity.
 		source.throttle = 1.0
@@ -155,8 +165,11 @@ func _test_components() -> void:
 		var impaired_speed := craft.velocity.length()
 		var impaired_turn := Quaternion(craft.global_basis).get_angle()
 		if index in [0, 4]:
+			print("TITAN_COMPONENT_MOTION: ", {"id": id, "healthy_speed": healthy_speed,
+				"impaired_speed": impaired_speed, "healthy_turn": healthy_turn,
+				"impaired_turn": impaired_turn, "turn_ratio": impaired_turn / healthy_turn})
 			_check(impaired_speed < healthy_speed * 0.68 and impaired_speed > healthy_speed * 0.50
-				and is_equal_approx(impaired_turn / healthy_turn, 0.62),
+				and absf(impaired_turn / healthy_turn - 0.62) < 0.01,
 				"%s actual matched thrust/steering falls with .62 mobility: speeds %.3f/%.3f turns %.3f/%.3f" % [id, impaired_speed, healthy_speed, impaired_turn, healthy_turn])
 		source.throttle = 0.0
 		source.yaw = 0.0
