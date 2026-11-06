@@ -13,82 +13,68 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **af01993** — [Windows ZIP](builds/windows/MuddsShipyards-af01993-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-af01993-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-af01993-linux-x86_64.tar.gz).
+Latest playable checkpoint: **c3ba813** — [Windows ZIP](builds/windows/MuddsShipyards-c3ba813-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-c3ba813-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-c3ba813-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
-walk out. The original nine craft remain available. Paired exports, three strict
+walk out. Both physical passenger chairs now support local sit/stand/reseat.
+The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
 Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan's two physical passenger chairs
+### Titan's two physical passenger chairs — DONE in local scope
 
-Approved proposal child 3. Readiness **00:11:50 UTC 2026-11-06**, including root
-seam inspection; **60 minutes all-in, hard deadline 01:11:50 UTC**. Aim for a
-clean passing source candidate by 00:48, leaving export/integration/cleanup time.
-One high implementer owns Titan's script, the narrow anchor-specific lookup in
-ShipCrewSeat, Main's explicit Titan solo-seat admission/roster hookup and the
-existing Titan component/Main integration tests. One independent high reviewer
-checks seat identity, lifecycle and authority. Root owns integration/release and
-cleanup. No nested agents or unrelated shared-file changes.
+Source **c3ba813d7**, merged/pushed via **8bd3e70f3**, adds two visible, collidable
+ordinary chairs at the approved distinct port/starboard anchors. Normal E sits;
+E stands into the supported aisle. One existing role ledger owns all three
+pilot/passenger identities; the narrow optional seal configuration preserves
+existing roster defaults. Duplicate, stale, wrong-identity/frame/anchor/generation
+claims refuse without mutation. Passengers gain no helm, weapon, repair, cargo
+or specialist navigation action.
 
-Deliver exactly two visible, collidable ordinary chairs at approved feet anchors
-`passenger_port_01=(-2,.75,1.8)` and `passenger_starboard_01=(2,.75,1.8)`, cushions
-at y=1.47, forward-facing. Separate supported entry/stand points are
-(-.9,.8,1.8) and (.9,.8,1.8). Preserve pilot/eye, tuning, hull/access/berth and
-existing nine craft. The aisle remains at least1.4m clear; actual Player capsule,
-head/camera and carried movement must fit without walking through furniture.
+The actual component fixture seats two Player bodies, then stands, walks and
+reseats them while Titan's controller genuinely translates and rotates. The
+normal Main loop physically walks from spawn through hatch/ramp, performs
+port/starboard/port sit/stand cycles, then retains the complete pilot departure,
+flight, own-home landing, 90 neutral OFFLINE ticks, physical exit and UI Quit.
+Independent persistent-profile source run passes 3,672 supported/clear walking
+samples and clean shutdown/recovery/session-ended markers, with stable full
+source/cache hashes. The identical packaged loop passes 3,671 observations,
+OS0/one sentinel/zero diagnostics and durable clean markers from a blank source
+directory under the pinned Linux engine. This is not native Windows proof.
 
-Each anchor resolves its own immutable identity/role/poses through ShipCrewSeat.
-One existing CrewSeatRoleAuthority ledger admits pilot plus both distinct
-passenger seats; no second seat/occupancy authority. Duplicate occupied claims,
-wrong/stale identity or generation, and wrong-ship/unsealed roster attachment
-refuse without mutation. Both passengers can be simultaneously claimed by
-separate fixture bodies. They gain no helm, firing, repair, cargo or specialist
-navigation action. Existing MovingInteriorFrame owns carrying and supported
-walking; existing Player/GameFlow own physical seating and standing.
+**12 selected suites pass 957 checks; the full 13-suite selection is not green.**
+Jovian's existing engineer ordinary-interaction and dependent hull-loss-admission
+test remains FAIL (8 passes, 2 failures). The untouched f200a993f baseline produces
+a byte-identical complete raw log, with stable source/cache; no introduced
+regression was observed. That failed gate remains OPEN and is recorded in notes.
+Existing Halyard and Bulwark crew-owner checks pass. Source review GO is scoped
+to the new Titan passenger behavior, not full release qualification.
 
-Extend the existing normal Main Titan loop: from ordinary Boot/Begin Shift and
-the unchanged21-leg walk, physically enter via hatch/ramp, walk to port chair,
-normal E sit, normal E stand at its supported entry, then starboard sit/stand,
-then repeat port sit/stand before physically reaching helm. Assert actual
-anchor-specific current claim/Player identity/metadata and empty claims after
-standing, no pilot authority and no passenger flight/fire input. Keep the entire
-accepted real pilot departure/flight/own home/OFFLINE/physical exit/UI Quit
-endpoint and durable clean markers. No caller pose/velocity/state writes,
-private boarding bypass, increased reach, shortened transition or weaker checks.
+Fresh paired checkpoint **c3ba813** passes three strict startups and all nine
+package-audit predicates. All 1,541 Windows/Linux entries match: four intended
+runtime script changes, 68 typed-node-metadata-only scene changes, no added or
+removed paths/UID/class mappings. Three packaged local chair/cabin fixture views
+inspected on isolated Xvfb/X11/llvmpipe/Dummy (OS0, one environment V-Sync warning).
+This does not close Main readability, art, native GPU, device/audio or human gates.
+Remote passengers, cargo, combat, lifecycle and full craft qualification remain
+OPEN. The fleet count remains 10/17.
 
-A focused actual-component fixture additionally seats two distinct Player bodies,
-checks occupied/stale refusal and true supported stand/walk/reseat while the real
-Titan frame translates/rotates under its existing controller. Fixture setup poses
-may initialize actors on the physical deck once; no test pose/velocity writes
-stand in for carry/walking outcomes. This does not qualify remote peers or
-networked multi-person flight: children11/12 remain OPEN. Extend nearest existing
-component and Titan loop tests, not a new evidence family. Regress relevant solo
-crew owners, pilot/access, source settings and registry consumers.
+Complete frozen card, failed attempts, source bundle, raw results/profiles and
+captures are in verified `/srv/mudds-work/titan-passengers-20261106/records.tar.gz`.
+Owned branch/worktree/processes/scratch are removed at closure; adjacent
+`closeout.json` records actual hashes and publication. Original 00:11:50→01:11:50UTC
+2026-11-06 all-in deadline retained and met.
 
-Stop at those outcomes; no cargo, weapons, remote-peer composition, lifecycle
-framework or sibling retuning. Ordinary compiler/fixture repairs stay inside the
-same budget; preserve failed raw results. Missing production hooks need an exact
-seam and bounded edit, not a new framework or reduced endpoint. No deadline reset,
-smaller success claim or automatic successor after substantive/timebox failure.
-
-After immutable source and relevant focused checks pass, publish a fresh paired
-Windows/Linux checkpoint using existing exporters, three strict startups and
-all nine package predicates; replay the same extended loop against actual
-packaged content. Windows files stay in builds/windows. All Godot calls use
-pinned4.7.1, Dummy audio and isolated profiles; rendered checks only private
-Xvfb/x11 with independent abort. Main llvmpipe captures already timed out at120s
-and360s in the predecessor: preserve that open visual gate, do not repeat the
-same unbounded capture or claim native GPU/human/device qualification. An isolated
-chair/cabin fit view may be used for this local geometry change. Keep full craft
-and all original parent/phase outcomes OPEN. Merge/push accepted work and remove
-owned branch/worktree/processes/scratch after a verified archive within this box.
-
+Next dependency-ready construction child: **Titan's four-parcel loading controls
+(proposal child 7)**. Freeze the exact existing cargo authority/item/manifests and
+physical panel route, conservation/capacity/remote-refusal checks before work.
+Cold custody/persistence remains the separate child 8; no whole cargo completion
+is inferred from a loading checkpoint.
 
 ### Titan minimum Main pilot loop — DONE in pilot scope
 
@@ -100,8 +86,9 @@ helm claim, sealed access, timed 3.4s startup, actual flight, own home landing,
 The final loop records 204 startup physics ticks and 3,369 supported/capsule-clear
 walking observations; actual UI Quit exits 0 and persists clean shutdown/recovery.
 The final 12-suite regression matrix passes 1,138 checks with stable source/cache.
-The original nine craft remain unchanged. Titan has no offensive combat source;
-passengers, cargo, combat, lifecycle/network and full craft qualification remain open.
+The original nine craft remain unchanged. Titan has no offensive combat source.
+At that checkpoint passengers were not fitted; local chairs are now delivered
+above. Cargo, combat, lifecycle/network and full craft qualification remain open.
 
 The station connector producer now separates the coincident navigation markers
 by 1.5m, restoring the valid graph/minimap without changing its edge limits or
@@ -126,9 +113,8 @@ attempts, raw results and verified source bundle are retained in
 `closeout.json` records archive hashes, publication and the retained visual gate.
 The original all-in deadline was retained and met.
 
-Next dependency-ready construction child: **Titan's two independent physical
-passenger chairs (proposal child 3)**. Freeze its actual seat/stand/reseat and
-moving-cabin acceptance before implementation; cargo follows later.
+The subsequent local passenger child3 is delivered above. Cargo and the
+remaining full transport/network scope follow through their own bounded cards.
 
 ### Titan own reachable berth — DONE in berth scope
 
