@@ -7,6 +7,7 @@ const MAX_REACH := 2.35
 var custody: TitanCargoCustody
 var loading := false
 var _label: Label3D
+var _solid_collision: CollisionShape3D
 
 func _ready() -> void:
 	monitoring = false
@@ -21,6 +22,23 @@ func _ready() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(0.12, 0.52, 0.72) if not loading else Vector3(0.72, 0.52, 0.12)
 	screen.mesh = box
+	_solid_collision = CollisionShape3D.new()
+	_solid_collision.name = "TitanHoldPanelSolid" if not loading else "LockerScreenCollision"
+	var solid := BoxShape3D.new()
+	solid.size = box.size
+	_solid_collision.shape = solid
+	# The moving hold screen is real HeroShip-owned hull collision. Keeping it
+	# on that body also lets inherited hull preflight exclude its own geometry.
+	if get_parent() is HeroShip and not loading:
+		_solid_collision.transform = transform
+		get_parent().add_child(_solid_collision)
+	else:
+		var body := StaticBody3D.new()
+		body.name = "LockerScreenBody"
+		body.collision_layer = PhysicsLayers.WORLD
+		body.collision_mask = 0
+		add_child(body)
+		body.add_child(_solid_collision)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("233d49")
 	material.emission_enabled = true

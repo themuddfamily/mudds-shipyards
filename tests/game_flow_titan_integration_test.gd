@@ -43,6 +43,7 @@ func _run() -> void:
 		"normal Begin Shift keeps actual Player at ordinary spawn")
 	_check(_game.get_flyable_ships().size() == 10 and berth.get_occupant() == _ship
 		and berth.get_reservation_owner() == _ship, "one real Titan joins fleet with own occupied lease")
+	_check_panel_solids()
 	var cargo_before := _game._runtime_settings_user_data_store.get_snapshot()
 	_check(not _game.titan_cargo.request_transfer(_player, _game._titan_locker_panel, true, 1).accepted
 		and not _game.titan_cargo.request_transfer(_ship, _game._titan_locker_panel, true, 1).accepted
@@ -98,11 +99,17 @@ func _run() -> void:
 	# along the actual cabin aisle. No pose/velocity writes or board-method calls.
 	var local_route := [Vector3(1.9, 0, 14.5), Vector3(0, 0, 14.5),
 		Vector3(0, 0, 13), Vector3(0, 0.4, 10.5), Vector3(0, 0.8, 8),
-		Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]
+		Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 5.2), Vector3(0, 0.8, 1.8)]
 	for point in local_route:
 		if not await _walk_to(_ship.to_global(point), 30):
 			await _fail_exit("physical stern/cabin walk failed")
 			return
+		if point == Vector3(0, 0.8, 5.2):
+			await _aim(_game._titan_hold_panel.global_position)
+			_check(_game.station_interaction_candidate == _game._titan_hold_panel
+				and "LOCKER 2 / 4" in _game._titan_hold_panel._label.text
+				and "TITAN 2 / 4" in _game._titan_hold_panel._label.text,
+				"ordinary supported hold approach inspects actual visible loaded2/2 before passenger chairs")
 	for seat_id: StringName in [&"passenger_port_01", &"passenger_starboard_01", &"passenger_port_01"]:
 		if not await _passenger_round_trip(seat_id, identity):
 			await _fail_exit("physical passenger contract failed")
@@ -420,3 +427,37 @@ func _passenger_round_trip(seat_id: StringName, identity: int) -> bool:
 		and _ship.call(&"get_crew_role_authority") == null and not _game._piloting,
 		"normal E stands supported and empties exact " + String(seat_id) + " claim")
 	return _failures.is_empty()
+
+
+func _check_panel_solids() -> void:
+	var capsule := (_player.get_node("PlayerCollision") as CollisionShape3D).shape as CapsuleShape3D
+	for panel: TitanCargoPanel in [_game._titan_hold_panel, _game._titan_locker_panel]:
+		var collision := panel._solid_collision
+		var mesh_size := Vector3(0.12, 0.52, 0.72) if not panel.loading else Vector3(0.72, 0.52, 0.12)
+		_check(is_instance_valid(collision) and collision.shape is BoxShape3D
+			and (collision.shape as BoxShape3D).size.is_equal_approx(mesh_size)
+			and collision.global_position.is_equal_approx(panel.global_position),
+			"physical screen collision exactly matches " + String(panel.name))
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = capsule
+		query.transform = Transform3D(Basis.IDENTITY, panel.global_position + Vector3.UP * (0.8 if panel.loading else 0.7))
+		query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+		query.margin = 0
+		query.exclude = [_player.get_rid()]
+		var hits := _ship.get_world_3d().direct_space_state.intersect_shape(query, 16)
+		var hits_screen := false
+		for hit in hits:
+			if hit.get("collider") == collision.get_parent(): hits_screen = true
+		_check(hits_screen, "actual Player capsule overlaps solid " + String(panel.name))
+		var normal := panel.global_basis.z if panel.loading else panel.global_basis.x
+		query.transform.origin += normal * 1.2
+		query.motion = -normal * 1.2
+		var motion := _ship.get_world_3d().direct_space_state.cast_motion(query)
+		_check(motion[0] > 0.25 and motion[0] < 1.0,
+			"actual capsule sweep cannot phase through " + String(panel.name) + ": " + str(motion))
+	var locker := _game.titan_cargo.locker
+	var pedestal := locker.get_node("LockerPedestalBody") as StaticBody3D
+	var pedestal_shape := pedestal.get_child(0) as CollisionShape3D
+	_check((pedestal_shape.shape as BoxShape3D).size.is_equal_approx(Vector3(0.8, 1, 0.6))
+		and pedestal_shape.position.is_equal_approx(Vector3(0, 0.5, 0)),
+		"supported supply pedestal has matched real solid furniture")

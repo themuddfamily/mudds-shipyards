@@ -27903,6 +27903,17 @@ func _initialize_titan_cargo() -> void:
 	pedestal.mesh = box
 	pedestal.position.y = 0.5
 	locker.add_child(pedestal)
+	var pedestal_body := StaticBody3D.new()
+	pedestal_body.name = "LockerPedestalBody"
+	pedestal_body.collision_layer = PhysicsLayers.WORLD
+	pedestal_body.collision_mask = 0
+	locker.add_child(pedestal_body)
+	var pedestal_collision := CollisionShape3D.new()
+	var pedestal_shape := BoxShape3D.new()
+	pedestal_shape.size = box.size
+	pedestal_collision.shape = pedestal_shape
+	pedestal_collision.position = pedestal.position
+	pedestal_body.add_child(pedestal_collision)
 	titan_cargo = TitanCargoCustody.new()
 	titan_cargo.name = "TitanCargoCustody"
 	add_child(titan_cargo)
@@ -27912,14 +27923,14 @@ func _initialize_titan_cargo() -> void:
 	_titan_hold_panel = TitanCargoPanel.new()
 	_titan_hold_panel.name = "TitanHoldPanel"
 	_titan_hold_panel.custody = titan_cargo
-	craft.add_child(_titan_hold_panel)
 	_titan_hold_panel.position = Vector3(-1.2, 1.6, 5.2)
+	craft.add_child(_titan_hold_panel)
 	_titan_locker_panel = TitanCargoPanel.new()
 	_titan_locker_panel.name = "TitanLockerPanel"
 	_titan_locker_panel.custody = titan_cargo
 	_titan_locker_panel.loading = true
-	locker.add_child(_titan_locker_panel)
 	_titan_locker_panel.position = Vector3(0, 1.15, 0)
+	locker.add_child(_titan_locker_panel)
 	titan_cargo.initialize(cargo_transfer_authority, _runtime_settings_user_data_store, craft, locker, _authorize_titan_cargo_actor)
 
 func _on_titan_cargo_committed(context: Dictionary, generation: int) -> void:
