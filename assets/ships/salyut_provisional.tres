@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"salyut_provisional"
+display_name = "Salyut-class Transport candidate"
+role_name = "Transport"
+evidence_status = 1
+evidence_references = PackedStringArray("A4: creator-authored official page captured 2010-01-09T10:01:01Z; Salyut arrival and twelve completed ships", "docs/research/ship_evidence_matrix.json: Salyut name-to-model unknown")
+evidence_notes = "A4 supports the dated Salyut name, broad transport role and arrival claim only. Name-to-model, scale, transport subtype and historical fittings remain unknown. All geometry, fittings, handling and systems are original modern trial design under the owner-adopted proposal, not historical observations. No source art is bundled."
+compatibility_tags = PackedStringArray("medium_craft", "salyut_transport", "people_transport")
+maximum_speed = 78.0
+boost_speed = 102.0
+thrust_acceleration = 26.0
+brake_acceleration = 37.0
+passive_drag = 2.05
+throttle_response = 7.3
+boost_multiplier = 1.31
+yaw_speed_degrees = 48.0
+roll_speed_degrees = 63.0
+flight_assist_strength = 4.35
+visual_bank_degrees = 8.0
+maximum_mouse_turn_degrees = 13.0
+engine_start_time = 2.9
+weapon_cooldown = 0.81
+maximum_hull = 175.0
+landing_maximum_speed = 12.5
+entry_noun = "stern hatch"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"heavy_quad_freighter"
