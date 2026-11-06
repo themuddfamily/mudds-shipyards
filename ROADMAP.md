@@ -1,9 +1,11 @@
 # Development roadmap
 
-**Playable alpha; the full game is unfinished.** Nine of the promised 17 craft
-exist. The eight missing craft now have owner-approved modern design baselines;
-implementation and full qualification remain outstanding. All 36 original parent outcomes and ten phase exit gates remain open.
-There is no evidence-backed completion percentage or finish date.
+**Playable alpha; the full game is unfinished.** Ten of the promised 17 craft
+now exist in Main, including Titan's minimum playable pilot loop. This count
+is implementation, not full craft qualification. The seven remaining craft have
+owner-approved modern design baselines. All 36 original parent outcomes and ten
+phase exit gates remain open. There is no evidence-backed completion percentage
+or finish date.
 
 **A roadmap heading is not a work assignment.** Select only a bounded child
 with a filled [task card](#task-card-required-before-starting). Its result must
@@ -11,79 +13,57 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **6bb7784** — [Windows ZIP](builds/windows/MuddsShipyards-6bb7784-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-6bb7784-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-6bb7784-linux-x86_64.tar.gz).
-A signed Titan candidate berth now extends the observation spur's far return loop
-through a real rail opening and level supported connector. **The bay is empty**:
-Titan Main fleet/pilot composition is next. Current nine craft are unchanged.
-Paired clean exports, three strict startups, actual packaged-content Main walk,
-full package/inventory audit and isolated module render review pass in their
-stated scopes. Native Windows/GPU/human/full craft gates remain open.
-Earlier accepted changes, including Hauler/Bomber distant exteriors, remain
-included in their recorded scopes.
+Latest playable checkpoint: **af01993** — [Windows ZIP](builds/windows/MuddsShipyards-af01993-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-af01993-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-af01993-linux-x86_64.tar.gz).
+Titan's bay now contains its usable candidate: walk through the physical stern
+hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
+walk out. The original nine craft remain available. Paired exports, three strict
+startups, the actual packaged-content full pilot loop and all nine package-audit
+predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
+Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan minimum playable Main pilot loop
+### Titan minimum Main pilot loop — DONE in pilot scope
 
-Approved proposal child5, before passenger/cargo work. Readiness23:17:40UTC
-2026-11-05 (root integration-seam inspection included); **60min all-in,
-absolute00:17:40UTC2026-11-06**. One high implementer owns Main scene/GameFlow,
-Titan-local scene/script and one focused Main integration test/helper; existing
-flyable-roster consumer tests may receive only legitimate9→10 expectation updates.
-Root owns package/render/integration/cleanup; independent high reviewer checks
-actor/lease/access lifecycle and proof. No recursive agents. Aim source/checks
-by23:55UTC to leave the full checkpoint/closure within the original budget.
+Source **af0199339**, merged and pushed via **fe3455ecc**, adds exactly one live
+`titan_provisional` at its own berth.
+Normal Begin Shift, the 21-leg station walk, physical hatch/ramp/cabin entry,
+helm claim, sealed access, timed 3.4s startup, actual flight, own home landing,
+90 neutral OFFLINE ticks and physical cabin/ramp exit pass with the same Player.
+The final loop records 204 startup physics ticks and 3,369 supported/capsule-clear
+walking observations; actual UI Quit exits 0 and persists clean shutdown/recovery.
+The final 12-suite regression matrix passes 1,138 checks with stable source/cache.
+The original nine craft remain unchanged. Titan has no offensive combat source;
+passengers, cargo, combat, lifecycle/network and full craft qualification remain open.
 
-Add exactly one `titan_provisional` Main instance using its accepted definition,
-standard_fighter rig and own `titan_home_berth`. Use the existing generic flyable
-registry, settings/audio, physical boarding/crew-seat/cabin and landing hooks.
-Existing nine identities/transforms/compatibility, controls and activities stay
-unchanged. Preserve all16 approved tuning values, pilot/eye, hatch/ramp/cabin,
-strict/capture settings and accepted site. Combat remains disabled until its
-approved child; no passenger, cargo, networking, persistence framework or sibling
-retuning. Additional shared ownership needs an exact actual missing seam first.
+The station connector producer now separates the coincident navigation markers
+by 1.5m, restoring the valid graph/minimap without changing its edge limits or
+moving the berth. Earlier berth qualification did not catch that graph defect.
 
-One fresh normal Boot/Begin Shift admits the same Player at normal spawn. Follow
-the accepted21-leg production route to Titan's real control, then use normal
-interaction and supported ramp/hatch/cabin route to the pilot. Prove actual
-current pilot anchor/reservation, Player identity and transition completion;
-exterior admission must not phase through shell or floor. Normal production-owned
-seat/dock motion is allowed; no test/caller pose/velocity/engine/state writes,
-private board/land bypass, rescue, fake target/lease or zero-duration transition.
-Keep interaction reach unchanged. Add only the local access/seat composition
-needed for existing providers to find the real external control and interior helm.
+The same full loop passes against actual Windows packaged content under the
+pinned Linux engine from an empty source directory: 3,399 supported/clear walking
+observations, actual UI Quit, OS0, zero diagnostics and persisted clean markers.
+All 1,541 Windows/Linux payload entries match; the existing nine-predicate package
+audit passes. Native Windows execution is not established by this Linux probe.
 
-With access fully sealed, normal pilot thrust must wake the inherited3.4s engine,
-release the home lease and genuinely depart with healthy220 hull. Reach own
-berth-local(0,10,−30), within2m and≤.5m/s, via actual flight/control; observe
-FREE_FLIGHT and ≥30m forward displacement beyond strict fit, ≥5m departure lift.
-Query the actual whole hull before commanded legs. Use normal L only while the
-unchanged capture gate accepts. Landing must restore exactly the own occupied
-lease at root error≤.05m and speed≤.05m/s, then90 neutral OFFLINE physics ticks.
-Normal interaction returns the same Player through existing cabin/exit ownership;
-physically walk down the real access to supported apron(0,0,14.5) in craft-local
-coordinates, ≥1m exterior walking, with capsule clearance. End normal Main Quit
-with OS0 and actual clean-shutdown markers. Preserve production unsafe-access/
-unsupported-exit refusals. Source fixture commands must enter the normal input
-samplers; API intent cannot stand in for actual boarding/flight/landing results.
+Actual Main software-rendered capture remains **TIMEOUT / unqualified**: private
+Xvfb/X11/Dummy/llvmpipe attempts at 120s and 360s produced no image; the second
+last reported startup stage was Routing the station. Both owned process groups
+were reaped. This is recorded in the build notes; earlier standalone renders
+do not establish current Main readability or native GPU performance.
 
-Extend nearest existing integration style and reuse accepted berth-route data.
-One focused loop plus relevant registry/interaction/settings/re-entry regressions;
-no validator families or evidence-only task. First source freeze must pass the
-whole endpoint; keep all failed raw operands and fix routine mistakes inside this
-same deadline. If an existing hook is missing, report its exact producer/consumer
-rather than build a new framework or reduce the endpoint. No clock reset,
-smaller success claim or automatic successor after a substantive stop.
+Original readiness 23:17:40 UTC November 5 and hard deadline
+00:17:40 UTC November 6 are unchanged. The complete frozen task card, failed
+attempts, raw results and verified source bundle are retained in
+`/srv/mudds-work/titan-main-20261106/records.tar.gz`. Owned branch/worktree/processes and scratch are removed; the adjacent
+`closeout.json` records archive hashes, publication and the retained visual gate.
+The original all-in deadline was retained and met.
 
-Every Godot invocation uses pinned4.7.1 and Dummy audio/headless with isolated
-profiles; rendered tests only privateXvfb/x11/Dummy and independent abort.
-After a clean immutable candidate and focused passes, create fresh paired Windows/
-Linux checkpoint,3strict startups/all9package predicates and actual packaged
-loop proof. Native Windows/GPU/device/human and full Titan craft acceptance stay
-NOT_RUN. Only a proven live Main minimum loop may advance the implemented-craft
-count; full roles/functions/qualification remain separately OPEN.
+Next dependency-ready construction child: **Titan's two independent physical
+passenger chairs (proposal child 3)**. Freeze its actual seat/stand/reseat and
+moving-cabin acceptance before implementation; cargo follows later.
 
 ### Titan own reachable berth — DONE in berth scope
 
@@ -104,14 +84,16 @@ tests and raw runtime.gd are absent. Three strict startup probes and all nine
 paired package-audit predicates pass; full1541-entry Win/Linux raw maps match.
 Four authored-module render views inspected at production poses on private
 llvmpipe/X11/Dummy (OS0, one environment V-Sync warning). Staged hull image is
-fit evidence; the actual production bay remains empty. Source/artifact review GO.
+fit evidence; at that checkpoint the actual production bay remained empty.
+Source/artifact review GO.
 
 Seven checkpoint files are published above. Complete records/source/captures are
 in verified `/srv/mudds-work/titan-berth-20261105/records.tar.gz`; owned branch,
 worktree/processes and scratch removed. Original22:39:21→23:39:21UTC all-in
-budget retained and met. **9/17 remains unchanged**. Main/pilot/ordinary packaged
-Titan flight/home and native/human gates remain OPEN. Next: child5 minimum live
-Main composition, before passenger/cargo work, with a fresh playable checkpoint.
+budget retained and met. At that checkpoint, the bay was empty and count remained
+9/17. Main/pilot composition is now delivered above; full craft/native/human gates
+remain OPEN. The coincident navigation endpoint defect found subsequently is
+corrected in af0199339 above; that was not proved by the earlier berth checks.
 
 ### Titan construction — standalone children1 and2 DONE
 
@@ -134,11 +116,10 @@ warning). Complete raw/source/captures preserved in verified
 scratch removed. Original22:22:07→23:22:07UTC all-in budget retained and met.
 
 These are standalone children of the [approved Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md).
-**9/17 remains unchanged.** Main boarding, reachable berth, production pilot exit,
-passengers/cargo/weapon/lifecycle and full craft qualification remain OPEN. Next:
-child5 minimum live Main composition ahead of
-passenger/cargo work. That first playable milestone requires a fresh paired
-Windows/Linux checkpoint; native Windows/GPU/human gates remain NOT_RUN.
+At those standalone checkpoints the count remained 9/17. Reachable berth and
+minimum Main pilot/physical exit composition are now delivered above. Passenger,
+cargo, weapon, lifecycle and full craft qualification remain OPEN; native
+Windows/GPU/human gates remain NOT_RUN.
 
 ### Hauler ordinary mass-driver hit, miss and home — PARKED, unaccepted
 
@@ -366,7 +347,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 | [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
 | [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |
 | [Cinder remote terminal handoff](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback) | Pilot-body attempt is PARKED at the measured support-owner mismatch; terminal transfer remains GATED | Explicit reprioritization plus exact support-contract reconciliation is required before retry; all six cases and prior cost remain; parked B egress remains separate |
-| [Eight missing craft baselines](docs/ROADMAP_BACKLOG.md#owner-design-baselines-20261105) | Owner ADOPTED all eight prepared modern designs2026-11-05;9/17craft still implemented | Select dependency-ready build capabilities; no repeat design approval or false construction credit |
+| [Eight missing craft baselines](docs/ROADMAP_BACKLOG.md#owner-design-baselines-20261105) | Owner ADOPTED all eight prepared modern designs2026-11-05; Titan minimum pilot loop now brings Main to10/17 | Select dependency-ready build capabilities; no repeat design approval or false construction credit |
 | [Halyard fresh-Main re-entry](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-main-offtree-stop-20261105) | PARKED: off-tree cabin-transform errors during actual HUD Restart Shift; no complete re-entry pass | Focused repair/retry request unanswered; original12:47:51UTC deadline expired. Requires explicit reprioritization, retaining cost and exhausted allowance |
 | [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
 | [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
