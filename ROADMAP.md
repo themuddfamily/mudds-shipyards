@@ -52,8 +52,9 @@ physical-return fixture is reference only, never ordinary qualification.
 
 Owner/files: one HIGH implementer owns tools/release/run_native_sortie.py,
 tools/release/test_native_sortie.py and narrow passive
-scripts/diagnostics/native_sortie_observer.gd. Independent HIGH reviewer owns
-read-only review. Root owns integration/release/docs/checks/cleanup. No world,
+scripts/diagnostics/native_sortie_observer.gd, plus required narrow literal-selector
+admission in scripts/game/startup_loader.gd and its tests/startup_cli_privacy_test.gd.
+Independent HIGH reviewer owns read-only review. Root owns integration/release/docs/checks/cleanup. No world,
 ship/Player physics, GameFlow gameplay, settings/save or schema changes. Extend
 existing runner/observer only; no new validator/evidence family or alternate
 engine. Do not restore archived Rime/Ember candidates or change their gates.
