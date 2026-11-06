@@ -829,15 +829,20 @@ func _test_passengers(ship: HeroShip) -> void:
 		and not ship.call("attach_crew_role_authority", authority).accepted
 		and not ship.attach_solo_crew_role_occupant(&"fixture_passenger_0", seats[0], players[0]).accepted,
 		"duplicate loss is inert and old role/body requests cannot reacquire dead Titan")
+	# Compare gameplay outside the temporary pending-reset capability: commit
+	# rejection retires that capability and its weapon-admission status.
+	var dead_before := ship.get_telemetry()
 	var proof := ship.preflight_reset_for_reuse(death_pose)
 	# A real occupant appearing after preflight invalidates commit atomically.
 	var late_body := Node3D.new()
 	root.add_child(late_body)
 	late_body.global_position = ship.to_global(Vector3(0, 0.8, 0))
-	frame.register_occupant(late_body, {"require_inside_bounds": true})
-	var dead_before := ship.get_telemetry()
+	var registration := frame.register_occupant(late_body, {"require_inside_bounds": true})
 	var stale_commit := ship.commit_reset_for_reuse(proof)
-	_check(proof.accepted and not stale_commit.accepted and ship.get_telemetry() == dead_before
+	print("TITAN_OCCUPIED_RESET: ", {"proof": proof, "registration": registration, "commit": stale_commit,
+		"before": dead_before, "after": ship.get_telemetry()})
+	_check(proof.accepted and registration.registered and not stale_commit.accepted
+		and stale_commit.reason == &"titan_occupied" and ship.get_telemetry() == dead_before
 		and frame.is_occupant_registered(late_body) and area.get_reservation_token() == null,
 		"current receipt with newly occupied frame refuses before any reset mutation")
 	frame.unregister_occupant(late_body, false, &"fixture_cleanup")
