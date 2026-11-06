@@ -3453,6 +3453,8 @@ within20:05:51,with prior definition/failed-attempt costs retained.
 <a id="solo-aurora-rime-ordinary-contracts"></a>
 #### Aurora and Rime — ordinary solo journey contracts
 
+SOLO-AURORA access/outbound candidate4e9ec1de2 is PARKED/unmerged2026-11-06 at its original14:38–16:08UTC all-in boundary. Full source322+9/import/privacy/paired exports/startup3/equalmaps pass. First metadata-read failure, valid-generation0 caller failure and bounded IO repair1/1 are retained; final continuous partial run reaches703rebases before task-budget stop, not arrival/exit/Quit. No approved time extension, no new checkpoint or automatic retry. See ROADMAP for exact source/cumulative conditions and verified archive; complete canonical journey remains OPEN.
+
 Definition2026-10-27 19:25:52–19:50:52UTC,source5ea3bacd9. Two read-only agents
 bind separate world objectives/persistence; root owns ordinary controls/limits,
 docs/review/checks/commit/push. Prerequisite IDs:none for definition. Existing
