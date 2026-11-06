@@ -15,6 +15,9 @@ var _failed := false
 var _interactions := 0
 var _geometry_samples := 0
 var _last_local := Vector3.INF
+var _last_observed_physics_frame := -1
+var _current_route_axis := -1
+var _current_route_target := INF
 var _previous_inside := false
 var _commands: FixtureCommands
 
@@ -198,6 +201,8 @@ func _interact(open: bool, safety: bool) -> bool:
 
 
 func _walk_axis(axis: int, target: float, limit: int, require_endpoint: bool = true) -> bool:
+	_current_route_axis = axis
+	_current_route_target = target
 	var start := _local()
 	var sign_direction := signf(target-start[axis])
 	var action: StringName = (&"move_right" if sign_direction>0 else &"move_left") if axis == 0 else (&"move_back" if sign_direction>0 else &"move_forward")
@@ -231,9 +236,19 @@ func _observe_player() -> bool:
 	var point := _local()
 	if not _check(_player.is_on_floor(),"every walking/motion sample retains actual floor support at"+str(point)):
 		return false
+	if _last_local.is_finite() and not point.distance_to(_last_local)<0.2:
+		print("PARADOX_ACCESS_CONTINUITY_OPERANDS: ", {
+			"previous_local_position": _last_local, "current_local_position": point,
+			"distance": point.distance_to(_last_local),
+			"previous_physics_frame": _last_observed_physics_frame,
+			"current_physics_frame": Engine.get_physics_frames(),
+			"velocity": _player.velocity, "registered": _frame.is_occupant_registered(_player),
+			"inside_supported_bounds": _frame.contains_world_position(_player.global_position),
+			"route_axis": _current_route_axis, "route_target": _current_route_target})
 	if _last_local.is_finite() and not _check(point.distance_to(_last_local)<0.2,"continuous ordinary movement has no pose warp"):
 		return false
 	_last_local = point
+	_last_observed_physics_frame = Engine.get_physics_frames()
 	var collision := _player.get_node("PlayerCollision") as CollisionShape3D
 	var capsule := collision.shape.duplicate() as CapsuleShape3D
 	capsule.radius -= 0.005
