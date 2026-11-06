@@ -99,6 +99,14 @@ func _run() -> void:
 	ship.set_piloted(true)
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE, "initial OFFLINE"):
 		return
+	# Exercise only the inherited presentation visibility seam. This is not
+	# damage/network behavior qualification and never changes physical state.
+	var cosmetic := ship.get_node("PredatorCosmeticBank") as Node3D
+	var solid := ship.get_node("PredatorOriginalShell") as Node3D
+	cosmetic.visible = false
+	if not _check(not solid.visible and not solid.is_visible_in_tree(),"physical shell follows inherited presentation hide signal"): return
+	cosmetic.visible = true
+	if not _check(solid.visible and solid.is_visible_in_tree(),"physical shell follows inherited presentation restore signal"): return
 	if not _test_physical_alignment(ship,"initial OFFLINE"): return
 	ship.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3) -> void: _projectiles += 1)
 	ship.request_engine_start()

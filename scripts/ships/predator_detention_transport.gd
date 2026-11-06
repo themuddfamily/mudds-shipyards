@@ -205,6 +205,8 @@ func _build_ship() -> void:
 	_visual_root.name = "PredatorCosmeticBank"
 	_visual_root.set_meta("presentation_only", true)
 	add_child(_visual_root)
+	_visual_root.visibility_changed.connect(_sync_solid_root_visibility)
+	_sync_solid_root_visibility()
 	var armor := _finish(Color("8c9da6"), 0.65)
 	var structure := _finish(Color("25333b"), 0.8)
 	var accent := _finish(Color("d0a45e"), 0.5)
@@ -300,6 +302,12 @@ func _build_ship() -> void:
 	_solid_root.add_child(panel)
 	ShipCabinHatch.install(_solid_root,self,Vector3(2.29,1.6,7.985))
 	_sync_engine_visuals_immediately()
+
+
+## Preserve inherited hide/restore presentation behavior for the stable shell.
+func _sync_solid_root_visibility() -> void:
+	if is_instance_valid(_solid_root) and is_instance_valid(_visual_root):
+		_solid_root.visible = _visual_root.visible
 
 
 ## A noncolliding light surface sits just aft of each solid exhaust panel.
