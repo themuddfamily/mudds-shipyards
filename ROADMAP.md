@@ -13,15 +13,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **9b5491e** — [Windows ZIP](builds/windows/MuddsShipyards-9b5491e-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-9b5491e-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-9b5491e-linux-x86_64.tar.gz).
+Latest playable checkpoint: **2213baf** — [Windows ZIP](builds/windows/MuddsShipyards-2213baf-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-2213baf-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-2213baf-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
 now load, fly home and return through physical controls with conserved cold custody.
 The pilot centre cannon delivers the approved70-damage defensive shot. Localized
 component damage now affects flight/fire/aim and clears through landed service.
+Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
@@ -29,76 +30,49 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan destruction, regeneration and custody — child 10
+### Titan destruction, regeneration and custody — child 10 DONE in local scope
 
-- **Goal / contract:** Titan proposal child10 and fixed same-live/cold custody
-  policy: destruction releases all three local roles and seals exact stock;
-  normal home regeneration restores one usable craft and the same manifest with
-  fresh handles; occupied/stale reset refuses atomically. Cold Main remains safe
-  on foot with the four already committed parcels projected to locker4/Titan0.
-- **Result:** losing Titan never leaves a stale helm/passenger/body/fire or a
-  second spendable cargo pile; normal recovery returns the Player to supported
-  walking and one usable Titan at its own berth with unchanged live cargo.
-- **Candidate / start:** clean pushed main88e30fedd/checkpoint9b5491e, ordinary
-  Boot/Begin/player spawn and real physical stern route. A distinct lifecycle
-  invocation of the existing Main test may branch after its normal load/chairs/
-  pilot/start/flight/cannon section; the original complete service/home/unload/
-  UIQuit mode remains a separate mandatory gate with its original endpoints.
-  Terminal incoming fire may stage the existing registered opponent as before,
-  but cannot overwrite Titan pose, velocity, hull, clocks, lease or transitions.
-- **Owner / files:** titan_lifecycle_impl_1106 owns
-  `scripts/ships/titan_cargo_custody.gd`, `scripts/ships/titan_medium_transport.gd`,
-  narrow lifecycle hooks in `scripts/game/game_flow.gd`, and existing tests
-  `titan_cargo_custody_test.gd`, `titan_medium_transport_test.gd`,
-  `game_flow_titan_integration_test.gd`. Root owns docs/build/integration/cleanup;
-  one independent high-effort reviewer checks exact authority/reset ordering.
-- **Fixed seam:** use existing CargoTransferAuthority.reassign_entity to retain
-  the same manifest with fresh generations. A private custody holder may receive
-  it and leave the tree, invoking existing detachment so transfers truly refuse;
-  restore that exact sealed manifest only after the normal current pending/home
-  lease reset succeeds. Manage/free the holder explicitly. No shared authority
-  framework, quantity reseed, new persistence slot or versioned evidence layer.
-  Variant reset preflight and commit must reject real occupied/stale contexts
-  before hull/claims/lease/custody mutation. Keep existing regeneration timers.
-- **Dependencies:** accepted Titan local seats, conserved durable parcel pair,
-  pilot/cannon and component/service/floor repair; no remote peers or parked work.
-- **Proof / commands:** pinned `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`
-  `--headless --audio-driver Dummy --path <owned-worktree> --script
-  res://tests/<suite>.gd`. Fresh isolated XDG profiles; final clean SHA/source/cache
-  guards; exit0/one exact existing suite sentinel/raw diagnostics0. Source gates:
-  three owned suites; full Main twice (ordinary and `-- --lifecycle`); existing
-  `combat_destruction_recovery_lifecycle_test.gd` and
-  `regeneration_reentry_safety_test.gd`; actual-store custody suite and two distinct
-  cold processes (`-- --cold-main`, repeat same profile). Root packages/replays
-  both full Main modes and two cold processes against actual exported content
-  from blank directories with source-isolation guards. Records:
-  `/srv/mudds-work/titan-lifecycle-20261106/`.
-- **Budget / stop:** readiness03:25:54UTC2026-11-06;60min all-in hard deadline
-  04:25:54UTC including mapping, code, checks, build, push and cleanup. Preserve
-  ordinary Main300s and standalone100s; lifecycle Main300s; custody100s/cold120s
-  each; existing destruction/reentry suites300s each; startup120s each and
-  existing export caps. One demonstrated substantive production repair; compiler/
-  incorrect-caller/assertion fixes are routine within the unchanged budget. Stop
-  dependent work on first unexpected failure and retain actual operands. Existing
-  suite_process watchdog; all automated audio Dummy/headless, no desktop/CI.
-- **Correction 1/1:** source review demonstrated that pending existence alone
-  admitted early public reset, bypassing the real delay and leaving sealed cargo.
-  Require the actual active regeneration attempt and elapsed ready_at_msec. The
-  existing Hero pending-reset capability fences lease-signal reentry. Explicit
-  early refusal is mandatory; no remaining substantive correction allowance.
-- **Close:** NOT_RUN. All finite cases, clean paired Windows/Linux export, three
-  strict startups, existing nine package predicates, actual packaged ordinary+
-  lifecycle+cold checks, accepted source merge/push and verified owned cleanup
-  are included. Broader remote/role/fullcraft/hardware gates remain OPEN.
+Source **2213baf66**, merged/pushed via **50f542377**, seals Titan's exact live cargo
+manifest through existing authority reassignment and tree detachment. Dead UI
+and direct authority requests refuse; ordinary scene reentry cannot unseal it.
+The actual normal pending/home regeneration owner restores that same manifest
+with fresh handles and unchanged2/2 quantities. No reseed, second spendable pile,
+shared cargo framework or new persistence slot. Public early, occupied and stale
+reset attempts refuse before gameplay/berth/custody mutation. The sole substantive
+correction requires an actual active attempt and elapsed real deadline; existing
+Hero pending capability fences synchronous lease reentry.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Three-role death cleanup | Actual local pilot plus two physical passenger bodies/claims, real moving Titan; terminal production damage | All three claims/seat/camera/fire and moving-frame occupancy retire safely once; no old-generation request restores control; supported local recovery, not a second helm | NOT_RUN |
-| Sealed exact custody | Physically committed locker2/Titan2; destroy Titan and use old service/authority handles | Same manifest retains2; old handles stale, sealed endpoint detached, no direct or UI transfer/launch while dead; durable pair and unrelated data unchanged | NOT_RUN |
-| Atomic reset refusals | Current occupied roles/real occupants, then stale preflight proof | Rejection precedes every hull/lease/claims/cargo mutation; snapshots unchanged and no quantity/handle publication | NOT_RUN |
-| Normal actual recovery | Lifecycle Main takes real terminal hits after physical load/departure; allow existing recovery/regeneration timers; walk back and physically reboard/start | Same Player recovers supported; exactly one Titan resets at exact own occupied/reserved berth with220 hull/nominal components; same2/2 manifest fresh handles; old endpoints refuse; actual usable helm/start without clock/pose bypass | NOT_RUN |
-| Cold replacement | Capture actual post-destruction/recovery store envelope; fresh process then repeated Main/cold process | Safe on-foot supported Player, no pilot/seat/camera/hull authority resume; locker4/Titan0 exactly, no additive refill/stale authority; durable clean quit markers | NOT_RUN |
-| Preservation and delivery | Full original ordinary Main plus existing lifecycle/reentry/custody/seat gates and fresh package probes | Original service/cannon/cargo/physical exit endpoints remain; seven-file paired checkpoint published, source pushed, owned branch/worktree/process/scratch cleanup complete | NOT_RUN |
+Three local physical Player fixtures exercise moving pilot/passenger claims,
+seat/camera/fire/frame cleanup, supported on-foot recovery and fresh role
+rosters. Actual Main separately retains the full original service/cannon/cargo
+journey and runs a lifecycle journey: physical load2/2/departure/cannon, real
+registered terminal incoming damage, normal supported Player recovery, unchanged
+regeneration timer, one nominal220-hull Titan at its exact own occupied berth,
+physical return/reboard/start/OFFLINE/exit and actual UI Quit. Old service and
+shared-authority handles remain refused; the same manifest and quantities survive.
+Custody isolation preserves save bytes; normal death/activity/session writers
+remain permitted and are separately recorded in the integrated journey.
+
+Eight final-source invocations pass with guarded source/cache and clean SHA,
+including existing destruction/reentry and actual-store fault checks, both full
+Main modes and two distinct cold processes. Cold probes consume the actual
+post-death committed2/2 envelope: fresh Main and repeated replacement project
+exactly four existing parcels to locker4/Titan0, with safe on-foot continuation
+and no pilot/seat/camera/in-flight/hull authority resume or duplicate stock.
+Fresh paired checkpoint **2213baf** passes three strict startups and all nine
+existing package predicates. All1,545 Win/Linux payload entries
+match; actual Windows packaged content under pinned Linux Godot independently
+passes ordinary/lifecycle Main and two cold processes from source-isolated blank
+directories. This proves packaged content under Linux, not native Windows.
+
+Main remains10/17. Next is bounded host/remote passenger composition; complete
+role/handling, full craft/world/capacity/final-release and applicable hardware
+qualification stay OPEN. Prior Jovian engineer admission failure remains
+unchanged/unqualified. Titan remains an approved modern interpretation, not an
+authenticated historical reconstruction. Frozen card, source bundle, failure
+operands/raw profiles and package records are in verified
+`/srv/mudds-work/titan-lifecycle-20261106/records.tar.gz`; adjacent closeout records
+actual publication/cleanup and original03:25:54→04:25:54UTC all-in budget.
 
 ### Titan component damage and berth service — child 9b DONE
 
@@ -136,7 +110,7 @@ source isolation guard. This proves packaged content under Linux. It does not
 qualify native Windows/GPU/device/audio/rendered readability/human/full release.
 The prior Jovian engineer admission failure remains unchanged and unqualified.
 
-Main remains10/17. Broader destruction/recall/lifecycle is next; remote crew,
+Main remains10/17. Local destruction/regeneration/cold policy is delivered above; remote crew,
 complete role/handling and full craft qualification stay OPEN. Titan remains an
 approved modern interpretation, not an authenticated historical reconstruction.
 Frozen card, raw results/failed attempts and source bundle are in verified
