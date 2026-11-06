@@ -187,6 +187,10 @@ func _run() -> void:
 	if not _failures.is_empty():
 		await _fail_exit("flight endpoint failed")
 		return
+	await _test_pilot_cannon()
+	if not _failures.is_empty():
+		await _fail_exit("ordinary cannon contract failed")
+		return
 	var capture := _game._get_active_landing_assist_report()
 	print("TITAN_CAPTURE_BEFORE_L: ", capture)
 	_check(bool(capture.get("assist_capture_accepted", false))
@@ -361,7 +365,7 @@ func _key(key: Key) -> void:
 		await process_frame
 
 func _release_inputs() -> void:
-	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"pitch_up", &"pitch_down", &"brake", &"sprint_boost", &"interact", &"landing_assist"]:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"pitch_up", &"pitch_down", &"brake", &"sprint_boost", &"interact", &"landing_assist", &"fire"]:
 		Input.action_release(action)
 
 func _wait_frames(count: int) -> void:
@@ -499,3 +503,136 @@ func _post_chair_cargo_round_trip(identity: int) -> bool:
 		Vector3(0, 0.8, 8), Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]:
 		if not await _walk_to(_ship.to_global(point), 36): return false
 	return _failures.is_empty()
+
+
+## Deterministically stage the existing production opponent at the actual pilot
+## reticle. This proves normal FIRE and lifecycle damage, not encounter discovery.
+## Titan pose, velocity, lease, clocks and actor are never assigned by this case.
+func _test_pilot_cannon() -> void:
+	var authority := _game.get_combat_authority()
+	var resolver := _game.get_combat_resolver()
+	var target := _game.get_node("RangeOpponent") as RangeOpponent
+	var camera := _ship.get_camera()
+	var aim := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size * 0.5).normalized()
+	var target_position := camera.global_position + aim * 60.0
+	target.set_physics_process(false)
+	_check(bool(target.activate(Transform3D(_ship.global_basis, target_position)).get("accepted", false)),
+		"staged existing production opponent activates at ordinary pilot reticle")
+	await _wait_frames(2)
+	var adapter := target.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter
+	var profile := authority.get_weapon_profile(_ship, GameFlow.JOVIAN_COMBAT_WEAPON_ID)
+	_check(authority.get_source_id(_ship) == 1110 and profile == {"range": 650.0, "damage": 70.0, "origin_tolerance": 10.0}
+		and adapter.get_target_entity() == target and is_equal_approx(_ship.weapon_cooldown, 0.62),
+		"Titan1110 owns unchanged650m/70 cannon and real production lifecycle target")
+	var shots: Array[Dictionary] = []
+	var emitted := func(origin: Vector3, direction: Vector3) -> void:
+		shots.append({"tick": Engine.get_physics_frames(), "origin": origin, "direction": direction,
+			"telemetry": _ship.get_telemetry(), "readout": _ship.call("_get_cockpit_system_readout")})
+	_ship.projectile_fired.connect(emitted)
+	var damages: Array[float] = []
+	var damaged := func(current: float, _maximum: float) -> void: damages.append(current)
+	target.health_changed.connect(damaged)
+	var health := target.get_health()
+	Input.action_press(&"fire")
+	await _wait_frames(10)
+	Input.action_release(&"fire")
+	var hit := _game.get_last_player_shot_result()
+	var request := hit.get("request") as ShotRequest
+	var telemetry := _ship.get_telemetry()
+	_check(shots.size() == 1 and damages.size() == 1 and is_equal_approx(target.get_health(), health - 70)
+		and bool(hit.get("damaged", false)) and hit.get("target_entity") == target
+		and request != null and request.source_entity == _ship and request.source_id == 1110
+		and request.weapon_id == GameFlow.JOVIAN_COMBAT_WEAPON_ID
+		and _ship.to_local(shots[0].origin).distance_to(Vector3(0, 1.1, -8.9)) < 0.01,
+		"normal held FIRE emits exactly one centre shot and one70 damage event with Titan ownership")
+	var shot_telemetry := shots[0].telemetry as Dictionary if not shots.is_empty() else {}
+	var shot_readout := shots[0].readout as Dictionary if not shots.is_empty() else {}
+	print("TITAN_CANNON_TELEMETRY: shot=", shot_telemetry, " readout=", shot_readout,
+		" delayed=", telemetry, " delayed_physics_ticks=", Engine.get_physics_frames() - int(shots[0].tick) if not shots.is_empty() else -1)
+	_check(is_equal_approx(float(shot_telemetry.get("weapon_heat", -1)), HeroShip.WEAPON_HEAT_PER_SHOT)
+		and is_equal_approx(float(shot_telemetry.get("weapon_cooldown_remaining", -1)), 0.62)
+		and shot_telemetry.get("weapon_status") == &"cooldown" and not bool(shot_telemetry.get("weapon_ready", true))
+		and "WPN CYCLING" in str(shot_readout.get("text", "")),
+		"actual normal-input shot exposes inherited heat and cycling telemetry")
+	var replay := resolver.resolve_hitscan(request) if request != null else {}
+	_check(replay.get("status") == &"duplicate_sequence" and is_equal_approx(target.get_health(), health - 70),
+		"replayed Titan receipt cannot apply a second damage event")
+	target.deactivate()
+	# Keep holding through the real cooldown: the next admitted shot must wait
+	# at least38 physics ticks (0.62s at60Hz), and now deliberately misses.
+	Input.action_press(&"fire")
+	for frame in 45:
+		if shots.size() == 2: break
+		await _wait_frames(1)
+	Input.action_release(&"fire")
+	var miss := _game.get_last_player_shot_result()
+	_check(shots.size() == 2 and int(shots[1].tick) - int(shots[0].tick) >= 38
+		and int(shots[1].tick) - int(shots[0].tick) <= 39
+		and bool(miss.get("accepted", false)) and not bool(miss.get("damaged", true))
+		and damages.size() == 1 and is_equal_approx(target.get_health(), health - 70),
+		"held FIRE respects actual0.62s cadence then deliberate clear-space miss adds no target damage")
+	_ship.projectile_fired.disconnect(emitted)
+	target.health_changed.disconnect(damaged)
+	await _test_cannon_authority(authority, resolver, target)
+	target.deactivate()
+	target.set_physics_process(true)
+	_check(is_equal_approx(_ship.get_telemetry().hull, 220) and _game.active_ship == _ship
+		and _game._piloting and _game.phase == GameFlow.Phase.FREE_FLIGHT,
+		"cannon checks preserve healthy actual Titan pilot/free-flight route")
+
+
+func _test_cannon_authority(authority: LiveCombatAuthority, resolver: CombatResolver, target: RangeOpponent) -> void:
+	var origin := (_ship.get("_muzzle_left") as Marker3D).global_position
+	var weapon := GameFlow.JOVIAN_COMBAT_WEAPON_ID
+	var hull := float(_ship.get_telemetry().hull)
+	var self_result := authority.submit_hitscan(_ship, weapon, _ship.to_global(Vector3(0, 2, 0)), _ship.global_basis.y)
+	_check(self_result.get("collider") != _ship and is_equal_approx(_ship.get_telemetry().hull, hull),
+		"Titan source excludes its own complete collision hierarchy")
+	var foreign := authority.submit_hitscan(_ship, GameFlow.TORRENT_COMBAT_WEAPON_ID, origin, Vector3.UP)
+	var unknown := Node3D.new()
+	_game.add_child(unknown)
+	unknown.global_position = origin
+	var unregistered := authority.submit_hitscan(unknown, weapon, origin, Vector3.UP)
+	var spoof := ShotRequest.new(unknown, 1110, GameFlow.PLAYER_FACTION, weapon,
+		resolver.get_last_sequence(_ship, 1110) + 1, origin, Vector3.UP, 650, 70)
+	var mismatch := resolver.resolve_hitscan(spoof)
+	_check(foreign.get("status") == &"weapon_not_authorized" and unregistered.get("status") == &"unregistered_source"
+		and mismatch.get("status") == &"source_mismatch", "Titan rejects foreign weapon, unregistered body and stale/source-mismatched owner")
+	unknown.queue_free()
+	var prior_mode := _game._network_session_mode
+	_game._network_session_mode = &"client"
+	_game._on_projectile_fired(origin, Vector3.UP, _ship)
+	_game._network_session_mode = prior_mode
+	_check(_game.get_last_player_shot_result().get("reason") == &"client_projectile_authority_forbidden",
+		"client Titan projectile cannot resolve host damage")
+	var arrow := _game.get_node("ArrowReconShip") as HeroShip
+	var before_inactive := _game.get_last_player_shot_result()
+	_game._on_projectile_fired(origin, Vector3.UP, arrow)
+	_check(_game.get_last_player_shot_result() == before_inactive, "inactive friendly source cannot impersonate active Titan dispatch")
+	var saved := arrow.global_transform
+	arrow.global_transform = Transform3D(_ship.global_basis, origin - _ship.global_basis.z * 30)
+	await _wait_frames(1)
+	var friendly_hull := float(arrow.get_telemetry().hull)
+	var friendly_aim := ((arrow.get_node("ArrowHullCollision") as CollisionShape3D).global_position - origin).normalized()
+	var friendly := authority.submit_hitscan(_ship, weapon, origin, friendly_aim)
+	_check(friendly.get("status") == &"friendly_fire_blocked" and friendly.get("collider") == arrow
+		and is_equal_approx(arrow.get_telemetry().hull, friendly_hull), "real friendly hull blocks Titan beam without damage")
+	arrow.global_transform = saved
+	var target_position := origin - _ship.global_basis.z * 40
+	target.activate(Transform3D(_ship.global_basis, target_position))
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = PhysicsLayers.WORLD
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(10, 10, 2)
+	collision.shape = box
+	blocker.add_child(collision)
+	_game.add_child(blocker)
+	blocker.global_transform = Transform3D(_ship.global_basis, origin.lerp(target_position, 0.5))
+	await _wait_frames(1)
+	var health := target.get_health()
+	var blocked := authority.submit_hitscan(_ship, weapon, origin, (target_position - origin).normalized())
+	_check(blocked.get("status") == &"world_blocked" and blocked.get("collider") == blocker
+		and is_equal_approx(target.get_health(), health), "actual world-layer occlusion protects production target from Titan cannon")
+	blocker.queue_free()
+	await _wait_frames(1)

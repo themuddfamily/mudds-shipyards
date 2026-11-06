@@ -97,7 +97,7 @@ func _test_fleet_definition_and_combat(
 	var berth_ids: Dictionary = {}
 	var source_ids: Dictionary = {}
 	var expected_sources := {
-		&"titan_provisional": 0,
+		&"titan_provisional": 1110,
 		&"torrent_provisional": 1101,
 		&"arrow_provisional": 1102,
 		&"jovian_provisional": 1103,
@@ -121,8 +121,8 @@ func _test_fleet_definition_and_combat(
 		"the ten-craft registry has unique ship and home-berth identities"
 	)
 	_check(
-		source_ids.size() == 9 and observed_sources == expected_sources,
-		"all nine craft retain exact unique combat sources, including the armed cargo hauler as 1109"
+		source_ids.size() == 10 and observed_sources == expected_sources,
+		"all ten craft retain exact unique combat sources, including Titan as 1110"
 	)
 	_check(
 		game.get_guided_ship() == torrent
