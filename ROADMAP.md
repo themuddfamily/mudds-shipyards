@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **16a6361** — [Windows ZIP](builds/windows/MuddsShipyards-16a6361-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-16a6361-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-16a6361-linux-x86_64.tar.gz).
+Latest playable checkpoint: **cc38736** — [Windows ZIP](builds/windows/MuddsShipyards-cc38736-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-cc38736-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-cc38736-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,57 +26,49 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-16a6361-predator-main-preview.png). Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Predator physical presentation alignment — ART-FINDINGS
+### Predator physical presentation alignment — ART-FINDINGS DONE (scoped graphics checkpoint)
 
-Goal/contract: ART-FINDINGS, Predator's adopted original hull/collision and exact
-pilot/cockpit poses, prerequisite to supported local chairs (card6 remains
-unstarted). Result: solid hull/helm/eye remain in the physical ship frame through
-actual turns, solid exhaust panels remain visible OFFLINE, engine glow remains
-cosmetic and state-driven. No archived candidate or parked retry is reopened.
+Source **cc387367b**, merged/pushed via **424297cf2**, keeps Predator's physical hull,
+helm and cockpit eye aligned with its collision frame through actual turns.
+Both solid exhaust panels remain visible OFFLINE. Separate nonphysical glow
+overlays follow existing engine state, and the authored4-degree cosmetic bank
+acts only on the presentation root. Existing hull hide/restore ownership is
+forwarded to the separated physical visuals. No roles or moving cabin are added.
 
-Start: clean324544457, actual accepted Predator base + Main production pilot
-prefab; one actual ordinary Player for Main routes, one declared standalone
-ShipCommandSource fixture for controller measurements. Root baseline runtime
-already reproduces OFFLINE Port/StarboardExhaust visible=false with active
-colliders, and real yaw visualrotationz−.017437 vs physicalfloor0, moving cockpit
-localx to.055971 instead of0. Raw original complete foundation still passes;
-that check did not cover this actual presentation gap.
+Seven complete clean-source cases pass: foundation90s, both access180s profiles,
+occupied berth240s, definitions120s, registry180s and ordinary Predator Main600s
+ALONE. Five source-isolated actual Windows PCK cases repeat full foundation,
+identity/transformed access, occupied berth and ordinary Main at original limits.
+Main retains both complete sorties, physical exit/reboard and normal clean Quit
+(clean_shutdown/clean/session_ended) in source and PCK. Every case exits0 with
+one exact marker/raw0 and source/cache/head/worktree guards. Actual controller
+startup, turns and shutdown assert solid mesh/collider and physical helm/eye
+agreement without pose, velocity or clock overrides; original cases are retained.
 
-Owner/files: one high-effort implementer owns scripts/ships/predator_detention_transport.gd,
-tests/predator_detention_transport_test.gd, tests/game_flow_predator_integration_test.gd.
-Independent high reviewer; root integrates/releases. No HeroShip, Player, Main
-scene, numeric resource, role/authority, movement, berth, access trajectory, CI or
-unrelated craft change. Dependencies: accepted16a6361 pilot checkpoint and
-existing presentation hooks, satisfied. Source and real controller are known.
+Three inspected private Xvfb/x11/GLES/Dummy views offline-exhaust, online-bank
+and cockpit-eye use the actual production prefab and inherited3.8s startup/yaw
+fixture with staged ambient/sun lighting. Production lighting,
+native GPU, device/audio and human readability remain NOT_RUN/unqualified.
+Fresh paired checkpoint **cc38736** passes three strict startup checks, equal
+complete payload maps, reviewed one-production-file delta and all nine existing
+package predicates. Eight artifacts include the Windows EXE/ZIP/notes/alignment
+preview and paired Linux executable/archive/export result/notes.
 
-| Case | Initial state and action | Expected result | Actual/proof |
-| --- | --- | --- | --- |
-| Physical frame | Actual hull root +32 paired physical sections; run original startup/thrust/yaw-pitch-roll/brake/neutral and second flight cycle | Every paired solid mesh stays visible and has exact hierarchy-relative transform matching root collider; pilot(0,1.45,−5.5) and eye(0,3.21,−5.75) remain exact; real body attitude changes normally, no pose/velocity/clock overrides | NOT_RUN |
-| Cosmetic bank/engine cues | Actual yaw command and engine OFFLINE/STARTING/ONLINE/shutdown states | Existing4-degree bank field retained and applied only to a nonphysical presentation root; physical hull and pilot frames unaffected. Two always-visible exhaust solids; separate explicitly nonphysical glow overlays follow real existing engine on/off cue without colliders. Unarmed stays no muzzle/shot/heat/cooldown | NOT_RUN |
-| Preserved foundation/access | Original full foundation90s, access identity180s and elevated35yaw180s | All original16fields/14actualprofiles/registered-six signatures, two real controller cycles, geometry/clearance and complete two walking access cycles at each profile pass. New visibility/root-pose assertions cover actual controlled turn and OFFLINE. No original case/threshold omitted | NOT_RUN |
-| Actual occupied home | Original predator_detention_transport_berth_test240s, ship_definition_berth_test120s, station_route_registry_integration_test180s | Whole hull/sweeps/camera, actual route/control/return, exact own-home lease and old10 craft/berths unchanged; Main remains11/17 | NOT_RUN |
-| Ordinary Main | Complete existing game_flow_predator_integration_test600s ALONE, with new physical alignment assertions during actual turn/online/offline in both sorties | Same Player walks normal station/ramp/aisle, boards,3.8start/launch/flight/strict-home/OFFLINE/inside stand/physical exit, reboards and repeats; no travellingframe/roles granted; normal clean Quit clean_shutdown/clean/session_ended; actual production meshes/helm/eye agree with physical root | NOT_RUN |
-| Source boundary | Seven clean-source cases serial, original per-case limits above; independent suite_process abort | Exit0/one exact marker/raw0 each; source/cache/head/worktree guards; first unexpected failure stops dependent gates | NOT_RUN |
-| Render | Private Xvfb/x11/GLES/Dummy actual production prefab staged fixture, real inherited startup and held yaw source | Inspect OFFLINE exhaust, real online turn and cockpit eye images. Solid panels visible, body/helm stable; cosmetic glow follows engine. No native GPU, production-lighting or human qualification | NOT_RUN |
-| Fresh checkpoint | Existing safe paired exports from final clean commit, strict startup3, equal maps and reviewed one-production-file delta, existing packageaudit9 | EXE/ZIP/notes/preview in repo builds/windows and paired Linux4; no Downloads/CI/native qualification | NOT_RUN |
-| Actual PCK | Blank source-isolated Windows payload under pinned Linux Godot: complete foundation90, accessI/T180each, occupiedberth240 and Main600 ALONE; only test constants/isolation guard adapted | Same full cases and original limits, exit0/markeronce/raw0; Main normal clean Quit; exact accepted source/package | NOT_RUN |
-| Close | Root review, merge/push, verified source+raw archive, exact-tip owned branch/worktree/process/scratch cleanup | All frozen cases pass before acceptance; retained full craft/native/human and all five archived parked attempts remain open/closed as recorded | NOT_RUN |
-
-Budget: ORIGINAL12:45:00→13:45:00UTC2026-11-06,60minutes ALL-IN including
-mapping/baseline, implementation, complete checks/render/build/review/integration
-and cleanup. TWO substantive corrections allowed, frozen before code because
-this crosses presentation, physical pilot/camera and animated access owners.
-Routine compiler/caller repairs keep every case/threshold/deadline. No serial
-validators/schema families or evidence-only implementation. Every Godot call
-Dummy; headless or private x11 Xvfb with independent abort and released input.
-Stop at first failure, capture operands/cause and cumulative cost; exhaustion or
-deadline parks with explicit reopening conditions. Accepted output changes the
-running game and ships in a fresh playable checkpoint; full art/craft/roles/
-release/native/human gates remain open. Close records actuals and cleanup.
+**Main remains11/17 flyable craft and11 physical berths.** This scoped graphics
+repair is a prerequisite to local chairs; card6 remains unstarted. Moving cabin,
+guard/detainee/cell detention, networking, full damage/service/recovery/save,
+whole Main re-entry and full craft/release qualification remain pending. All historical
+parked attempts stay closed; no Salyut fix or trio source is included.
+Original12:45→13:45UTC60minute all-in budget and two-production-repair allowance
+(1 used) retained. Source bundle, baseline/compiler,
+all7source/5PCK raw cases,8supervisor statuses, views and export/map/audit records
+are retained in verified `/srv/mudds-work/predator-render-alignment-20261106/records.tar.gz`;
+adjacent closeout records publication and exact process/ref/worktree cleanup.
+No retry or next assignment is selected.
 
 ### Dynamic/Utopia/Salyut foundation batch — PARKED, source retained
 
