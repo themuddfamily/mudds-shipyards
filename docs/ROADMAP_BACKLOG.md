@@ -60,7 +60,7 @@ at adoption the fleet remained9/17. Subsequent Titan minimum Main pilot/checkpoi
 
 | Approved baseline | Next owned action |
 | --- | --- |
-| [Titan](design/TITAN_IMPLEMENTATION_PROPOSAL.md) | Hull/access/berth/minimum Main pilot loop and paired checkpoint delivered through af0199339. Local two-chair claims/stand/walk/reseat delivered c3ba813d7. Finite four-parcel loading/return/cold custody delivered 2794cfa4c. Next: bounded pilot cannon; remote crew, broader lifecycle and full craft qualification remain open. |
+| [Titan](design/TITAN_IMPLEMENTATION_PROPOSAL.md) | Hull/access/berth/minimum Main pilot loop and paired checkpoint delivered through af0199339. Local two-chair claims/stand/walk/reseat delivered c3ba813d7. Finite four-parcel loading/return/cold custody delivered 2794cfa4c. Pilot cannon child9a delivered bd6938683. Next: bounded five-component impairment and authorized service; remote crew, broader lifecycle and full craft qualification remain open. |
 | [Vortex](design/VORTEX_IMPLEMENTATION_PROPOSAL.md) | Codex selects its first dependency-ready bounded BUILD-SPLIT capability; implement and prove it under the accepted baseline. |
 | [Paradox](design/PARADOX_IMPLEMENTATION_PROPOSAL.md) | Codex selects its first dependency-ready bounded BUILD-SPLIT capability; implement and prove it under the accepted baseline. |
 | [Katana](design/KATANA_IMPLEMENTATION_PROPOSAL.md) | Codex selects its first dependency-ready bounded BUILD-SPLIT capability; implement and prove it under the accepted baseline. |

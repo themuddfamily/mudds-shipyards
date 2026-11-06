@@ -13,13 +13,14 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **2794cfa** — [Windows ZIP](builds/windows/MuddsShipyards-2794cfa-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-2794cfa-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-2794cfa-linux-x86_64.tar.gz).
+Latest playable checkpoint: **bd69386** — [Windows ZIP](builds/windows/MuddsShipyards-bd69386-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-bd69386-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-bd69386-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
 now load, fly home and return through physical controls with conserved cold custody.
+The pilot centre cannon now delivers the approved70-damage defensive shot.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
@@ -27,59 +28,41 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan pilot cannon — child 9a
+### Titan pilot cannon — child 9a DONE
 
-- **Goal / contract:** original fleet outcome, Titan proposal child9 split into
-  9a cannon and 9b component impairment/authorized service. The approved weapon is
-  the unchanged `assets/weapons/jovian_combat_pulse.tres`: hitscan,650m,70 damage,
-  0.62s cooldown, existing friendly policy/cyan/audio cues. Full child9 and full
-  craft qualification remain OPEN until both members pass.
-- **Result:** the physical Titan pilot fires its centre cannon through ordinary
-  held FIRE, sees existing heat/cycling/impact feedback, damages a real production
-  damageable target once per admitted shot, then completes the existing home route.
-- **Candidate / start:** clean pushed main75dce2ee7; one actual Titan at its own
-  berth, ordinary Boot/Begin/player spawn, same local Player. One staged production
-  opponent/damageable target may be positioned for deterministic aim in the test;
-  Titan pose, velocity, lease, actor, engine duration and transition owners may not
-  be overwritten. No claim that this staged target proves encounter discovery.
-- **Owner / files:** implementation agent titan_cannon_impl_1106 owns
-  `scripts/ships/titan_medium_transport.gd`, combat registration/profile/dispatch
-  seams in `scripts/game/game_flow.gd`, and existing tests
-  `titan_medium_transport_test.gd`, `live_combat_integration_test.gd`,
-  `zenith_fleet_dock_integration_test.gd`,
-  `cinder_light_interceptor_combat_production_test.gd`, and
-  `game_flow_titan_integration_test.gd`. The sixth suite is the unchanged
-  `combat_receipt_identity_test.gd` (100s). Root owns docs, release, integration and
-  cleanup. Independent high-effort reviewer reads those exact changes; no edits.
-- **Dependencies:** accepted pilot/chairs/parcels source2794cfa via27f57a620 and
-  checkpoint2794cfa. No dependency on parked Hauler weapon candidate. Source1110
-  is free; retain every existing source1101..1109 and their weapon profiles.
-- **Proof / commands:** pinned `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`
-  with `--headless --audio-driver Dummy --path <owned-worktree> --script
-  res://tests/<listed-test>.gd`. Every test has an isolated XDG profile; freeze
-  source/cache before/after. Main exits via actual UI Quit and durable clean
-  markers, with exactly one GAME_FLOW_TITAN_INTEGRATION_TEST_PASS and exit0.
-  Other tests require their existing exact success marker, exit0 and zero raw
-  diagnostics. Records go to `/srv/mudds-work/titan-cannon-20261106/`.
-- **Budget / stop:** readiness01:58:12UTC2026-11-06 retained;75min all-in hard
-  deadline03:13:12UTC, including tests/builds/merge/push/archive/cleanup. One
-  demonstrated substantive production repair allowed; ordinary compiler/test
-  assertion fixes do not consume it. Stop dependent work at first unexpected
-  failure. Existing Main300s, standalone100s, shared combat300s, fleet300s,
-  Cinder100s limits; package startups120s each. Use existing suite_process.py
-  independent watchdog; release all synthetic input/reap owned workers. No CI.
-- **Close:** NOT_RUN. On complete pass: clean-source paired Windows/Linux exports,
-  strict startup checks, existing nine package predicates, actual packaged Main
-  replay, concise notes, source merge/push and verified task branch/worktree
-  removal. Native Windows/GPU/device/human gates stay NOT_RUN.
+Source **bd6938683**, merged/pushed via **f7f629c85**, gives Titan its approved centre
+pilot cannon through the existing command, combat and damage owners. The unchanged
+Jovian resource supplies650m range,70 damage and0.62s cooldown. Titan owns
+source1110; prior1101..1109 identities and weapon resources are retained. The
+centre bore at(0,1.1,-8.9) clears a matched skin/collision recess; complete hull
+bounds remain12x18x5m. Normal held FIRE drives actual damage and heat/cycling.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Exact hardware/profile | Instantiate actual Titan and ordinary staged Main; inspect muzzle/resource/registration | One co-located centre muzzle at(0,1.1,-8.9), nose skin recessed toz=-8.8 at its clear bore with matched collision and unchanged12x18x5 outer bounds, unique source1110, unchanged Jovian650m/70 profile/cadence/cues; existing sources/profiles retained; ten player sources | NOT_RUN |
-| Ordinary hit and miss | Full existing Begin/walk/cargo/chairs/start/flight route, normal FIRE toward staged production damageable then clear space | One emitted/admitted shot gives one70 damage event with Titan source; deliberate miss gives zero target damage; visible telemetry heat/cooldown reflects shot; no direct shot submission for this case | NOT_RUN |
-| Cadence and authority | Existing live integration extended for Titan; exercise cooldown, self, friendly, world occlusion, foreign/unregistered/stale source and client authority | Original resolver rejection/status invariants remain; early repeat cannot damage twice; self/friendly/blocked/invalid source never mutate protected hulls; no cross-craft weapon borrowing | NOT_RUN |
-| Preserved complete route | Continue normal Main after shots through own L landing,90 neutral OFFLINE ticks, physical hold return/exit and actual UI Quit | Same Player; healthy220 hull; supported/capsule-clear walking; conserved parcels locker4/Titan0; clean shutdown/recovery; old assertions and endpoints retained | NOT_RUN |
-| Regression and shipped artifact | Run all six named existing suites, clean paired exports, three startups, package audit and packaged full Main route | All required markers/exit0/raw diagnostics0; Win/Linux payload equality and nine predicates pass; EXE/ZIP/notes in builds/windows and paired Linux artifacts; source pushed and owned cleanup complete | NOT_RUN |
+All six selected existing suites pass on the final clean source with guarded
+source/cache. The complete ordinary Begin/walk/parcel/chair/start/flight journey
+adds a staged production opponent at the real pilot reticle: one held-fire shot
+emits one70-damage event, subsequent held fire waits38–39 physics ticks and then
+misses without target damage. This staged target does not qualify encounter
+discovery. Tests retain same Player, healthy220 hull, real3.4s startup, own-home
+landing,90 neutral OFFLINE ticks, locker4/Titan0, physical exit and actual UI Quit
+with durable clean recovery/session markers. Direct authority cases cover replay,
+self/friendly/world blocking, wrong/unregistered/spoofed/inactive/client sources.
+Queued real Titan owner refuses source_unavailable and then unregistered_source,
+retiring only its registration while protected health/other sources remain intact.
+
+Fresh paired checkpoint **bd69386** passes three strict startup probes and all
+nine existing package predicates. All1,545 Windows/Linux payload
+entries match. The complete unchanged-input Main test also passes against the
+actual Windows package under pinned Linux Godot, blank directory and source
+isolation guard. This is packaged-content proof under Linux. Native Windows,
+GPU/device/audio/readability/human and full release gates remain open/NOT_RUN.
+The prior Jovian engineer admission failure is unchanged and unqualified here.
+
+Full child9 remains OPEN: **9b five-component impairment and authorized service**
+is next, followed by broader lifecycle and remote crew. Main stays10/17; this is
+an approved modern interpretation, not an authenticated historical reconstruction.
+Frozen card, raw results, source bundle and failure records are preserved in
+`/srv/mudds-work/titan-cannon-20261106/records.tar.gz`; adjacent closeout records
+actual publication/cleanup and original01:58:12→03:13:12UTC all-in budget.
 
 ### Titan finite parcel transport and cold custody — DONE in parcel scope
 
@@ -123,8 +106,8 @@ Verified records, failed candidates, source bundles, profiles and captures:
 `/srv/mudds-work/titan-parcels-20261106/records.tar.gz`. Adjacent closeout records
 actual publication/cleanup and original00:42:59→01:57:59UTC all-in budget. Owned
 branch/worktree/process/scratch cleanup is part of closure. Next dependency-ready
-construction: **Titan child9 pilot cannon**, split into its exact normal-controls
-hit/miss/cadence/ownership outcome before broader component/service work.
+construction at that checkpoint was Titan child9a pilot cannon, now delivered
+above. Child9b component/service work remains next.
 
 ### Titan's two physical passenger chairs — DONE in local scope
 
