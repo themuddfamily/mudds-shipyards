@@ -30,6 +30,27 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan host and one remote passenger — child 11
+
+Goal / contract: [Titan child 11](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-children), actual playing-host pilot plus one remote passenger. Child10 is accepted in2213baf66; child12 two remote passengers/host loss stays separate.
+Result: a joined remote uses either authored Titan passenger chair during host flight, can stand/walk/reseat, and can physically exit after normal home docking. Disconnect retires the old claim; reconnect must earn a fresh claim and cannot acquire the occupied helm.
+Candidate / start: clean6f6d179b7; two independent Main/ENet OS processes with separate fresh profiles, ordinary Intro/Begin and station spawn. No actor/ship pose, velocity, clock, hull or seat-state assignment in the ordinary journey.
+Owner / files: titan_remote_seam_1106 implements `scripts/game/game_flow.gd`, `scripts/network/network_halyard_passenger_binding.gd`, `scripts/network/network_jovian_engineer_binding.gd`, Titan-local adapters in `scripts/ships/titan_medium_transport.gd` if required, and `tests/network/titan_network_passenger_route_test.gd` (plus its UID). Independent network/lifecycle reviewer; root owns card, release, integration and cleanup. No shared authority redesign, sibling handling changes, specialist roles or cargo authority expansion.
+Dependencies: accepted Titan berth/Main/cabin/chairs/cargo/cannon/component/lifecycle children1–10. Existing production ENet, remote walking-body simulation, boarding/seat authority and moving-interior replication owners are reused. No new external input required.
+Proof: `/srv/mudds-work/titan-remote-passenger-20261106/`, silent headless/private Xvfb x11/Dummy peers. Raw OS exit0, explicit terminal success, zero raw diagnostics, actual host and client manifests and process cleanup; source scope and actual source-isolated Windows packaged content under Linux only.
+Budget: original start04:23:28UTC2026-11-06, absolute deadline05:23:28UTC,60minutes all-in including mapping, implementation, full affected checks, fresh paired checkpoint, merge/push/archive/ref/worktree cleanup. Existing peer stage waits and300s total/10s abort grace stay unchanged. One substantive production repair after first observed runtime failure; routine compiler/caller/assertion repairs retain this deadline and every affected gate.
+Stop: retain first unexpected failure and actual operands, stop dependent checks; no shortened route, pose staging, direct seat claims or simulated peers as ordinary proof. Unresolved production failure after allowance or deadline parks the whole card with original cost. Independent supervisor terminates/reaps owned peers and releases inputs.
+Close: NOT_RUN; no success or completion percentage claimed before all rows and publication/cleanup pass.
+
+| Case | Initial state and action | Expected result | Actual result and proof |
+| --- | --- | --- | --- |
+| Ordinary host/remote travel | Two fresh Main processes, host starts session and guest joins using existing production UI/ENet; both Begin and walk station route to Titan; guest walks hatch/ramp to chair and Interacts, host reaches helm and starts normally | Same physical actors; host is sole pilot, one remote owns the selected exact passenger anchor/current claim and supported host body; no pose staging or API seat claim | NOT_RUN |
+| Moving stand/walk/reseat | Host physically departs more than existing5m threshold; guest stands, walks more than existing0.6m within moving cabin, approaches and reseats through ordinary controls | Moving authoritative and consumed hull, same guest body/frame, fresh seat claim, no helm/fire authority gained; original8s boundary waits retained | NOT_RUN |
+| Dock and physical exit | Normal host neutral/shutdown and own L home landing; guest stands and walks continuous cabin/ramp route outside | Exact own occupied berth; supported unseated remote outside, old chair assignment cleared, no duplicate craft or cargo; normal clean Quit | NOT_RUN |
+| Disconnect/reconnect and stale refusal | Separate actual host/remote run, current remote chair claim; guest disconnects through normal session owner, reconnects/joins and physically reboards | Host clears prior seat/body/claim; old generation cannot reclaim or steal helm, rejoined peer earns fresh body/seat authority through physical interaction; host pilot retained | NOT_RUN |
+| Existing behavior | Existing Titan medium/custody suites; existing network crew-role, moving-interior GameFlow integration and physical passenger binding regressions; complete existing ordinary Titan Main test | Each selected suite exits0 with its one success marker/zero diagnostics; original local chairs/cargo/service/cannon/home/Quit behavior retained | NOT_RUN |
+| Fresh package and cleanup | Clean final commit, existing safe paired exports; actual Windows PCK ordinary Titan Main and both new remote profiles; strict startups and existing nine package predicates | EXE/Windows ZIP/notes plus paired Linux files in builds; all scoped checks pass, merge/push verified, accepted branch/worktree/processes removed and failed attempts archived; native/GPU/human/full-craft gates remain open | NOT_RUN |
+
 ### Titan destruction, regeneration and custody — child 10 DONE in local scope
 
 Source **2213baf66**, merged/pushed via **50f542377**, seals Titan's exact live cargo
