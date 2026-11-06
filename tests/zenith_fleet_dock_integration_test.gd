@@ -88,15 +88,16 @@ func _test_fleet_definition_and_combat(
 	authority: Node
 	) -> void:
 	_check(
-		fleet.size() == 9
+		fleet.size() == 10
 		and fleet.has(torrent) and fleet.has(arrow)
 		and fleet.has(jovian) and fleet.has(zenith) and fleet.has(halyard),
-		"Main registers all nine physical production flyables, including the five named scenario craft"
+		"Main registers all ten physical production flyables, including the five named scenario craft"
 	)
 	var ship_ids: Dictionary = {}
 	var berth_ids: Dictionary = {}
 	var source_ids: Dictionary = {}
 	var expected_sources := {
+		&"titan_provisional": 0,
 		&"torrent_provisional": 1101,
 		&"arrow_provisional": 1102,
 		&"jovian_provisional": 1103,
@@ -116,8 +117,8 @@ func _test_fleet_definition_and_combat(
 		if source_id > 0:
 			source_ids[source_id] = true
 	_check(
-		ship_ids.size() == 9 and berth_ids.size() == 9,
-		"the nine-craft registry has unique ship and home-berth identities"
+		ship_ids.size() == 10 and berth_ids.size() == 10,
+		"the ten-craft registry has unique ship and home-berth identities"
 	)
 	_check(
 		source_ids.size() == 9 and observed_sources == expected_sources,
@@ -689,7 +690,7 @@ func _test_physical_sortie(
 		and bool(retained_zenith.get_zenith_runtime_identity_report().stable)
 		and bool(retained_zenith.get_zenith_audit_report().get("valid", false))
 		and bool(retained_world.get_fleet_dock_comb_integration_audit_report().get("valid", false)),
-		"re-entry retains the nine-craft registry, source 1104 and all Zenith/Fleet Dock audits without rebuilding"
+		"re-entry retains the ten-craft registry, source 1104 and all Zenith/Fleet Dock audits without rebuilding"
 	)
 	if not _failures.is_empty():
 		return

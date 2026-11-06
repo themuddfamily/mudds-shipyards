@@ -44,8 +44,8 @@ func _run() -> void:
 		player != null and torrent != null and arrow != null and jovian != null and zenith != null and halyard != null,
 		"production player and the five craft used by detailed approach scenarios resolve"
 	)
-	_check(fleet.size() == 9, "boarding-radius fixture covers all nine production spacecraft")
-	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or halyard == null or fleet.size() != 9:
+	_check(fleet.size() == 10, "boarding-radius fixture covers all ten production spacecraft")
+	if player == null or torrent == null or arrow == null or jovian == null or zenith == null or halyard == null or fleet.size() != 10:
 		game.queue_free()
 		await process_frame
 		_finish()

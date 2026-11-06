@@ -64,7 +64,7 @@ func _run() -> void:
 
 	# --- Group 1: the tractor holds no craft authority -----------------------
 	var fleet := game.get_flyable_ships()
-	_check(fleet.size() == 9, "the fleet registry still holds exactly nine flyable craft")
+	_check(fleet.size() == 10, "the fleet registry still holds exactly ten flyable craft")
 	for registered in fleet:
 		_check(
 			registered.get_instance_id() != tractor.get_instance_id(),

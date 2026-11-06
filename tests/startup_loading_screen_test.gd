@@ -896,18 +896,18 @@ func _test_boot_presents_before_it_builds() -> void:
 	)
 	_check(defense_checked.done, "staged Boot verifies defense ownership before admitting gameplay")
 	var fleet: Array[HeroShip] = flow.get_flyable_ships()
-	_check(fleet.size() == 9, "the staged startup registers the complete nine-craft fleet")
+	_check(fleet.size() == 10, "the staged startup registers the complete ten-craft fleet")
 	_check(
 		world != null and world.get_target_count() > 0,
 		"the staged world finished its procedural build, not just its authored modules"
 	)
 	var berth_ids := world.get_berth_ids() if world != null else []
 	_check(
-		berth_ids.size() == 9
+		berth_ids.size() == 10
 		and berth_ids.has(&"dock_04_cargo")
 		and berth_ids.has(&"dock_05_bomber")
 		and berth_ids.has(&"dock_06_interceptor"),
-		"the staged world indexes all nine physical berths before fleet admission"
+		"the staged world indexes all ten physical berths before fleet admission"
 	)
 	_check(
 		hud != null and not bool(hud.get("_started")),
@@ -961,7 +961,7 @@ func _test_boot_presents_before_it_builds() -> void:
 	await physics_frame
 	await process_frame
 	_check(
-		flow.get_flyable_ships().size() == 9,
+		flow.get_flyable_ships().size() == 10,
 		"a loader-built Main survives a whole-subtree detach and re-add"
 	)
 	_check(

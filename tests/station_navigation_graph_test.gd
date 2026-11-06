@@ -748,8 +748,13 @@ func _test_production_graph_reuses_the_route_registry(world: ShipyardWorld) -> v
 		and int(graph_report.edge_count) == int(registry_report.connection_slot_count),
 		"the production graph has exactly two nodes and one edge per declared connection slot"
 	)
-	_check(int(graph_report.edge_count) == 7 and int(graph_report.node_count) == 14, "the live station resolves to seven declared edges over fourteen declared endpoints")
-	_check(int(graph_report.component_count) == 7, "the world hub is not collapsed, so each declared slot stays its own component")
+	_check(int(graph_report.edge_count) == 8 and int(graph_report.node_count) == 16, "the live station resolves to eight declared edges over sixteen declared endpoints")
+	_check(int(graph_report.component_count) == 8, "the world hub is not collapsed, so each declared slot stays its own component")
+	var titan_edge := (graph_report.edges as Dictionary).get(&"hub-titan-transport-berth", {}) as Dictionary
+	_check(is_equal_approx(float(titan_edge.get("length", -1)), 1.5)
+		and titan_edge.get("hub_node_id") == &"station-hub:hub-titan-transport-berth"
+		and titan_edge.get("module_node_id") == &"titan-transport-berth:approach",
+		"eighth module uses the real supported 1.5m connector while all seven original edges remain declared")
 	var slot_ids := PackedStringArray()
 	for slot_id: StringName in (registry_report.slots as Dictionary).keys():
 		slot_ids.append(String(slot_id))
@@ -1186,7 +1191,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 	var baseline := StationNavigationGraph.new().build_from_registry_report(
 		StationRouteRegistry.new().build_registry(modules, hub_endpoints)
 	)
-	_check(bool(baseline.valid) and int(baseline.edge_count) == 7, "an independent probe reproduces the valid seven-edge production graph")
+	_check(bool(baseline.valid) and int(baseline.edge_count) == 8, "an independent probe reproduces the valid eight-edge production graph")
 
 	var subject := _module_by_id(world, &"aft-junction-stack")
 	var marker := subject.get_route_marker(APPROACH_ROUTE_ID) as Node3D if subject != null else null
@@ -1217,7 +1222,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 		StationRouteRegistry.new().build_registry(modules, hub_endpoints)
 	)
 	_check(
-		bool(restored.valid) and int(restored.edge_count) == 7,
+		bool(restored.valid) and int(restored.edge_count) == 8,
 		"restoring the declaration returns the independent navigation graph to valid"
 	)
 	_check(bool(world.get_station_navigation_audit_report().valid), "the live production navigation audit is unaffected by the isolated probe mutation")
@@ -1441,7 +1446,7 @@ func _aabb_separation(first: AABB, second: AABB) -> float:
 
 func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 	var result: Array[Node] = []
-	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace"]:
+	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth"]:
 		var module := world.get_node_or_null(NodePath(node_name))
 		if module != null:
 			result.append(module)

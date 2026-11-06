@@ -1,7 +1,6 @@
 extends SceneTree
 
 const MAIN := preload("res://scenes/main.tscn")
-const TITAN := preload("res://scenes/ships/titan_medium_transport.tscn")
 const TITAN_DEFINITION := preload("res://assets/ships/titan_provisional.tres")
 const OLD_TRANSFORMS := preload("res://tests/station_route_registry_integration_test.gd").EXPECTED_BERTH_TRANSFORMS
 # Frozen before traversal, using existing production Operations/Annex/Spur paths.
@@ -48,7 +47,7 @@ func _run() -> void:
 	var unchanged := true
 	for berth_id in OLD_TRANSFORMS:
 		unchanged = unchanged and world.get_berth_transform(berth_id).is_equal_approx(OLD_TRANSFORMS[berth_id])
-	_check(unchanged and game.get_flyable_ships().size() == 9, "original nine transforms and production fleet remain unchanged")
+	_check(unchanged and game.get_flyable_ships().size() == 10, "original nine transforms remain unchanged alongside production Titan")
 	_check(berth.compatibility_tags == PackedStringArray(["titan_transport"])
 		and berth.landing_half_extents == Vector3(7, 7, 14)
 		and berth.assist_capture_center == Vector3(0, 10, -24)
@@ -58,17 +57,25 @@ func _run() -> void:
 		"exact approved fit, capture, departure and original landing-speed gates")
 	var before := berth.get_audit_report()
 	var wrong := preload("res://assets/ships/torrent_provisional.tres")
-	_check(berth.try_reserve(player, wrong).is_empty() and berth.get_audit_report() == before,
-		"wrong-tag reservation is refused without mutation")
+	_check(not berth.can_accept(wrong, player) and berth.try_reserve(player, wrong).is_empty()
+		and berth.get_audit_report() == before,
+		"wrong-tag compatibility and reservation refuse without mutating rightful Titan lease")
 	var registry := world.get_station_route_registry_report()
 	_check(registry.valid and registry.modules.has(&"titan-transport-berth"), "new module joins the existing real route registry: %s" % registry.errors)
+	var graph := world.get_station_navigation_graph_report()
+	var edge := (graph.get("edges", {}) as Dictionary).get(&"hub-titan-transport-berth", {}) as Dictionary
+	_check(bool(graph.get("valid", false)) and is_equal_approx(float(edge.get("length", -1)), 1.5)
+		and edge.get("hub_node_id") == &"station-hub:hub-titan-transport-berth"
+		and edge.get("module_node_id") == &"titan-transport-berth:approach",
+		"real supported 1.5m Titan connector edge keeps the complete navigation graph valid")
 	_check(bool(world.get_ship_berth_feedback_audit_report().valid), "existing six feedback placements remain valid with the legitimate tenth berth")
-	var ship := TITAN.instantiate() as HeroShip
-	ship.name = "AbsentTitanBerthFixture"
-	ship.transform = berth.get_dock_transform()
-	game.add_child(ship)
-	await _wait_frames(5)
-	_check(ship.global_transform.is_equal_approx(berth.get_dock_transform()), "absent Titan fixture is staged only at exact approved own berth")
+	var ship := game.get_node("TitanMediumTransport") as HeroShip
+	var titans := 0
+	for craft in game.get_flyable_ships():
+		if craft.get_ship_id() == &"titan_provisional": titans += 1
+	_check(titans == 1 and berth.get_occupant() == ship and berth.get_reservation_owner() == ship,
+		"exactly one registered production Titan owns its own occupied berth")
+	_check(ship.global_transform.is_equal_approx(berth.get_dock_transform()), "production Titan begins at exact approved own berth")
 	_check(berth.contains_oriented_bounds(ship.global_transform, ship.get_landing_collision_report().local_bounds), "complete closed Titan fits strict landing bounds")
 	await _test_clearance(ship, module, false)
 	ship.set_canopy_open(true, 0.0)

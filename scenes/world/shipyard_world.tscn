@@ -136,7 +136,7 @@ rotation = Vector3(0, 1.570796, 0)
 titan_extension_gate_open = true
 
 [node name="TitanConnectorRouteAnchor" type="Marker3D" parent="."]
-position = Vector3(132, 0.38, 38)
+position = Vector3(130.5, 0.38, 38)
 metadata/station_hub_route_anchor = true
 metadata/route_support = &"observation_far_bridge_to_titan_connector"
 

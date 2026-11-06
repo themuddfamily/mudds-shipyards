@@ -213,8 +213,8 @@ func _run() -> void:
 	# composition; the rotation is only complete once all nine are admitted.
 	await _wait_until(func() -> bool: return game.get_flyable_ships().size() >= 9, 4.0)
 	var fleet: Array[HeroShip] = game.get_flyable_ships()
-	_check(fleet.size() == 9, "the soak rotates across all nine production flyable craft")
-	if fleet.size() != 9:
+	_check(fleet.size() == 10, "the soak rotates across all ten production flyable craft")
+	if fleet.size() != 10:
 		await _tear_down(game)
 		_finish()
 		return

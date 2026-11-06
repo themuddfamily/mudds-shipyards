@@ -203,9 +203,9 @@ func _test_whole_main_reentry_paused(
 	# independently, after the accepted replay target/request setup above.
 	var all_craft: Array[HeroShip] = game.get_flyable_ships()
 	var roster: Dictionary = game.get_live_combat_source_roster_audit()
-	var census_valid: bool = all_craft.size() == 9 and bool(roster.get("valid", false)) \
+	var census_valid: bool = all_craft.size() == 10 and bool(roster.get("valid", false)) \
 		and int(roster.get("actual_source_count", 0)) == 13
-	_check(census_valid, "component cut uses the settled nine-craft/thirteen-source composition")
+	_check(census_valid, "component cut uses the settled ten-craft/thirteen-source composition")
 	if not census_valid:
 		return
 	paused = true
@@ -555,7 +555,7 @@ func _prepare_component_cut(
 			and ship.get("_pilot_seat_anchor") != null and ship.get_rid().is_valid() \
 			and not ship.find_children("*", "CollisionShape3D", true, false).is_empty() \
 			and not identities.has(ship.get_ship_id()) \
-			and int(entry["source_id"]) > 0 \
+			and (int(entry["source_id"]) == 0 if ship.get_ship_id() == &"titan_provisional" else int(entry["source_id"]) > 0) \
 			and _connection_count(model, &"component_state_changed", Callable(ship, "_on_component_state_changed")) == 1 \
 			and _connection_count(model, &"component_repair_committed", Callable(ship, "_on_component_repair_committed")) == 1
 		_check(valid, "component cut resolves unique existing model/home/boarding/source: %s" % ship.get_ship_id())

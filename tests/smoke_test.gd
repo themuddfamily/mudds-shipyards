@@ -112,7 +112,7 @@ func _run() -> void:
 	_check(jovian_ship is JovianLightFreighter, "the provisional Jovian light freighter is physically parked")
 	_check(zenith_ship is ZenithInterceptor, "the B7-observed Zenith interceptor is physically parked")
 	var fleet: Array[HeroShip] = main.call("get_flyable_ships")
-	_check(fleet.size() == 9, "production scene registers exactly nine physical flyable craft")
+	_check(fleet.size() == 10, "production scene registers exactly ten physical flyable craft")
 	_check(fleet.has(ship) and fleet.has(arrow_ship) and fleet.has(jovian_ship) and fleet.has(zenith_ship) and fleet.has(halyard_ship), "fleet registry contains Torrent, Arrow, Jovian, Zenith, and Halyard")
 	_check(main.get_node_or_null("ReserveInterceptor") == null, "retired duplicate Torrent article is absent")
 	_check(opponent != null, "opposing interceptor is staged in the shared world")
@@ -123,6 +123,7 @@ func _run() -> void:
 	)
 	var expected_audio_profiles := {
 		&"torrent_provisional": &"standard_fighter",
+		&"titan_provisional": &"standard_fighter",
 		&"arrow_provisional": &"efficient_twin_recon",
 		&"jovian_provisional": &"heavy_quad_freighter",
 		&"zenith_b7_observed": &"standard_fighter",
@@ -146,7 +147,7 @@ func _run() -> void:
 		_check(world.has_method("get_ship_spawn"), "world exposes ship spawn")
 		_check(world.has_method("is_landing_position"), "world exposes landing test")
 		_check(world.has_method("get_berth_ids"), "world exposes a physical berth registry")
-		_check(world.call("get_berth_ids").size() == 9, "world provides exactly nine production landing berths")
+		_check(world.call("get_berth_ids").size() == 10, "world provides exactly ten production landing berths")
 		_check(world.has_method("get_ship_berth_feedback_nodes"), "world exposes exact berth-feedback discovery")
 		var berth_feedback_nodes: Array = world.call("get_ship_berth_feedback_nodes")
 		_check(berth_feedback_nodes.size() == 6, "the six station berths own their authored visual feedback components")
@@ -241,10 +242,10 @@ func _run() -> void:
 			and bool(minimap_report.get("has_snapshot", false))
 			and int(minimap_report.get("node_count", 0)) >= 30
 			and int(minimap_report.get("edge_count", 0)) >= 4
-			and int(minimap_report.get("contact_count", 0)) == 8
+			and int(minimap_report.get("contact_count", 0)) == 9
 			and bool(minimap_report.get("player_visible", false))
 			and bool(minimap_report.get("active_ship_visible", false)),
-			"production minimap starts with station topology, the pilot, active craft, and eight friendly contacts"
+			"production minimap starts with station topology, the pilot, active craft, and nine friendly contacts (nodes=%s edges=%s contacts=%s)" % [minimap_report.get("node_count"), minimap_report.get("edge_count"), minimap_report.get("contact_count")]
 		)
 		if jovian_ship != null:
 			hud.call("update_ship_telemetry", jovian_ship.call("get_telemetry"))

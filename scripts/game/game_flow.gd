@@ -11252,7 +11252,8 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	var returning_to_flight_seat := phase == Phase.IN_FLIGHT_CABIN and candidate == _cabin_ship
 	var interior_frame := candidate.get_node_or_null("MovingInteriorFrame") as MovingInteriorFrame
 	var from_landed_interior := not candidate.get_exterior_boarding_waypoints().is_empty() \
-		and interior_frame != null and interior_frame.is_occupant_registered(player) \
+		and interior_frame != null \
+		and (interior_frame.is_occupant_registered(player) or candidate.get_ship_id() == &"titan_provisional") \
 		and interior_frame.contains_world_position(player.global_position)
 	var from_cabin := returning_to_flight_seat or from_landed_interior
 	if returning_to_flight_seat:
@@ -11385,7 +11386,9 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 			_transition_busy = false
 			_restore_on_foot_objective()
 		return
-	if not from_cabin:
+	# Titan is boarded from a physically walked cabin; unlike the existing
+	# pressurised seat-return route its landed stern access can still be open.
+	if not from_cabin or (active_ship.get_ship_id() == &"titan_provisional" and active_ship.is_canopy_open()):
 		audio.play_canopy(false)
 		active_ship.set_canopy_open(false, canopy_motion_time)
 		await active_ship.canopy_motion_finished
@@ -11481,6 +11484,32 @@ func _try_exit_ship() -> void:
 		return
 	if not _ensure_landed_berth_occupancy(active_ship):
 		hud.toast("Exit locked", "The physical berth must be secured before leaving the seat")
+		return
+	# Titan's helm opens onto its real walkable cabin. Keep the established
+	# seat handoff, then let the player walk to and operate the stern hatch.
+	if active_ship.get_ship_id() == &"titan_provisional":
+		if not active_ship.has_supported_exterior_access():
+			hud.toast("Exit locked", "The stern ramp needs a supported level apron")
+			return
+		var transition_ship := active_ship
+		var transition_player := player
+		var transition_generation := _transition_generation + 1
+		await _leave_seat_into_cabin()
+		if transition_generation == _transition_generation and phase == Phase.IN_FLIGHT_CABIN \
+				and is_inside_tree() and not is_queued_for_deletion() \
+				and is_instance_valid(transition_ship) and transition_ship.is_inside_tree() \
+				and not transition_ship.is_queued_for_deletion() and is_ancestor_of(transition_ship) \
+				and is_instance_valid(transition_player) and player == transition_player \
+				and player.is_inside_tree() and not player.is_queued_for_deletion() and is_ancestor_of(player) \
+				and _cabin_ship == transition_ship and active_ship == transition_ship and not _transition_busy:
+			_release_cabin_occupancy()
+			if is_instance_valid(_boarding_area):
+				_boarding_area.release_reservation(player)
+			_boarding_area = null
+			_clear_boarding_confirmation_reservation()
+			phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+			hud.set_mode("on-foot")
+			hud.set_objective("Walk to the stern hatch and return to the shipyard")
 		return
 	_disembark_ship_to_exterior(active_ship)
 
@@ -18772,6 +18801,10 @@ func _find_boarding_candidate() -> HeroShip:
 			and boarding_area.is_available_for(player)
 		):
 			continue
+		if candidate.get_ship_id() == &"titan_provisional":
+			var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+			if not is_instance_valid(frame) or not frame.contains_world_position(player.global_position):
+				continue
 		var distance_squared := interaction_origin.distance_squared_to(
 			boarding_area.global_position
 		)
@@ -18798,6 +18831,10 @@ func _find_boarding_candidate() -> HeroShip:
 				continue
 		elif not candidate.is_boardable():
 			continue
+		if candidate.get_ship_id() == &"titan_provisional":
+			var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+			if not is_instance_valid(frame) or not frame.contains_world_position(player.global_position):
+				continue
 		var distance_squared := interaction_origin.distance_squared_to(
 			candidate.get_boarding_position()
 		)

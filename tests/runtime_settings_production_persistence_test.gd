@@ -1879,8 +1879,8 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and player != null
 		and is_equal_approx(settings.camera_fov, 96.0)
 		and is_equal_approx(player.mouse_sensitivity, 0.0071)
-		and game.get_flyable_ships().size() == 9,
-		"validated loaded settings reach the real Player and complete nine-ship fleet"
+		and game.get_flyable_ships().size() == 10,
+		"validated loaded settings reach the real Player and complete ten-ship fleet"
 	)
 	var ships_match := true
 	for fleet_ship: HeroShip in game.get_flyable_ships():
@@ -1909,9 +1909,9 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		startup_generations.append(source.get_input_profile_generation() if source != null else -1)
 	_check(
 		startup_profile_matches and startup_generations == PackedInt64Array([
-			3, 3, 3, 3, 3, 3, 3, 3, 3,
+			3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 		]),
-		"startup atomically installs the persisted options into all nine production transform banks"
+		"startup atomically installs the persisted options into all ten production transform banks"
 	)
 	var curve_source := game.get_flyable_ships()[1].get_local_input_source()
 	Input.action_press(&"move_forward", 0.6)
@@ -1976,7 +1976,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and _fleet_local_source_ids(game) == local_source_ids
 		and is_equal_approx(InputMap.action_get_deadzone(&"move_forward"), 0.42)
 		and banks_own_no_input_map,
-		"one live RuntimeSettings change advances all nine banks exactly once while RuntimeSettings alone mutates InputMap"
+		"one live RuntimeSettings change advances all ten banks exactly once while RuntimeSettings alone mutates InputMap"
 	)
 	_check(
 		not primed_toggle.boost and repressed_toggle.boost,
@@ -2153,7 +2153,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 			2,
 		)
 		and _fleet_profiles_match(game, profile_before_detach),
-		"whole-Main detach/re-entry retains settings and all nine source/profile identities with only the two lifecycle generation fences"
+		"whole-Main detach/re-entry retains settings and all ten source/profile identities with only the two lifecycle generation fences"
 	)
 
 	game.queue_free()

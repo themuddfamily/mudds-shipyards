@@ -232,7 +232,7 @@ func _run() -> void:
 	for _index in 180:
 		await process_frame
 		await physics_frame
-		if bool(game.get("_initialized")) and game.get_flyable_ships().size() == 9:
+		if bool(game.get("_initialized")) and game.get_flyable_ships().size() == 10:
 			break
 	game.set_physics_process(false)
 	_check_surface_detach_refusals()
@@ -893,7 +893,7 @@ func _check_shared_abandon_return() -> void:
 	for _index in 180:
 		await process_frame
 		await physics_frame
-		if bool(game.get("_initialized")) and game.get_flyable_ships().size() == 9:
+		if bool(game.get("_initialized")) and game.get_flyable_ships().size() == 10:
 			break
 	game.set_physics_process(false)
 	var craft := game.active_ship as HeroShip

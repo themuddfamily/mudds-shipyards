@@ -53,7 +53,7 @@ func _run() -> void:
 	var original_game_id := game.get_instance_id()
 	var original_player_id := player.get_instance_id()
 	var fleet := game.get_flyable_ships()
-	_check(fleet.size() == 9, "main scene registers exactly nine physical flyable craft")
+	_check(fleet.size() == 10, "main scene registers exactly ten physical flyable craft")
 	_check(
 		fleet.has(torrent) and fleet.has(arrow) and fleet.has(jovian)
 		and fleet.has(zenith) and fleet.has(halyard),
