@@ -67,7 +67,7 @@ func _build_ship() -> void:
 	_original_shell.name = "SalyutOriginalShell"
 	add_child(_original_shell)
 	# Solid mesh sections share the root collision frame during turns. Only the
-	# non-solid cockpit presentation receives HeroShip's cosmetic bank.
+	# cosmetic presentation receives HeroShip's bank; authority frames stay fixed.
 	_visual_root = Node3D.new()
 	_visual_root.name = "SalyutPilotPresentation"
 	add_child(_visual_root)
@@ -117,7 +117,8 @@ func _build_ship() -> void:
 		_engine_core_glows.append(core)
 	_cockpit_root = Node3D.new()
 	_cockpit_root.name = "PilotFixture"
-	_visual_root.add_child(_cockpit_root)
+	# Pilot, entry and eye frames follow the physical ship without cosmetic bank.
+	add_child(_cockpit_root)
 	_pilot_seat_anchor = Marker3D.new()
 	_pilot_seat_anchor.name = "PilotSeatAnchor"
 	_pilot_seat_anchor.position = PILOT_ORIGIN
