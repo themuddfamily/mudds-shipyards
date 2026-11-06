@@ -30,6 +30,55 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
+### Selected: Dynamic, Utopia and Salyut standalone flight foundations — cards1
+
+Goal/contracts: BUILD-SPLIT-DYNAMIC/card1, BUILD-SPLIT-UTOPIA/card1 and
+BUILD-SPLIT-SALYUT/card1 under the three owner-adopted design proposals. This
+is one bounded parallel batch of original production scenes and actual pilot
+controllers. Main remains11/17; access, berth, roles and full craft gates remain
+later dependencies. No archived failed task is reopened.
+
+Candidate/start: clean e809a4094; each actual PackedScene instantiated once in
+an isolated fixture at identity, a real ShipCommandSource and initial pilot
+activation only. Thereafter no pose/velocity/engine/clock writes. Three independent
+medium-effort implementers own exactly their new definition/script/scene and UID.
+Root owns one shared three-candidate runtime fixture, integration, review and
+release. Each script directly composes HeroShip. No existing production file is
+edited; no fixture production-mode switch or existing hull clone is allowed.
+Dynamic files: assets/ships/dynamic_provisional.tres, scripts/ships/dynamic_gunship.gd,
+scenes/ships/dynamic_gunship.tscn. Utopia: utopia_provisional.tres,
+utopia_dropship.gd/.tscn. Salyut: salyut_provisional.tres,
+salyut_transport.gd/.tscn in the corresponding directories. Root fixture:
+tests/fleet_candidate_foundation_test.gd (+UID).
+
+Dependencies: owner adoption2026-11-05 and existing HeroShip/ShipDefinition;
+all satisfied. All16 literal fields copied from each approved proposal into
+/srv/mudds-work/fleet-foundations-20261106/approved-values.json before code.
+Registered-six policy unchanged; all17 actual definitions must pass the existing
+14-axis/non-dominance/signature comparisons without retuning any sibling.
+
+| Case | Initial state and action | Expected result | Actual result/proof |
+| --- | --- | --- | --- |
+| Definitions/identity | Load each resource and actual scene, compare all16 resource+controller values against frozen values; inspect entry/audio/tags/provisional identity/evidence | Exact adopted identities/fields, finite valid definitions, honest modern geometry; Main11 unaffected | NOT_RUN |
+| Actual editable geometry | Inspect convex collision vertices against matching mesh faces in both directions, outward surface normals, pairwise positive-volume overlap; complete closed bounds and cabin reservations | Dynamic9x10x3.6, Utopia9x17x4.8, Salyut8x14x4.5 exact; supported floor and hollow cockpit/cabin, no enclosing solid room or cloned sibling hull; matching authored sections, no overlap, finite clear cockpit eye and supported future entry | NOT_RUN |
+| Normal pilot controller each | Request real startup; observe state edges and physics ticks, throttle120, yaw/pitch/roll60, brake180, neutral95, demand-wake and second throttle/brake/neutral cycle | Startup2.1/3.45/2.9s within one60Hz tick, no instantaneous automatic wake; finite forward translation within approved maximum, attitude changes, brake arrests to<.001 and real neutral idle reaches OFFLINE/audio retired; second cycle usable; no state overrides | NOT_RUN |
+| Weapon boundary | Dynamic/Utopia held fire60 through actual command source and direct ordinary fire; inspect center origin/cooldown/forward bore. Salyut held/direct methods including crew-origin overload | Dynamic one center muzzle(0,.9,-4.9), Utopia(0,1.5,-8.7); real signal from single center origin and adopted cooldown, no specialist source. No combat damage/profile/Main qualification. Salyut zero shots/heat/cooldown, readable UNARMED, no muzzle/fallback emitter; no passengers/cargo/frame/boarding claims in these foundations | NOT_RUN |
+| Source checks | Three cases of tests/fleet_candidate_foundation_test.gd --ship=<name>90s each; ship_definition_berth_test120s; station_route_registry_integration_test180s; physical_switching300s; complete game_flow_predator_integration_test600s ALONE | Each original complete fixture/case/limit retained, exit0/one exact marker/raw0; source/cache/head/worktree unchanged; Main actual two-sortie normal route and clean Quit intact | NOT_RUN |
+| Presentation | Private Xvfb/x11 GLES Dummy captures actual three scenes, exterior and cockpit eye, staged lighting | Root inspects six images; actual geometry and forward sightline visible. No native GPU/production lighting/human qualification | NOT_RUN |
+| Package/closure | Fresh safe paired exports from clean combined commit; strict startup3; equal payload maps/reviewed new-file delta/existing packageaudit9; blank source-isolated Windows PCK repeats each foundation90 and complete PredatorMain600 ALONE | All markers once/exit0/raw0, normal clean Quit, all eight artifacts (EXE/ZIP/notes/preview+Linuxfour), exact accepted source and build; merge/push, verified source/raw archive then exact-tip branch/worktree/process/scratch cleanup | NOT_RUN |
+
+Budget: ORIGINAL absolute12:10:00→12:55:00UTC2026-11-06,45minutes ALL-IN for
+this batch, including selection/mapping, implementation, all original test limits,
+required builds, review, merge/push/archive and cleanup. Each craft allows ONE
+substantive production repair. Compiler/caller/assertion repairs retain all cases,
+thresholds and deadline. Root keeps independent suite_process abort and Dummy audio
+for every Godot invocation. Main tests run alone. First unexpected failure stops
+dependent gates; preserve exact operands/cause/cumulative cost before correction.
+Exhausted allowance/deadline parks the failed work; no new name or automatic retry.
+No evidence-family/version/validator or CI changes. No full-game percentage credit.
+Close: record each actual result, elapsed cost, accepted source/checkpoint, retained
+later access/berth/function/lifecycle/network/native/human gates and exact cleanup.
+
 ### Predator ordinary Main pilot loop — build card4 DONE (first live pilot checkpoint)
 
 Source **16a6361a4**, merged/pushed via **0c5bb67b8**, adds the eleventh usable Main
