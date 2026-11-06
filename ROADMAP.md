@@ -47,7 +47,11 @@ Earlier accepted changes remain included in their recorded scopes.
   `titan_medium_transport_test.gd`, `game_flow_titan_integration_test.gd`,
   `fleet_berth_repair_regeneration_parity_test.gd`. Root owns docs/build/integration
   and cleanup; one independent high-effort reviewer reads the exact changes.
-  No shared HeroShip/ShipComponentDamage/GameFlow changes currently required.
+  No shared HeroShip/ShipComponentDamage changes. The one demonstrated production
+  repair also owns `scripts/player/player_controller.gd` containment/report
+  consistency with a Titan-local moving-frame floor predicate. Shared frame and
+  GameFlow source remain unchanged. Additional unchanged regressions:
+  `in_flight_cabin_test.gd` and `in_flight_cabin_origin_rebase_test.gd` (300s each).
 - **Fixed implementation:** install the existing shared HeroDamagePresentation
   before inherited ready resolves it. A Titan-local ShipComponentDamage subtype
   retains the sole existing ledger and radii, placing anchors on actual geometry:
@@ -61,9 +65,9 @@ Earlier accepted changes remain included in their recorded scopes.
   actively landing; preserve that policy and0.62 integrity/s repair rate.
 - **Proof / commands:** pinned `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`
   `--headless --audio-driver Dummy --path <owned-worktree> --script
-  res://tests/<suite>.gd`, fresh isolated XDG profiles. Five suites: the three
+  res://tests/<suite>.gd`, fresh isolated XDG profiles. Seven suites: the three
   owned tests above plus unchanged `ship_component_damage_test.gd` and
-  `ship_component_damage_integration_test.gd`. Before long gates, check-only the
+  `ship_component_damage_integration_test.gd` and the two cabin regressions above. Before long gates, check-only the
   changed scripts. Final clean commit/source/cache guards, exact existing success
   marker once, exit0 and zero raw diagnostics. Main uses actual UI Quit and durable
   clean markers. Records: `/srv/mudds-work/titan-service-20261106/`.
@@ -74,7 +78,16 @@ Earlier accepted changes remain included in their recorded scopes.
   routine inside unchanged budget. Stop dependent work at first unexpected
   failure, retain operands/raw output and classify cause. Existing suite_process
   watchdog; no desktop/audio/hosted CI. Reap owned inputs/processes on exit.
-- **Close:** NOT_RUN. All five final suites and actual packaged full Main must
+- **Observed production repair (allowance 1/1):** packaged c032 Main refuses
+  airborne helm return at actual carried local y0.799997 against exact floor0.8,
+  with valid owned/current/available area and68 containment recalls. Source run
+  at y0.800001 passed. Preserve nominal bounds; accommodate only floor rounding
+  at most0.0001m, keep walls/ceiling strict and reject0.001m below. Boarding and
+  containment/report must share the current matching frame predicate. Add an
+  existing-test rotated/translated boundary regression and rerun full source/
+  package gates. Deadline and all prior costs remain unchanged. A second
+  substantive unresolved failure parks this delivery.
+- **Close:** NOT_RUN. All seven final suites and actual packaged full Main must
   pass, then paired clean-source exports, three strict startups and existing nine
   package predicates; EXE/ZIP/notes and paired Linux artifacts in builds/. Merge/
   push, verified archive and exact-tip branch/worktree cleanup are included.
