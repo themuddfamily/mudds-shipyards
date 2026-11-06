@@ -1,6 +1,6 @@
 # Predator implementation proposal — APPROVED MODERN BASELINE
 
-Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. Standalone hull/definition/timed pilot foundation card1 is delivered in 53201f8e0 via2140a1a22, paired checkpoint53201f8. Predator is not registered/selectable in Main; detention, physical access, berth and complete-craft qualification remain open.
 
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
@@ -95,7 +95,7 @@ These are **30–75 minute work boxes**, not measured promises. Split before 90 
 
 | Card / estimate | Owner and exact bounded files | Visible outcome, proof and stopping condition |
 | --- | --- | --- |
-| 1 / 45m | Candidate: new definition/script/scene | Original provisional hull, collision and complete trial handling load in an isolated fixture; helm starts/stops/flies, FIRE is unarmed. Check real definition/controller. Stop at standalone pilot flight. |
+| 1 / 45m — DONE53201f8e0 (foundation only) | Candidate: new definition/script/scene | Original provisional hull, collision and complete trial handling load in an isolated fixture; helm starts/stops/flies, FIRE is unarmed. Check real definition/controller. Stop at standalone pilot flight. |
 | 2 / 60m | Candidate: same files | Real player walks supported deck → ramp → cabin → helm → return, with working outer hatch and clear camera/collision. Verify closed hatch refuses passage. Stop at continuous physical access. |
 | 3 / 60m | Root station: ShipyardWorld/comb/berth | Own compatible physical berth/spur/sign and clear landing/launch/deployed bounds; actual normal station walk reaches hatch. Wrong-tag/occupied lease refuses. Stop at reachable home berth. |
 | 4 / 60m | Root fleet: Main/GameFlow/registry/console + candidate hooks | Production walk/board/start/launch/strict-home/OFFLINE/exit/reboard works, active identity correct, unarmed feedback and adjacent craft remain usable. Stop at **first live pilot checkpoint**. |
@@ -125,8 +125,8 @@ The playing-host/two-remote route proves only that bounded profile/environment. 
 
 Every future automated Godot invocation must include `--audio-driver Dummy`; use headless or isolated Xvfb with explicit `--display-driver x11`, independent abort and released synthetic input/cursor capture. No active-desktop test is authorized. Existing clean-commit safe export puts Windows EXE/ZIP/notes in repository `builds/windows/`, not Downloads. GitHub Actions remain disabled: do not dispatch, enable or restore automatic triggers. None of these runs was performed for this document.
 
-## Finite owner choice — pending
+## Recorded owner choice
 
-**Approve or reject this single modern candidate:** one pilot, one physical guard, one voluntary detainee in the specified real secure compartment; exact original geometry/access/handling above; unarmed/no cargo/no specialist navigation; guard seat-ID-authorized secure/release, unconditional detainee consent withdrawal and fail-open interruption; safe on-foot restart without persistent detention. These semantics require explicit owner acceptance. Approval permits bounded implementation after root review; it does not complete SPEC without recording that decision, accept the craft/capacity, authenticate a historical model or close full scope. No approval is recorded.
+**Approve or reject this single modern candidate:** one pilot, one physical guard, one voluntary detainee in the specified real secure compartment; exact original geometry/access/handling above; unarmed/no cargo/no specialist navigation; guard seat-ID-authorized secure/release, unconditional detainee consent withdrawal and fail-open interruption; safe on-foot restart without persistent detention. These semantics require explicit owner acceptance. Approval permits bounded implementation after root review; it does not complete SPEC without recording that decision, accept the craft/capacity, authenticate a historical model or close full scope. The owner adopted this complete modern baseline2026-11-05. Earlier pending/unapproved wording is superseded; no repeat design approval is needed. Full craft acceptance remains open.
 
 If rejected, choose **revise this interpretation with named fields/semantics** or **keep Predator frozen for historical reconstruction**. The latter needs legally available name-tied exterior/interior/multiple views and feature/unknowns review; another label-only research loop cannot replace that evidence. Existing SCOPE-LIMIT and SCOPE-DESKTOP owner answers remain separate. Root presents the finite choice; this draft records no inferred answer.

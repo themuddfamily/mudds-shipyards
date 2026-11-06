@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **b0f97ba** — [Windows ZIP](builds/windows/MuddsShipyards-b0f97ba-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-b0f97ba-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-b0f97ba-linux-x86_64.tar.gz).
+Latest playable checkpoint: **53201f8** — [Windows ZIP](builds/windows/MuddsShipyards-53201f8-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-53201f8-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-53201f8-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,30 +26,47 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator standalone hull/pilot foundation is included, with [preview](builds/windows/MuddsShipyards-53201f8-predator-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Predator standalone hull and unarmed pilot — build card1
+### Predator standalone hull and pilot — build card1 DONE (foundation scope)
 
-Goal / contract: approved card1 in docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md; actual original hull, complete fixed handling, timed inherited flight and unconditional UNARMED behavior. The adopted header supersedes stale proposal pending wording. No Main integration, ordinary access or detention-function credit.
-Candidate / start: clean9cba1a85e550c8fbfcdce414dc6d196394fd47c5; one initial actual ship/fixture command-source/pilot setup, then existing commands only. No ship pose/velocity/clock/engine-state mutations after initial setup.
-Owner / files: one high implementation agent owns only new assets/ships/predator_provisional.tres, scripts/ships/predator_detention_transport.gd, scenes/ships/predator_detention_transport.tscn, tests/predator_detention_transport_test.gd and generated UIDs. One high read-only review of actual hull and unarmed/controller semantics. Root owns gates/package/docs/integration/cleanup. No shared HeroShip/GameFlow/Player/world/registry/network/framework changes; no validators.
-Dependencies: adopted modern baseline and existing HeroShip/ShipDefinition/ShipAudioRig, accepted standalone Vortex/Paradox/Katana resources and current Main10. All four parked attempts remain closed; no reopening inferred.
-Fixed resource: predator_provisional, Predator-class Detention Ship candidate, Detention transport, PROVISIONAL; references A3/B4 with written role versus label-only/unknown historical model/original modern hull/systems clearly recorded. Tags medium_craft,detention_transport,predator_transport. Entry stern hatch/open/seal/board; audio heavy_quad_freighter. Sixteen values speed73,boost94,thrust23,brake32,drag2.2,response6.5,multiplier1.25,yaw43,roll54,assist4.1,bank4,mouse11,start3.8,cooldown.78,hull245,landing11. No sibling retuning; all14 combined profiles/14-axis separation/non-dominance/signatures and unchanged registered6 audit.
-Fixed geometry: compact chamfered cabin, two external side pods, port secure-compartment wall/narrow observation window and stowed recessed stern ramp; x±4.5,z±8,y0..5 (9x16x5). Actual visible convex geometry/collision agrees, outward normals/nonoverlapping interiors; separate floor/walls/roof/pods preserve cabin void. Floor1, cabin x±3,z±6.5, ceiling>=3.6; reserve cell x-3..-.6,z-1..3.8 with>=2m clearwidth, aisle x.2..1.8, rear corridor z4.2..6.5. Pilot anchor(0,1.45,-5.5), pilot_station; actual eye(0,3.21,-5.75), future entry(1,1,-5.5). Future guard/detainee positions reserved without physical-role authority. DockingReceiver local(0,2.5,1.5); no home lease. Closed hatch/ramp within stowed envelope; no deployment promised. Clone actual production PlayerCollision off-tree for complete reserved aisle/entry/camera clearance; no substitute capsule or unsupported full-box room collider.
-Cases: exact valid definition/all16 resource+controller fields/provenance/tags; actual matching finite hull/mesh geometry/outward normals/nonoverlap/envelope/actual capsule and eye clear; actual command-source manual3.8s startup (still STARTING after222ticks/3.7s, ONLINE after7more ticks),120ticks forward thrust yields forward translation and finite positive speed<=73,60ticks yaw/pitch/roll changes attitude;30ticks brake reduces positive speed, then150ticks brake arrests,95ticks neutral reaches OFFLINE and engine audio retired; automatic demand starts second inherited3.8s spool (same222ticks STARTING,10more ONLINE/positive movement), brake/neutral cleanup. No clock bypass. Held FIRE while ONLINE plus direct fire paths emit zero projectile/heat/cooldown and readable UNARMED status/readout; no muzzle or fallback emitter. No boarding area, cargo/crew/cell/moving cabin claims or Main registration. All14 profiles plus registered6 unchanged. One testfile retains all original cases in source and PCK.
-Proof / commands: external /srv/mudds-work/predator-foundation-20261106. Five serial focused source cases: new tests/predator_detention_transport_test.gd90s markerPREDATOR_DETENTION_TRANSPORT_TEST_OK; unchanged tests/katana_fighter_journey_test.gd90s markerKATANA_FIGHTER_JOURNEY_TEST_OK, tests/paradox_cruiser_test.gd90s markerPARADOX_CRUISER_TEST_OK, tests/ship_definition_berth_test.gd120s markerSHIP_DEFINITION_BERTH_TEST_OK, tests/ship_boarding_area_test.gd120s markerSHIP_BOARDING_AREA_TEST_OK. Exact clean commit/source/cache guards, each exit0/exactlyone marker/rawdiagnostics0. Unchanged complete ordinary tests/game_flow_titan_integration_test.gd300s ALONE with all original cases/floors/durations and clean Quit/custody retained; exact committed source directly, excluded route/transform constants inlined only for PCK. Three source captures closed-aft/port-cabin/actual cockpit-eye under private Xvfb GLES explicitx11. Fresh clean-source paired safe Windows/Linux exports; strictstartup3 exit0/exactlyoneSTARTUP_MENU_READY_OK/raw0; full equal payload maps/UIDs and existing package audit9. Actual Windows PCK under pinned Linux Godot repeats exact Predator90s and full ordinary Main300s ALONE from blank source-isolated folders, exact markers/raw0 and normal clean Quit. Eight checkpoint artifacts including EXE/ZIP/notes/preview in repo builds, with source/scope/actual validation. Dummy audio on EVERYGodot invocation; headless or isolated display only, independent suite_process abort/reap and input cleanup. Native/hardware/human and full17-craft/game gates remain open.
-Budget / stop: mapping/selection start09:13:23UTC2026-11-06, absolute deadline09:58:23UTC,45minutes ALL-IN including every source/package/build/merge/push/archive/exact-tip branch/worktree/process/scratch cleanup. One substantive production repair. Routine compiler/caller/assertion repairs preserve complete original cases/endpoints/timeouts/deadline. First unexpected failure retains operands and stops dependent checks. Exhaustion/deadline/contract conflict parks original card; no renamed retry/subset acceptance/silent baseline change or automatic reopening.
-Close: NOT_RUN. Main10/17 and10physical berths unchanged. Complete craft/access/detention/berth/Main/comparative handling/recovery/network remain open.
+Source **53201f8e0**, merged/pushed via **2140a1a22**, adds the approved original Predator
+provisional definition, editable chamfered cabin/twin side pods/port observation
+window and separate matched convex collision within the closed9x16x5m envelope.
+Cabin floor y1, room/aisle/corridor reservations and pilot anchor(0,1.45,-5.5)
+are preserved. All16 approved fields are applied to the actual HeroShip, including
+3.8s manual and automatic-demand startup. Actual commands produce flight,
+rotation, braking/arrest, neutral OFFLINE/audio retirement and a second usable
+start. FIRE/direct-fire paths are unarmed: readable UNARMED, no projectile,
+muzzle or charge emitter. This original modern hull is not authenticated history.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Definition/combined fleet | Actual scene and all14 profiles | Exact16fields/provenance; registered6 unchanged;14-axis/non-dominance/signatures | NOT_RUN |
-| Original geometry | Actual physical hull and production capsule/eye | Exact9x16x5, visible/collision agreement/outward/nonoverlap, reserved cabin/aisle/camera clear | NOT_RUN |
-| Timed flight/reuse | Manual start, thrust/attitude/brake/neutral; automatic second start | Both3.8s clocks, actual flight/brake/arrest/OFFLINE/audio retirement and reuse | NOT_RUN |
-| Unarmed | Actual held FIRE and direct fire while ONLINE | Readable UNARMED;zero projectiles/heat/cooldown;no muzzle/fallback emitter | NOT_RUN |
-| Regression/package/closure | Five source/fullMain/images/pairedexports/startup3/actualPCKPredator+Main/audit9/publish/cleanup | All complete cases exit0/exactmarkers/raw0, eight artifacts merged/pushed and owned cleanup; no Main/cell/capacity claim | NOT_RUN |
+Five focused checks cover Predator, unchanged Katana and Paradox foundations,
+definition/berth and boarding-area. All14 combined profiles retain14-axis
+separation/non-dominance/sibling signatures; registered-six is unchanged.
+The full ordinary Titan Main source loop passes serially with clean Quit.
+Three fixed source views closed-aft, port-cabin and cockpit-eye were inspected
+under isolated display/Dummy audio. Fresh paired checkpoint **53201f8** passes
+strict startup3 and all nine package predicates with complete matching payload
+maps. Actual Windows PCK under pinned Linux Godot separately passes the exact
+committed Predator fixture plus isolation guard and the full ordinary Main loop
+from source-isolated directories. Eight published artifacts include the EXE,
+Windows ZIP/notes/preview and paired Linux executable/archive/export-result/notes.
+
+**Predator is standalone content and is not registered/selectable in Main.
+Main remains10/17 and10 physical berths.** Continuous physical access, own berth,
+production integration, guard/detainee roles, consent/cell function, networking,
+damage/service/recovery/save and full ordinary craft journeys remain open.
+Room geometry and standalone pilot flight do not prove detention or capacity.
+Native Windows/GPU/device/audio/readability/human/full-release gates remain open.
+All four parked attempts—Katana access bf5834b22, Paradox berth9d124e5cd,
+Vortex access1416c9ece and Titan remote867565997—remain archived/unmerged with
+original failures and allowances. No retry or next assignment is selected.
+Original09:13:23→09:58:23UTC all-in budget, clean base9cba1a85e, frozen card,
+source bundle, raw checks/source-cache guards/views and package records are
+retained in verified `/srv/mudds-work/predator-foundation-20261106/records.tar.gz`;
+adjacent closeout records actual publication and owned process/ref/worktree cleanup.
 
 ### Katana physical port access and pilot claim — build card2 PARKED
 
