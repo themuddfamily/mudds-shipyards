@@ -49,7 +49,7 @@ func _ready() -> void:
 	_label.font_size = 28
 	_label.pixel_size = 0.003
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.position = Vector3(0.09, 0.38, 0)
+	_label.position = Vector3(0.09, 0.62, 0)
 	_label.no_depth_test = false
 	add_child(_label)
 
