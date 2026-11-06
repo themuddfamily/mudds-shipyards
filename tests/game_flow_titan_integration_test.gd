@@ -43,6 +43,13 @@ func _run() -> void:
 		"normal Begin Shift keeps actual Player at ordinary spawn")
 	_check(_game.get_flyable_ships().size() == 10 and berth.get_occupant() == _ship
 		and berth.get_reservation_owner() == _ship, "one real Titan joins fleet with own occupied lease")
+	_check_panel_solids()
+	var cargo_before := _game._runtime_settings_user_data_store.get_snapshot()
+	_check(not _game.titan_cargo.request_transfer(_player, _game._titan_locker_panel, true, 1).accepted
+		and not _game.titan_cargo.request_transfer(_ship, _game._titan_locker_panel, true, 1).accepted
+		and _game.titan_cargo.snapshot().locker == 4 and _game.titan_cargo.snapshot().titan == 0
+		and _game._runtime_settings_user_data_store.get_snapshot() == cargo_before,
+		"remote station-range and wrong-actor transfer refuse with unchanged actual pair/store")
 	var old_unchanged := true
 	for id in OLD_TRANSFORMS:
 		old_unchanged = old_unchanged and world.get_berth_transform(id).is_equal_approx(OLD_TRANSFORMS[id])
@@ -51,6 +58,38 @@ func _run() -> void:
 		if not await _walk_to(ROUTE[index], index):
 			await _fail_exit("production station route failed")
 			return
+	var locker_panel := _game._titan_locker_panel
+	_check(is_instance_valid(locker_panel) and "LOCKER 4 / 4" in locker_panel._label.text,
+		"physical stern supply screen shows actual finite four-parcel stock")
+	if not await _walk_to(_ship.to_global(Vector3(1.9, 0, 14.3)), 22):
+		await _fail_exit("physical locker walk failed")
+		return
+	await _aim(locker_panel.global_position)
+	_check(_game.station_interaction_candidate == locker_panel, "normal look selects actual supply panel")
+	await _tap(&"interact")
+	await _tap(&"interact")
+	_check(_game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2
+		and "LOCKER 2 / 4" in locker_panel._label.text,
+		"two physical E loads show actual locker2/Titan2 after durable acknowledgments")
+	_check(int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].locker) == 2
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].titan) == 2
+		and _game._runtime_settings_user_data_store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT) == TitanCargoCustody.SAFE_CONTEXT,
+		"same actual store commit contains loaded pair and safe on-foot recovery")
+	# Retain a real-process seed for the independent cold Main probe, without
+	# changing production persistence or shortening this complete ordinary loop.
+	if OS.get_environment("TITAN_COLD_SEED_PATH") != "":
+		var seed := FileAccess.open(OS.get_environment("TITAN_COLD_SEED_PATH"), FileAccess.WRITE)
+		seed.store_string(JSON.stringify(_game._runtime_settings_user_data_store.get_snapshot()))
+		seed.close()
+		var envelope := FileAccess.open(OS.get_environment("TITAN_COLD_SEED_PATH") + ".envelope.json", FileAccess.WRITE)
+		envelope.store_buffer(FileAccess.get_file_as_bytes("user://mudds_user_data.json"))
+		envelope.close()
+	if not _failures.is_empty():
+		await _fail_exit("physical load contract failed")
+		return
+	if not await _walk_to(ROUTE[-1], 23):
+		await _fail_exit("physical locker to hatch return failed")
+		return
 	var hatch := _ship.get_node("TitanOriginalShell/CabinHatchInteraction") as ShipCabinHatch
 	await _aim(hatch.global_position)
 	await _tap(&"interact")
@@ -60,15 +99,24 @@ func _run() -> void:
 	# along the actual cabin aisle. No pose/velocity writes or board-method calls.
 	var local_route := [Vector3(1.9, 0, 14.5), Vector3(0, 0, 14.5),
 		Vector3(0, 0, 13), Vector3(0, 0.4, 10.5), Vector3(0, 0.8, 8),
-		Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]
+		Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 5.2), Vector3(0, 0.8, 1.8)]
 	for point in local_route:
 		if not await _walk_to(_ship.to_global(point), 30):
 			await _fail_exit("physical stern/cabin walk failed")
 			return
+		if point == Vector3(0, 0.8, 5.2):
+			await _aim(_game._titan_hold_panel.global_position)
+			_check(_game.station_interaction_candidate == _game._titan_hold_panel
+				and "LOCKER 2 / 4" in _game._titan_hold_panel._label.text
+				and "TITAN 2 / 4" in _game._titan_hold_panel._label.text,
+				"ordinary supported hold approach inspects actual visible loaded2/2 before passenger chairs")
 	for seat_id: StringName in [&"passenger_port_01", &"passenger_starboard_01", &"passenger_port_01"]:
 		if not await _passenger_round_trip(seat_id, identity):
 			await _fail_exit("physical passenger contract failed")
 			return
+	if not await _post_chair_cargo_round_trip(identity):
+		await _fail_exit("grounded passenger cargo/exit/reload contract failed")
+		return
 	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 1.8)), 32) \
 			or not await _walk_to(_ship.to_global(Vector3(0, 0.8, -4.2)), 33):
 		await _fail_exit("physical passenger to helm walk failed")
@@ -161,6 +209,18 @@ func _run() -> void:
 		await _wait_frames(1)
 	_check(not _player.is_seated() and _player.get_instance_id() == identity
 		and not area.is_reserved() and not _game._piloting, "normal E returns same Player to landed cabin and releases helm")
+	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 5.2)), 39):
+		await _fail_exit("physical hold return walk failed")
+		return
+	await _aim(_game._titan_hold_panel.global_position)
+	_check(_game.station_interaction_candidate == _game._titan_hold_panel, "normal look selects actual hold return panel")
+	await _tap(&"interact")
+	await _tap(&"interact")
+	_check(_game.titan_cargo.snapshot().locker == 4 and _game.titan_cargo.snapshot().titan == 0
+		and "LOCKER 4 / 4" in _game._titan_hold_panel._label.text
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].locker) == 4
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].titan) == 0,
+		"two physical E returns durably settle locker4/Titan0 before ordinary exit")
 	for point in [Vector3(0, 0.8, 6.5), Vector3(1.4, 0.8, 7.1)]:
 		if not await _walk_to(_ship.to_global(point), 40):
 			await _fail_exit("return cabin walk failed")
@@ -342,6 +402,11 @@ func _passenger_round_trip(seat_id: StringName, identity: int) -> bool:
 		and assignment.get("role") == &"passenger" and metadata.get("seat_id") == seat_id
 		and metadata.get("authority") == authority and metadata.get("craft") == _ship
 		and not _game._piloting and not _ship.is_piloted(), "actual Player and authority occupy exact " + String(seat_id))
+	var cargo_before := _game._runtime_settings_user_data_store.get_snapshot()
+	_check(not _game.titan_cargo.request_transfer(_player, _game._titan_hold_panel, false, 1).accepted
+		and _game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2
+		and _game._runtime_settings_user_data_store.get_snapshot() == cargo_before,
+		"occupied passenger cannot transfer or mutate durable cargo")
 	var before := _ship.global_transform
 	Input.action_press(&"move_forward")
 	Input.action_press(&"fire")
@@ -362,6 +427,75 @@ func _passenger_round_trip(seat_id: StringName, identity: int) -> bool:
 		and _player.global_position.distance_to(entry.origin) < 0.05
 		and authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty()
 		and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META)
-		and _ship.call(&"get_crew_role_authority") == null and not _game._piloting,
+		and _ship.call(&"get_crew_role_authority") == null and not _game._piloting
+		and _game.phase in [GameFlow.Phase.APPROACH_SHIP, GameFlow.Phase.COMPLETE]
+		and _game._boarding_area == null and not (_ship.get_node("ShipBoardingArea") as ShipBoardingArea).is_reserved()
+		and not bool(_player.get_cabin_containment_report().get("active", false)),
 		"normal E stands supported and empties exact " + String(seat_id) + " claim")
+	return _failures.is_empty()
+
+
+func _check_panel_solids() -> void:
+	var capsule := (_player.get_node("PlayerCollision") as CollisionShape3D).shape as CapsuleShape3D
+	for panel: TitanCargoPanel in [_game._titan_hold_panel, _game._titan_locker_panel]:
+		var collision := panel._solid_collision
+		var mesh_size := Vector3(0.12, 0.52, 0.72) if not panel.loading else Vector3(0.72, 0.52, 0.12)
+		_check(is_instance_valid(collision) and collision.shape is BoxShape3D
+			and (collision.shape as BoxShape3D).size.is_equal_approx(mesh_size)
+			and collision.global_position.is_equal_approx(panel.global_position),
+			"physical screen collision exactly matches " + String(panel.name))
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = capsule
+		query.transform = Transform3D(Basis.IDENTITY, panel.global_position + Vector3.UP * (0.8 if panel.loading else 0.7))
+		query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+		query.margin = 0
+		query.exclude = [_player.get_rid()]
+		var hits := _ship.get_world_3d().direct_space_state.intersect_shape(query, 16)
+		var hits_screen := false
+		for hit in hits:
+			if hit.get("collider") == collision.get_parent(): hits_screen = true
+		_check(hits_screen, "actual Player capsule overlaps solid " + String(panel.name))
+		var normal := panel.global_basis.z if panel.loading else panel.global_basis.x
+		query.transform.origin += normal * 1.2
+		query.motion = -normal * 1.2
+		var motion := _ship.get_world_3d().direct_space_state.cast_motion(query)
+		_check(motion[0] > 0.25 and motion[0] < 1.0,
+			"actual capsule sweep cannot phase through " + String(panel.name) + ": " + str(motion))
+	var locker := _game.titan_cargo.locker
+	var pedestal := locker.get_node("LockerPedestalBody") as StaticBody3D
+	var pedestal_shape := pedestal.get_child(0) as CollisionShape3D
+	_check((pedestal_shape.shape as BoxShape3D).size.is_equal_approx(Vector3(0.8, 1, 0.6))
+		and pedestal_shape.position.is_equal_approx(Vector3(0, 0.5, 0)),
+		"supported supply pedestal has matched real solid furniture")
+
+
+func _post_chair_cargo_round_trip(identity: int) -> bool:
+	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 5.2)), 34): return false
+	await _aim(_game._titan_hold_panel.global_position)
+	_check(_game.station_interaction_candidate == _game._titan_hold_panel,
+		"grounded former passenger normally selects physical hold panel")
+	await _tap(&"interact")
+	await _tap(&"interact")
+	_check(_game.titan_cargo.snapshot().locker == 4 and _game.titan_cargo.snapshot().titan == 0
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].locker) == 4,
+		"normal E after passenger stand durably returns both parcels4/0")
+	_check(_ship.is_canopy_open() and not bool(_player.get_cabin_containment_report().get("active", false)),
+		"grounded passenger retains actual open access and free supported walking")
+	for point in [Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 8), Vector3(0, 0.4, 10.5),
+		Vector3(0, 0, 13), Vector3(0, 0, 14.3), Vector3(1.9, 0, 14.3)]:
+		if not await _walk_to(_ship.to_global(point), 35): return false
+	_check(_player.get_instance_id() == identity and _player.is_on_floor()
+		and not (_ship.get_node("ShipBoardingArea") as ShipBoardingArea).is_reserved(),
+		"same former passenger physically exits open ramp to supported supply stand")
+	await _aim(_game._titan_locker_panel.global_position)
+	_check(_game.station_interaction_candidate == _game._titan_locker_panel,
+		"former passenger normally selects physical locker panel outside")
+	await _tap(&"interact")
+	await _tap(&"interact")
+	_check(_game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].titan) == 2,
+		"normal exterior E reload durably restores2/2 before original full flight")
+	for point in [Vector3(0, 0, 14.3), Vector3(0, 0, 13), Vector3(0, 0.4, 10.5),
+		Vector3(0, 0.8, 8), Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]:
+		if not await _walk_to(_ship.to_global(point), 36): return false
 	return _failures.is_empty()

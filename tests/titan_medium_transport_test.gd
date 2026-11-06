@@ -497,6 +497,11 @@ func _test_passengers(ship: HeroShip) -> void:
 		frame.register_occupant(players[index], {"require_inside_bounds": true})
 		players[index].set_cabin_containment(ship, TITAN_SCRIPT.CABIN_VOID, seats[index].get_exit_transform())
 	await _frames(5)
+	_check(players[0].get_cabin_containment_report().get("active", false)
+		and players[1].get_cabin_containment_report().get("active", false)
+		and players[0].get_cabin_containment_report().get("frame") == ship
+		and players[1].get_cabin_containment_report().get("frame") == ship,
+		"both actually moving stood passengers retain their in-flight containment")
 	_check(players[0].is_on_floor() and players[1].is_on_floor()
 		and ship.to_local(players[0].global_position).distance_to(Vector3(-0.9, 0.8, 1.8)) < 0.08
 		and ship.to_local(players[1].global_position).distance_to(Vector3(0.9, 0.8, 1.8)) < 0.08,

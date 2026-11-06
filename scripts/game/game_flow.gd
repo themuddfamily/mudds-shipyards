@@ -710,6 +710,9 @@ var _boarding_confirmation_rejected_until_msec := 0
 var _cinder_navigator_ping_hud_composition: RefCounted
 var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
+var titan_cargo: TitanCargoCustody
+var _titan_hold_panel: TitanCargoPanel
+var _titan_locker_panel: TitanCargoPanel
 var cargo_delivery_activity: CargoDeliveryActivity
 var _jovian_cargo_session_persistence: JovianCargoSessionPersistence
 var _jovian_cargo_restore_attempted := false
@@ -3300,6 +3303,7 @@ func _start_up_activities() -> void:
 	_initialize_minimap_topology()
 	_initialize_planetary_destination_catalog()
 	_initialize_cargo_delivery_composition()
+	_initialize_titan_cargo()
 	_initialize_cinder_convoy_host()
 	_initialize_cinder_race_session()
 	_initialize_caption_presentation()
@@ -7141,6 +7145,8 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# the binding honest if the instance was released while detached.
 	_resolve_ground_vehicle()
 	_restore_cargo_delivery_bindings()
+	if is_instance_valid(titan_cargo):
+		titan_cargo.restore_live_binding()
 	_restore_cinder_race_session()
 	if not _cinder_convoy_client_host_suspended:
 		_sync_cinder_convoy_stream_presence()
@@ -10488,7 +10494,20 @@ func _stand_from_solo_crew_seat() -> void:
 	_solo_crew_seat_generation = 0
 	_station_seated = false
 	_transition_busy = false
-	_bind_cabin_occupancy(craft)
+	if _titan_grounded_crew_stand_is_supported(craft):
+		# A grounded passenger is ordinary on-foot cabin traffic again. Retain
+		# containment for actual flight; at the owned safe berth it would trap
+		# this standing Player and deny the physical cargo/exit route.
+		_release_cabin_occupancy()
+		_boarding_area.release_reservation(player)
+		_boarding_area = null
+		_clear_boarding_confirmation_reservation()
+		phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+		hud.set_mode("on-foot")
+		hud.set_objective("Explore the shipyard or board another spacecraft")
+		audio.set_on_foot(true)
+	else:
+		_bind_cabin_occupancy(craft)
 	_release_solo_crew_authority()
 	player.set_control_enabled(true)
 	audio.play_ui_confirm()
@@ -27872,3 +27891,113 @@ func _present_network_remote_passenger_craft_lost(craft: HeroShip, sample: Dicti
 		hud.toast("Crew safe recovery", "%s was lost. Returned to the shipyard deck." % craft.get_display_name(), 3.0)
 	_publish_network_crew_role_status()
 	return true
+
+
+## Candidate-local compact panels and exact finite pair; no freight mission or
+## specialist crew capability is installed by this composition.
+func _initialize_titan_cargo() -> void:
+	if is_instance_valid(titan_cargo):
+		return
+	var craft := get_node_or_null("TitanMediumTransport") as HeroShip
+	if not is_instance_valid(craft) or not is_instance_valid(cargo_transfer_authority):
+		return
+	var berth := world.get_berth_node(&"titan_home_berth") as ShipBerth
+	if berth == null:
+		return
+	var locker := Node3D.new()
+	locker.name = "TitanSupplyLocker"
+	world.add_child(locker)
+	locker.global_transform = berth.get_dock_transform() * Transform3D(Basis.IDENTITY, Vector3(3.4, 0, 14.3))
+	# Its own supported stern-apron pedestal stays clear of the central ramp
+	# (x +/-1.2), station approach at x1.9 and open hatch sweep.
+	var pedestal := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.8, 1.0, 0.6)
+	pedestal.mesh = box
+	pedestal.position.y = 0.5
+	locker.add_child(pedestal)
+	var pedestal_body := StaticBody3D.new()
+	pedestal_body.name = "LockerPedestalBody"
+	pedestal_body.collision_layer = PhysicsLayers.WORLD
+	pedestal_body.collision_mask = 0
+	locker.add_child(pedestal_body)
+	var pedestal_collision := CollisionShape3D.new()
+	var pedestal_shape := BoxShape3D.new()
+	pedestal_shape.size = box.size
+	pedestal_collision.shape = pedestal_shape
+	pedestal_collision.position = pedestal.position
+	pedestal_body.add_child(pedestal_collision)
+	titan_cargo = TitanCargoCustody.new()
+	titan_cargo.name = "TitanCargoCustody"
+	add_child(titan_cargo)
+	titan_cargo.custody_committed.connect(_on_titan_cargo_committed)
+	craft.set(&"cargo_custody_guard", Callable(titan_cargo, "is_available"))
+	craft.set(&"cargo_launch_guard", Callable(titan_cargo, "can_launch"))
+	_titan_hold_panel = TitanCargoPanel.new()
+	_titan_hold_panel.name = "TitanHoldPanel"
+	_titan_hold_panel.custody = titan_cargo
+	_titan_hold_panel.position = Vector3(-1.2, 1.6, 5.2)
+	craft.add_child(_titan_hold_panel)
+	_titan_locker_panel = TitanCargoPanel.new()
+	_titan_locker_panel.name = "TitanLockerPanel"
+	_titan_locker_panel.custody = titan_cargo
+	_titan_locker_panel.loading = true
+	_titan_locker_panel.position = Vector3(0, 1.15, 0)
+	locker.add_child(_titan_locker_panel)
+	titan_cargo.initialize(cargo_transfer_authority, _runtime_settings_user_data_store, craft, locker, _authorize_titan_cargo_actor)
+
+func _on_titan_cargo_committed(context: Variant, generation: int) -> void:
+	if context is Dictionary:
+		_solo_safe_recovery_context = context.duplicate(true)
+	_solo_safe_recovery_observed_store_generation = generation
+	_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, generation)
+	_sync_production_runtime_settings_state()
+
+func _authorize_titan_cargo_actor(actor: Node, panel: Node3D, loading: bool) -> Dictionary:
+	if not is_inside_tree() or is_queued_for_deletion() or actor != player or not is_instance_valid(player) \
+			or not player.is_inside_tree() or player.is_queued_for_deletion() or not is_ancestor_of(player) \
+			or _network_session_is_live() or _transition_busy or _piloting or _station_seated \
+			or player.is_seated() or player.is_sleeping() or not player.is_control_enabled() \
+			or not player.is_on_floor() or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]:
+		return {"accepted": false, "reason": &"supported_on_foot_player_required"}
+	if panel != (_titan_locker_panel if loading else _titan_hold_panel) \
+			or not is_instance_valid(panel) or not panel.is_inside_tree() or panel.is_queued_for_deletion():
+		return {"accepted": false, "reason": &"wrong_panel"}
+	if player.get_interaction_origin().distance_to(panel.global_position) > TitanCargoPanel.MAX_REACH:
+		return {"accepted": false, "reason": &"out_of_range"}
+	var craft := titan_cargo.ship
+	var berth := world.get_berth_node(&"titan_home_berth") as ShipBerth
+	var telemetry := craft.get_telemetry()
+	if berth == null or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
+			or not bool(telemetry.get("landed", false)) or craft.is_destroyed() \
+			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE:
+		return {"accepted": false, "reason": &"own_landed_offline_berth_required"}
+	return {"accepted": true, "reason": &"authorized"}
+
+
+func _titan_grounded_crew_stand_is_supported(craft: HeroShip) -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() or _network_session_is_live() \
+			or not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
+			or craft.get_ship_id() != &"titan_provisional" or craft != _cabin_ship or craft != active_ship \
+			or craft not in ships or craft.is_destroyed() or not craft.is_boardable() or _piloting \
+			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
+			or not is_ancestor_of(player) or player.is_seated() or player.is_sleeping() \
+			or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != craft \
+			or _boarding_area.get_reservation_token() != player:
+		return false
+	var telemetry := craft.get_telemetry()
+	var berth := world.get_berth_node(&"titan_home_berth") as ShipBerth
+	if berth == null or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
+			or not bool(telemetry.get("landed", false)) \
+			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE \
+			or not craft.has_method(&"has_supported_exterior_access") or not craft.call(&"has_supported_exterior_access"):
+		return false
+	var up := craft.global_basis.y.normalized()
+	var query := PhysicsRayQueryParameters3D.create(player.global_position + up * 0.2,
+		player.global_position - up * 0.25, PhysicsLayers.WORLD | PhysicsLayers.SHIP)
+	query.exclude = [player.get_rid()]
+	query.collide_with_areas = false
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := hit.get("collider") as Node
+	return is_instance_valid(collider) and (collider == craft or craft.is_ancestor_of(collider)) \
+		and (hit.get("normal", Vector3.ZERO) as Vector3).normalized().dot(up) >= cos(player.floor_max_angle)
