@@ -8091,6 +8091,7 @@ class AuroraOutboundTests(unittest.TestCase):
     def observation(self):
         s = ArrowReturnReuseTests().observation()
         s.update(mode='aurora-outbound', definition_id='halyard_new_design', home_id='halyard_fleet_dock_berth',
+            authored_spawn=[-8.5,.18,11],spawn_marker_id=999,spawn_marker_path='/root/StartupLoader/Main/ShipyardWorld/PlayerSpawn',
             fleet=[dict(id=i+1, home=str(i), occupied=True) for i in range(11)], sleeping=False,
             convoy_active=False, approach_is_command_source=False, approach_id=0, request_serial=0,
             visit=dict(staging_events=0, orbit_ticks=0, corridor_ticks=0, cruise_resume_attempts=0,
@@ -8101,7 +8102,8 @@ class AuroraOutboundTests(unittest.TestCase):
             geometry=dict(region='aurora_foundation_landing', center=[0,120000,0], corridor=[0,60,300],
                 half_extents=[45,60,300], pad='aurora_pad', pad_size=[28,32], entry_half_extents=[42,25,75],
                 maximum_speed=12, maximum_attitude=12, hull_margin=.05),
-            look=dict(pending=[0,0], yaw=0, pitch=0, pixels_per_axis=140, maximum_turn_degrees=18),
+            look=dict(pending=[0,0], yaw=0, pitch=0, pixels_per_axis=140, maximum_turn_degrees=8, source_next_sequence=0,
+                      definition_path='res://assets/ships/halyard_new_design.tres', definition_maximum_turn_degrees=8),
             cruise=dict(current_coordinate_frame_generation=1, coordinate_frame_instance_id=90),
             frame_id=90, frame_snapshot=dict(generation=1),
             gravity=dict(project_mps2=18, actual_mps2=18, multiplier=1, effective_vector=[0,-18,0],
@@ -8120,6 +8122,27 @@ class AuroraOutboundTests(unittest.TestCase):
         self.assertEqual(native.AuroraOutboundPilot.GOALS[:12], native.LifeTowPilot.ARM_GOALS[:12])
         self.assertEqual([point for _,point in native.AuroraOutboundPilot.GOALS[12:]],
                          [[37,4.2,68.3],[32.4,4.2,68.2],[32,4.2,62.2],[32,4.2,54.2]])
+
+    def test_authored_marker_and_physically_settled_start_are_distinct_producers(self):
+        p,s=native.AuroraOutboundPilot(),self.observation()
+        s['spawn'][1]=s['player'][1]=-.019863275811076164
+        p.validate_observation(s)
+        for mutate in (lambda v:v['authored_spawn'].__setitem__(1,0),
+                       lambda v:v.update(supported=False), lambda v:v.update(grounded=False),
+                       lambda v:v['player'].__setitem__(0,0)):
+            bad=copy.deepcopy(s);mutate(bad)
+            with self.assertRaises(AssertionError):native.AuroraOutboundPilot().validate_observation(bad)
+
+    def test_halyard_normalization_tracks_first_real_source_consumption_and_retains_it(self):
+        p,s=native.AuroraOutboundPilot(),self.observation();p.validate_observation(copy.deepcopy(s))
+        s['sequence']+=1;s['frame']+=1;s['look'].update(source_next_sequence=1,pixels_per_axis=math.radians(8)/.0022)
+        p.validate_observation(copy.deepcopy(s));self.assertTrue(p.look_normalized)
+        s['sequence']+=1;s['frame']+=1;s['look']['source_next_sequence']=0
+        p.validate_observation(copy.deepcopy(s))
+        s['sequence']+=1;s['frame']+=1;s['look']['pixels_per_axis']=140
+        with self.assertRaisesRegex(AssertionError,'normalization'):p.validate_observation(s)
+        initial=self.observation();initial['look']['maximum_turn_degrees']=18
+        with self.assertRaisesRegex(AssertionError,'eight-degree'):native.AuroraOutboundPilot().validate_observation(initial)
 
     def test_every_physics_sample_rejects_gaps_pose_jumps_and_source_swap(self):
         for mutate in (lambda s:s.update(frame=s['frame']+1), lambda s:s['position'].__setitem__(0,1000),

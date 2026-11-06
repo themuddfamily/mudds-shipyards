@@ -5478,7 +5478,7 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
     """Ordinary Boot, Halyard access, canonical Aurora outbound and normal Quit."""
     MARKER = 'NATIVE_AURORA_OUTBOUND_OK'
     IDS = ('pid', 'main_id', 'world_id', 'player_id', 'ship_id', 'source_id',
-           'capsule_id', 'shape_id', 'seat_id', 'berth_id')
+           'capsule_id', 'shape_id', 'seat_id', 'berth_id', 'spawn_marker_id')
     GOALS = LifeTowPilot.ARM_GOALS[:12] + (
         ('halyard_bridge', [37, 4.2, 68.3]), ('halyard_turn', [32.4, 4.2, 68.2]),
         ('halyard_access', [32, 4.2, 62.2]), ('halyard_apron', [32, 4.2, 54.2]))
@@ -5496,6 +5496,7 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
         self.board_since = None
         self.native_begin = self.native_board = self.native_exit = self.native_thrust = False
         self.walk_ticks = 0
+        self.look_normalized = False
 
     def enter(self, stage, s):
         super().enter(stage, s)
@@ -5513,7 +5514,10 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
         if self.initial is None:
             self.initial = copy.deepcopy(s)
             require(s['definition_id'] == 'halyard_new_design' and s['home_id'] == 'halyard_fleet_dock_berth'
-                    and norm(sub(s['spawn'], [-8.5, .18, 11])) < .001 and s['lease'] and s['landed']
+                    and norm(sub(s['authored_spawn'], [-8.5, .18, 11])) < .001
+                    and s['spawn_marker_id'] != 0 and s['spawn_marker_path'].endswith('/ShipyardWorld/PlayerSpawn')
+                    and math.hypot(s['player'][0]-s['authored_spawn'][0], s['player'][2]-s['authored_spawn'][2]) < .001
+                    and s['grounded'] and s['supported'] and s['capsule_enabled'] and s['lease'] and s['landed']
                     and s['phase'] == 'INTRO' and not s['guided_complete'],
                     'authored fresh spawn and occupied Halyard home')
             require(len(s['fleet']) == 11 and len({x['id'] for x in s['fleet']}) == 11
@@ -5527,8 +5531,15 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
         require([(x['id'], x['home']) for x in s['fleet']] == [(x['id'], x['home']) for x in self.initial['fleet']]
                 and all(x['occupied'] for x in s['fleet'] if x['id'] != s['ship_id']),
                 'same eleven current craft identities and other occupied homes')
-        require(s['look']['pixels_per_axis'] == 140 and s['look']['maximum_turn_degrees'] == 18,
-                'authored native look impulse normalization and maximum turn')
+        look = s['look']
+        require(look['maximum_turn_degrees'] == look['definition_maximum_turn_degrees'] == 8
+                and look['definition_path'] == 'res://assets/ships/halyard_new_design.tres'
+                and s['ship_tuning']['mouse'] == .0022,
+                'actual authored Halyard eight-degree maximum turn and default sensitivity')
+        self.look_normalized |= look['source_next_sequence'] > 0
+        expected_pixels = math.radians(8) / abs(s['ship_tuning']['mouse']) if self.look_normalized else 140
+        require(math.isclose(look['pixels_per_axis'], expected_pixels, rel_tol=1e-6, abs_tol=1e-6),
+                'native source default140 before consumption then actual Halyard maximum-turn/sensitivity normalization')
         require(not s['destroyed'] and s['hull'] > 0 and not s['sleeping'] and not s['approach_is_command_source'],
                 'live awake actors; Aurora readiness Node never becomes command source')
         require(s['bootstrap']['world_id'] == 'aurora_temperate_world' and s['bootstrap']['body_id'] == 'aurora_temperate_body'

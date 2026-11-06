@@ -2795,7 +2795,7 @@ func _aurora_outbound_observation() -> Dictionary:
 	var location := bootstrap.get_location_definition()
 	var effective_gravity: Vector3 = _player.call(&"_get_effective_gravity")
 	var gravity_owner: Node
-	var gravity_ref: Variant = _player.get_meta(&"_moving_interior_frame_owner", null)
+	var gravity_ref: Variant = _player.get_meta(&"_moving_interior_frame_owner") if _player.has_meta(&"_moving_interior_frame_owner") else null
 	if gravity_ref is WeakRef:
 		gravity_owner = (gravity_ref as WeakRef).get_ref() as Node
 	var pending_look: Vector2 = source.get("_pending_look_motion")
@@ -2810,6 +2810,9 @@ func _aurora_outbound_observation() -> Dictionary:
 		and bool((_ship.get("_landing_contract") as Dictionary).get("strict_dock_acceptance", false)) \
 		and int(_ship.get("_landing_berth_instance_id")) == berth.get_instance_id()
 	result.merge({"fleet": fleet, "sleeping": _player.is_sleeping(),
+		"authored_spawn": _v(_game.world.get_player_spawn().origin),
+		"spawn_marker_id": _game.world.player_spawn.get_instance_id(),
+		"spawn_marker_path": str(_game.world.player_spawn.get_path()),
 		"supported": is_instance_valid(collider), "surface_supported": surface_support,
 		"support_collider": str(collider.get_path()) if is_instance_valid(collider) else "",
 		"support_normal": _v(support.get("normal", Vector3.ZERO)), "support_frame": _aurora_support_frame, "support_fresh": not get_tree().paused,
@@ -2849,5 +2852,8 @@ func _aurora_outbound_observation() -> Dictionary:
 		"look": {"pending": [pending_look.x, pending_look.y],
 			"yaw": command.look_yaw_delta if command != null else 0.0,
 			"pitch": command.look_pitch_delta if command != null else 0.0,
-			"pixels_per_axis": source.look_motion_for_full_axis, "maximum_turn_degrees": _ship.maximum_mouse_turn_degrees}}, true)
+			"pixels_per_axis": source.look_motion_for_full_axis, "maximum_turn_degrees": _ship.maximum_mouse_turn_degrees,
+			"source_next_sequence": source.get_next_sequence(),
+			"definition_path": _ship.get_ship_definition().resource_path,
+			"definition_maximum_turn_degrees": _ship.get_ship_definition().maximum_mouse_turn_degrees}}, true)
 	return result
