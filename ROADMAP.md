@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **2213baf** — [Windows ZIP](builds/windows/MuddsShipyards-2213baf-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-2213baf-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-2213baf-linux-x86_64.tar.gz).
+Latest playable checkpoint: **0c2f322** — [Windows ZIP](builds/windows/MuddsShipyards-0c2f322-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-0c2f322-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-0c2f322-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,32 +26,48 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Vortex standalone hull and pilot — build card 1
+### Vortex standalone hull and pilot — build card1 DONE (standalone scope)
 
-Goal / contract: [approved Vortex build card1](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-cards--only-after-approval). This independent, unstarted content capability does not reopen Titan's parked remote work.
-Result: editable original Vortex scene instantiates as HeroShip, validates its approved provisional definition, and genuinely starts/flies/brakes/shuts down through the existing controller in an isolated fixture. This is standalone content, not production Main availability or ordinary boarding qualification; fleet remains10/17.
-Candidate / start: clean02daf4371; fresh isolated fixture, one initial staged craft/pilot setup and existing ShipCommandSource. No pose/velocity/engine-clock assignment after setup. Original broad chamfered cabin pod/two engine housings/recessed stern, authored10×20×5m envelope; future ramp/access/berth/chairs/weapon/recovery/networking remain separate cards.
-Owner / files: one medium-effort candidate implementer owns only `assets/ships/vortex_provisional.tres`, `scripts/ships/vortex_troop_transport.gd`, `scenes/ships/vortex_troop_transport.tscn`, `tests/vortex_troop_transport_test.gd` and generated script UIDs. Root reviews and owns card/release/integration/cleanup. No shared runtime edits, Main registration, sibling tuning, cargo/specialist grants or copied Titan/Halyard hull.
-Dependencies: owner already adopted the complete modern baseline; HeroShip/ShipDefinition/command/audio owners exist. All16 proposed numeric values and entry/audio/provisional identity fields stay fixed. Existing registry's full Vortex role registration belongs to card4; this card exercises its unchanged pairwise separation, non-dominance and current signature checks on existing fleet profiles plus Vortex, rather than inventing a role contract or claiming full registry registration.
-Proof: `/srv/mudds-work/vortex-foundation-20261106/`; actual controller logs, source/cache guards, fixed private rendered inspection and actual exported Windows-PCK standalone fixture under pinned Linux Godot. All calls Dummy; rendered checks private Xvfb with explicitx11. No native Windows/GPU/human qualification.
-Budget: original start05:02:41UTC2026-11-06, absolute deadline05:47:41UTC,45minutes all-in including definition/mapping, code, validation, paired checkpoint, merge/push/archive/branch/worktree/process cleanup. One substantive production correction; routine compiler/caller/assertion corrections keep every endpoint and this deadline. Supervisor independently aborts/reaps automation.
-Stop: first unexpected failure preserves operands and stops dependent gates. Do not silently change approved numbers/extrema/geometry to fit a test; a genuine profile/design conflict needs its exact named owner decision. Exhausted repair allowance or deadline parks this original card, with no renamed retry or subset pass.
-Close: NOT_RUN. A standalone delivery does not make Vortex selectable or raise the production fleet count.
+Source **0c2f322e4**, merged/pushed via **cde60feb6**, adds the approved original
+Vortex definition, editable procedural scene/hull and existing HeroShip pilot
+controller. Its broad chamfered pod, two engine housings and recessed stern fit
+the exact10×20×5m envelope;15 actual convex sections match visible vertices,
+face outward, do not overlap and leave the reserved cabin/cockpit eye clear.
+All16 approved fields remain unchanged. Actual command-source flight completes
+the3.6s inherited manual and automatic startup, forward translation/turning,
+braking/arrest and normal idle OFFLINE with engine audio retired. No runtime
+pose/velocity/clock override, cargo/specialist grant or historical-model claim.
 
-Routine fixture correction: the first unchanged `fleet_role_differentiation_test.gd` stops before behavior because its historical fixture expects9 Main craft; accepted Titan makes Main10. No Vortex/shared runtime regression is shown. An independently reviewed external copy adds an exact unique live-roster assertion (the original nine plus Titan, Vortex absent), then excludes only Titan from that local legacy-nine array. Every original nine-craft case, floor, threshold and wait remains unchanged. This run is explicitly **legacy-nine regression inside ten-craft Main**, not full current-ten/Titan handling qualification. The original failed run and source/adapter hashes are retained. The actual all-ten-plus-Vortex profile constraints and complete Titan Main source/PCK cases remain mandatory; no production repair is consumed and05:47:41UTC remains binding.
+Four source checks and unchanged complete ordinary Titan Main pass on the exact
+clean commit with source/cache guards and clean Quit. Combined profiles for all
+ten current craft plus Vortex pass the unchanged14-axis/non-dominance/signature
+constraints. The old fleet audit's obsolete9craft setup was corrected only by
+an independently reviewed external adapter: exact live Main10 assertion, then
+all original nine cases/floors/waits unchanged. This is **legacy-nine regression
+inside ten-craft Main**, not full current-ten/Titan handling qualification. Its
+original failure and exact source/adapter hashes remain archived. Three fixed
+source views were inspected using private Xvfb/OpenGL ES/Dummy; initial GLX
+V-Sync warning captures are retained, final capture exits0 with no diagnostics.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Identity/profile | Instantiate new scene and validate actual ShipDefinition/controller fields | Exact vortex_provisional/candidate/Troop transport/PROVISIONAL identity; all16 values match approved table (68,88,20,29,1.85,5.5,1.2,39,47,3.6,3,9,3.6,.62,230,10), exact stern-hatch/open/seal/board copy and heavy_quad_freighter profile; original-modern provenance, no cargo fitting | NOT_RUN |
-| Hull/collision | Inspect actual scene meshes and collision shapes/queries plus three fixed private rendered views | Original broad chamfered pod/two engine housings/recessed stern; finite non-overlapping hull/collision inside10m×20m×5m authored envelope, no room-blocking full-box collider; helm/camera finite and clear. Editable native scene/script source retained. No physical-access claim | NOT_RUN |
-| Actual controller | Fixture assigns pilot/source once, requests normal startup then thrust/rotation/brake/neutral through existing source | Actual OFFLINE→STARTING→ONLINE after3.6s inherited clock; real transform/velocity respond to source, brake reduces/arrests motion, neutral reaches normal automatic OFFLINE with continuous engine audio retired. No direct runtime pose/velocity/clock manipulation | NOT_RUN |
-| Fleet contract | Existing registry resource suite plus actual existing registry separation/non-dominance/signature functions on current definitions plus Vortex | Existing14 differing-axis floor, pairwise non-dominance and existing signature extrema unchanged; no sibling value or registry-role edit. Full Vortex role registration remains pendingcard4 | NOT_RUN |
-| Existing source behavior | `vortex_troop_transport_test.gd` (90s), `ship_definition_berth_test.gd` (120s), `fleet_role_registry_test.gd` (120s), `fleet_role_differentiation_test.gd` (300s), complete ordinary `game_flow_titan_integration_test.gd` (300s, run alone) | Clean final commit; every actual invocation exit0/one exact success marker/raw diagnostics0 and stable source/cache. Existing Main remains10craft and complete Titan loop/clean Quit passes | NOT_RUN |
-| Package and closure | Existing clean-commit paired export; actual Windows PCK new standalone test and complete ordinary Main loop (alone), strict startup3 and existing nine package predicates | Fresh Windows EXE/ZIP/notes plus paired Linux files in builds; notes say Vortex standalone only and Main remains10/17. Actual archives/PCK source isolation checked, accepted source merged/pushed, verified source/records archive and exact-tip branch/worktree/process cleanup. No native/human/full-craft claim | NOT_RUN |
+Fresh paired checkpoint **0c2f322** passes strict startup3 and all nine existing
+package predicates; Windows/Linux payload maps match. Actual Windows packaged
+content under pinned Linux Godot separately passes the unchanged standalone
+Vortex fixture and full ordinary Titan Main loop from source-isolated blank
+directories. Native Windows/GPU/device/human/full-craft gates remain open.
+
+**Vortex is standalone content, not selectable in Main. Main remains10/17.**
+The checkpoint includes its runtime scene and a companion preview; ordinary
+access, home berth/Main registration, four chairs, weapon, lifecycle/recovery
+and network journeys remain later cards. Next is Vortex card2 continuous
+physical fixture access. Titan's parked remote attempt remains unmerged.
+Original05:02:41→05:47:41UTC all-in budget, frozen card, source bundle, raw
+checks/images and package records are retained in verified
+`/srv/mudds-work/vortex-foundation-20261106/records.tar.gz`; adjacent closeout
+records actual publication and owned branch/worktree/process cleanup.
 
 ### Titan host and one remote passenger — child 11 PARKED
 

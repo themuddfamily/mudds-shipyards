@@ -1,10 +1,10 @@
 # Vortex implementation proposal — APPROVED MODERN BASELINE
 
-Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. Standalone hull/pilot foundation card1 is delivered in 0c2f322e4 viacde60feb6, with checkpoint0c2f322. Vortex is not registered/selectable in Main; the complete craft remains unqualified.
 
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
-Root revision 2026-10-25: the earlier trial drag1.8 shared three axes with Cinder Bomber, leaving only13 differences against the existing minimum14. Proposed drag1.85 resolves that exact source-table conflict without changing an implemented craft. This remains an UNAPPROVED design revision, not runtime tuning or a passed controller check.
+Root revision 2026-10-25: the earlier trial drag1.8 shared three axes with Cinder Bomber, leaving only13 differences against the existing minimum14. Proposed drag1.85 resolves that exact source-table conflict without changing an implemented craft. This prepared revision was included in the owner's2026-11-05 adoption. The standalone controller/profile checks now pass in the scope above; full ordinary handling qualification remains open.
 
 ## Supported facts and evidence boundary
 
@@ -82,7 +82,7 @@ Each card names a running-game outcome and stops there. Estimates are **30–75 
 
 | Card / estimate | Owner and bounded files | Visible outcome, focused proof and stop condition |
 | --- | --- | --- |
-| 1 / 45m | Candidate implementer: definition/script/scene only | Original hull, valid provisional identity and finite collision load in an isolated fixture; helm starts/stops and flies with trial definition. Check definition validation/actual controller. Stop at standalone pilot flight. |
+| 1 / 45m — DONE0c2f322e4 (standalone only) | Candidate implementer: definition/script/scene only | Original hull, valid provisional identity and finite collision load in an isolated fixture; helm starts/stops and flies with trial definition. Check definition validation/actual controller. Stop at standalone pilot flight. |
 | 2 / 60m | Candidate implementer: same files | Supported floor/aisle/vestibule/ramp/hatch reach helm from fixture deck and return by walking. Check actual Player/camera/collision at each opening and closed-state refusal. Stop at continuous physical access. |
 | 3 / 60m | Root station owner: ShipyardWorld/comb | One compatible physical home berth, signs and station walking spur. Ordinary spawn walk reaches ramp; docked/deployed bounds, launch sweep and adjacent routes clear. Wrong tags/occupied lease refuse. Stop after one real reachable berth. |
 | 4 / 60m | Root fleet/flight owner: Main/GameFlow/registry + candidate hooks | Normal production walk → board → start → launch → approach → own strict berth → automatic neutral shutdown/OFFLINE → physical exit/reboard works; candidate label and active-ship identity correct, nearby craft still usable. Stop at first meaningful live checkpoint and package before more systems. |
@@ -109,8 +109,8 @@ Network card 11 is a **bounded playing-host pilot plus two remote-client journey
 
 All future automated Godot invocations require `--audio-driver Dummy`; use headless or owned isolated Xvfb with explicit `--display-driver x11`, an independent abort path and released synthetic input/cursor capture. No active-desktop test is authorized. Use the existing safe export workflow from a clean commit, keep Windows EXE/ZIP/notes in repository `builds/windows/`, and do not dispatch/enable GitHub Actions. None of those actions was run to prepare this proposal.
 
-## Finite owner choice — pending
+## Recorded owner choice
 
-**Approve or reject this single explicitly modern Vortex candidate:** one pilot/four physical passenger chairs, the original geometry/access/handling above, one reused pilot defensive cannon, no cargo or specialist roles, and the stated safe on-foot restart policy. Approval permits the bounded implementation cards after root review; it does not accept the craft, supported multiplayer capacity, historical model or full scope. No approval has been recorded.
+**Approve or reject this single explicitly modern Vortex candidate:** one pilot/four physical passenger chairs, the original geometry/access/handling above, one reused pilot defensive cannon, no cargo or specialist roles, and the stated safe on-foot restart policy. Approval permits the bounded implementation cards after root review; it does not accept the craft, supported multiplayer capacity, historical model or full scope. The owner adopted this complete modern baseline2026-11-05; no repeat design approval is needed. This section preserves the original proposed choice and its limits.
 
 If rejected, choose either **a revised modern interpretation with the exact fields to change** or **keep Vortex frozen for historical reconstruction**. The latter needs legally available name-tied spawn/multiple views and a feature/unknowns review; repeated label-only research is not an implementation substitute. Existing SCOPE-LIMIT and SCOPE-DESKTOP decisions remain separate finite owner answers, already tracked in the roadmap. No other unspecified mechanic is needed to begin the approved candidate cards.
