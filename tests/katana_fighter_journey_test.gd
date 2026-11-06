@@ -5,6 +5,7 @@ extends SceneTree
 ## qualification. One initial ship/source/pilot setup; real commands thereafter.
 ## No pose, velocity, startup-clock or engine-state mutation.
 const KATANA := preload("res://scenes/ships/katana_fighter.tscn")
+const PLAYER := preload("res://scenes/player/player.tscn")
 const DEFINITION := preload("res://assets/ships/katana_provisional.tres")
 const Registry := preload("res://scripts/ships/fleet_role_registry.gd")
 const FLEET := [
@@ -248,13 +249,19 @@ func _test_geometry(ship: HeroShip) -> bool:
 		and ship.get_pilot_seat_anchor().get_meta("station_id") == &"pilot_station"
 		and eye.global_transform.is_finite() and ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(), "exact pilot anchor and clear finite cockpit camera"):
 		return false
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.32
-	capsule.height = 1.76
+	# Clone the production collision off-tree: no second physics actor or
+	# hand-authored approximation of the Player's walking clearance.
+	var player_fixture := PLAYER.instantiate()
+	var player_collision := player_fixture.get_node("PlayerCollision") as CollisionShape3D
+	var capsule := player_collision.shape.duplicate() as CapsuleShape3D
+	player_fixture.free()
+	if not _check(capsule != null, "production PlayerCollision is an actual capsule"):
+		return false
+	print("KATANA_PLAYER_CAPSULE: radius=", capsule.radius, " height=", capsule.height)
 	query.shape = capsule
 	query.margin = 0
 	for z in [-1.5,0.0,2.0]:
-		query.transform = ship.global_transform * Transform3D(Basis.IDENTITY,Vector3(-0.95,1.49,z))
+		query.transform = ship.global_transform * Transform3D(Basis.IDENTITY,Vector3(-0.95,0.6 + capsule.height * 0.5 + 0.01,z))
 		if not _check(ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(), "actual capsule-sized reserved walking path"):
 			return false
 	var view_ray := PhysicsRayQueryParameters3D.create(eye.global_position,eye.global_position-eye.global_basis.z*0.7,PhysicsLayers.SHIP)
