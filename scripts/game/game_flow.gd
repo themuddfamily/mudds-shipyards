@@ -11283,9 +11283,9 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		and interior_frame != null \
 		and (interior_frame.is_occupant_registered(player) or candidate.get_ship_id() == &"titan_provisional") \
 		and interior_frame.contains_world_position(player.global_position)
-	var from_landed_pilot_approach := candidate.get_ship_id() == &"predator_provisional" \
+	var from_landed_pilot_approach: bool = candidate.get_ship_id() == &"predator_provisional" \
 		and candidate.can_board_from_landed_approach(player)
-	var from_cabin := returning_to_flight_seat or from_landed_interior or from_landed_pilot_approach
+	var from_cabin: bool = returning_to_flight_seat or from_landed_interior or from_landed_pilot_approach
 	if returning_to_flight_seat:
 		_release_cabin_occupancy()
 	# Every route generation is bound to the physical sortie that started it.
