@@ -33,6 +33,10 @@ var _zenith_reuse := false
 var _zenith_handback := false
 var _handback_torrent: HeroShip
 var _handback_sequence := 0
+const AURORA_VISIT_TYPE := preload("res://scripts/game/planetary_surface_visit_expedition.gd")
+var _aurora_outbound := false
+var _aurora_support: Dictionary = {}
+var _aurora_support_frame := -1
 var _arrow := false
 var _torrent_reuse := false
 var _torrent_damaged := false
@@ -122,6 +126,13 @@ func on_startup_completed(main: Node) -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_aurora_outbound = "--native-sortie-observer=aurora-outbound" in OS.get_cmdline_args()
+	if _aurora_outbound:
+		_ship = _game.get_node(^"HalyardCrewTransport") as HeroShip
+		_parked = _ship.global_transform
+		_tuning = _craft_tuning(_ship)
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
 	_station_flash = "--native-sortie-observer=station-flash" in OS.get_cmdline_args()
 	if _station_flash:
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -839,6 +850,9 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if _aurora_outbound and _game != null:
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_aurora_outbound_observation(), "", true, true))
+		return
 	if _station_flash and _game != null:
 		_station_flash_sequence += 1
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_station_flash_observation(), "", true, true))
@@ -2199,7 +2213,7 @@ func _arrow_observation(torrent: bool = false, zenith: bool = false,
 		and owner.call("get_main") == _game \
 		and _ember_node_current(_player) and _game.player == _player \
 		and _ember_node_current(_game.world) and _ember_node_current(craft) \
-		and _game.get_node_or_null(^"ZenithInterceptor" if zenith else (^"TorrentInterceptor" if torrent else ^"ArrowReconShip")) == craft
+		and _game.get_node_or_null(^"HalyardCrewTransport" if _aurora_outbound else (^"ZenithInterceptor" if zenith else (^"TorrentInterceptor" if torrent else ^"ArrowReconShip"))) == craft
 	var result := {"mode": ("torrent-arrow-handoff" if _torrent_handoff else ("torrent-damaged-return" if _torrent_damaged else "torrent-return-reuse")) if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(), "actors_current": current}
 	if not current:
@@ -2731,3 +2745,109 @@ func _station_flash_observation() -> Dictionary:
 			"focus_name": str(focus.name) if focus != null else "", "controls": controls,
 			"flash_pressed": flash.button_pressed, "flash_visible": flash.is_visible_in_tree(),
 			"dirty": hud.has_unsaved_settings(), "status_text": status.text, "status_visible": status.is_visible_in_tree()}}
+
+
+## Ordinary Aurora readbacks only. This observer never installs a command source,
+## changes gravity, requests travel/landing, or advances any gameplay authority.
+func _aurora_outbound_observation() -> Dictionary:
+	var result := _arrow_observation(true, false, _ship, false)
+	result["mode"] = "aurora-outbound"
+	if not bool(result.get("actors_current", false)):
+		return result
+	var expedition: RefCounted = _game.get("_aurora_expedition") as RefCounted
+	var bootstrap := _game.aurora_streaming_bootstrap
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var generation := frame.get_generation()
+	var encoded := frame.body_local_to_orbital_position(Vector3(0, 130000, 0), generation)
+	var navigation := frame.orbital_to_world_streaming_position(encoded.get("coordinate", {}), generation)
+	var coordinator := bootstrap.get("_coordinator") as WorldStreamingCoordinator
+	var location_id := bootstrap.get_location_id()
+	var record: Dictionary = (coordinator.get("_loaded") as Dictionary).get(location_id, {})
+	var location_generation := int((coordinator.get("_generation_by_id") as Dictionary).get(location_id, -1))
+	var surface := record.get("instance") as Node3D
+	var surface_current := _ember_node_current(surface) and surface.get_parent() == coordinator and int(record.get("generation", -2)) == location_generation
+	if not surface_current:
+		surface = null
+	var berth := expedition.get("_berth") as ShipBerth
+	var region := surface.get_node_or_null(^"LandingRegion") as Node3D if is_instance_valid(surface) else null
+	var command := _ship.get_last_ship_command()
+	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
+	var approach := expedition.get("_approach_source") as Node
+	var origin := _game.common_world_origin_rebase_owner.get_snapshot()
+	var ui: Dictionary = result.ui
+	var focus := get_viewport().gui_get_focus_owner()
+	var activity_page := _game.hud.get("_activity_selection_page") as Control
+	ui.merge({"focus_name": str(focus.name) if is_instance_valid(focus) else "",
+		"focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
+		"focus_enabled": focus is BaseButton and not focus.disabled,
+		"activity_visible": is_instance_valid(activity_page) and activity_page.is_visible_in_tree()}, true)
+	var fleet: Array[Dictionary] = []
+	for craft: HeroShip in _game.get_flyable_ships():
+		var home := _game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		fleet.append({"id": craft.get_instance_id(), "definition": str(craft.get_ship_id()),
+			"home": str(craft.get_home_berth_id()), "home_node": home.get_instance_id() if is_instance_valid(home) else 0,
+			"occupied": is_instance_valid(home) and home.get_occupant() == craft and home.get_reservation_owner() == craft})
+	if not get_tree().paused:
+		_aurora_support_frame = Engine.get_physics_frames()
+		_aurora_support = query_cinder_supply_support(_player, _ship, true) if not _player.is_seated() and not bool(_game.get("_transition_busy")) else {}
+	var support := _aurora_support
+	var definition: PlanetaryLandingRegionDefinition = expedition.get("profile").landing_region
+	var location := bootstrap.get_location_definition()
+	var effective_gravity: Vector3 = _player.call(&"_get_effective_gravity")
+	var gravity_owner: Node
+	var gravity_ref: Variant = _player.get_meta(&"_moving_interior_frame_owner", null)
+	if gravity_ref is WeakRef:
+		gravity_owner = (gravity_ref as WeakRef).get_ref() as Node
+	var pending_look: Vector2 = source.get("_pending_look_motion")
+	var collider := support.get("collider") as Node
+	var surface_support: bool = is_instance_valid(surface) and is_instance_valid(collider) and surface.is_ancestor_of(collider)
+	var token := StringName(berth.get("_reservation_token")) if is_instance_valid(berth) else &""
+	var strict: bool = is_instance_valid(berth) and is_instance_valid(region) and region.is_ancestor_of(berth) \
+		and berth.get_berth_id() == &"aurora_exploration_pad" and berth.get_occupant() == _ship \
+		and berth.get_reservation_owner() == _ship and not token.is_empty() \
+		and token == StringName(expedition.get("_surface_token")) and token == StringName(_ship.get("_landing_reservation_token")) \
+		and str(_ship.get("_landing_phase")) == HeroShip.LANDING_PHASE_DOCKED \
+		and bool((_ship.get("_landing_contract") as Dictionary).get("strict_dock_acceptance", false)) \
+		and int(_ship.get("_landing_berth_instance_id")) == berth.get_instance_id()
+	result.merge({"fleet": fleet, "sleeping": _player.is_sleeping(),
+		"supported": is_instance_valid(collider), "surface_supported": surface_support,
+		"support_collider": str(collider.get_path()) if is_instance_valid(collider) else "",
+		"support_normal": _v(support.get("normal", Vector3.ZERO)), "support_frame": _aurora_support_frame, "support_fresh": not get_tree().paused,
+		"navigation": _v(navigation.get("position", Vector3.INF)),
+		"selected_activity": str(_game.get("_selected_activity_kind")),
+		"convoy_active": bool(_game.call("_convoy_is_running")),
+		"request_serial": int(_game.get("_last_hud_planetary_cruise_toggle_serial")),
+		"visit": expedition.call(&"get_visit_snapshot"),
+		"cruise": _game.planetary_cruise_binding.get_snapshot(),
+		"frame_id": frame.get_instance_id(), "frame_snapshot": frame.get_snapshot(), "bootstrap": {"world_id": bootstrap.get_world_id(), "body_id": bootstrap.get_body_id(),
+			"location_generation": location_generation, "navigation": _v(location.get_anchor_position()),
+			"initial_body_center": _v(AuroraTemperateStreamingBootstrap.INITIAL_BODY_CENTER_WORLD_POSITION),
+			"body_radius": frame.get_snapshot().get("body_radius_meters")},
+		"geometry": {"region": str(definition.region_id), "center": _v(definition.body_local_center_m),
+			"corridor": _v(definition.approach_corridor_transforms_region_local_m[0].origin),
+			"half_extents": _v(definition.approach_corridor_half_extents_m[0]),
+			"pad": str(definition.touchdown_pad_ids[0]), "pad_size": [definition.touchdown_pad_sizes_m[0].x, definition.touchdown_pad_sizes_m[0].y],
+			"entry_half_extents": _v(AURORA_VISIT_TYPE.APPROACH_ENTRY_POSITION_HALF_EXTENTS_M),
+			"maximum_speed": AURORA_VISIT_TYPE.APPROACH_MAXIMUM_SPEED_MPS, "maximum_attitude": AURORA_VISIT_TYPE.APPROACH_MAXIMUM_ATTITUDE_DEGREES,
+			"hull_margin": AURORA_VISIT_TYPE.APPROACH_HULL_MARGIN_M},
+		"origin": {"transactions": origin.get("transaction_count", 0),
+			"translation": _v(origin.get("last_translation_delta", Vector3.ZERO)), "receipt": origin.get("last_receipt", {})},
+		"approach_id": approach.get_instance_id() if is_instance_valid(approach) else 0,
+		"approach_is_command_source": approach is ShipCommandSource,
+		"surface": {"current": surface_current,
+			"scene_id": surface.get_instance_id() if is_instance_valid(surface) else 0,
+			"berth_id": berth.get_instance_id() if is_instance_valid(berth) else 0, "strict": strict, "token": str(token),
+			"contract": {"phase": str(_ship.get("_landing_phase")), "retained": (_ship.get("_landing_contract") as Dictionary).duplicate(true)}, "landing_elapsed": float(expedition.get("_landing_elapsed"))},
+		"gravity": {"project_mps2": float(ProjectSettings.get_setting("physics/3d/default_gravity")),
+			"actual_mps2": effective_gravity.length() * _player.gravity_multiplier,
+			"effective_vector": _v(effective_gravity * _player.gravity_multiplier),
+			"space_vector": _v(_player.get_gravity()), "source": "moving_interior" if is_instance_valid(gravity_owner) else "physics_space",
+			"source_id": gravity_owner.get_instance_id() if is_instance_valid(gravity_owner) else 0,
+			"source_path": str(gravity_owner.get_path()) if is_instance_valid(gravity_owner) else "",
+			"interior_current": gravity_owner is MovingInteriorFrame and gravity_owner == _ship.get_moving_interior_component() and (gravity_owner as MovingInteriorFrame).is_occupant_registered(_player),
+			"multiplier": _player.gravity_multiplier},
+		"look": {"pending": [pending_look.x, pending_look.y],
+			"yaw": command.look_yaw_delta if command != null else 0.0,
+			"pitch": command.look_pitch_delta if command != null else 0.0,
+			"pixels_per_axis": source.look_motion_for_full_axis, "maximum_turn_degrees": _ship.maximum_mouse_turn_degrees}}, true)
+	return result
