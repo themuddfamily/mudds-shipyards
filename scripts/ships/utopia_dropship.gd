@@ -87,6 +87,7 @@ func _build_ship() -> void:
 	_add_section_box("StarboardAftLiftHousing", Vector3(3.1, 0, 4), Vector3(4.5, 2.2, 8.5), orange)
 	_add_nose_wedge(cream)
 	_pilot_seat_anchor = _reservation_marker("pilot_station", PILOT_FEET, self)
+	_pilot_seat_anchor.set_meta("station_id", &"pilot_station")
 	_boarding_entry_marker = _reservation_marker("FutureHelmStand", FUTURE_ENTRY, self)
 	_reservation_marker("DockingReceiver", Vector3.ZERO, self)
 	var racks := Node3D.new()
