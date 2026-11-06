@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **f3c20bf** — [Windows ZIP](builds/windows/MuddsShipyards-f3c20bf-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-f3c20bf-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-f3c20bf-linux-x86_64.tar.gz).
+Latest playable checkpoint: **2898b63** — [Windows ZIP](builds/windows/MuddsShipyards-2898b63-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-2898b63-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-2898b63-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,29 +26,48 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-f3c20bf-paradox-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Paradox continuous physical access — build card2
+### Paradox continuous physical access — build card2 DONE (standalone scope)
 
-Goal / contract: [approved Paradox card2](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-cards--after-owner-approval-only). Accepted foundation f3c20bf10 is complete; Paradox access is an unstarted dependent capability, not a retry of parked Vortex access or Titan remote work.
-Result: same actual Player walks supported fixture apron→existing reachable hatch control→deployed ramp/vestibule/bridge→helm approach and reverses to supported apron, seals and repeats. Closed hatch refuses crossing. No teleport/jump/seat warp or expanded reach/masks/gravity replaces walking. Main remains10/17; no role/combat/berth integration claim.
-Candidate / start: clean4272afd9e, one initial ship/apron/Player placement then only existing ordinary move/look/Interact controls for positive route. Identity and elevated35degree fixture in separate processes; fixed starting pose in each, no runtime ship/Player pose/velocity/clock/engine/capsule mutation. Player interaction may route its real interact_requested signal to the discovered/reachable existing ShipCabinHatch because this is standalone, not GameFlow.
-Owner / files: high-effort implementer owns only scripts/ships/paradox_cruiser.gd, scenes/ships/paradox_cruiser.tscn, existing tests/paradox_cruiser_test.gd, new tests/paradox_cruiser_access_test.gd and UIDs. Independent high reviewer reads geometry/support/access contract and final candidate; no overlapping edits. Root owns docs, gates, release, integration and cleanup. No shared runtime, Main, other craft, role authority, weapon or numeric resource edits.
-Dependencies / fixed geometry: approved16×28×6m stowed envelope x±8,z±14,y0..6; floor1.2,clear bridge x±2.8,z−5..11,ceiling≥4; supported vestibulez11..14; ramp2.4m wide,z14..18,y1.2..0. Hatch opening≥2×2.4m,centre aisle≥1.4m,station approach≥2.4m. Only deployed/moving ramp extends toz18; no intermediate oversweep or other envelope inflation. Pilot anchor(0,1.65,−3.8) and future role fit reservations unchanged. Actual visible/collider sections agree throughout inherited access motion. One bounded MovingInteriorFrame covers supported cabin/vestibule only. Full authored ramp trajectory must be measured before candidate freeze; Vortex failure/cost/allowance remains untouched.
-Cases / expected: closed real capsule crossing refusal and supported return to side control; real Interact open, uninterrupted supported inbound to helm approach, reverse/outside, seal and repeat; every walking sample retains support and clear capsule/head, frame admission only inside/retirement outside. Same complete positive case at elevated35degree yaw. Actual stowed/open/moving geometry stays within fixed bounds, no overlaps blocking route/room, finite clear actual cockpit camera. Open/moving access rejects start/throttle without movement; seal permits inherited3.2s normal startup/idle shutdown; unsupported apron/airborne/active flight refuses opening. Negative direct API fixtures cannot replace positive ordinary route. Existing foundation16fields/all12 profiles/realcontroller remain unchanged.
-Proof / commands: /srv/mudds-work/paradox-access-20261106/, pinnedGodot4.7.1, headlessDummy or privateGLES/Xvfb explicitx11 with independent suite_process abort/reap and released synthetic inputs. New foundation90s, new access identity180s and --transformed180s, existing definition/berth120s and moving_interior_frame120s, complete unchanged ordinary Titan Main300s ALONE. Three fixed source images closed/open/helm-eye. Repeat full foundation, both complete access profiles and full ordinary Main against actual WindowsPCK from blank source-isolated directories, same limits. Fresh paired safe exports/strictstartup3 each exit0+one STARTUP_MENU_READY_OK/rawdiagnostics0, complete Win/Linux maps and nine existing package predicates, eight checkpoint/notes/preview artifacts in builds. Native Windows/GPU/device/human/fullcraft gates remain open.
-Budget / stop: original start06:37:57UTC2026-11-06; absolute deadline07:37:57UTC,60minutes all-in including selection/mapping, implementation, source/package gates/checkpoint, merge/push/archive/exact-tip branch/worktree/process/scratch cleanup. One substantive production correction; routine compiler/caller/assertion fixes preserve endpoints/thresholds/deadline. Retain first unexpected failure operands and stop dependent checks. Exhaustion/deadline/design conflict parks this original card; no renamed retry, subset acceptance, silent shape revision or automatic reopening of parked work.
-Close: NOT_RUN. Accepted source must merge/push and all owned cleanup complete; unique failed source retained in verified archive if parked.
+Source **2898b63d1**, merged/pushed via **0cf71a5d4**, adds the approved stern hatch,
+matched moving ramp, supported vestibule and bounded MovingInteriorFrame.
+The same actual Player walks the complete apron→reachable existing hatch
+control→ramp→bridge→helm approach→apron route, seals and repeats. Closed
+crossing refuses. Every sampled walk retains actual support and capsule/head
+clearance with unchanged masks/gravity/reach, and real automatic frame
+admission/retirement follows the supported cabin boundary. The complete case
+also passes in a separate elevated35degree-yaw fixture. No positive-route
+teleport, jump, direct door call, seat warp or controller-state forcing.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Closed/ordinary access | Supported real Player walks toward sealed hatch, back to reachable side control; Interact open, walk whole inbound/outbound, seal/reopen/repeat | Sealed refusal; same supported capsule/head-clear Player reaches helm approach and returns twice, no warp/jump/reach/mask bypass; exact bounded frame admission/retirement | NOT_RUN |
-| Transformed route | Same complete case in elevated35degree-yaw fixture | Same ordinary actions/endpoints/support and clearances in transformed space | NOT_RUN |
-| Geometry/motion/camera | Actual mesh/collision bounds and matching transforms through inherited animation; inspect closed/open/helm-eye | Approved stowed envelope; ramp only toz18 at all intermediate fractions; real vestibule/aperture/aisle/support, finite clear pilot eye | NOT_RUN |
-| Access/engine safety | Open/moving start/throttle, sealed normal timed start/idle; unsupported/airborne/active negative opening | Open/moving OFFLINE/stationary, sealed3.2s controller preserved, unsafe opening refused | NOT_RUN |
-| Existing behavior/package/closure | Named existing source gates and full ordinary Main; clean paired export, actual PCK full cases/Main, audit/startup and publish/cleanup | Every exact marker once/exit0/rawdiagnostics0 with clean source/cache guards; package9, correct notes/artifacts, merge/push and owned cleanup; Main10/17 and later cards open | NOT_RUN |
+Actual intermediate ramp/door mesh and collision transforms stay within the
+approved16×28×6m stowed and ramp-only z18 extended bounds. Open/moving access
+rejects start/throttle, unsupported/airborne/active opening refuses, and sealed
+3.2s timed startup remains usable. All16 numeric definition values/provenance,
+12-profile separation/non-dominance/signatures and existing pilot controller
+remain unchanged. Shared runtime/Main/role owners are untouched.
+
+Five exact clean-source focused suites and unchanged complete ordinary Titan
+Main pass, with clean source/cache guards and normal Quit. Three source views
+(closed/open/actual cockpit) were inspected under privateXvfb/GLES/Dummy audio.
+Actual WindowsPCK under pinned Linux Godot independently passes the full
+foundation and BOTH complete access cases plus full ordinaryMain from blank
+source-isolated directories. Paired checkpoint **2898b63**, strictstartup3,
+complete matching Win/Linux payload maps and existing package audit9 pass.
+EXE/ZIP/notes/preview and companion Linux files are in builds; notes retain
+standalone limits and actual validation. Native Windows/GPU/device/human and
+fullcraft/release gates remain open/NOT_RUN.
+
+**Paradox remains standalone/unselectable in Main; fleet10/17.** Its own home
+berth, Main integration, crew chairs, weapons, service/recovery/save and network
+journeys remain later cards. Vortex access and Titan remote remain PARKED and
+unmerged; this card does not reopen/reset either. No new task selected here.
+Original06:37:57→07:37:57UTC all-in budget and frozen cases/source/raw runs/
+review/captures/package records are preserved in verified
+`/srv/mudds-work/paradox-access-20261106/records.tar.gz`; adjacent closeout
+records actual publication and owned branch/worktree/process/scratch cleanup.
 
 ### Paradox standalone hull and pilot — build card1 DONE (standalone scope)
 
