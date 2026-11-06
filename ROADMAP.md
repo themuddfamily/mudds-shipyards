@@ -30,57 +30,46 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
-### Selected: SOLO-AURORA ordinary access and outbound capability
+### SOLO-AURORA ordinary access/outbound — PARKED, unaccepted
 
-Goal/contract: SOLO-AURORA access/outbound executable release member, existing
-[ordinary world contract](docs/ROADMAP_BACKLOG.md#solo-aurora-rime-ordinary-contracts).
-Result: an explicit ordinary OS-input route drives fresh Boot/Begin Shift,
-physical station/Halyard access, real destination UI and canonical12Mm cruise
-to strict Aurora landing/OFFLINE/exterior exit and supported same-Player walking,
-then normal HUD Quit. This closes only outbound capability; surface survey,
-reward/save and full return/full SOLO-AURORA remain open. Rime/Ember/shared Aurora
-and all eight parked attempts remain closed. No existing accepted run repeated.
+Unmerged candidate **4e9ec1de22dd16c55077b15203646c653eb4280b** adds the explicit ordinary Aurora driver/observer,
+private CLI admission and regression checks. Source review GO;322 native Python
+and9 package tests, import/direct observer/loader/whole CLI privacy, paired safe
+exports, three strict startups and reviewed equal1575-entry maps pass. No
+checkpoint is published and none of this candidate is merged into Main.
 
-Candidate/start: clean c27fdec22f5c830764d1ed87cc71fe2e2476f68b; normal authored
-spawn(-8.5,.18,11), fresh private0700 default profile, current11 parked Main craft,
-60Hz/time_scale1, no scenario/phase/Guided overrides. Baseline contract's nine
-craft is historical: current accepted eleven unique identities/occupied homes
-are preserved and observed, not reduced to nine. Halyard accepted physical
-pilot/access and existing Aurora coordinator/approach/surface owners are present;
-missing native selector/observer is Codex implementation. Source staged Aurora
-physical-return fixture is reference only, never ordinary qualification.
+First candidatea2de33aa7 stops24.464s before input on optional absent metadata;
+actual source operands also correct authored-versus-settled spawn and Halyard8°
+look normalization. Candidate0097d192b physically walks/boards/selects/departs and
+travels1141rebases, then rejects valid initial approachgeneration0. Producer
+starts0/arm retains0/retire increments; binding accepts>=0. No gameplay defect
+is established. Full origin-registry dumps also produce6.527GB logs and unbounded
+whole-file replay/diagnostic processing; postfailure scan is manually reaped.
+All original raw bytes are losslessly gzip/hash verified and retained.
 
-Owner/files: one HIGH implementer owns tools/release/run_native_sortie.py,
-tools/release/test_native_sortie.py and narrow passive
-scripts/diagnostics/native_sortie_observer.gd, plus required narrow literal-selector
-admission in scripts/game/startup_loader.gd and its tests/startup_cli_privacy_test.gd.
-Independent HIGH reviewer owns read-only review. Root owns integration/release/docs/checks/cleanup. No world,
-ship/Player physics, GameFlow gameplay, settings/save or schema changes. Extend
-existing runner/observer only; no new validator/evidence family or alternate
-engine. Do not restore archived Rime/Ember candidates or change their gates.
+Final candidate4e9ec1de2 accepts exact current generation0 binding, projects
+only required receipt scalars and streams every original raw line/check. It
+reaches fresh Boot,actual idle-convoy UI/full Halyard walk/boarding/90neutral/
+departure/destination UI and continuous unstaged travel. At task-budget stop,
+frame26989,outbound orbit_ticks23687,
+703rebases. **Arrival, surface exit/walk,
+normal Quit and full outbound PASS remain unperformed.** No limit or physical
+predicate was removed; no survey/reward/full return is claimed.
 
-| Case | Initial state and action | Expected result | Actual/proof |
-| --- | --- | --- | --- |
-| CLI/deadline | New explicit --route aurora-outbound, real ELF, absent owned output; existing ordinary runner flags | Default CAP300 and all old choices/semantics unchanged; Aurora2700s monotonic route ceiling applies consistently to loop/result/independent alarm with2760s outer supervisor. No clock restart or pause subtraction. Reject unsupported combinations before engine | NOT_RUN |
-| Normal setup | Fresh actual packaged Boot, normal Begin Shift, Escape→ActivityBoardButton→ConvoyEscortActivityButton, Back/Resume | Same authored supported Player/default controls, idle convoy_escort selected through actual OS input/current controls; no direct selection/signals/state override. Existing10s UI bound retained | NOT_RUN |
-| Station/boarding | First12 LifeTowPilot.ARM_GOALS, then(37,4.2,68.3)→(32.4,4.2,68.2)→(32,4.2,62.2)→(32,4.2,54.2), actual live boarding approach and fresh E | Same physical Player/capsule/support/current candidate and actual Halyard pilot anchor/reservation; normal hatch/canopy/seat animations,90neutral seated ticks.15s/walkgoal,12s boarding; no actor pose writes/shortened boarding | NOT_RUN |
-| Launch/UI | Ordinary W/steering/brake clears actual home/Cinder hulk; align to live Aurora navigation dot>.99995; normal Escape→PlanetaryDestinationOpenButton→PlanetaryDestinationAction_aurora_temperate_world | Actual home lease releases; fresh UI request serial/correct destination; default LocalShipInputSource/provider remains exact. Aurora approach Node readiness/frame provider is separate, never ship command source. climb1800/alignment900 original bounds retained | NOT_RUN |
-| Canonical travel | Live coordinator/expedition normal12Mm travel to aurora_temperate_body, datum centre(12000000,0,0),radius120000,navigation(0,130000,0) | Travel>11800000m/rebases>1100,staging0; same actual pilot/craft; every consecutive physical sample current, ship/Player step<335m,no skipped physics sample. Real current frame/location generations/handoff/rebase receipts. No speed/time/physics/pose/debug/cruise injection | NOT_RUN |
-| Approach/landing | Actual aurora_foundation_landing region, aurora_exploration_pad berth/aurora_pad; real approach retirement→request_berth_landing | Body-local centre(0,120000,0),corridor(0,60,300),half(45,60,300),28×32pad. Existing collision envelopehalf(42,25,75),speed≤12,attitude≤12°,margin.05 remains. Current occupied surface lease,landed/DOCKED,final_approach_handoff_ready. Outbound48000/corridor12000/landing60simulationseconds concurrent; no forced landing/staged arrival | NOT_RUN |
-| Exterior endpoint/Quit | Automatic OFFLINE, normal exterior E and20fresh supported walking ticks; then ordinary Pause/Exit | Same awake controlled supported unseated Player/full capsule,actual Aurora floor,4s exit limit,.25m<walk<5m. Observe actual Player._get_effective_gravity source/vector and preserve authored gravity_multiplier1.0; Aurora defines no separate gravity owner, so normal physics-space18m/s² remains the existing source when unregistered. Actual loaded Aurora region/support/lease establishes location independently; never label bootstrap identity as a gravity owner. Normal OSexit0/crash_recoveryclean/safe_start_recoveryclean_shutdown/zero diagnostics/inputs released/owned children reaped. No survey/reward/full-return credit | NOT_RUN |
-| Source checks | Entire tools/release/test_native_sortie.py and test_package_probes.py; unchanged startup_cli_privacy_test; import and direct observer check-only | Python suites exit0; Godot exit0/exact test marker/raw0; old routes/default limits and optional private observer admission retained. All Godot Dummy/headless or privateXvfb/x11; source/cache/head/worktree guards | NOT_RUN |
-| Packaged trial | Fresh safe paired Windows/Linux clean-commit export; strict startup3 incl extracted Linux archive; equalmaps/reviewed intended delta; ONE complete aurora-outbound native run under pinned Linux/Xvfb/XTest/Dummy | Exact source/ELF/archive hashes, private0700 profile,blank source-isolated payload, no overrides; original2700/2760 and tighter members. Passive observer actual owner/support/native-input/disk readbacks; full actions through endpoint/Quit. First failure stops all dependent gates | NOT_RUN |
-| Closure | Independent source/raw GO, existing package audit9 and EXE/ZIP/notes plus paired Linux artifacts; merge/push/source+rawarchive/exacttip cleanup | Required original cases pass on same source before acceptance. Windows repo builds only, no Downloads/CI. Linux software/Xvfb behavior only; nativeWindows/GPU/device/audio/human/fullworld remain NOT_RUN. Full survey/reward/home journey remains open | NOT_RUN |
+Original14:38→16:08UTC90minute ALL-IN clock and1/1 substantive pipeline IO repair
+retained, including both prior stops and final partial trial. Remaining distance
+and cleanup cannot fit the original window. Owner extension to16:30 was requested
+but unanswered before stopping; no approval inferred and no clock reset. Reopen
+only after explicit owner reprioritization retaining all source/failures/cost and
+passing the complete original2700/2760 route plus tighter members/checkpoint/
+audit/review/cleanup. No unchanged retry or successor is selected automatically.
 
-Budget: ORIGINAL **2026-11-06 14:38:00→16:08:00UTC,90minutes ALL-IN**, including
-the bounded mapping already spent, implementation/review/source checks/exports/
-ONE actual original-cap trial/audit/merge/push/archive/cleanup. ONE substantive
-correction frozen before code. Compiler/caller/assertion corrections are normal
-within these same cases/limits/absolute deadline; no invented tolerances or
-route changes. First unexpected failure retains raw operands/cause/cumulative
-cost and stops dependent gates. Exhaustion/deadline parks with exact owner input;
-no renamed subset/retry resets it. Independent suite_process abort; no live desktop
-or audible output. No parked task reopened; no automatic successor at closure.
+Verified source bundle, exact rejected/partial ELF packages, all raw/source/
+privacy/build/map data and task-budget snapshot are retained in
+`/srv/mudds-work/aurora-outbound-20261106/records.tar.gz`; adjacent closeout records
+actual cost and exact owned ref/worktree/process cleanup. Latest accepted
+checkpoint **cc38736**,Main11/17 and all earlier eight PARKED records remain
+unchanged. NativeWindows/GPU/device/audio/human/fullworld/final gates stay open.
 
 ### Predator local guard/detainee chairs and consent — card6 PARKED, unaccepted
 
