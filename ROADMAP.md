@@ -13,14 +13,15 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **bd69386** — [Windows ZIP](builds/windows/MuddsShipyards-bd69386-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-bd69386-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-bd69386-linux-x86_64.tar.gz).
+Latest playable checkpoint: **9b5491e** — [Windows ZIP](builds/windows/MuddsShipyards-9b5491e-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-9b5491e-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-9b5491e-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
 now load, fly home and return through physical controls with conserved cold custody.
-The pilot centre cannon now delivers the approved70-damage defensive shot.
+The pilot centre cannon delivers the approved70-damage defensive shot. Localized
+component damage now affects flight/fire/aim and clears through landed service.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
@@ -28,78 +29,48 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan component damage and berth service — child 9b
+### Titan component damage and berth service — child 9b DONE
 
-- **Goal / contract:** Titan proposal child9b and its five named physical
-  components. Child9a cannon is accepted in bd6938683 viaf7f629c85. Full craft,
-  broader lifecycle and remote crew remain separate open requirements.
-- **Result:** actual nose/side-engine/core/aft hits show localized damage and
-  reduce real flight/fire/targeting through the existing ledger/controller;
-  intact landed service restores those components, while flight and seat changes
-  cannot heal them. Sealed repair-kit parcels remain inert conserved freight.
-- **Candidate / start:** clean pushed main996651853, checkpointbd69386; one live
-  Titan/ordinary Player at its own berth. Existing Main Begin/walk/load/chairs/
-  startup/cannon/home/return/UIQuit route remains mandatory. Incoming test fire
-  may stage the existing production opponent to aim a real resolver ray; Titan
-  pose/velocity/lease/engine duration/seat-transition owners may not be overwritten.
-- **Owner / files:** titan_service_impl_1106 owns production
-  `scripts/ships/titan_medium_transport.gd` and existing tests
-  `titan_medium_transport_test.gd`, `game_flow_titan_integration_test.gd`,
-  `fleet_berth_repair_regeneration_parity_test.gd`. Root owns docs/build/integration
-  and cleanup; one independent high-effort reviewer reads the exact changes.
-  No shared HeroShip/ShipComponentDamage changes. The one demonstrated production
-  repair also owns `scripts/player/player_controller.gd` containment/report
-  consistency with a Titan-local moving-frame floor predicate. Shared frame and
-  GameFlow source remain unchanged. Additional unchanged regressions:
-  `in_flight_cabin_test.gd` and `in_flight_cabin_origin_rebase_test.gd` (300s each).
-- **Fixed implementation:** install the existing shared HeroDamagePresentation
-  before inherited ready resolves it. A Titan-local ShipComponentDamage subtype
-  retains the sole existing ledger and radii, placing anchors on actual geometry:
-  nose(0,2.6,-8.2), port/right engines(±5.4,2.15,4), core roof(0,4.75,0), aft
-  header(0,3.9,8.5). Nose stage uses that same ledger's existing1/.62/0 performance
-  to cap existing mobility with min(engine,nose); failure disables mobility.
-  Wing fire and core targeting consumers remain shared. No new stages, tuning,
-  healing inventory, specialist role, service terminal or persistence framework.
-- **Dependencies:** accepted physical hull/chairs/custody/cannon as above. Shared
-  automatic component service is already authorized while landed, intact and not
-  actively landing; preserve that policy and0.62 integrity/s repair rate.
-- **Proof / commands:** pinned `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`
-  `--headless --audio-driver Dummy --path <owned-worktree> --script
-  res://tests/<suite>.gd`, fresh isolated XDG profiles. Seven suites: the three
-  owned tests above plus unchanged `ship_component_damage_test.gd` and
-  `ship_component_damage_integration_test.gd` and the two cabin regressions above. Before long gates, check-only the
-  changed scripts. Final clean commit/source/cache guards, exact existing success
-  marker once, exit0 and zero raw diagnostics. Main uses actual UI Quit and durable
-  clean markers. Records: `/srv/mudds-work/titan-service-20261106/`.
-- **Budget / stop:** readiness02:24:30UTC2026-11-06;75min all-in hard deadline
-  03:39:30UTC, retaining mapping time. Main300s, standalone100s, parity300s,
-  unit100s, shared integration300s; startup120s each, existing export limits.
-  One demonstrated substantive production repair; compiler/assertion fixes are
-  routine inside unchanged budget. Stop dependent work at first unexpected
-  failure, retain operands/raw output and classify cause. Existing suite_process
-  watchdog; no desktop/audio/hosted CI. Reap owned inputs/processes on exit.
-- **Observed production repair (allowance 1/1):** packaged c032 Main refuses
-  airborne helm return at actual carried local y0.799997 against exact floor0.8,
-  with valid owned/current/available area and68 containment recalls. Source run
-  at y0.800001 passed. Preserve nominal bounds; accommodate only floor rounding
-  at most0.0001m, keep walls/ceiling strict and reject0.001m below. Boarding and
-  containment/report must share the current matching frame predicate. Add an
-  existing-test rotated/translated boundary regression and rerun full source/
-  package gates. Deadline and all prior costs remain unchanged. A second
-  substantive unresolved failure parks this delivery.
-- **Close:** NOT_RUN. All seven final suites and actual packaged full Main must
-  pass, then paired clean-source exports, three strict startups and existing nine
-  package predicates; EXE/ZIP/notes and paired Linux artifacts in builds/. Merge/
-  push, verified archive and exact-tip branch/worktree cleanup are included.
-  Hardware, rendered readability and full release gates are not qualified here.
+Source **9b5491ef4**, merged/pushed via **babe104ab**, installs Titan's existing shared
+localized damage/recovery presentation and a Titan-local adapter over the same
+five-component ledger. Anchors now sit on its actual nose, both side engine
+boxes, core roof and aft header, retaining inherited radii. Nose performance
+caps engine mobility through min(engine,nose) using existing1/.62/0 stages;
+side weapon sections and core targeting retain their existing consumers. No
+shared/sibling damage or handling tuning changes, new service role or cargo heal.
+The single production repair handles measured floor roundoff at local0.799997
+against nominal0.8: Titan accepts at most0.0001m below its floor, keeps walls/
+ceiling strict and rejects0.001m below. Player containment/reporting reuse only
+the live registered exact matching coordinator predicate; bounds/reach/generation
+ownership remain unchanged. The failed c032 packaged candidate is retained.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Physical attribution and cues | Actual Titan collision rays strike all five named surfaces | Exactly one correctly positioned five-component ledger and shared presentation; real ray hit maps to intended component and localized cue; unchanged12x18x5 bounds and inherited ledger/radii | NOT_RUN |
-| Actual component consequences | Healthy and damaged actual Titan controller/fire/aim receive matched inputs | Nose and aft damage reduce real thrust/handling; each side engine's legacy weapon component reduces actual fire cadence or fails fire; core damage reduces actual aim range/convergence; existing1/.62/0 stages, no sibling tuning | NOT_RUN |
-| No flight or seat healing | In ordinary Main after existing cannon case, real incoming rays impair a component; coast to normal automatic OFFLINE, physical pilot E leave/reboard with same Player | No in-flight component/hull restoration across neutral ticks or actual seat transition; one current helm/body; cargo unchanged; no shortened idle/seat timers | NOT_RUN |
-| Actual home service and reuse | Normal own-home L landing,90 neutral OFFLINE ticks, physical exit/return and ordinary reboard | Components regain nominal modifiers/cues via existing service ticks inside inherited4s maximum repair window; hull damage remains unchanged by seat/service; cargo4/0 at existing return endpoint; same Player and usable helm; normal UI Quit saves clean markers | NOT_RUN |
-| Preserved fleet and shipped result | All five suites, paired exports/startups/audit, packaged complete Main replay | Original cannon/cargo/chairs/flight/landing assertions retained before introduced damage; ten-craft component repair parity and original sibling checks pass; artifact source matches committed candidate; accepted source pushed and owned cleanup complete | NOT_RUN |
+All seven selected existing suites pass with guarded final source/cache. Physical
+rays identify all five surfaces, localized feedback tracks actual ledger damage,
+and matched real controller/fire/aim inputs prove impairment and recovery.
+Ten-craft berth repair/regeneration parity and unchanged shared model/integration
+checks pass. In ordinary Main, the complete original cargo/chairs/start/cannon
+journey precedes genuine incoming opponent resolver damage. Real automatic
+OFFLINE and physical pilot leave/reboard preserve the same Player and damaged
+hull/components. Own normal L landing and existing intact landed service restore
+nominal components within the unchanged4s window; exact hull damage remains.
+Physical cargo return/exit/reboard proves usable helm without seat healing, and
+actual UI Quit persists clean recovery/session markers and locker4/Titan0.
+
+Paired checkpoint **9b5491e** passes all three strict startups and all nine
+existing package predicates. All1,545 Windows/Linux payload entries
+match; only the source-owned Titan/Player runtime changes, with unrelated typed-node
+metadata differences separately inspected. The complete Main test passes against
+actual packaged Windows content under pinned Linux Godot, blank directory and
+source isolation guard. This proves packaged content under Linux. It does not
+qualify native Windows/GPU/device/audio/rendered readability/human/full release.
+The prior Jovian engineer admission failure remains unchanged and unqualified.
+
+Main remains10/17. Broader destruction/recall/lifecycle is next; remote crew,
+complete role/handling and full craft qualification stay OPEN. Titan remains an
+approved modern interpretation, not an authenticated historical reconstruction.
+Frozen card, raw results/failed attempts and source bundle are in verified
+`/srv/mudds-work/titan-service-20261106/records.tar.gz`; adjacent closeout records
+actual publication/cleanup and original02:24:30→03:39:30UTC all-in budget.
 
 ### Titan pilot cannon — child 9a DONE
 
@@ -130,8 +101,8 @@ isolation guard. This is packaged-content proof under Linux. Native Windows,
 GPU/device/audio/readability/human and full release gates remain open/NOT_RUN.
 The prior Jovian engineer admission failure is unchanged and unqualified here.
 
-Full child9 remains OPEN: **9b five-component impairment and authorized service**
-is next, followed by broader lifecycle and remote crew. Main stays10/17; this is
+Child9b component/service is now delivered above. Complete role/handling and
+full craft qualification remain OPEN, followed by broader lifecycle and remote crew. Main stays10/17; this is
 an approved modern interpretation, not an authenticated historical reconstruction.
 Frozen card, raw results, source bundle and failure records are preserved in
 `/srv/mudds-work/titan-cannon-20261106/records.tar.gz`; adjacent closeout records
