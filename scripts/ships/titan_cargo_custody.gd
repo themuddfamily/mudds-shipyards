@@ -3,7 +3,7 @@ extends Node
 
 ## Exact four-parcel composition. Quantities belong exclusively to the shared
 ## cargo authority; this adapter owns only admission and the durable pair slot.
-signal custody_committed(context: Dictionary, generation: int)
+signal custody_committed(context: Variant, generation: int)
 const ITEM := &"titan_repair_kit_parcel"
 const SLOT := "titan_parcel_custody"
 const MARKER := "titan_parcels_initialized"
@@ -40,7 +40,7 @@ func initialize(owner: CargoTransferAuthority, persistence: UserDataStore, craft
 		return _refuse(StringName(loaded.get("reason", &"custody_unavailable")))
 	# Cold replacement returns existing committed total, never adds authored
 	# stock to a live manifest. New authority handles retire with the old Main.
-	var committed := _commit_pair(4, 0)
+	var committed := _commit_pair(4, 0, true)
 	if not bool(committed.get("accepted", false)):
 		return committed
 	var item := CargoItemDefinition.new()
@@ -62,7 +62,7 @@ func initialize(owner: CargoTransferAuthority, persistence: UserDataStore, craft
 	_endpoint_generation = store.get_generation()
 	_available = true
 	status = "Parcels ready"
-	custody_committed.emit(SAFE_CONTEXT.duplicate(true), store.get_generation())
+	custody_committed.emit(store.get_snapshot().get(SAFE_SLOT), store.get_generation())
 	return {"accepted": true, "reason": &"ready"}
 
 func is_available() -> bool:
@@ -112,7 +112,7 @@ func request_transfer(actor: Node, panel: Node3D, loading: bool, quantity: Varia
 		if result.get("reason") == &"precommit_custody_unavailable":
 			return _refuse(&"custody_unavailable")
 		return _reject(StringName(result.get("reason", &"transfer_refused")))
-	custody_committed.emit(SAFE_CONTEXT.duplicate(true), store.get_generation())
+	custody_committed.emit(store.get_snapshot().get(SAFE_SLOT), store.get_generation())
 	status = "Saved: locker %d / Titan %d" % [authority.get_quantity(locker_handle, ITEM), authority.get_quantity(ship_handle, ITEM)]
 	return result
 
@@ -143,11 +143,16 @@ func _read_pair(first_use: bool) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_committed_custody"}
 	return {"accepted": true, "pair": {"locker": int(pair.locker), "titan": int(pair.titan)}}
 
-func _commit_pair(locker_quantity: int, titan_quantity: int) -> Dictionary:
+func _commit_pair(locker_quantity: int, titan_quantity: int, initializing: bool = false) -> Dictionary:
 	var payload := store.get_snapshot()
 	payload[MARKER] = true
 	payload[SLOT] = {"locker": locker_quantity, "titan": titan_quantity}
-	payload[SAFE_SLOT] = SAFE_CONTEXT.duplicate(true)
+	# Cold parcel projection owns Titan recovery only. An unrelated saved
+	# recovery preference (including malformed data) belongs to its consumer.
+	var prior_context: Variant = payload.get(SAFE_SLOT)
+	var saved_titan := prior_context is Dictionary and str(prior_context.get("craft_id", "")) == "titan_provisional"
+	if not initializing or not payload.has(SAFE_SLOT) or saved_titan:
+		payload[SAFE_SLOT] = SAFE_CONTEXT.duplicate(true)
 	var generation := store.get_generation()
 	var result := store.commit(payload, generation, "titan-parcels-%d" % (generation + 1))
 	if bool(result.get("accepted", false)):

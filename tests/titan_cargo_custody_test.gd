@@ -24,7 +24,9 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	if "--cold-main" in OS.get_cmdline_user_args():
+	if "--other-recovery" in OS.get_cmdline_user_args():
+		await _other_recovery_main()
+	elif "--cold-main" in OS.get_cmdline_user_args():
 		await _cold_main()
 	else:
 		await _semantic_store()
@@ -63,7 +65,10 @@ func _fixture(payload: Dictionary = {}) -> Dictionary:
 		"custody": custody, "store": store, "filesystem": filesystem, "path": path, "initialized": initialized, "initial_bytes": initial_bytes}
 
 func _semantic_store() -> void:
-	var f := _fixture({"unrelated": {"jovian": "preserved", "settings": 7}})
+	var other := {"location": "mudds_home_berth", "mode": "pilot", "craft_id": "jovian_provisional", "berth_id": "jovian_freight_berth"}
+	var f := _fixture({"unrelated": {"jovian": "preserved", "settings": 7}, TitanCargoCustody.SAFE_SLOT: other})
+	_check(f.store.get_snapshot()[TitanCargoCustody.SAFE_SLOT] == other,
+		"Titan first initialization preserves unrelated recovery slot verbatim")
 	var custody := f.custody as TitanCargoCustody
 	_check(f.initialized.accepted and custody.snapshot().locker == 4 and custody.snapshot().titan == 0,
 		"actual store first-use seeds exactly four parcels")
@@ -205,3 +210,24 @@ func _check(condition: bool, message: String) -> void:
 
 func _pair_is(value: Variant, locker: int, titan: int) -> bool:
 	return value is Dictionary and int(value.get("locker", -1)) == locker and int(value.get("titan", -1)) == titan
+
+
+func _other_recovery_main() -> void:
+	var path := "user://titan_other_recovery_main.json"
+	var other := {"location": "mudds_home_berth", "mode": "pilot", "craft_id": "jovian_provisional", "berth_id": "jovian_freight_berth"}
+	var store := Store.new(path)
+	store.load_read_only()
+	_check(store.commit({TitanCargoCustody.SAFE_SLOT: other}, store.get_generation(), "other-recovery-seed").accepted,
+		"actual store contains unrelated saved ship recovery before Titan initialization")
+	var game := MAIN.instantiate() as GameFlow
+	_check(game.configure_runtime_settings_persistence(store), "actual Main binds other-recovery store")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	_check(store.get_snapshot()[TitanCargoCustody.SAFE_SLOT] == other
+		and game._solo_safe_recovery_context == other
+		and game.titan_cargo.snapshot().locker == 4 and game.titan_cargo.snapshot().titan == 0,
+		"actual Main Titan cold initialization preserves durable and live unrelated recovery context")
+	game.release_mouse_capture()
+	game.queue_free()
+	for frame in 4: await process_frame

@@ -27946,8 +27946,9 @@ func _initialize_titan_cargo() -> void:
 	locker.add_child(_titan_locker_panel)
 	titan_cargo.initialize(cargo_transfer_authority, _runtime_settings_user_data_store, craft, locker, _authorize_titan_cargo_actor)
 
-func _on_titan_cargo_committed(context: Dictionary, generation: int) -> void:
-	_solo_safe_recovery_context = context.duplicate(true)
+func _on_titan_cargo_committed(context: Variant, generation: int) -> void:
+	if context is Dictionary:
+		_solo_safe_recovery_context = context.duplicate(true)
 	_solo_safe_recovery_observed_store_generation = generation
 	_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, generation)
 	_sync_production_runtime_settings_state()
