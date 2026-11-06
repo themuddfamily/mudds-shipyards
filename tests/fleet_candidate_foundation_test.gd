@@ -120,9 +120,9 @@ func _run() -> void:
 	await _frames(60)
 	if not _check(_ship.global_basis.is_finite() and _ship.global_basis.get_rotation_quaternion().angle_to(initial.basis.get_rotation_quaternion())>.1,"actual yaw/pitch/roll command changes finite attitude"): return
 	for mesh: MeshInstance3D in _solid_poses:
-		if not _check((_ship.global_transform.affine_inverse()*mesh.global_transform).is_equal_approx(_solid_poses[mesh]),"actual yaw/roll keeps rendered solid matched to physical root "+str(mesh.name)): return
-	if not _check(_ship.to_local(_ship.get_pilot_seat_anchor().global_position).is_equal_approx(data.pilot)
-		and _ship.to_local((_ship.get("_cockpit_camera") as Camera3D).global_position).is_equal_approx(data.eye),"actual yaw/roll retains physical helm and cockpit eye instead of cosmetic-bank drift"): return
+		if not _check(_root_pose(mesh).is_equal_approx(_solid_poses[mesh]),"actual yaw/roll keeps rendered solid matched to physical root "+str(mesh.name)): return
+	if not _check(_root_pose(_ship.get_pilot_seat_anchor()).origin.is_equal_approx(data.pilot)
+		and _root_pose(_ship.get("_cockpit_camera") as Camera3D).origin.is_equal_approx(data.eye),"actual yaw/roll retains physical helm and cockpit eye instead of cosmetic-bank drift"): return
 	command.throttle = 0.0
 	command.yaw = 0.0
 	command.pitch = 0.0
@@ -166,7 +166,7 @@ func _geometry(data: Dictionary) -> bool:
 		var local = collision.transform
 		for p: Vector3 in (collision.shape as ConvexPolygonShape3D).points: points.append(local*p)
 		var faces = PackedVector3Array()
-		var mesh_pose = _ship.global_transform.affine_inverse()*mesh.global_transform
+		var mesh_pose = _root_pose(mesh)
 		_solid_poses[mesh] = mesh_pose
 		for p: Vector3 in mesh.mesh.get_faces(): faces.append(mesh_pose*p)
 		var center = Vector3.ZERO
@@ -235,9 +235,9 @@ func _geometry(data: Dictionary) -> bool:
 	eye.radius = .1
 	query.shape = eye
 	query.transform = camera.global_transform
-	if not _check(_ship.to_local(_ship.get_pilot_seat_anchor().global_position).is_equal_approx(data.pilot)
+	if not _check(_root_pose(_ship.get_pilot_seat_anchor()).origin.is_equal_approx(data.pilot)
 		and _ship.get_pilot_seat_anchor().get_meta("station_id")==&"pilot_station"
-		and _ship.to_local(camera.global_position).is_equal_approx(data.eye)
+		and _root_pose(camera).origin.is_equal_approx(data.eye)
 		and (_ship.get_node("DockingReceiver") as Marker3D).transform.is_equal_approx(Transform3D.IDENTITY)
 		and _ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(),"exact single pilot/receiver and clear actual cockpit eye"): return false
 	var ray = PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*.7,PhysicsLayers.SHIP)
@@ -295,3 +295,16 @@ func _check(value: bool,message: String) -> bool:
 		print("FAIL: ",_name,": ",message)
 		quit(1)
 	return false
+
+func _root_pose(value: Node3D) -> Transform3D:
+	# Accumulate the physical hierarchy directly. A world inverse round trip at
+	# 180m introduces float quantization into an otherwise exact local pose.
+	var pose = Transform3D.IDENTITY
+	var current = value
+	while current != _ship:
+		if current == null:
+			_check(false,"physical fixture must remain under its actual ship")
+			return Transform3D.IDENTITY
+		pose = current.transform * pose
+		current = current.get_parent() as Node3D
+	return pose
