@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Actual standalone production ship/controller. No Main, test dependencies,
-## pose/velocity/time mutation after setup, or physical-access qualification.
+## pose/velocity/time mutation after setup. Access is exercised separately.
 const PARADOX := preload("res://scenes/ships/paradox_cruiser.tscn")
 const DEFINITION := preload("res://assets/ships/paradox_provisional.tres")
 const Registry := preload("res://scripts/ships/fleet_role_registry.gd")
@@ -82,7 +82,7 @@ func _run() -> void:
 			return
 	if not _check(ship.home_berth_id == &"" and not ship.has_node("ShipBoardingArea")
 		and not ship.has_method("get_cargo_manifest") and not ship.has_method("get_passenger_station_role_contract")
-		and not ship.call("_uses_inherited_primary_weapon"), "standalone scope has no Main/access/cargo/passenger/combat grants"):
+		and not ship.call("_uses_inherited_primary_weapon"), "standalone scope has no Main/cargo/passenger/combat grants"):
 		return
 	if not _test_geometry(ship):
 		return
@@ -175,11 +175,12 @@ func _test_geometry(ship: HeroShip) -> bool:
 		var faces := mesh.mesh.get_faces()
 		var center := Vector3.ZERO
 		var polygon := PackedVector2Array()
-		var section_bound := AABB(points[0], Vector3.ZERO)
+		var section_bound := AABB(collision.transform * points[0], Vector3.ZERO)
 		for point in points:
 			center += point / points.size()
-			section_bound = section_bound.expand(point)
-			polygon.append(Vector2(point.x, point.z))
+			section_bound = section_bound.expand(collision.transform * point)
+			var posed := collision.transform * point
+			polygon.append(Vector2(posed.x, posed.z))
 		shapes.append(collision)
 		polygons.append(Geometry2D.convex_hull(polygon))
 		section_bounds.append(section_bound)
@@ -197,7 +198,7 @@ func _test_geometry(ship: HeroShip) -> bool:
 		for point in faces:
 			if not _check(_has_point(points, point), "mesh vertex on actual collision " + collision.name):
 				return false
-		var bounds: AABB = collision.transform * shape.get_debug_mesh().get_aabb()
+		var bounds: AABB = section_bound
 		envelope = bounds if first else envelope.merge(bounds)
 		first = false
 		sections += 1
