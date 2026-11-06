@@ -114,6 +114,8 @@ func interact(_actor: Node = null) -> bool:
 
 
 static func _contract_for_ship(ship: HeroShip, anchor: Marker3D = null) -> Dictionary:
+	if ship.has_method(&"get_crew_seat_role_contract"):
+		return ship.call(&"get_crew_seat_role_contract", anchor)
 	if ship is CinderCargoHauler and anchor == ship.get_navigator_station_anchor():
 		return ship.get_navigator_station_role_contract()
 	for method: StringName in [&"get_passenger_station_role_contract", &"get_gunner_station_role_contract", &"get_engineer_station_role_contract"]:
