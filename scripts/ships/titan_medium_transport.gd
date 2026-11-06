@@ -18,6 +18,8 @@ const PASSENGER_IDS := [&"passenger_port_01", &"passenger_starboard_01"]
 const CREW_FRAME_ID := &"titan_walkable_interior"
 var _passenger_anchors: Array[Marker3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
+var cargo_custody_guard: Callable
+var cargo_launch_guard: Callable
 
 const ACCESS_MOTION_SECONDS := 1.2
 var _access_fraction := 0.0
@@ -32,7 +34,7 @@ var _interior_frame: MovingInteriorFrame
 ## reaches automatic engine demand, berth departure lift, or flight integration.
 func _sample_ship_command() -> ShipCommand:
 	var command := super._sample_ship_command()
-	if _canopy_open or _access_fraction > 0.0001:
+	if _canopy_open or _access_fraction > 0.0001 or (cargo_custody_guard.is_valid() and not cargo_custody_guard.call()):
 		return _neutralized_command_snapshot(command)
 	return command
 
@@ -46,7 +48,7 @@ func _wake_engine_for_automatic_demand(_release_dock_latch: bool = true) -> void
 
 
 func request_engine_start() -> void:
-	if not _canopy_open and _access_fraction <= 0.0001:
+	if not _canopy_open and _access_fraction <= 0.0001 and (not cargo_custody_guard.is_valid() or cargo_custody_guard.call()) and (not cargo_launch_guard.is_valid() or cargo_launch_guard.call()):
 		super.request_engine_start()
 
 

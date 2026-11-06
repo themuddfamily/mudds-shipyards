@@ -16,6 +16,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_durable_precommit()
 	await _test_authority_transfer_currentness()
 	await _test_registration_and_atomic_transfer()
 	await _test_conserved_custody_reassignment()
@@ -1004,3 +1005,47 @@ func _finish() -> void:
 	else:
 		print("CARGO_TRANSFER_AUTHORITY_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+func _test_durable_precommit() -> void:
+	var authority := CargoTransferAuthority.new()
+	root.add_child(authority)
+	authority.register_item(_item(&"durable_parcel", "Durable parcel", 1))
+	var owners: Array[Node] = [Node.new(), Node.new()]
+	for owner in owners: root.add_child(owner)
+	var source: Dictionary = authority.register_entity(owners[0], &"durable_source", &"durable_source_hold", 4, {&"durable_parcel": 4}).handle
+	var destination: Dictionary = authority.register_entity(owners[1], &"durable_destination", &"durable_destination_hold", 4).handle
+	var receipts: Array = []
+	authority.transfer_committed.connect(func(receipt: Dictionary): receipts.append(receipt))
+	var refused := authority.transfer(&"refused_durable", source, destination, &"durable_parcel", 2,
+		func(proposal: Dictionary) -> Dictionary:
+			_check(authority.get_quantity(source, &"durable_parcel") == 4 and proposal.source_quantity_after == 2,
+				"precommit reads old live pair and detached proposed post quantities")
+			_check(not authority.retire_entity(source).accepted and not authority.transfer(&"nested", source, destination, &"durable_parcel", 1).accepted,
+				"precommit fences lifecycle and transfer reentry")
+			proposal.source_handle.clear()
+			return {"accepted": false, "reason": &"save_refused"})
+	_check(not refused.accepted and refused.reason == &"save_refused" and receipts.is_empty()
+		and authority.get_quantity(source, &"durable_parcel") == 4 and authority.get_quantity(destination, &"durable_parcel") == 0,
+		"refused persistence publishes neither quantity nor success receipt")
+	var invalid_decision := authority.transfer(&"invalid_decision", source, destination, &"durable_parcel", 1,
+		func(_proposal: Dictionary) -> Dictionary: return {"accepted": "yes"})
+	_check(not invalid_decision.accepted and receipts.is_empty() and authority.get_quantity(source, &"durable_parcel") == 4,
+		"non-boolean precommit acceptance cannot publish inventory")
+	var accepted := authority.transfer(&"accepted_durable", source, destination, &"durable_parcel", 2,
+		func(_proposal: Dictionary) -> Dictionary: return {"accepted": true})
+	_check(accepted.accepted and receipts.size() == 1 and authority.get_quantity(source, &"durable_parcel") == 2
+		and authority.get_quantity(destination, &"durable_parcel") == 2, "accepted precommit publishes exactly one complete conserved pair")
+	var invalidated := authority.transfer(&"invalidated_durable", source, destination, &"durable_parcel", 1,
+		func(_proposal: Dictionary) -> Dictionary:
+			root.remove_child(owners[1])
+			return {"accepted": true})
+	_check(not invalidated.accepted and invalidated.reason == &"precommit_custody_unavailable" and receipts.size() == 1
+		and authority.get_manifest_snapshot(source).is_empty() and authority.get_manifest_snapshot(destination).is_empty(),
+		"durable approval followed by owner exit retires both old manifests without a success receipt")
+	root.add_child(owners[1])
+	_check(not authority.reattach_entity_pair(owners[0], source, owners[1], destination).accepted,
+		"post-save invalidated pre-state cannot be reattached or spent")
+	for owner in owners: owner.queue_free()
+	authority.queue_free()
+	await process_frame

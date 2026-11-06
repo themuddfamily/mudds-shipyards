@@ -29,6 +29,7 @@ var _manifest_generation_cursors: Dictionary = {}
 var _committed_transfer_ids: Dictionary = {}
 var _next_receipt_id := 1
 var _emitting_commit_signal := false
+var _running_transfer_precommit := false
 ## A fixed-pair reattach commits both records before notifying observers. Owner
 ## tree exits triggered synchronously by those observers are retained until both
 ## post-state signals finish, then applied before the pair result is returned.
@@ -37,7 +38,8 @@ var _deferred_pair_owner_exits: Array[int] = []
 
 
 func _process(_delta: float) -> void:
-	_prune_disposed_entities()
+	if not _mutation_is_guarded():
+		_prune_disposed_entities()
 
 
 func register_item(definition: CargoItemDefinition) -> Dictionary:
@@ -334,7 +336,8 @@ func transfer(
 	source_handle: Dictionary,
 	destination_handle: Dictionary,
 	item_id: StringName,
-	quantity: int
+	quantity: int,
+	precommit: Callable = Callable()
 	) -> Dictionary:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return _result(false, &"authority_unavailable")
@@ -376,7 +379,40 @@ func transfer(
 	if not add_reason.is_empty():
 		return _result(false, add_reason)
 
-	# Every possible rejection is above this line. Both manifest writes and the
+	# A synchronous durable owner may approve this detached proposal before live
+	# publication. Public mutations are fenced while readable snapshots remain
+	# available. No persistence behavior is installed for ordinary callers.
+	if precommit.is_valid():
+		var proposal := {
+			"transfer_id": transfer_id, "item_id": item_id, "quantity": quantity,
+			"source_handle": _handle_for(source), "destination_handle": _handle_for(destination),
+			"source_quantity_after": source.get_quantity(item_id) - quantity,
+			"destination_quantity_after": destination.get_quantity(item_id) + quantity,
+		}
+		_running_transfer_precommit = true
+		var decision: Variant = precommit.call(proposal.duplicate(true))
+		_running_transfer_precommit = false
+		var source_current := _validate_handle(source_handle, true)
+		var destination_current := _validate_handle(destination_handle, true)
+		if not is_inside_tree() or is_queued_for_deletion() \
+				or not bool(source_current.get("accepted", false)) \
+				or not bool(destination_current.get("accepted", false)) \
+				or source_current.get("manifest") != source or destination_current.get("manifest") != destination:
+			# An external lifecycle callback may have invalidated custody after a
+			# durable commit. Retire every surviving exact member; cold recovery settles
+			# the committed pair, and neither old side can be spent independently.
+			for manifest: CargoManifest in [source, destination]:
+				if _records_by_manifest_id.has(manifest.manifest_id):
+					var record := _records_by_manifest_id[manifest.manifest_id] as Dictionary
+					if record.get("manifest") == manifest:
+						_remove_record(manifest.manifest_id)
+			return _result(false, &"precommit_custody_unavailable")
+		if not decision is Dictionary or not (decision as Dictionary).get("accepted") is bool:
+			return _result(false, &"invalid_precommit_result")
+		if not bool(decision.accepted):
+			return _result(false, StringName(decision.get("reason", &"precommit_refused")))
+
+	# Every possible ordinary rejection is above this line. Both manifest writes and the
 	# duplicate-transfer ledger commit before observers are notified.
 	if not source.commit_remove(item_id, quantity):
 		return _result(false, &"commit_invariant_failed")
@@ -1003,7 +1039,7 @@ func _result(accepted: bool, reason: StringName, fields: Dictionary = {}) -> Dic
 
 
 func _mutation_is_guarded() -> bool:
-	return _emitting_commit_signal or _emitting_pair_reattach_signals
+	return _emitting_commit_signal or _emitting_pair_reattach_signals or _running_transfer_precommit
 
 
 func _emit_manifest_signal(target_signal: Signal, handle: Dictionary) -> void:
