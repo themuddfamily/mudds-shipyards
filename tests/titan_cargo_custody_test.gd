@@ -179,6 +179,11 @@ func _cold_main() -> void:
 			var stale := game.titan_cargo.request_transfer(game.player, game._titan_locker_panel, true, 1, &"old_endpoint", previous_endpoint)
 			_check(not stale.accepted and stale.reason == &"stale_or_wrong_endpoint" and game.titan_cargo.snapshot().locker == frozen_before.locker,
 				"previous Main endpoint cannot mutate replacement custody")
+			var reused_instance_endpoint := previous_endpoint.duplicate(true)
+			reused_instance_endpoint["titan_custody_instance"] = int(state.locker_handle.titan_custody_instance)
+			var reused_instance := game.titan_cargo.request_transfer(game.player, game._titan_locker_panel, true, 1, &"old_generation", reused_instance_endpoint)
+			_check(not reused_instance.accepted and reused_instance.reason == &"stale_or_wrong_endpoint",
+				"saved-lineage startup generation rejects old scope even if a process reuses the same object ID")
 		previous_authority = weakref(game.cargo_transfer_authority)
 		previous_service = weakref(game.titan_cargo)
 		previous_endpoint = state.locker_handle.duplicate(true)

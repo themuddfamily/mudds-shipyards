@@ -18,6 +18,7 @@ var ship_handle: Dictionary = {}
 var authorize_actor: Callable
 var _available := false
 var _initialization_attempted := false
+var _endpoint_generation := 0
 var _request_serial := 0
 var _last_pair: Dictionary = {}
 var _committing := false
@@ -58,6 +59,7 @@ func initialize(owner: CargoTransferAuthority, persistence: UserDataStore, craft
 		authority.retire_entity(locker_handle)
 		return _refuse(&"ship_registration_failed")
 	ship_handle = second.handle
+	_endpoint_generation = store.get_generation()
 	_available = true
 	status = "Parcels ready"
 	custody_committed.emit(SAFE_CONTEXT.duplicate(true), store.get_generation())
@@ -197,4 +199,5 @@ func can_launch() -> bool:
 func _endpoint_handle(handle: Dictionary) -> Dictionary:
 	var endpoint := handle.duplicate(true)
 	endpoint["titan_custody_instance"] = get_instance_id()
+	endpoint["titan_custody_generation"] = _endpoint_generation
 	return endpoint
