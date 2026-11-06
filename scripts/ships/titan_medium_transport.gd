@@ -2,7 +2,7 @@ extends HeroShip
 
 ## Owner-approved original modern shell. Historical evidence supports name/role
 ## only. Physical Main pilot/access/cabin and two ordinary passenger chairs;
-## cargo, combat and network composition remain separate work.
+## cargo and combat compose through Main; network qualification remains open.
 ## All editable points are metres in ship-local coordinates, -Z forward.
 const PILOT_ORIGIN := Vector3(0.0, 0.75, -5.8)
 const PILOT_EYE := Vector3(0.0, 2.51, -6.05)
@@ -131,15 +131,6 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
 
-func _uses_inherited_primary_weapon() -> bool:
-	return false
-
-
-func _fire_weapon() -> void:
-	# Combat is a later, separately accepted production integration child.
-	pass
-
-
 func _build_ship() -> void:
 	if _built:
 		return
@@ -178,7 +169,22 @@ func _build_ship() -> void:
 			var next := (edge + 1) % 8
 			_prism("ShellPanel%d" % edge, [OUTLINE[edge], OUTLINE[next], INNER[next], INNER[edge]], 0.8, 4.5, skin)
 	var nose := [OUTLINE[0], OUTLINE[1], INNER[1], INNER[0]]
-	_prism("NoseSill", nose, 0.8, 1.7, structure)
+	# Leave the centre bore ahead of the skin: the approved muzzle is z=-8.9,
+	# with centre sill ending at -8.8. Side cheeks retain the full hull bounds.
+	_prism("PortNoseSill", [OUTLINE[0], Vector2(-0.45, -9), Vector2(-0.45, -7.4), INNER[0]], 0.8, 1.7, structure)
+	_prism("StarboardNoseSill", [Vector2(0.45, -9), OUTLINE[1], INNER[1], Vector2(0.45, -7.4)], 0.8, 1.7, structure)
+	_prism("CentreNoseSill", [Vector2(-0.45, -8.8), Vector2(0.45, -8.8), Vector2(0.45, -7.4), Vector2(-0.45, -7.4)], 0.8, 1.7, structure)
+	var cannon := MeshInstance3D.new()
+	cannon.name = "CentreDefensiveCannon"
+	var barrel := CylinderMesh.new()
+	barrel.top_radius = 0.13
+	barrel.bottom_radius = 0.18
+	barrel.height = 0.5
+	cannon.mesh = barrel
+	cannon.rotation.x = PI * 0.5
+	cannon.position = Vector3(0, 1.1, -8.65)
+	cannon.material_override = structure
+	_visual_root.add_child(cannon)
 	_prism("ForwardGlazing", nose, 1.7, 3.6, glass)
 	_prism("NoseCrown", nose, 3.6, 4.5, skin)
 	_prism("ClosedSternBlank", [Vector2(-1.2, 7.8), Vector2(1.2, 7.8), Vector2(1.2, 8), Vector2(-1.2, 8)], 0.8, 3.3, stripe)

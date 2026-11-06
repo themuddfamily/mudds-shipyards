@@ -41,9 +41,9 @@ func _run() -> void:
 	var authority := game.get_combat_authority() as LiveCombatAuthority
 	_check(
 		bool(roster.get("valid", false))
-		and int(roster.get("expected_player_source_count", 0)) == 9
-		and int(roster.get("expected_source_count", 0)) == 13
-		and int(roster.get("actual_source_count", 0)) == 13,
+		and int(roster.get("expected_player_source_count", 0)) == 10
+		and int(roster.get("expected_source_count", 0)) == 14
+		and int(roster.get("actual_source_count", 0)) == 14,
 		"production combat settles with Cinder included in the exact nine-player roster",
 	)
 	_check(
@@ -127,9 +127,9 @@ func _await_settled_roster(game: GameFlow) -> Dictionary:
 	for _attempt in 120:
 		audit = game.get_live_combat_source_roster_audit()
 		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 9 \
-				and int(audit.get("expected_source_count", 0)) == 13 \
-				and int(audit.get("actual_source_count", 0)) == 13:
+				and int(audit.get("expected_player_source_count", 0)) == 10 \
+				and int(audit.get("expected_source_count", 0)) == 14 \
+				and int(audit.get("actual_source_count", 0)) == 14:
 			return audit
 		await process_frame
 	return audit

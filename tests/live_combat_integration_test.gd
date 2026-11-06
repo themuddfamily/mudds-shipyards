@@ -33,6 +33,7 @@ func _run() -> void:
 	var reserve := game.get_node("ArrowReconShip") as HeroShip
 	var jovian := game.get_node("JovianLightFreighter") as HeroShip
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
+	var titan := game.get_node("TitanMediumTransport") as HeroShip
 	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
 	var bulwark := game.get_node("BulwarkHeavyGunship") as HeroShip
 	var cinder_bomber: HeroShip
@@ -59,12 +60,13 @@ func _run() -> void:
 	await _test_staged_opponent_damageability(game, hero, authority, ^"StandoffPicket", "Picket")
 	_check(
 		bool(roster_audit.get("valid", false))
-		and int(roster_audit.get("expected_player_source_count", 0)) == 9
-		and int(roster_audit.get("expected_source_count", 0)) == 13
-		and int(roster_audit.get("actual_source_count", 0)) == 13
-		and resolver.get_registered_source_count() == 13,
-		"settled production audit owns nine player, one opponent, and three station sources"
+		and int(roster_audit.get("expected_player_source_count", 0)) == 10
+		and int(roster_audit.get("expected_source_count", 0)) == 14
+		and int(roster_audit.get("actual_source_count", 0)) == 14
+		and resolver.get_registered_source_count() == 14,
+		"settled production audit owns ten player, one opponent, and three station sources"
 	)
+	_check(authority.get_source_id(titan) == 1110, "Titan owns unique stable combat identity1110")
 	_check(authority.get_source_id(hero) == 1101, "Torrent keeps its explicit stable combat identity")
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
 	_check(authority.get_source_id(jovian) == 1103, "Jovian owns an explicit stable combat identity")
@@ -91,13 +93,17 @@ func _run() -> void:
 		authority.get_source_id(cinder_bomber): true,
 		authority.get_source_id(bulwark): true,
 		authority.get_source_id(cinder_light): true,
+		authority.get_source_id(cinder_cargo): true,
+		authority.get_source_id(titan): true,
 		authority.get_source_id(opponent): true,
 	}
 	_check(
-		production_source_ids.size() == 9,
-		"all eight player craft and the defender retain nine distinct combat source identities"
+		production_source_ids.size() == 11,
+		"all ten player craft and the defender retain eleven distinct combat source identities"
 	)
 	var combat_specs: Array[Dictionary] = [
+		{"craft": titan, "weapon_id": GameFlow.JOVIAN_COMBAT_WEAPON_ID,
+		 "range": 650.0, "damage": 70.0, "origin_tolerance": 10.0, "name": "Titan"},
 		{
 			"craft": hero,
 			"weapon_id": GameFlow.TORRENT_COMBAT_WEAPON_ID,
@@ -191,7 +197,7 @@ func _run() -> void:
 	for index in combat_specs.size():
 		var spec := combat_specs[index]
 		var craft := spec.get("craft") as HeroShip
-		var foreign_weapon_id := combat_weapon_ids[(index + 1) % combat_weapon_ids.size()]
+		var foreign_weapon_id := GameFlow.TORRENT_COMBAT_WEAPON_ID if craft == titan else combat_weapon_ids[(index + 1) % combat_weapon_ids.size()]
 		var foreign_result := authority.submit_hitscan(
 			craft, foreign_weapon_id, craft.global_position, Vector3.UP
 		)
@@ -233,6 +239,9 @@ func _run() -> void:
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	for spec in combat_specs:
 		var craft := spec.get("craft") as HeroShip
+		# Titan input/clock/cadence is covered by its complete ordinary Main route.
+		if craft == titan:
+			continue
 		for fleet_craft in game.get_flyable_ships():
 			fleet_craft.set_piloted(fleet_craft == craft)
 		game.active_ship = craft
@@ -290,7 +299,7 @@ func _run() -> void:
 			undamageable.append(String(flyable.get_ship_id()))
 	_check(
 		game.get_flyable_ships().size() == 10 and undamageable.is_empty(),
-		"all nine flyable craft are valid targets, armed or not (missing: %s)"
+		"all ten flyable craft are valid targets, armed or not (missing: %s)"
 			% ", ".join(undamageable)
 	)
 	var targets := _get_live_range_targets(world)
@@ -730,6 +739,31 @@ func _run() -> void:
 			"whole-Main re-entry does not resurrect discarded transient art or audio"
 		)
 
+	# A retired actual Titan cannot keep using its former live registration.
+	# Run after whole-Main re-entry so no accepted route is shortened.
+	opponent.activate(Transform3D(Basis.IDENTITY, titan.global_position + Vector3.UP * 40))
+	var retired_health: float = opponent.get_health()
+	var retired_origin := (titan.get("_muzzle_left") as Marker3D).global_position
+	var retired_request := ShotRequestScript.new(titan, 1110, GameFlow.PLAYER_FACTION,
+		GameFlow.JOVIAN_COMBAT_WEAPON_ID, resolver.get_last_sequence(titan, 1110) + 1,
+		retired_origin, (opponent.global_position - retired_origin).normalized(), 650, 70)
+	var live_roster := resolver.get_registered_source_count()
+	var retained_sources: Dictionary = {}
+	for craft in game.get_flyable_ships():
+		if craft != titan:
+			retained_sources[craft] = authority.get_source_id(craft)
+	titan.queue_free()
+	var retired_result := resolver.resolve_hitscan(retired_request)
+	var retired_again := resolver.resolve_hitscan(retired_request)
+	var others_unchanged := true
+	for craft: HeroShip in retained_sources:
+		others_unchanged = others_unchanged and authority.get_source_id(craft) == retained_sources[craft]
+	_check(retired_result.get("status") == &"source_unavailable" and not bool(retired_result.get("accepted", true))
+		and not bool(retired_result.get("resolved", true)) and retired_again.get("status") == &"unregistered_source"
+		and resolver.get_registered_source_count() == live_roster - 1 and others_unchanged
+		and retired_health > 0 and is_equal_approx(opponent.get_health(), retired_health),
+		"queued actual Titan owner retires exactly its source and stale token cannot damage or displace other sources")
+
 	var queued_health: float = opponent.get_health()
 	var queued_sequence := authority.get_last_submitted_sequence(hero)
 	var queued_events := _resolved_events.size()
@@ -839,9 +873,9 @@ func _await_settled_roster(game: GameFlow) -> Dictionary:
 	for _attempt in 120:
 		audit = game.get_live_combat_source_roster_audit()
 		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 9 \
-				and int(audit.get("expected_source_count", 0)) == 13 \
-				and int(audit.get("actual_source_count", 0)) == 13:
+				and int(audit.get("expected_player_source_count", 0)) == 10 \
+				and int(audit.get("expected_source_count", 0)) == 14 \
+				and int(audit.get("actual_source_count", 0)) == 14:
 			return audit
 		await process_frame
 	return audit

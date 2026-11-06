@@ -58,9 +58,16 @@ func _run() -> void:
 		and ship.to_local(ship.get_pilot_seat_anchor().global_position).is_equal_approx(Vector3(0, 0.75, -5.8)), "exact root-local pilot feet anchor")
 	var eye := ship.get_node("TitanOriginalShell/PilotFixture/CockpitCamera") as Camera3D
 	_check(ship.to_local(eye.global_position).is_equal_approx(Vector3(0, 2.51, -6.05)), "exact root-local cockpit eye")
-	_check(ship.home_berth_id == &"" and not ship.call("_uses_inherited_primary_weapon")
+	_check(ship.home_berth_id == &"" and ship.call("_uses_inherited_primary_weapon")
 		and ship.has_node("MovingInteriorFrame") and not ship.has_node("ShipBoardingArea"),
-		"standalone access has a moving cabin frame, no berth/Main boarding or inherited combat composition")
+		"standalone access has a moving cabin frame, no berth/Main boarding and an inherited pilot cannon")
+	_check(ship.to_local((ship.get("_muzzle_left") as Marker3D).global_position).is_equal_approx(Vector3(0, 1.1, -8.9))
+		and (ship.get("_muzzle_left") as Marker3D).global_position.is_equal_approx((ship.get("_muzzle_right") as Marker3D).global_position),
+		"one co-located centre muzzle at approved coordinates")
+	var bore := PhysicsRayQueryParameters3D.create(Vector3(0, 1.1, -8.9), Vector3(0, 1.1, -10), PhysicsLayers.SHIP)
+	_check(ship.get_world_3d().direct_space_state.intersect_ray(bore).is_empty()
+		and is_equal_approx((ship.get_node("TitanOriginalShell/CentreNoseSill") as MeshInstance3D).get_aabb().position.z, -8.8),
+		"actual centre bore clears recessed matching nose skin and collision")
 	_test_shell(ship)
 	await _test_access(ship)
 	await _test_flight(ship)

@@ -385,6 +385,7 @@ const PLAYER_SOURCE_IDS := {
 	&"bulwark_heavy_gunship": 1107,
 	&"cinder_light_interceptor": 1108,
 	&"cinder_cargo_hauler": 1109,
+	&"titan_provisional": 1110,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -446,6 +447,8 @@ const ZENITH_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUDI
 const ZENITH_COMBAT_WEAPON_DEFINITION := preload(
 	"res://assets/weapons/zenith_combat_pulse.tres"
 )
+const TITAN_SHIP_ID: StringName = &"titan_provisional"
+const TITAN_COMBAT_ORIGIN_TOLERANCE_METERS := 10.0
 const JOVIAN_SHIP_ID: StringName = &"jovian_provisional"
 const JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS := 32.0
 const JOVIAN_COMBAT_PRESENTATION_ID: StringName = TORRENT_COMBAT_PRESENTATION_ID
@@ -18557,7 +18560,7 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 			return {}
 		profiles[ZENITH_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
-	if candidate.get_ship_id() == JOVIAN_SHIP_ID:
+	if candidate.get_ship_id() in [JOVIAN_SHIP_ID, TITAN_SHIP_ID]:
 		# Jovian has no legacy override after migration. Invalid modern weapon data
 		# must not borrow another craft's combat envelope.
 		var migrated_profile := _get_jovian_combat_weapon_profile(candidate)
@@ -18619,7 +18622,7 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 			return ARROW_COMBAT_WEAPON_ID
 		ZENITH_SHIP_ID:
 			return ZENITH_COMBAT_WEAPON_ID
-		JOVIAN_SHIP_ID:
+		JOVIAN_SHIP_ID, TITAN_SHIP_ID:
 			return JOVIAN_COMBAT_WEAPON_ID
 		HALYARD_SHIP_ID:
 			return HALYARD_COMBAT_WEAPON_ID
@@ -18677,7 +18680,7 @@ func _get_jovian_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 		candidate,
 		JOVIAN_COMBAT_WEAPON_DEFINITION,
 		JOVIAN_COMBAT_WEAPON_ID,
-		JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS,
+		TITAN_COMBAT_ORIGIN_TOLERANCE_METERS if candidate.get_ship_id() == TITAN_SHIP_ID else JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS,
 		JOVIAN_COMBAT_PRESENTATION_ID,
 		JOVIAN_COMBAT_FIRE_AUDIO_ID,
 		JOVIAN_COMBAT_IMPACT_AUDIO_ID,
