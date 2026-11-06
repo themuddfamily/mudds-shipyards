@@ -198,9 +198,9 @@ func _route_interaction() -> void:
 
 func _interact(open: bool, safety: bool) -> bool:
 	var before := _interactions
-	# Deliver the ordinary edge before Player's next physics callback. The
-	# completed-tick observer already monitors this tick and every prior tick.
-	await physics_frame
+	# Deliver the ordinary edge from the process phase for Player's next tick.
+	# The completed-tick observer remains active throughout this wait.
+	await process_frame
 	_log_interact_input_phase("before_press",open,before)
 	Input.action_press(&"interact")
 	_log_interact_input_phase("after_press",open,before)
