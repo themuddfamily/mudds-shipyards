@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"predator_provisional"
+display_name = "Predator-class Detention Ship candidate"
+role_name = "Detention transport"
+evidence_status = 1
+evidence_references = PackedStringArray("A3: creator-authored roster captured 2009-11-12", "B4: fleet.labels_jovian_titan_paradox_katana_vortex_predator label only; no Predator frame/model tie")
+evidence_notes = "A3 supports Predator's dated name and detention-transport role only. B4 corroborates a label string only. Name-to-model mapping is unknown; all candidate geometry, access, fittings, systems, handling and berth are original modern trial design."
+compatibility_tags = PackedStringArray("medium_craft", "detention_transport", "predator_transport")
+maximum_speed = 73.0
+boost_speed = 94.0
+thrust_acceleration = 23.0
+brake_acceleration = 32.0
+passive_drag = 2.2
+throttle_response = 6.5
+boost_multiplier = 1.25
+yaw_speed_degrees = 43.0
+roll_speed_degrees = 54.0
+flight_assist_strength = 4.1
+visual_bank_degrees = 4.0
+maximum_mouse_turn_degrees = 11.0
+engine_start_time = 3.8
+weapon_cooldown = 0.78
+maximum_hull = 245.0
+landing_maximum_speed = 11.0
+entry_noun = "stern hatch"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"heavy_quad_freighter"
