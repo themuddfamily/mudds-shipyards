@@ -6,10 +6,15 @@ extends HeroShip
 const PILOT_ORIGIN := Vector3(0, 0.50, -0.8)
 const FUTURE_ENTRY := Vector3(-0.9, 0.55, 0.4)
 const CENTER_MUZZLE := Vector3(0, 0.9, -4.9)
+var _original_shell: Node3D
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
+
+
+func get_variant_visual_root() -> Node3D:
+	return _original_shell
 
 
 func _uses_weapon_component_fallback_emitters() -> bool:
@@ -38,8 +43,13 @@ func _build_ship() -> void:
 	floor_stop_on_slope = false
 	set_meta("geometry_status", &"original_modern_candidate")
 	set_meta("authenticated_historical_silhouette", false)
+	_original_shell = Node3D.new()
+	_original_shell.name = "DynamicOriginalShell"
+	add_child(_original_shell)
+	# Solid sections stay in exactly the same frame as their root colliders.
+	# HeroShip's cosmetic visual bank affects only the non-solid readout rig.
 	_visual_root = Node3D.new()
-	_visual_root.name = "DynamicOriginalShell"
+	_visual_root.name = "DynamicPilotPresentation"
 	add_child(_visual_root)
 	var armor := _finish(Color("98adb3"), 0.55)
 	var structure := _finish(Color("233743"), 0.8)
@@ -88,12 +98,14 @@ func _build_ship() -> void:
 	_pilot_seat_anchor.name = "PilotSeatAnchor"
 	_pilot_seat_anchor.position = PILOT_ORIGIN
 	_pilot_seat_anchor.set_meta("station_id", &"pilot_station")
-	_cockpit_root.add_child(_pilot_seat_anchor)
+	add_child(_pilot_seat_anchor)
 	# Actual cushion follows HeroShip's present +.72m seated hip convention.
 	_rect("PilotPedestal",-.12,.12,-.95,-.7,0.55,1.17,structure)
 	_rect("PilotCushion",-.28,.28,-1.15,-.5,1.17,1.27,accent)
 	_rect("PilotBack",-.28,.28,-.5,-.38,1.27,2.02,structure)
 	_build_markers_and_camera()
+	_cockpit_camera.reparent(self, false)
+	_cockpit_camera.position = cockpit_camera_position
 	_boarding_marker.position = FUTURE_ENTRY
 	_exit_marker.position = Vector3(-5.5,0,0.4)
 	_boarding_entry_marker = Marker3D.new()
@@ -174,7 +186,7 @@ func _prism(label: String, footprint: Array, bottom: float, top: float,
 	var mesh := MeshInstance3D.new()
 	mesh.name = label
 	mesh.mesh = surface.commit()
-	_visual_root.add_child(mesh)
+	_original_shell.add_child(mesh)
 	return mesh
 
 
