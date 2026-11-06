@@ -10,6 +10,7 @@ var _game: GameFlow
 var _ship: HeroShip
 var _player: PlayerController
 var _engine_edges: Array[Dictionary] = []
+var _damaged_hull := -1.0
 
 func _init() -> void:
 	call_deferred("_run")
@@ -191,6 +192,10 @@ func _run() -> void:
 	if not _failures.is_empty():
 		await _fail_exit("ordinary cannon contract failed")
 		return
+	await _test_incoming_damage_and_seat_cycle(identity)
+	if not _failures.is_empty():
+		await _fail_exit("ordinary damaged flight/seat contract failed")
+		return
 	var capture := _game._get_active_landing_assist_report()
 	print("TITAN_CAPTURE_BEFORE_L: ", capture)
 	_check(bool(capture.get("assist_capture_accepted", false))
@@ -207,12 +212,36 @@ func _run() -> void:
 	_check(StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE
 		and _ship.global_position.distance_to(dock.origin) <= 0.05 and _ship.velocity.length() <= 0.05,
 		"ninety neutral physics ticks retain stable OFFLINE dock")
+	var model := _ship.get_component_damage()
+	print("TITAN_HOME_SERVICE: ", _ship.get_telemetry(), " components=", model.get_component_report(), " effects=", _ship.get_damage_presentation().get_component_effect_ids())
+	_check(model.get_worst_integrity() == 1.0 and _ship.get_operational_modifiers().fire_multiplier == 1.0
+		and _ship.get_damage_presentation().get_active_component_effect_count() == 0
+		and _ship.get_telemetry().hull == _damaged_hull
+		and _game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2,
+		"normal own-home landing/service restores components and cues, preserving damaged hull and inert2/2 parcels")
 	await _tap(&"interact")
 	for frame in 180:
 		if not _game._transition_busy and not _player.is_seated(): break
 		await _wait_frames(1)
 	_check(not _player.is_seated() and _player.get_instance_id() == identity
 		and not area.is_reserved() and not _game._piloting, "normal E returns same Player to landed cabin and releases helm")
+	await _tap(&"interact")
+	for frame in 240:
+		if _game._piloting and not _game._transition_busy: break
+		await _wait_frames(1)
+	print("TITAN_SERVICED_REBOARD: phase=", _game.phase, " piloting=", _game._piloting, " telemetry=", _ship.get_telemetry())
+	_check(_game._piloting and _player.get_instance_id() == identity
+		and _player.is_seated_at(_ship.get_pilot_seat_anchor()) and area.get_reservation_token() == _player
+		and _ship.get_operational_modifiers().fire_multiplier == 1.0
+		and _ship.get_telemetry().hull == _damaged_hull,
+		"ordinary serviced reboard regains same usable helm without hull healing")
+	await _tap(&"interact")
+	for frame in 180:
+		if not _game._transition_busy and not _player.is_seated(): break
+		await _wait_frames(1)
+	_check(not _player.is_seated() and not _game._piloting and not area.is_reserved()
+		and _ship.get_telemetry().hull == _damaged_hull,
+		"ordinary second pilot exit preserves damaged hull and releases serviced helm")
 	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 5.2)), 39):
 		await _fail_exit("physical hold return walk failed")
 		return
@@ -579,6 +608,75 @@ func _test_pilot_cannon() -> void:
 	_check(is_equal_approx(_ship.get_telemetry().hull, 220) and _game.active_ship == _ship
 		and _game._piloting and _game.phase == GameFlow.Phase.FREE_FLIGHT,
 		"cannon checks preserve healthy actual Titan pilot/free-flight route")
+
+
+func _test_incoming_damage_and_seat_cycle(identity: int) -> void:
+	var target := _game.get_node("RangeOpponent") as RangeOpponent
+	var authority := _game.get_combat_authority()
+	target.set_physics_process(false)
+	var origin := _ship.to_global(Vector3(-20, 2.15, 4))
+	_check(bool(target.activate(Transform3D(_ship.global_basis, origin)).get("accepted", false)),
+		"existing production opponent stages a real incoming port-engine ray")
+	await _wait_frames(2)
+	for index in 2:
+		var aim := _ship.to_global(Vector3(-5.4, 2.15, 4))
+		var result := authority.submit_hitscan(target, GameFlow.OPPONENT_WEAPON_ID,
+			target.global_position, (aim - target.global_position).normalized())
+		print("TITAN_INCOMING_RAY: index=", index, " result=", result)
+		_check(bool(result.get("damaged", false)) and result.get("target_entity") == _ship,
+			"registered production opponent's real resolver ray damages Titan once")
+	target.deactivate()
+	target.set_physics_process(true)
+	await _wait_frames(2)
+	var model := _ship.get_component_damage()
+	var damaged := model.get_ledger_snapshot()
+	_damaged_hull = float(_ship.get_telemetry().hull)
+	print("TITAN_INCOMING_STATE: hull=", _damaged_hull, " ledger=", damaged,
+		" telemetry=", _ship.get_telemetry(), " effects=", _ship.get_damage_presentation().get_component_effect_ids())
+	_check(is_equal_approx(_damaged_hull, 198.0)
+		and model.get_component_state(&"port_wing") == ShipComponentDamage.ComponentState.IMPAIRED
+		and is_equal_approx(_ship.get_operational_modifiers().fire_multiplier, 0.62)
+		and _ship.get_damage_presentation().get_component_effect_ids() == [&"port_wing"],
+		"two actual11-damage port-engine hits cause localized .62 fire impairment and exact22 hull loss")
+	_release_inputs()
+	for frame in 180:
+		if StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE: break
+		await _wait_frames(1)
+	_check(StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE
+		and not bool(_ship.get_telemetry().landed) and model.get_ledger_snapshot() == damaged
+		and _ship.get_telemetry().hull == _damaged_hull,
+		"unchanged normal idle timer reaches actual airborne OFFLINE without repairing damage")
+	await _tap(&"interact")
+	for frame in 180:
+		if not _game._transition_busy and not _player.is_seated(): break
+		await _wait_frames(1)
+	print("TITAN_DAMAGED_STAND: phase=", _game.phase, " piloting=", _game._piloting,
+		" player=", _player.global_position, " telemetry=", _ship.get_telemetry())
+	_check(_game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and not _game._piloting
+		and not _player.is_seated() and _player.get_instance_id() == identity
+		and model.get_ledger_snapshot() == damaged and _ship.get_telemetry().hull == _damaged_hull,
+		"ordinary airborne E leaves actual helm into carried cabin without healing")
+	await _tap(&"interact")
+	for frame in 240:
+		if _game._piloting and not _game._transition_busy: break
+		await _wait_frames(1)
+	print("TITAN_DAMAGED_REBOARD: phase=", _game.phase, " piloting=", _game._piloting,
+		" telemetry=", _ship.get_telemetry())
+	_check(_game._piloting and _player.is_seated_at(_ship.get_pilot_seat_anchor())
+		and _player.get_instance_id() == identity
+		and model.get_ledger_snapshot() == damaged and _ship.get_telemetry().hull == _damaged_hull
+		and _game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2,
+		"ordinary airborne reboard retains same Player/current helm, component damage, damaged hull and inert parcels")
+	# Normal brake demand restarts the unchanged 3.4s engine clock in place;
+	# landing still requires the real ONLINE owner after this cabin visit.
+	Input.action_press(&"brake")
+	for frame in 300:
+		if StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE: break
+		await _wait_frames(1)
+	Input.action_release(&"brake")
+	_check(StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE
+		and model.get_ledger_snapshot() == damaged and _ship.get_telemetry().hull == _damaged_hull,
+		"ordinary brake demand completes unchanged restart without repairing airborne damage before own-home L")
 
 
 func _test_cannon_authority(authority: LiveCombatAuthority, resolver: CombatResolver, target: RangeOpponent) -> void:

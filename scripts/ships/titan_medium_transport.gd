@@ -14,6 +14,36 @@ const INNER := [Vector2(-3.2, -7.4), Vector2(3.2, -7.4),
 	Vector2(4.0, -6.6), Vector2(4.0, 7.2), Vector2(3.2, 8),
 	Vector2(-3.2, 8), Vector2(-4.0, 7.2), Vector2(-4.0, -6.6)]
 
+
+## This original transport's sections sit on its actual nose, side-engine
+## boxes, roof core and aft header. Keep the inherited ledger, stage curve,
+## radii and repair owner; only the physical placement and nose binding differ.
+class TitanComponentDamage:
+	extends ShipComponentDamage
+
+	func _derive_layout(local_bounds: AABB) -> Dictionary:
+		var layout := super._derive_layout(local_bounds)
+		if layout.is_empty():
+			return layout
+		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0, 2.6, -8.2)
+		layout[COMPONENT_PORT_WING].local_position = Vector3(-5.4, 2.15, 4)
+		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(5.4, 2.15, 4)
+		layout[COMPONENT_CORE_SYSTEMS].local_position = Vector3(0, 4.75, 0)
+		layout[COMPONENT_ENGINE_BAY].local_position = Vector3(0, 3.9, 8.5)
+		return layout
+
+	func get_operational_modifiers() -> Dictionary:
+		var modifiers := super.get_operational_modifiers()
+		if modifiers.is_empty():
+			return modifiers
+		# A damaged nose limits safe propulsion through the same controller
+		# channel as the aft engine bay. The weaker surviving section wins.
+		var nose := _ledger.get_component_performance_multiplier(COMPONENT_FORWARD_HULL)
+		modifiers.mobility_multiplier = minf(float(modifiers.mobility_multiplier), nose)
+		modifiers.mobility_disabled = bool(modifiers.mobility_disabled) \
+			or _ledger.is_component_disabled(COMPONENT_FORWARD_HULL)
+		return modifiers
+
 const PASSENGER_IDS := [&"passenger_port_01", &"passenger_starboard_01"]
 const CREW_FRAME_ID := &"titan_walkable_interior"
 var _passenger_anchors: Array[Marker3D] = []
@@ -135,6 +165,11 @@ func _build_ship() -> void:
 	if _built:
 		return
 	_built = true
+	var damage := TitanComponentDamage.new()
+	damage.name = "ShipComponentDamage"
+	add_child(damage)
+	install_shared_damage_presentation(Vector3(-5.4, 2.15, 4),
+		Vector3(0, 3.9, 8.5), Vector3(0, 4.75, 0), 12)
 	collision_layer = PhysicsLayers.SHIP_BODY_LAYER
 	collision_mask = PhysicsLayers.SHIP_BODY_MASK
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
