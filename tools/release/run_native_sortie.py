@@ -98,6 +98,34 @@ def observations_from_lines(lines, allowed_warnings=()):
     return [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
 
 
+def stream_log_observations(path, offset=0, allowed_warnings=()):
+    """Replay raw lines once, retaining only one decoded observation at a time."""
+    with Path(path).open('rb') as stream:
+        stream.seek(offset)
+        for line in stream:
+            diagnostics = [item for item in diagnostic_lines([line]) if item not in allowed_warnings]
+            if diagnostics:
+                raise RuntimeError('native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
+            if line.startswith(PREFIX):
+                yield json.loads(line[len(PREFIX):])
+
+
+def scan_log_diagnostics(path, allowed_warnings=()):
+    """Count every raw diagnostic with bounded memory; preserve its first operand."""
+    counts = {line: 0 for line in allowed_warnings}
+    count, first = 0, None
+    if Path(path).exists():
+        with Path(path).open('rb') as stream:
+            for raw in stream:
+                for line in diagnostic_lines([raw]):
+                    if line in counts:
+                        counts[line] += 1
+                    else:
+                        count += 1
+                        if first is None: first = line
+    return count, first, counts
+
+
 def drain_game_output(process, log_path):
     # The direct child has been waited for. Read its remaining pipe bytes without
     # blocking cleanup on an unexpected descendant holding the write end open.
@@ -5551,7 +5579,7 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
         approach = s['visit']['approach_source']
         if approach.get('ready'):
             binding = s['cruise']['final_approach']
-            require(s['approach_id'] != 0 and approach['generation'] > 0 and approach['attachment_generation'] > 0
+            require(s['approach_id'] != 0 and approach['generation'] >= 0 and approach['attachment_generation'] > 0
                     and approach['coordinate_frame_generation'] == s['frame_snapshot']['generation']
                     and approach['location_generation'] == s['bootstrap']['location_generation'],
                     'actual current Aurora readiness Node and frame/location generations')
@@ -11316,9 +11344,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     code = record_terminal_game_exit(game, leg_result, output/'game.log')
                                     if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot, StationFlashPilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
-                                        tail = (game_leg_output_lines(output/'game.log',leg_log_offset) if unsupported_files else
-                                                (output/'game.log').read_bytes().splitlines())
-                                        for observation in observations_from_lines(tail, leg_warnings):
+                                        replay_offset = leg_log_offset if unsupported_files else 0
+                                        for observation in stream_log_observations(output/'game.log', replay_offset, leg_warnings):
                                             if (corrupt_files or unsupported_files) and observation['pid'] != game.pid: continue
                                             if observation['sequence'] > pilot.last_state['sequence']:
                                                 pilot.validate_observation(observation)
@@ -11612,20 +11639,18 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             result['cleanup_errors'] = cleanup_errors
             result['success'] = False
         log_path = output/'game.log'
-        diagnostics = diagnostic_lines(log_path.read_bytes().splitlines()) if log_path.exists() else []
+        diagnostic_count, first_diagnostic, warning_counts = scan_log_diagnostics(log_path, route_warnings if route == 'unsupported-save' else ())
         if route == 'unsupported-save':
-            expected = [line for line in diagnostics if line in route_warnings]
-            diagnostics = [line for line in diagnostics if line not in route_warnings]
-            result['expected_warning_count'] = len(expected)
-            result['expected_warning_counts'] = {line.decode(): expected.count(line) for line in route_warnings}
-            result['unexpected_diagnostic_count'] = len(diagnostics)
-            if len(result.get('game_legs', [])) != 2 or any(expected.count(line) != sum(unsupported_class.WARNING_LEGS) for line in route_warnings):
+            result['expected_warning_count'] = sum(warning_counts.values())
+            result['expected_warning_counts'] = {line.decode(): count for line, count in warning_counts.items()}
+            result['unexpected_diagnostic_count'] = diagnostic_count
+            if len(result.get('game_legs', [])) != 2 or any(warning_counts[line] != sum(unsupported_class.WARNING_LEGS) for line in route_warnings):
                 result['success'] = False
                 result.setdefault('error', 'future-load warnings must match the exact declared per-process roster')
-        result['diagnostic_count'] = len(diagnostics)
-        if diagnostics:
+        result['diagnostic_count'] = diagnostic_count
+        if first_diagnostic is not None:
             result['success'] = False
-            result.setdefault('error', 'native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
+            result.setdefault('error', 'native game diagnostic: ' + first_diagnostic.decode('utf-8', errors='replace'))
         result['elapsed_seconds'] = round(time.monotonic()-start,3)
         for sig,handler in old_signals.items(): signal.signal(sig,handler)
         (output/'result.json').write_text(json.dumps(result,indent=2)+'\n')

@@ -8203,5 +8203,40 @@ class AuroraOutboundTests(unittest.TestCase):
             native.run(Path('/unused'),Path('/unused-output'),'aurora-outbound',retained_data=Path('/unused'))
 
 
+class NativeStreamingLogTests(unittest.TestCase):
+    def test_terminal_replay_is_single_pass_and_honors_exact_tail_offset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'game.log'
+            prefix=b'ordinary startup\n'+native.PREFIX+b'{"sequence":1}\n'
+            path.write_bytes(prefix+native.PREFIX+b'{"sequence":2}\n')
+            with patch.object(native.json,'loads',wraps=json.loads) as decode:
+                self.assertEqual(list(native.stream_log_observations(path,len(prefix))),[{'sequence':2}])
+                self.assertEqual(decode.call_count,1)
+
+    def test_every_line_uses_existing_diagnostic_classifier_and_exact_counts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'game.log'; warning=b'WARNING: expected'
+            path.write_bytes(b'PASS: allowed\n'+warning+b'\nERROR: first\nERROR: second\n')
+            with patch.object(native,'diagnostic_lines',wraps=native.diagnostic_lines) as classify:
+                count,first,expected=native.scan_log_diagnostics(path,(warning,))
+                self.assertEqual(classify.call_count,4)
+            self.assertEqual((count,first,expected),(2,b'ERROR: first',{warning:1}))
+            with self.assertRaisesRegex(RuntimeError,'ERROR: first'):
+                list(native.stream_log_observations(path,allowed_warnings=(warning,)))
+
+    def test_aurora_ready_generation_zero_is_current_and_binding_stays_exact(self):
+        p,s=native.AuroraOutboundPilot(),AuroraOutboundTests().observation()
+        s['visit']['approach_source']=dict(ready=True,generation=0,attachment_generation=1,
+                                         coordinate_frame_generation=1,location_generation=2)
+        s['approach_id']=42;s['bootstrap']['location_generation']=2
+        s['cruise']['final_approach']=dict(host_instance_id=42,host_generation=0,host_attachment_generation=1)
+        p.validate_observation(copy.deepcopy(s))
+        for key,value in (('generation',-1),('coordinate_frame_generation',2),('location_generation',3)):
+            bad=copy.deepcopy(s);bad['visit']['approach_source'][key]=value
+            with self.assertRaises(AssertionError):native.AuroraOutboundPilot().validate_observation(bad)
+        bad=copy.deepcopy(s);bad['cruise']['final_approach']['host_generation']=1
+        with self.assertRaises(AssertionError):native.AuroraOutboundPilot().validate_observation(bad)
+
+
 if __name__ == '__main__':
     unittest.main()

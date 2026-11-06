@@ -2774,6 +2774,14 @@ func _aurora_outbound_observation() -> Dictionary:
 	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
 	var approach := expedition.get("_approach_source") as Node
 	var origin := _game.common_world_origin_rebase_owner.get_snapshot()
+	var origin_receipt: Dictionary = origin.get("last_receipt", {})
+	# The full receipt embeds a streaming registry. Retain the exact consumed
+	# scalar transaction contract on every physics sample without that registry.
+	var origin_contract := {}
+	if not origin_receipt.is_empty():
+		for key: String in ["reason", "transaction_index", "world_id", "source_generation", "target_generation", "request_id", "actor_instance_id"]:
+			origin_contract[key] = origin_receipt.get(key)
+		origin_contract["world_translation_delta"] = _v(origin_receipt.get("world_translation_delta", Vector3.ZERO))
 	var ui: Dictionary = result.ui
 	var focus := get_viewport().gui_get_focus_owner()
 	var activity_page := _game.hud.get("_activity_selection_page") as Control
@@ -2834,7 +2842,7 @@ func _aurora_outbound_observation() -> Dictionary:
 			"maximum_speed": AURORA_VISIT_TYPE.APPROACH_MAXIMUM_SPEED_MPS, "maximum_attitude": AURORA_VISIT_TYPE.APPROACH_MAXIMUM_ATTITUDE_DEGREES,
 			"hull_margin": AURORA_VISIT_TYPE.APPROACH_HULL_MARGIN_M},
 		"origin": {"transactions": origin.get("transaction_count", 0),
-			"translation": _v(origin.get("last_translation_delta", Vector3.ZERO)), "receipt": origin.get("last_receipt", {})},
+			"translation": _v(origin.get("last_translation_delta", Vector3.ZERO)), "receipt": origin_contract},
 		"approach_id": approach.get_instance_id() if is_instance_valid(approach) else 0,
 		"approach_is_command_source": approach is ShipCommandSource,
 		"surface": {"current": surface_current,
