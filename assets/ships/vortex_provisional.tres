@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"vortex_provisional"
+display_name = "Vortex-class Troop Transport candidate"
+role_name = "Troop transport"
+evidence_status = 1
+evidence_references = PackedStringArray("A3: creator-authored roster archived 2009-11-12, Vortex-class Troop Transport name/role only", "B4: Vortex label string only; no registered Vortex frame, spawn or visible craft tie", "docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md")
+evidence_notes = "A3 supports the Vortex name and troop-transport role only. B4 corroborates a label string only, not a Vortex model. Historical geometry, scale, capacity, access, systems and handling remain UNKNOWN. This owner-approved original modern candidate uses a broad chamfered cabin pod, two side engine housings and recessed stern. All geometry, dimensions, materials and mechanics are modern design choices, not authenticated reconstruction. Card 1 standalone hull/helm flight only: physical access, four passenger chairs, berth/Main registration, weapon installation, recovery and network qualification remain pending. No cargo or specialist roles are fitted."
+compatibility_tags = PackedStringArray("medium_craft", "troop_transport", "vortex_transport")
+maximum_speed = 68.0
+boost_speed = 88.0
+thrust_acceleration = 20.0
+brake_acceleration = 29.0
+passive_drag = 1.85
+throttle_response = 5.5
+boost_multiplier = 1.2
+yaw_speed_degrees = 39.0
+roll_speed_degrees = 47.0
+flight_assist_strength = 3.6
+visual_bank_degrees = 3.0
+maximum_mouse_turn_degrees = 9.0
+engine_start_time = 3.6
+weapon_cooldown = 0.62
+maximum_hull = 230.0
+landing_maximum_speed = 10.0
+entry_noun = "stern hatch"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"heavy_quad_freighter"
