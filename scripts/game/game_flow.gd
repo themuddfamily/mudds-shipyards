@@ -27961,7 +27961,9 @@ func _initialize_titan_cargo() -> void:
 
 func _authorize_titan_regeneration(spawn_transform: Transform3D, craft: HeroShip) -> bool:
 	return is_instance_valid(craft) and craft in ships and craft.is_destroyed() \
+		and _regeneration_attempts_active.has(craft.get_instance_id()) \
 		and _pending_regeneration_is_current(craft.get_instance_id(), craft) \
+		and Time.get_ticks_msec() >= int((_regeneration_pending.get(craft.get_instance_id(), {}) as Dictionary).get("ready_at_msec", 0)) \
 		and is_instance_valid(titan_cargo) and titan_cargo.ship == craft \
 		and world.has_berth(&"titan_home_berth") \
 		and spawn_transform.is_equal_approx(world.get_berth_transform(&"titan_home_berth")) \

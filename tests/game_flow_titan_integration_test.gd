@@ -336,6 +336,16 @@ func _test_lifecycle(identity: int, berth: ShipBerth, dock: Transform3D) -> void
 			"real incoming11 damage respects authored cadence and actual heat vent")
 		if not _failures.is_empty(): return
 		hits += 1
+	var dead_before := _ship.get_telemetry()
+	var cargo_before_reset := cargo.snapshot()
+	var berth_before := berth.get_audit_report()
+	var pending_before := _game._regeneration_pending.duplicate(true)
+	var early_reset := _ship.reset_for_reuse(dock)
+	_check(not early_reset.accepted and early_reset.reason == &"titan_lifecycle_changed"
+		and _ship.get_telemetry() == dead_before and cargo.snapshot() == cargo_before_reset
+		and berth.get_audit_report() == berth_before and _game._regeneration_pending == pending_before
+		and Time.get_ticks_msec() < int(pending_before[_ship.get_instance_id()].ready_at_msec),
+		"public home reset during pending-but-not-due recovery refuses before hull, lease, schedule or custody mutation")
 	_check(hits == 20 and _ship.is_destroyed() and not _game._piloting and not _ship.is_piloted()
 		and not _player.is_seated() and _player.get_instance_id() == identity
 		and _game._regeneration_pending.has(_ship.get_instance_id())
