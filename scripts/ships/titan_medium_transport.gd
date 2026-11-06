@@ -73,6 +73,9 @@ var _passenger_anchors: Array[Marker3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
 var cargo_custody_guard: Callable
 var cargo_launch_guard: Callable
+var lifecycle_reset_guard: Callable
+var _crew_generation := 1
+var _retired_destruction_serial := -1
 
 const ACCESS_MOTION_SECONDS := 1.2
 var _access_fraction := 0.0
@@ -435,7 +438,7 @@ func _on_cabin_occupancy_changed(_occupant: Node3D, _exit_velocity: Vector3 = Ve
 ## Every chair publishes its own immutable authored identity and supported pose.
 func get_crew_seat_role_contract(anchor: Marker3D) -> Dictionary:
 	var index := _passenger_anchors.find(anchor)
-	if index < 0 or not is_instance_valid(anchor) or anchor.name != PASSENGER_IDS[index]:
+	if _destroyed or index < 0 or not is_instance_valid(anchor) or anchor.name != PASSENGER_IDS[index]:
 		return {}
 	var entry := global_transform * Transform3D(Basis.IDENTITY, Vector3(-0.9 if index == 0 else 0.9, 0.8, 1.8))
 	return {"role": &"passenger", "vessel_id": get_ship_id(), "seat_id": PASSENGER_IDS[index],
@@ -462,17 +465,17 @@ func _crew_seat_records() -> Array[Dictionary]:
 
 ## Register into the existing authority; this ship never owns a second ledger.
 func register_crew_seat_roster(authority: CrewSeatRoleAuthority) -> Dictionary:
-	if authority == null:
+	if _destroyed or authority == null:
 		return {"accepted": false, "status": &"authority_unavailable"}
 	for record in _crew_seat_records():
-		var result := authority.register_seat(record.seat_id, get_ship_id(), record.role, CREW_FRAME_ID, 1, record.anchor_id)
+		var result := authority.register_seat(record.seat_id, get_ship_id(), record.role, CREW_FRAME_ID, _crew_generation, record.anchor_id)
 		if not bool(result.get("accepted", false)):
 			return result
 	return authority.seal_roster([&"pilot", &"passenger"])
 
 
 func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
-	if authority == null or (_crew_role_authority != null and _crew_role_authority != authority):
+	if _destroyed or authority == null or (_crew_role_authority != null and _crew_role_authority != authority):
 		return {"accepted": false, "status": &"authority_unavailable"}
 	var snapshot := authority.get_snapshot()
 	if not bool(snapshot.get("roster_sealed", false)):
@@ -485,7 +488,7 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 		for record: Dictionary in seats:
 			if record.get("seat_id") == expected.seat_id and record.get("role") == expected.role \
 					and record.get("anchor_id") == expected.anchor_id and record.get("vessel_id") == get_ship_id() \
-					and record.get("frame_id") == CREW_FRAME_ID and int(record.get("seat_generation", 0)) == 1:
+					and record.get("frame_id") == CREW_FRAME_ID and int(record.get("seat_generation", 0)) == _crew_generation:
 				matched = true
 		if not matched:
 			return {"accepted": false, "status": &"titan_roster_mismatch"}
@@ -525,13 +528,65 @@ func _build_passenger_chairs(structure: Material, cushion: Material) -> void:
 ## The shared occupant handoff remains the only metadata/frame mutator. Fence
 ## the complete Titan seat identity first, including current roster generation.
 func attach_solo_crew_role_occupant(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> Dictionary:
-	if _crew_role_authority == null or not is_instance_valid(seat) or seat.get_ship() != self:
+	if _destroyed or _reset_for_reuse_mutation_blocked() or _crew_role_authority == null or not is_instance_valid(seat) or seat.get_ship() != self:
 		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
 	var assignment := _crew_role_authority.get_assignment(1, avatar_id)
 	var contract := seat.get_role_contract()
 	if contract.is_empty() or assignment.get("vessel_id") != get_ship_id() \
 			or assignment.get("seat_id") != contract.get("seat_id") or assignment.get("role") != &"passenger" \
 			or assignment.get("frame_id") != CREW_FRAME_ID or assignment.get("anchor_id") != contract.get("seat_id") \
-			or int(assignment.get("seat_generation", 0)) != 1:
+			or int(assignment.get("seat_generation", 0)) != _crew_generation:
 		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
 	return super.attach_solo_crew_role_occupant(avatar_id, seat, occupant)
+
+
+## Main owns the supported recovery pose; the existing frame/Player/role owners
+## retire their own state before the normal pilot recall/regeneration proceeds.
+func recover_destroyed_local_occupants(recovery: Transform3D) -> void:
+	if not _destroyed or _retired_destruction_serial == _destruction_serial:
+		return
+	_retired_destruction_serial = _destruction_serial
+	var occupants := _interior_frame.get_registered_occupants()
+	var area := get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var pilot: PlayerController
+	if area != null:
+		pilot = area.get_reservation_token() as PlayerController
+		if is_instance_valid(pilot) and pilot not in occupants:
+			occupants.append(pilot)
+		area.clear_reservation()
+	var passenger_index := 0
+	for occupant in occupants:
+		var metadata: Dictionary = occupant.get_meta(SOLO_CREW_ROLE_OCCUPANT_META, {})
+		if metadata.get("craft") == self:
+			occupant.remove_meta(SOLO_CREW_ROLE_OCCUPANT_META)
+		_interior_frame.unregister_occupant(occupant, false, &"ship_destroyed")
+		if occupant is PlayerController:
+			var actor := occupant as PlayerController
+			var target := recovery
+			if occupant != pilot:
+				target.origin += target.basis.x * (-1.5 if passenger_index == 0 else 1.5)
+				passenger_index += 1
+			actor.force_recovery_to_on_foot(target)
+			actor.set_camera_active(true)
+			actor.set_control_enabled(true)
+	if _crew_role_authority != null:
+		_crew_role_authority.release_peer(1, 1)
+		_crew_role_authority = null
+	_crew_generation += 1
+	set_piloted(false)
+	if get_camera() != null:
+		get_camera().current = false
+
+
+func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
+	var area := get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if _piloted or _interior_frame.get_occupant_count() > 0 or (area != null and area.is_reserved()) \
+			or (_crew_role_authority != null and not (_crew_role_authority.get_snapshot().assignments as Array).is_empty()):
+		return {"accepted": false, "reason": &"titan_occupied"}
+	if lifecycle_reset_guard.is_valid() and not lifecycle_reset_guard.call(spawn_transform):
+		return {"accepted": false, "reason": &"titan_lifecycle_changed"}
+	return {"accepted": true}
+
+
+func _commit_variant_reset_for_reuse(_context: Dictionary) -> void:
+	_set_canopy_open_fraction(0.0)

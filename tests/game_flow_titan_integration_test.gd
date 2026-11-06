@@ -192,6 +192,13 @@ func _run() -> void:
 	if not _failures.is_empty():
 		await _fail_exit("ordinary cannon contract failed")
 		return
+	if "--lifecycle" in OS.get_cmdline_user_args():
+		await _test_lifecycle(identity, berth, dock)
+		if not _failures.is_empty():
+			await _fail_exit("ordinary destruction/regeneration contract failed")
+			return
+		await _quit_normally()
+		return
 	await _test_incoming_damage_and_seat_cycle(identity)
 	if not _failures.is_empty():
 		await _fail_exit("ordinary damaged flight/seat contract failed")
@@ -279,6 +286,10 @@ func _run() -> void:
 	if not _failures.is_empty():
 		await _fail_exit("final walking contract failed")
 		return
+	await _quit_normally()
+
+
+func _quit_normally() -> void:
 	_release_inputs()
 	await _key(KEY_ESCAPE)
 	var exit_button := _game.hud.find_child("ExitButton", true, false) as Control
@@ -294,6 +305,131 @@ func _run() -> void:
 	await _key(KEY_ENTER)
 	for frame in 120: await process_frame
 	await _fail_exit("normal Main Quit did not terminate OS process")
+
+
+func _test_lifecycle(identity: int, berth: ShipBerth, dock: Transform3D) -> void:
+	var cargo := _game.titan_cargo
+	var before := cargo.snapshot()
+	var raw_locker := cargo.locker_handle.duplicate(true)
+	var raw_ship := cargo.ship_handle.duplicate(true)
+	var store_before := _game._runtime_settings_user_data_store.get_snapshot()
+	var target := _game.get_node("RangeOpponent") as RangeOpponent
+	var authority := _game.get_combat_authority()
+	target.set_physics_process(false)
+	_check(target.activate(Transform3D(_ship.global_basis, _ship.to_global(Vector3(-20, 2.15, 4)))).accepted,
+		"registered opponent stages terminal incoming production rays after complete physical departure/cannon")
+	await _wait_frames(2)
+	var weapon := load("res://assets/weapons/range_defence_pulse.tres") as WeaponDefinition
+	var cadence_ticks := ceili(60.0 / weapon.cadence_shots_per_second)
+	var hits := 0
+	for index in 20:
+		if index > 0: await _wait_frames(cadence_ticks)
+		for vent_tick in 240:
+			if not authority.is_weapon_heat_locked(target, GameFlow.OPPONENT_WEAPON_ID): break
+			await _wait_frames(1)
+		var aim := _ship.to_global(Vector3(-5.4, 2.15, 4))
+		var result := authority.submit_hitscan(target, GameFlow.OPPONENT_WEAPON_ID,
+			target.global_position, (aim - target.global_position).normalized())
+		print("TITAN_LIFECYCLE_INCOMING: index=", index, " result=", result)
+		_check(bool(result.get("damaged", false)) and result.get("target_entity") == _ship
+			and is_equal_approx(float(result.get("applied_damage", 0)), 11.0),
+			"real incoming11 damage respects authored cadence and actual heat vent")
+		if not _failures.is_empty(): return
+		hits += 1
+	_check(hits == 20 and _ship.is_destroyed() and not _game._piloting and not _ship.is_piloted()
+		and not _player.is_seated() and _player.get_instance_id() == identity
+		and _game._regeneration_pending.has(_ship.get_instance_id())
+		and not (_ship.get_node("ShipBoardingArea") as ShipBoardingArea).is_reserved()
+		and not _ship.get_camera().current,
+		"twenty actual opponent hits retire actual pilot/helm/camera and queue ordinary regeneration")
+	var sealed := cargo.snapshot()
+	_check(not sealed.available and sealed.locker == 2 and sealed.titan == 2
+		and not _game.cargo_transfer_authority.get_manifest_snapshot(cargo.ship_handle).attached
+		and _game._runtime_settings_user_data_store.get_snapshot() == store_before
+		and not cargo.request_transfer(_player, _game._titan_locker_panel, true, 1).accepted
+		and not _game.cargo_transfer_authority.transfer(&"main_dead_old", raw_locker, raw_ship, TitanCargoCustody.ITEM, 1).accepted
+		and not _game.cargo_transfer_authority.transfer(&"main_dead_sealed", cargo.locker_handle, cargo.ship_handle, TitanCargoCustody.ITEM, 1).accepted,
+		"actual dead Main preserves exact2/2/store and refuses old and current detached transfer endpoints")
+	var seed_path := OS.get_environment("TITAN_LIFECYCLE_SEED_PATH")
+	if seed_path != "":
+		var payload := FileAccess.open(seed_path, FileAccess.WRITE)
+		payload.store_string(JSON.stringify(_game._runtime_settings_user_data_store.get_snapshot()))
+		payload.close()
+		var envelope := FileAccess.open(seed_path + ".envelope.json", FileAccess.WRITE)
+		envelope.store_buffer(FileAccess.get_file_as_bytes("user://mudds_user_data.json"))
+		envelope.close()
+	await _wait_frames(8)
+	_check(_player.is_on_floor() and _player.is_control_enabled()
+		and _player.global_position.distance_to(_game.world.get_player_spawn().origin) < 0.25
+		and (_player.get_node("%PlayerCamera") as Camera3D).current
+		and not _player.get_cabin_containment_report().active,
+		"same Player actually recovers supported at normal station spawn with walking camera")
+	for frame in 600:
+		if not _ship.is_destroyed(): break
+		await _wait_frames(1)
+	var count := 0
+	for candidate in _game.get_flyable_ships():
+		if candidate.get_ship_id() == &"titan_provisional": count += 1
+	var restored := cargo.snapshot()
+	_check(count == 1 and not _ship.is_destroyed() and _ship.get_telemetry().hull == 220
+		and _ship.get_component_damage().get_worst_integrity() == 1.0
+		and berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship
+		and _ship.global_transform.is_equal_approx(dock) and _ship.velocity == Vector3.ZERO
+		and not _game._regeneration_pending.has(_ship.get_instance_id())
+		and restored.available and restored.locker == 2 and restored.titan == 2
+		and restored.ship_handle != before.ship_handle and restored.ship_handle != sealed.ship_handle,
+		"unchanged normal timer restores exactly one nominal Titan at exact own occupied berth with fresh retained2/2 custody")
+	_check(not cargo.request_transfer(_player, _game._titan_locker_panel, true, 1, &"old_live_pair", before.locker_handle, before.ship_handle).accepted
+		and not _game.cargo_transfer_authority.transfer(&"main_old_after_reset", raw_locker, raw_ship, TitanCargoCustody.ITEM, 1).accepted
+		and cargo.snapshot().locker == 2 and cargo.snapshot().titan == 2,
+		"old service and authority handles remain refused after normal regeneration")
+	if not _failures.is_empty(): return
+	for index in ROUTE.size():
+		if not await _walk_to(ROUTE[index], 80 + index):
+			_check(false, "normal recovery station return route")
+			return
+	var hatch := _ship.get_node("TitanOriginalShell/CabinHatchInteraction") as ShipCabinHatch
+	await _aim(hatch.global_position)
+	await _tap(&"interact")
+	await _wait_frames(30)
+	_check(_ship.is_canopy_open(), "normal recovered stern control opens regenerated physical hatch")
+	for point in [Vector3(0, 0, 14.5), Vector3(0, 0, 13), Vector3(0, 0.4, 10.5),
+			Vector3(0, 0.8, 8), Vector3(0, 0.8, 6.5), Vector3(0, 0.8, -4.2)]:
+		if not await _walk_to(_ship.to_global(point), 110):
+			_check(false, "normal recovered physical cabin walk")
+			return
+	await _aim(_ship.get_pilot_seat_anchor().global_position)
+	await _tap(&"interact")
+	for frame in 240:
+		if _game._piloting and not _game._transition_busy: break
+		await _wait_frames(1)
+	_check(_game._piloting and _ship.is_piloted() and _player.is_seated_at(_ship.get_pilot_seat_anchor())
+		and (_ship.get_node("ShipBoardingArea") as ShipBoardingArea).get_reservation_token() == _player,
+		"same recovered Player physically reboards regenerated usable helm")
+	_engine_edges.clear()
+	Input.action_press(&"brake")
+	for frame in 300:
+		if StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE: break
+		await _wait_frames(1)
+	_release_inputs()
+	_check(StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE
+		and _engine_edges.size() == 2
+		and int(_engine_edges[1].tick) - int(_engine_edges[0].tick) >= 203
+		and int(_engine_edges[1].tick) - int(_engine_edges[0].tick) <= 205
+		and berth.get_occupant() == _ship and cargo.snapshot().locker == 2 and cargo.snapshot().titan == 2,
+		"regenerated actual helm completes real3.4s start while preserving own berth and same2/2")
+	await _wait_frames(180)
+	await _tap(&"interact")
+	for frame in 180:
+		if not _game._transition_busy and not _player.is_seated(): break
+		await _wait_frames(1)
+	_check(not _game._piloting and not _player.is_seated() and _player.get_instance_id() == identity
+		and StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE
+		and cargo.snapshot().locker == 2 and cargo.snapshot().titan == 2
+		and _frames > 1000 and _frames == _supported and _frames == _clear,
+		"ordinary neutral shutdown and physical cabin stand finish supported with conserved2/2 before UI Quit")
+	target.deactivate()
+	target.set_physics_process(true)
 
 func _on_engine_edge(state: StringName) -> void:
 	_engine_edges.append({"state": state, "tick": Engine.get_physics_frames(), "remaining": _ship.get("_engine_timer")})
