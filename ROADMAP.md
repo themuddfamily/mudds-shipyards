@@ -25,6 +25,71 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan's two physical passenger chairs
+
+Approved proposal child 3. Readiness **00:11:50 UTC 2026-11-06**, including root
+seam inspection; **60 minutes all-in, hard deadline 01:11:50 UTC**. Aim for a
+clean passing source candidate by 00:48, leaving export/integration/cleanup time.
+One high implementer owns Titan's script, the narrow anchor-specific lookup in
+ShipCrewSeat, Main's explicit Titan solo-seat admission/roster hookup and the
+existing Titan component/Main integration tests. One independent high reviewer
+checks seat identity, lifecycle and authority. Root owns integration/release and
+cleanup. No nested agents or unrelated shared-file changes.
+
+Deliver exactly two visible, collidable ordinary chairs at approved feet anchors
+`passenger_port_01=(-2,.75,1.8)` and `passenger_starboard_01=(2,.75,1.8)`, cushions
+at y=1.47, forward-facing. Separate supported entry/stand points are
+(-.9,.8,1.8) and (.9,.8,1.8). Preserve pilot/eye, tuning, hull/access/berth and
+existing nine craft. The aisle remains at least1.4m clear; actual Player capsule,
+head/camera and carried movement must fit without walking through furniture.
+
+Each anchor resolves its own immutable identity/role/poses through ShipCrewSeat.
+One existing CrewSeatRoleAuthority ledger admits pilot plus both distinct
+passenger seats; no second seat/occupancy authority. Duplicate occupied claims,
+wrong/stale identity or generation, and wrong-ship/unsealed roster attachment
+refuse without mutation. Both passengers can be simultaneously claimed by
+separate fixture bodies. They gain no helm, firing, repair, cargo or specialist
+navigation action. Existing MovingInteriorFrame owns carrying and supported
+walking; existing Player/GameFlow own physical seating and standing.
+
+Extend the existing normal Main Titan loop: from ordinary Boot/Begin Shift and
+the unchanged21-leg walk, physically enter via hatch/ramp, walk to port chair,
+normal E sit, normal E stand at its supported entry, then starboard sit/stand,
+then repeat port sit/stand before physically reaching helm. Assert actual
+anchor-specific current claim/Player identity/metadata and empty claims after
+standing, no pilot authority and no passenger flight/fire input. Keep the entire
+accepted real pilot departure/flight/own home/OFFLINE/physical exit/UI Quit
+endpoint and durable clean markers. No caller pose/velocity/state writes,
+private boarding bypass, increased reach, shortened transition or weaker checks.
+
+A focused actual-component fixture additionally seats two distinct Player bodies,
+checks occupied/stale refusal and true supported stand/walk/reseat while the real
+Titan frame translates/rotates under its existing controller. Fixture setup poses
+may initialize actors on the physical deck once; no test pose/velocity writes
+stand in for carry/walking outcomes. This does not qualify remote peers or
+networked multi-person flight: children11/12 remain OPEN. Extend nearest existing
+component and Titan loop tests, not a new evidence family. Regress relevant solo
+crew owners, pilot/access, source settings and registry consumers.
+
+Stop at those outcomes; no cargo, weapons, remote-peer composition, lifecycle
+framework or sibling retuning. Ordinary compiler/fixture repairs stay inside the
+same budget; preserve failed raw results. Missing production hooks need an exact
+seam and bounded edit, not a new framework or reduced endpoint. No deadline reset,
+smaller success claim or automatic successor after substantive/timebox failure.
+
+After immutable source and relevant focused checks pass, publish a fresh paired
+Windows/Linux checkpoint using existing exporters, three strict startups and
+all nine package predicates; replay the same extended loop against actual
+packaged content. Windows files stay in builds/windows. All Godot calls use
+pinned4.7.1, Dummy audio and isolated profiles; rendered checks only private
+Xvfb/x11 with independent abort. Main llvmpipe captures already timed out at120s
+and360s in the predecessor: preserve that open visual gate, do not repeat the
+same unbounded capture or claim native GPU/human/device qualification. An isolated
+chair/cabin fit view may be used for this local geometry change. Keep full craft
+and all original parent/phase outcomes OPEN. Merge/push accepted work and remove
+owned branch/worktree/processes/scratch after a verified archive within this box.
+
+
 ### Titan minimum Main pilot loop — DONE in pilot scope
 
 Source **af0199339**, merged and pushed via **fe3455ecc**, adds exactly one live
