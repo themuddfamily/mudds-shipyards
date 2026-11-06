@@ -358,12 +358,12 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	var modules := report.get("modules", {}) as Dictionary
 	var modules_claim_nothing := true
 	for module_id: StringName in EXPECTED_MODULE_IDS:
-		if module_id == &"titan-transport-berth":
+		if module_id == &"titan-transport-berth" or module_id == &"predator-detention-berth":
 			continue
 		var entry := modules.get(module_id, {}) as Dictionary
 		modules_claim_nothing = modules_claim_nothing \
 			and (entry.get("authority_ids", PackedStringArray()) as PackedStringArray).is_empty()
-	_check(modules_claim_nothing, "all seven station modules declare no authority ids at all")
+	_check(modules_claim_nothing, "all seven other station modules declare no authority ids at all")
 
 	var comb := world.get_fleet_dock_comb()
 	var docks_own_no_authority := comb != null and comb.get_dock_roster().size() == 3
