@@ -225,6 +225,10 @@ func _run() -> void:
 		await _wait_frames(1)
 	_check(not _player.is_seated() and _player.get_instance_id() == identity
 		and not area.is_reserved() and not _game._piloting, "normal E returns same Player to landed cabin and releases helm")
+	await _wait_frames(3)
+	_print_helm_candidate("serviced_before_look")
+	await _aim(_ship.get_pilot_seat_anchor().global_position)
+	_print_helm_candidate("serviced_after_look")
 	await _tap(&"interact")
 	for frame in 240:
 		if _game._piloting and not _game._transition_busy: break
@@ -656,6 +660,10 @@ func _test_incoming_damage_and_seat_cycle(identity: int) -> void:
 		and not _player.is_seated() and _player.get_instance_id() == identity
 		and model.get_ledger_snapshot() == damaged and _ship.get_telemetry().hull == _damaged_hull,
 		"ordinary airborne E leaves actual helm into carried cabin without healing")
+	await _wait_frames(3)
+	_print_helm_candidate("damaged_before_look")
+	await _aim(_ship.get_pilot_seat_anchor().global_position)
+	_print_helm_candidate("damaged_after_look")
 	await _tap(&"interact")
 	for frame in 240:
 		if _game._piloting and not _game._transition_busy: break
@@ -667,6 +675,8 @@ func _test_incoming_damage_and_seat_cycle(identity: int) -> void:
 		and model.get_ledger_snapshot() == damaged and _ship.get_telemetry().hull == _damaged_hull
 		and _game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2,
 		"ordinary airborne reboard retains same Player/current helm, component damage, damaged hull and inert parcels")
+	if not _failures.is_empty():
+		return
 	# Normal brake demand restarts the unchanged 3.4s engine clock in place;
 	# landing still requires the real ONLINE owner after this cabin visit.
 	Input.action_press(&"brake")
@@ -677,6 +687,18 @@ func _test_incoming_damage_and_seat_cycle(identity: int) -> void:
 	_check(StringName(_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE
 		and model.get_ledger_snapshot() == damaged and _ship.get_telemetry().hull == _damaged_hull,
 		"ordinary brake demand completes unchanged restart without repairing airborne damage before own-home L")
+
+
+func _print_helm_candidate(label: String) -> void:
+	var area := _ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	var frame := _ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	print("TITAN_HELM_CANDIDATE: ", {"label": label, "player_local": _ship.to_local(_player.global_position),
+		"inside": frame.contains_world_position(_player.global_position), "carried": frame.is_occupant_registered(_player),
+		"near_ship": _game._near_ship, "boarding_candidate": _game.boarding_candidate,
+		"station_candidate": _game.station_interaction_candidate, "area_current": _game._boarding_area == area,
+		"area_available": area.is_available_for(_player), "reservation_owner": area.get_reservation_token(),
+		"player": _player, "ship_boardable": _ship.is_boardable(), "origin": _player.get_interaction_origin(),
+		"direction": _player.get_interaction_direction(), "containment": _player.get_cabin_containment_report()})
 
 
 func _test_cannon_authority(authority: LiveCombatAuthority, resolver: CombatResolver, target: RangeOpponent) -> void:
