@@ -2039,10 +2039,32 @@ func get_cabin_containment_report() -> Dictionary:
 		"frame": _cabin_frame,
 		"local_bounds": _cabin_bounds,
 		"local_position": local_position,
-		"contained": active and _cabin_bounds.has_point(local_position),
+		"contained": active and _cabin_contains_position(local_position),
 		"clamp_count": _cabin_clamp_count,
 		"recall_count": _cabin_recall_count,
 	}
+
+
+## A hull may opt into its current coordinator's physical boundary predicate.
+## Every retained identity and bound must still agree; detached/replaced
+## coordinators or changed cabin contracts fall back to the cached strict box.
+func _cabin_contains_position(local_position: Vector3) -> bool:
+	if is_instance_valid(_cabin_frame) and _cabin_frame.is_inside_tree() \
+			and not _cabin_frame.is_queued_for_deletion() \
+			and _cabin_frame.has_method(&"get_cabin_containment_coordinator") \
+			and _cabin_frame.has_method(&"get_in_flight_cabin_report"):
+		var coordinator := _cabin_frame.call(&"get_cabin_containment_coordinator") as MovingInteriorFrame
+		var cabin := _cabin_frame.call(&"get_in_flight_cabin_report") as Dictionary
+		if is_instance_valid(coordinator) and coordinator.is_inside_tree() \
+				and not coordinator.is_queued_for_deletion() and cabin.get("frame") == coordinator \
+				and bool(cabin.get("supported", false)) \
+				and _cabin_frame.is_ancestor_of(coordinator) \
+				and coordinator.get_moving_frame() == _cabin_frame \
+				and cabin.get("local_bounds", AABB()) == _cabin_bounds \
+				and coordinator.get_interior_bounds() == _cabin_bounds \
+				and coordinator.is_occupant_registered(self):
+			return coordinator.contains_world_position(global_position)
+	return _cabin_bounds.has_point(local_position)
 
 
 ## Runs immediately after the slide, so the slide remains the only mover and
@@ -2059,7 +2081,7 @@ func _resolve_cabin_containment() -> void:
 	if not local_position.is_finite():
 		_recall_into_cabin(frame_transform)
 		return
-	if _cabin_bounds.has_point(local_position):
+	if _cabin_contains_position(local_position):
 		return
 
 	var minimum := _cabin_bounds.position + Vector3.ONE * CABIN_CONTAINMENT_INSET

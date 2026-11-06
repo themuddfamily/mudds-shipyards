@@ -73,12 +73,72 @@ func _run() -> void:
 	await _test_access(ship)
 	await _test_flight(ship)
 	await _test_passengers(ship)
+	await _test_cabin_floor_roundoff()
 	await _test_components()
 	ship.set_piloted(false)
 	ship.queue_free()
 	await process_frame
 	await physics_frame
 	_finish()
+
+
+func _test_cabin_floor_roundoff() -> void:
+	var craft := TITAN.instantiate() as HeroShip
+	root.add_child(craft)
+	craft.set_physics_process(false)
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	root.add_child(player)
+	player.set_physics_process(false)
+	var cabin := craft.get_in_flight_cabin_report()
+	var frame := cabin.frame as MovingInteriorFrame
+	var bounds := cabin.local_bounds as AABB
+	frame.register_occupant(player, {"require_inside_bounds": false})
+	for pose: Transform3D in [Transform3D(Basis.IDENTITY, Vector3(1000, 90, -900)),
+			Transform3D(Basis(Vector3.UP, -PI * 0.5) * Basis(Vector3.RIGHT, 0.188), Vector3(184.7, 10.29, 38))]:
+		craft.global_transform = pose
+		player.global_position = craft.to_global(Vector3(0, 0.8, -4.2))
+		player.set_cabin_containment(craft, bounds, craft.get_boarding_entry_transform())
+		player.call("_resolve_cabin_containment")
+		_check(frame.contains_world_position(player.global_position)
+			and bool(player.get_cabin_containment_report().contained)
+			and int(player.get_cabin_containment_report().recall_count) == 0,
+			"actual authored Titan floor survives translated/rotated world-local round trip")
+		player.global_position = craft.to_global(Vector3(0, 0.79995, -4.2))
+		player.set_cabin_containment(craft, bounds, craft.get_boarding_entry_transform())
+		var before := player.global_position
+		for _index in 90:
+			player.call("_resolve_cabin_containment")
+		var report := player.get_cabin_containment_report()
+		print("TITAN_FLOOR_ROUNDOFF: ", {"pose": pose, "report": report, "position_unchanged": player.global_position == before})
+		_check(frame.contains_world_position(player.global_position) and bool(report.contained)
+			and int(report.recall_count) == 0 and int(report.clamp_count) == 0 and player.global_position == before,
+			"current translated/rotated Titan floor rounding agrees for admission/report and causes no false recall or pose write")
+		for outside: Vector3 in [Vector3(0, 0.799, -4.2), Vector3(-2.701, 0.8, -4.2),
+				Vector3(0, 0.8, 7.501), Vector3(0, 3.301, -4.2)]:
+			player.global_position = craft.to_global(outside)
+			_check(not frame.contains_world_position(player.global_position)
+				and not bool(player.get_cabin_containment_report().contained),
+				"Titan floor tolerance rejects real1mm fall and keeps walls/ceiling strict: %s" % outside)
+		player.global_position = craft.to_global(Vector3(0, 0.799, -4.2))
+		player.call("_resolve_cabin_containment")
+		_check(int(player.get_cabin_containment_report().recall_count) == 1,
+			"actual1mm fall still invokes existing cabin recall")
+	player.global_position = craft.to_global(Vector3(0, 0.79995, -4.2))
+	frame.set_interior_bounds(AABB(bounds.position + Vector3.UP * 0.01, bounds.size))
+	_check(not bool(player.get_cabin_containment_report().contained),
+		"changed coordinator bounds cannot relax Player's cached strict containment")
+	frame.set_interior_bounds(bounds)
+	craft.set("_destroyed", true)
+	_check(not bool(player.get_cabin_containment_report().contained),
+		"unsupported cabin cannot relax Player's cached strict containment")
+	craft.set("_destroyed", false)
+	frame.unregister_occupant(player, false)
+	_check(not bool(player.get_cabin_containment_report().contained),
+		"unregistered body cannot use Titan coordinator floor tolerance")
+	player.clear_cabin_containment()
+	player.queue_free()
+	craft.queue_free()
+	await _frames(2)
 
 
 func _test_components() -> void:

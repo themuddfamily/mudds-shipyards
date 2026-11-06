@@ -44,6 +44,29 @@ class TitanComponentDamage:
 			or _ledger.is_component_disabled(COMPONENT_FORWARD_HULL)
 		return modifiers
 
+
+## Transform round trips at this elevated, rotated deck can place supported
+## feet a few micrometres below y=.8. Normalize only that floor residue;
+## the authored walls, ceiling and real falls remain strict.
+class TitanInteriorFrame:
+	extends MovingInteriorFrame
+
+	func contains_world_position(world_position: Vector3) -> bool:
+		var moving := get_moving_frame()
+		if not world_position.is_finite() or not has_interior_bounds() \
+				or not is_instance_valid(moving) or not moving.is_inside_tree() \
+				or moving.is_queued_for_deletion():
+			return false
+		var pose := moving.global_transform
+		pose.basis = pose.basis.orthonormalized()
+		var point := pose.affine_inverse() * world_position
+		var bounds := get_interior_bounds()
+		if not point.is_finite() or not bounds.position.is_finite() or not bounds.size.is_finite():
+			return false
+		if point.y < bounds.position.y and point.y >= bounds.position.y - 0.0001:
+			point.y = bounds.position.y
+		return bounds.has_point(point)
+
 const PASSENGER_IDS := [&"passenger_port_01", &"passenger_starboard_01"]
 const CREW_FRAME_ID := &"titan_walkable_interior"
 var _passenger_anchors: Array[Marker3D] = []
@@ -128,6 +151,13 @@ func has_supported_exterior_access() -> bool:
 
 
 func get_interior_frame() -> MovingInteriorFrame:
+	return _interior_frame
+
+
+## Opt this hull into the same current coordinator predicate for both physical
+## boarding discovery and Player's cached cabin containment. Player verifies
+## the live owner, exact bounds and registered occupant before using it.
+func get_cabin_containment_coordinator() -> MovingInteriorFrame:
 	return _interior_frame
 
 
@@ -280,7 +310,7 @@ func _build_ship() -> void:
 	_canopy_pivot.name = "AccessMotionClock"
 	_visual_root.add_child(_canopy_pivot)
 	_set_canopy_open_fraction(0.0)
-	_interior_frame = MovingInteriorFrame.new()
+	_interior_frame = TitanInteriorFrame.new()
 	_interior_frame.name = "MovingInteriorFrame"
 	var volume := Area3D.new()
 	volume.name = "CabinOccupancy"
