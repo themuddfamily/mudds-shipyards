@@ -28,6 +28,66 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
+### Selected: Titan component damage and berth service — child 9b
+
+- **Goal / contract:** Titan proposal child9b and its five named physical
+  components. Child9a cannon is accepted in bd6938683 viaf7f629c85. Full craft,
+  broader lifecycle and remote crew remain separate open requirements.
+- **Result:** actual nose/side-engine/core/aft hits show localized damage and
+  reduce real flight/fire/targeting through the existing ledger/controller;
+  intact landed service restores those components, while flight and seat changes
+  cannot heal them. Sealed repair-kit parcels remain inert conserved freight.
+- **Candidate / start:** clean pushed main996651853, checkpointbd69386; one live
+  Titan/ordinary Player at its own berth. Existing Main Begin/walk/load/chairs/
+  startup/cannon/home/return/UIQuit route remains mandatory. Incoming test fire
+  may stage the existing production opponent to aim a real resolver ray; Titan
+  pose/velocity/lease/engine duration/seat-transition owners may not be overwritten.
+- **Owner / files:** titan_service_impl_1106 owns production
+  `scripts/ships/titan_medium_transport.gd` and existing tests
+  `titan_medium_transport_test.gd`, `game_flow_titan_integration_test.gd`,
+  `fleet_berth_repair_regeneration_parity_test.gd`. Root owns docs/build/integration
+  and cleanup; one independent high-effort reviewer reads the exact changes.
+  No shared HeroShip/ShipComponentDamage/GameFlow changes currently required.
+- **Fixed implementation:** install the existing shared HeroDamagePresentation
+  before inherited ready resolves it. A Titan-local ShipComponentDamage subtype
+  retains the sole existing ledger and radii, placing anchors on actual geometry:
+  nose(0,2.6,-8.2), port/right engines(±5.4,2.15,4), core roof(0,4.75,0), aft
+  header(0,3.9,8.5). Nose stage uses that same ledger's existing1/.62/0 performance
+  to cap existing mobility with min(engine,nose); failure disables mobility.
+  Wing fire and core targeting consumers remain shared. No new stages, tuning,
+  healing inventory, specialist role, service terminal or persistence framework.
+- **Dependencies:** accepted physical hull/chairs/custody/cannon as above. Shared
+  automatic component service is already authorized while landed, intact and not
+  actively landing; preserve that policy and0.62 integrity/s repair rate.
+- **Proof / commands:** pinned `/srv/mudds-work/toolchains/godot-4.7.1-official/godot`
+  `--headless --audio-driver Dummy --path <owned-worktree> --script
+  res://tests/<suite>.gd`, fresh isolated XDG profiles. Five suites: the three
+  owned tests above plus unchanged `ship_component_damage_test.gd` and
+  `ship_component_damage_integration_test.gd`. Before long gates, check-only the
+  changed scripts. Final clean commit/source/cache guards, exact existing success
+  marker once, exit0 and zero raw diagnostics. Main uses actual UI Quit and durable
+  clean markers. Records: `/srv/mudds-work/titan-service-20261106/`.
+- **Budget / stop:** readiness02:24:30UTC2026-11-06;75min all-in hard deadline
+  03:39:30UTC, retaining mapping time. Main300s, standalone100s, parity300s,
+  unit100s, shared integration300s; startup120s each, existing export limits.
+  One demonstrated substantive production repair; compiler/assertion fixes are
+  routine inside unchanged budget. Stop dependent work at first unexpected
+  failure, retain operands/raw output and classify cause. Existing suite_process
+  watchdog; no desktop/audio/hosted CI. Reap owned inputs/processes on exit.
+- **Close:** NOT_RUN. All five final suites and actual packaged full Main must
+  pass, then paired clean-source exports, three strict startups and existing nine
+  package predicates; EXE/ZIP/notes and paired Linux artifacts in builds/. Merge/
+  push, verified archive and exact-tip branch/worktree cleanup are included.
+  Hardware, rendered readability and full release gates are not qualified here.
+
+| Case | Initial state and action | Expected result | Actual result and proof |
+| --- | --- | --- | --- |
+| Physical attribution and cues | Actual Titan collision rays strike all five named surfaces | Exactly one correctly positioned five-component ledger and shared presentation; real ray hit maps to intended component and localized cue; unchanged12x18x5 bounds and inherited ledger/radii | NOT_RUN |
+| Actual component consequences | Healthy and damaged actual Titan controller/fire/aim receive matched inputs | Nose and aft damage reduce real thrust/handling; each side engine's legacy weapon component reduces actual fire cadence or fails fire; core damage reduces actual aim range/convergence; existing1/.62/0 stages, no sibling tuning | NOT_RUN |
+| No flight or seat healing | In ordinary Main after existing cannon case, real incoming rays impair a component; coast to normal automatic OFFLINE, physical pilot E leave/reboard with same Player | No in-flight component/hull restoration across neutral ticks or actual seat transition; one current helm/body; cargo unchanged; no shortened idle/seat timers | NOT_RUN |
+| Actual home service and reuse | Normal own-home L landing,90 neutral OFFLINE ticks, physical exit/return and ordinary reboard | Components regain nominal modifiers/cues via existing service ticks inside inherited4s maximum repair window; hull damage remains unchanged by seat/service; cargo4/0 at existing return endpoint; same Player and usable helm; normal UI Quit saves clean markers | NOT_RUN |
+| Preserved fleet and shipped result | All five suites, paired exports/startups/audit, packaged complete Main replay | Original cannon/cargo/chairs/flight/landing assertions retained before introduced damage; ten-craft component repair parity and original sibling checks pass; artifact source matches committed candidate; accepted source pushed and owned cleanup complete | NOT_RUN |
+
 ### Titan pilot cannon — child 9a DONE
 
 Source **bd6938683**, merged/pushed via **f7f629c85**, gives Titan its approved centre
