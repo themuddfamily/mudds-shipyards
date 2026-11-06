@@ -30,6 +30,66 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
+### Selected: Predator local guard/detainee chairs and consent — card6
+
+Goal/contract: BUILD-SPLIT-PREDATOR/card6, adopted physical chairs/voluntary
+consent. Result: normal Main Player physically walks/claims/sits/stands/reseats
+both named fittings, voluntarily enrols only through the displayed ordinary
+Interact prompt, withdraws through FIRE or Interact, and physically walks out.
+One underlying pilot plus two passenger-ledger seat IDs, no general passenger,
+gunner/engineer/cargo/reward authority. Cell sealing/travel/network remain later
+cards. All archived failed attempts remain closed.
+
+Candidate/start: clean0ef216d65, acceptedcc38736 geometry alignment and16a6361
+pilot loop. One actual ordinary Boot/BeginShift normal-spawn Main Player; no
+positive seat claims, pose/velocity/clock writes or custom command sources replace
+ordinary play. Mapping already known, included in original timebox below.
+
+Owner/files: one high implementer owns NEW scripts/ships/predator_local_crew_fitout.gd
+(+UID) extending the accepted base, scenes/ships/predator_detention_transport_pilot.tscn
+(root script override), narrow scripts/game/game_flow.gd, scripts/interaction/ship_crew_seat.gd,
+and tests/game_flow_predator_integration_test.gd. Base Predator script/scene and
+its standalone32-section/access fixtures remain unchanged. No HeroShip/Player/
+CrewSeatRoleAuthority/network/schema/validator edits. Root integrates/releases;
+independent high source reviewer. Old Main presentation assertion legitimately
+uses35 paired convex sections in delivered production fitout plus6 matched box
+chair shapes; reusable base remains32. No original journey/limit is dropped.
+
+Dependencies: current stable physical hull/helm/camera, ordinary Main pilot and
+own berth all accepted. Existing partition is sealed: this card must author the
+approved OPEN walk-through passage (no moving cell door/card7 behavior). Replace
+only five partition pieces by eight matched rectangles: lower-forward z−1..1,
+lower-aft2.4..3.8 at y1..2.5; full upper z−1..3.8,y3.4..4.6; forward pier z−1...3,
+aft pier2.4..3.8, retained glazing.3..1 at y2.5..3.1; forward/aft bands z−1..1 /
+2.4..3.8,y3.1..3.4. All in x−.8..−.6. Thus opening z1..2.4,y1..3.4 is physically
+clear; current observation glazing cannot cross it. Other hull/access unchanged.
+
+| Case | Initial state and action | Expected result | Actual/proof |
+| --- | --- | --- | --- |
+| Exact physical fitout | Actual Main prefab; inspect matched solid chairs and existing capsule/eye | pilot unchanged(0,1.45,−5.5); guard_station(2.3,1.45,0),facing−X; detainee_station(−1.8,1.45,0),facing+X. Seat cushion.8×.4×.8 centeredy1.25; back.18×1.1×.8 at x2.79/−2.29,y1.95. Guard stand(1,1,0); detainee stand(−1.6,1,1.8) INSIDE cell. Actual seated capsule/head and normal stand support clear, visuals/colliders match, aisle.2..1.8 untouched | NOT_RUN |
+| Static frame/authority | One live MovingInteriorFrame configured cabin AABB(−3,1,−6.5)+(6,3.6,13), no volume, auto_register_from_volume=false; exact home+landed/OFFLINE admission only | Report supports local docked chairs, supports_in_flight_cabin_access remainsfalse; only current local chair transaction registers body. Three exact roster IDs pilot/guard/detainee, underlying roles pilot/passenger/passenger and only passenger_access for latter. Foreign/duplicate/stale/wrongbody/chair claims cannot steal or mutate ownership; no pilot occupancy or travelling registration acquired | NOT_RUN |
+| Guard ordinary route | Same Player full accepted station/ramp route, then aisle to(1,1,0); aim actual GUARD and Interact, stand and reseat | Same body/real supported approach, exact guard claim/camera/seat; no helm/engine/throttle/fire/repair/cargo/ping grant. E stand releases role/frame/reservation/containment to normal on-foot; repeat works | NOT_RUN |
+| Voluntary detainee | Walk doorway atz1.8 into actual inside-cell stand; displayed prompt says VOLUNTEER FOR SECURE TRANSPORT with actual Interact/FIRE bindings; one normal remappable Interact seats/consents as adopted baseline | Current actual input edge/target/body/chair/current generation recorded before claim, validated again on physical attachment. Generic/direct sit without that explicit context refuses before reservation/generation/consent mutation. ConsentReady requires exact embodied live claimant; no external actor can enrol another. No extra modal/two-press behavior introduced | NOT_RUN |
+| Withdrawal/stand safety | Detainee FIRE rising edge, then normal E stand; leave/reclaim with fresh E; place one declared physical blocker at inside stand, then E; remove blocker and E retry | FIRE revokes consent immediately, no shot/heat/cooldown. E revokes consent BEFORE any stand attempt. Blocked stand remains safely seated/unenrolled with current exact claim and retry; clear stand restores actual body/control/camera, retires lease/frame/tag/containment exactly once. No auto re-enrolment while seated; fresh consent requires ordinary leave/reclaim. All ordinary walking physics ticks current/adjacent/supported/head-clear as existing observer | NOT_RUN |
+| Local-only safety | Held movement/FIRE while either fitting occupied, direct engine start request and generic helm attempt negatives | No drive/start/weapon/helm grant; launch refuses while local crew claim exists because travelling/securing is not delivered. Guard FIRE cannot seal or manufacture detention rights; no door mechanism exists. Inventory/settings/health and old10 craft poses/leases remain unchanged | NOT_RUN |
+| Full preserved play | Extend existing complete game_flow_predator_integration_test600s ALONE with role route BEFORE original two full sorties; then full original Titan Main300s ALONE | Original normal walking,3.8start/launch/flight/unarmed/strict-home/OFFLINE/inside stand/physical exit/reboard repeats twice, alignment and clean Quit intact. Old no-frame Main assertion replaced ONLY by delivered single static frame/zero lingering pilot registrations/no travelling support. All other cases/limits unchanged; Titan full cargo/cannon/damage/service/return/exit/Quit intact | NOT_RUN |
+| Focused source | Extended PredatorMain600; unchanged base foundation90, accessI/T180each, occupied berth240, definitions120, registry180, crew_seat_role_authority_test180; full TitanMain300 separately ALONE | All8focused plusTitan exit0/one exact marker/raw0/source-cache-head-worktree guards; fullMain normal clean_shutdown/clean/session_ended, Titan locker4/ship0. First failure stops dependent gates | NOT_RUN |
+| Presentation/package | Three private Xvfb/x11/GLES/Dummy views of actual production guard/detainee/open doorway, staged only; fresh safe paired exports from clean accepted source; strict startup3/maps/delta/audit9 | Geometry inspected; no actor staging qualifies ordinary roles. Eight artifacts EXE/ZIP/notes/chairpreview +Linux4 in repo builds only. No CI/native/hardware/human qualification | NOT_RUN |
+| Actual PCK | Blank source-isolated Windows payload under pinned LinuxGodot: same full extended PredatorMain600 ALONE, original full TitanMain300 ALONE, base foundation90, accessI/T180each and occupied berth240 | Same original cases/limits, source-isolation-only adapters plus existing excluded route/transform constants; exact markers/exit0/raw0 and applicable source/cache/head guards; both Main clean Quit and Titan4/0 custody | NOT_RUN |
+| Closure | Review, merge/push, verified source/raw archive, exact-tip branch/worktree/process/scratch cleanup | All frozen cases passed before acceptance; Main remains11/17, local2chair feature delivered only; actual detention door/travelling actors/network/lifecycle/save/full craft and native/human gates remain pending | NOT_RUN |
+
+Budget: ORIGINAL13:36:00→14:51:00UTC2026-11-06,75minutes ALL-IN including
+mapping, implementation, full original tests/render/exports/review/integration
+and cleanup. TWO substantive corrections frozen before code, due cross-component
+physical transitions/consent/ledger integration. Compiler/caller/assertion repairs
+retain all cases, comparators and deadline. Every Godot invocation Dummy; headless
+or owned x11 Xvfb, independent suite_process abort, released inputs/cursor. Main
+checks run ALONE. First unexpected failure stops dependent checks; preserve actual
+operands/cause/cumulative cost before correction. Exhaustion/deadline parks with
+explicit reopening condition; no new name/subset resets cost or archived work.
+No evidence families/versioned validators/framework or hosted CI. Close records
+actual result/source/build/cost and all unperformed gates. No full-game percentage.
+
 ### Predator physical presentation alignment — ART-FINDINGS DONE (scoped graphics checkpoint)
 
 Source **cc387367b**, merged/pushed via **424297cf2**, keeps Predator's physical hull,
