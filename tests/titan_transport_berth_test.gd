@@ -47,7 +47,7 @@ func _run() -> void:
 	var unchanged := true
 	for berth_id in OLD_TRANSFORMS:
 		unchanged = unchanged and world.get_berth_transform(berth_id).is_equal_approx(OLD_TRANSFORMS[berth_id])
-	_check(unchanged and game.get_flyable_ships().size() == 10, "original nine transforms remain unchanged alongside production Titan")
+	_check(unchanged and game.get_flyable_ships().size() == 11, "original nine transforms remain unchanged alongside production Titan")
 	_check(berth.compatibility_tags == PackedStringArray(["titan_transport"])
 		and berth.landing_half_extents == Vector3(7, 7, 14)
 		and berth.assist_capture_center == Vector3(0, 10, -24)

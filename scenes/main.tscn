@@ -1,4 +1,4 @@
-[gd_scene load_steps=38 format=3]
+[gd_scene load_steps=39 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -46,6 +46,8 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ships/titan_medium_transport.tscn" id="92_titan"]
 
+[ext_resource type="PackedScene" path="res://scenes/ships/predator_detention_transport_pilot.tscn" id="93_predator"]
+
 [node name="Main" type="Node3D"]
 process_physics_priority = -100
 script = ExtResource("1_flow")
@@ -69,6 +71,9 @@ ship_definition = ExtResource("8_torrent_definition")
 
 [node name="TitanMediumTransport" parent="." instance=ExtResource("92_titan")]
 home_berth_id = &"titan_home_berth"
+
+[node name="PredatorDetentionTransport" parent="." instance=ExtResource("93_predator")]
+home_berth_id = &"predator_home_berth"
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 release_visuals_while_dormant = true

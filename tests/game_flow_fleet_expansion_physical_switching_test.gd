@@ -63,7 +63,7 @@ func _initialize() -> void:
 	await physics_frame
 	await process_frame
 	var player := game.get_node_or_null(^"Player") as PlayerController
-	_check(player != null and game.get_flyable_ships().size() == 10, "GameFlow exposes seven direct ships and all three nested craft")
+	_check(player != null and game.get_flyable_ships().size() == 11, "GameFlow exposes eight direct ships and all three nested craft")
 	if player == null:
 		_finish(game)
 		return

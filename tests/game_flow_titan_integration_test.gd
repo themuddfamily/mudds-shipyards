@@ -42,7 +42,7 @@ func _run() -> void:
 	_check(_game.phase == GameFlow.Phase.APPROACH_SHIP and _player.is_control_enabled()
 		and _player.global_position.distance_to(world.get_player_spawn().origin) < 0.25,
 		"normal Begin Shift keeps actual Player at ordinary spawn")
-	_check(_game.get_flyable_ships().size() == 10 and berth.get_occupant() == _ship
+	_check(_game.get_flyable_ships().size() == 11 and berth.get_occupant() == _ship
 		and berth.get_reservation_owner() == _ship, "one real Titan joins fleet with own occupied lease")
 	_check_panel_solids()
 	var cargo_before := _game._runtime_settings_user_data_store.get_snapshot()

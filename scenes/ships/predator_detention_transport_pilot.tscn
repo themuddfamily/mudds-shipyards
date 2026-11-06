@@ -1,0 +1,39 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ships/predator_detention_transport.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/interaction/ship_boarding_area.gd" id="2_area"]
+[sub_resource type="BoxShape3D" id="SeatShape"]
+size = Vector3(0.8, 0.4, 0.8)
+[sub_resource type="BoxMesh" id="SeatMesh"]
+size = Vector3(0.8, 0.4, 0.8)
+[sub_resource type="BoxShape3D" id="BackShape"]
+size = Vector3(0.8, 1.1, 0.18)
+[sub_resource type="BoxMesh" id="BackMesh"]
+size = Vector3(0.8, 1.1, 0.18)
+[sub_resource type="SphereShape3D" id="ApproachShape"]
+radius = 1.2
+[sub_resource type="StandardMaterial3D" id="SeatMaterial"]
+albedo_color = Color(0.14, 0.2, 0.23, 1)
+roughness = 0.85
+
+[node name="PredatorDetentionTransport" instance=ExtResource("1_base")]
+[node name="PilotSeatCollision" type="CollisionShape3D" parent="."]
+position = Vector3(-0.2, 1.25, -5.5)
+shape = SubResource("SeatShape")
+[node name="PilotSeat" type="MeshInstance3D" parent="."]
+position = Vector3(-0.2, 1.25, -5.5)
+mesh = SubResource("SeatMesh")
+material_override = SubResource("SeatMaterial")
+[node name="PilotBackCollision" type="CollisionShape3D" parent="."]
+position = Vector3(-0.2, 1.95, -5.01)
+shape = SubResource("BackShape")
+[node name="PilotBack" type="MeshInstance3D" parent="."]
+position = Vector3(-0.2, 1.95, -5.01)
+mesh = SubResource("BackMesh")
+material_override = SubResource("SeatMaterial")
+[node name="ShipBoardingArea" type="Area3D" parent="."]
+position = Vector3(1, 1, -5.5)
+script = ExtResource("2_area")
+prompt_text = "[ E ]  TAKE PREDATOR PILOT SEAT"
+[node name="ApproachCollision" type="CollisionShape3D" parent="ShipBoardingArea"]
+shape = SubResource("ApproachShape")

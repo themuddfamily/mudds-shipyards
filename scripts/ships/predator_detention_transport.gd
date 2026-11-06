@@ -1,7 +1,7 @@
 extends HeroShip
 
 ## Original modern standalone hull with continuous landed stern access.
-## Walking access confers no helm, crew, cell or moving-cabin authority.
+## The reusable shell confers no helm; the production pilot prefab owns its seat.
 const PILOT_ORIGIN := Vector3(0, 1.45, -5.5)
 const CABIN_VOID := AABB(Vector3(-3, 1, -6.5), Vector3(6, 3.6, 13))
 const SECURE_RESERVE := AABB(Vector3(-3, 1, -1), Vector3(2.4, 2.6, 4.8))
@@ -11,6 +11,53 @@ const RAMP_POINTS := [Vector3(-1.2,0,0),Vector3(-1.2,-0.08,0),Vector3(-1.2,-0.5,
 	Vector3(1.2,0,0),Vector3(1.2,-0.08,0),Vector3(1.2,-0.5,2)]
 const STOW_ANGLE := PI * 0.5 + atan(0.25)
 var _access_fraction := 0.0
+
+
+## Only the authored pilot composition supplies this real physical seat area.
+func is_boardable() -> bool:
+	return super.is_boardable() and has_node("ShipBoardingArea") \
+		and is_canopy_open() and _access_fraction >= 0.999 and has_supported_exterior_access()
+
+
+func can_board_from_landed_approach(actor: PlayerController) -> bool:
+	if not is_boardable() or not is_instance_valid(actor) or not actor.is_inside_tree() \
+			or actor.is_queued_for_deletion() or not actor.is_control_enabled() \
+			or actor.is_seated() or not actor.is_on_floor() \
+			or actor.collision_layer != PhysicsLayers.PLAYER_BODY_LAYER \
+			or actor.collision_mask != PhysicsLayers.PLAYER_BODY_MASK \
+			or (actor.get_node("PlayerCollision") as CollisionShape3D).disabled:
+		return false
+	var point := to_local(actor.global_position)
+	return Vector2(point.x-1,point.z+5.5).length() <= 0.45 \
+		and absf(point.y-1) <= 0.04 and has_clear_landed_pilot_stand(actor)
+
+
+## Query the actor's actual normal capsule at the supported interior exit.
+## The support surface stays in the query; only the normal contact skin is removed.
+func has_clear_landed_pilot_stand(actor: PlayerController) -> bool:
+	if not has_supported_exterior_access() or not is_instance_valid(actor):
+		return false
+	var collision := actor.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var pose := get_exit_transform() * collision.transform
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = pose
+	query.margin = 0
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [actor.get_rid()]
+	if not get_world_3d().direct_space_state.intersect_shape(query,16).is_empty():
+		return false
+	var up := global_basis.y.normalized()
+	var feet := get_exit_transform().origin
+	var support := PhysicsRayQueryParameters3D.create(feet+up*0.06,feet-up*0.06,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP,[actor.get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(support)
+	return not hit.is_empty() and hit.collider == self and (hit.normal as Vector3).dot(up) > 0.99
 
 
 func _sample_ship_command() -> ShipCommand:
@@ -205,7 +252,7 @@ func _build_ship() -> void:
 	_pilot_seat_anchor.position = PILOT_ORIGIN
 	_pilot_seat_anchor.set_meta("station_id", &"pilot_station")
 	_cockpit_root.add_child(_pilot_seat_anchor)
-	# Physical chairs are a later card; the anchor alone reserves the exact helm.
+	# The reusable shell reserves the helm; pilot furniture belongs to its prefab.
 	_build_markers_and_camera()
 	# Common camera construction creates weapon markers; retire them before
 	# deferred component discovery. All direct fire methods are also inert.
@@ -213,8 +260,12 @@ func _build_ship() -> void:
 	_muzzle_right.free()
 	_muzzle_left = null
 	_muzzle_right = null
+	_boarding_entry_marker = Marker3D.new()
+	_boarding_entry_marker.name = "BoardingEntry"
+	_boarding_entry_marker.position = Vector3(1,1,-5.5)
+	_cockpit_root.add_child(_boarding_entry_marker)
 	_boarding_marker.position = Vector3(1,1,-5.5)
-	_exit_marker.position = Vector3(1,0,9)
+	_exit_marker.position = Vector3(1,1,-5.5)
 	_camera_pivot.position = Vector3(0,3,0)
 	_install_variant_cockpit_system_readout(_cockpit_root)
 	_cockpit_readout.position = Vector3(0,2.75,-6.6)

@@ -2456,6 +2456,7 @@ func _weapon_component_heat_pips(stage: StringName, heat: float) -> String:
 func _weapon_readiness_text(status: StringName) -> String:
 	return str({
 		&"ready": "READY",
+		&"unarmed": "UNARMED",
 		&"cooldown": "CYCLING",
 		&"overheated": "OVERHEAT",
 		&"offline": "SAFE",
