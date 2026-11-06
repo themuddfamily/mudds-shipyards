@@ -30,6 +30,54 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
+### Selected: Predator physical presentation alignment — ART-FINDINGS
+
+Goal/contract: ART-FINDINGS, Predator's adopted original hull/collision and exact
+pilot/cockpit poses, prerequisite to supported local chairs (card6 remains
+unstarted). Result: solid hull/helm/eye remain in the physical ship frame through
+actual turns, solid exhaust panels remain visible OFFLINE, engine glow remains
+cosmetic and state-driven. No archived candidate or parked retry is reopened.
+
+Start: clean324544457, actual accepted Predator base + Main production pilot
+prefab; one actual ordinary Player for Main routes, one declared standalone
+ShipCommandSource fixture for controller measurements. Root baseline runtime
+already reproduces OFFLINE Port/StarboardExhaust visible=false with active
+colliders, and real yaw visualrotationz−.017437 vs physicalfloor0, moving cockpit
+localx to.055971 instead of0. Raw original complete foundation still passes;
+that check did not cover this actual presentation gap.
+
+Owner/files: one high-effort implementer owns scripts/ships/predator_detention_transport.gd,
+tests/predator_detention_transport_test.gd, tests/game_flow_predator_integration_test.gd.
+Independent high reviewer; root integrates/releases. No HeroShip, Player, Main
+scene, numeric resource, role/authority, movement, berth, access trajectory, CI or
+unrelated craft change. Dependencies: accepted16a6361 pilot checkpoint and
+existing presentation hooks, satisfied. Source and real controller are known.
+
+| Case | Initial state and action | Expected result | Actual/proof |
+| --- | --- | --- | --- |
+| Physical frame | Actual hull root +32 paired physical sections; run original startup/thrust/yaw-pitch-roll/brake/neutral and second flight cycle | Every paired solid mesh stays visible and has exact hierarchy-relative transform matching root collider; pilot(0,1.45,−5.5) and eye(0,3.21,−5.75) remain exact; real body attitude changes normally, no pose/velocity/clock overrides | NOT_RUN |
+| Cosmetic bank/engine cues | Actual yaw command and engine OFFLINE/STARTING/ONLINE/shutdown states | Existing4-degree bank field retained and applied only to a nonphysical presentation root; physical hull and pilot frames unaffected. Two always-visible exhaust solids; separate explicitly nonphysical glow overlays follow real existing engine on/off cue without colliders. Unarmed stays no muzzle/shot/heat/cooldown | NOT_RUN |
+| Preserved foundation/access | Original full foundation90s, access identity180s and elevated35yaw180s | All original16fields/14actualprofiles/registered-six signatures, two real controller cycles, geometry/clearance and complete two walking access cycles at each profile pass. New visibility/root-pose assertions cover actual controlled turn and OFFLINE. No original case/threshold omitted | NOT_RUN |
+| Actual occupied home | Original predator_detention_transport_berth_test240s, ship_definition_berth_test120s, station_route_registry_integration_test180s | Whole hull/sweeps/camera, actual route/control/return, exact own-home lease and old10 craft/berths unchanged; Main remains11/17 | NOT_RUN |
+| Ordinary Main | Complete existing game_flow_predator_integration_test600s ALONE, with new physical alignment assertions during actual turn/online/offline in both sorties | Same Player walks normal station/ramp/aisle, boards,3.8start/launch/flight/strict-home/OFFLINE/inside stand/physical exit, reboards and repeats; no travellingframe/roles granted; normal clean Quit clean_shutdown/clean/session_ended; actual production meshes/helm/eye agree with physical root | NOT_RUN |
+| Source boundary | Seven clean-source cases serial, original per-case limits above; independent suite_process abort | Exit0/one exact marker/raw0 each; source/cache/head/worktree guards; first unexpected failure stops dependent gates | NOT_RUN |
+| Render | Private Xvfb/x11/GLES/Dummy actual production prefab staged fixture, real inherited startup and held yaw source | Inspect OFFLINE exhaust, real online turn and cockpit eye images. Solid panels visible, body/helm stable; cosmetic glow follows engine. No native GPU, production-lighting or human qualification | NOT_RUN |
+| Fresh checkpoint | Existing safe paired exports from final clean commit, strict startup3, equal maps and reviewed one-production-file delta, existing packageaudit9 | EXE/ZIP/notes/preview in repo builds/windows and paired Linux4; no Downloads/CI/native qualification | NOT_RUN |
+| Actual PCK | Blank source-isolated Windows payload under pinned Linux Godot: complete foundation90, accessI/T180each, occupiedberth240 and Main600 ALONE; only test constants/isolation guard adapted | Same full cases and original limits, exit0/markeronce/raw0; Main normal clean Quit; exact accepted source/package | NOT_RUN |
+| Close | Root review, merge/push, verified source+raw archive, exact-tip owned branch/worktree/process/scratch cleanup | All frozen cases pass before acceptance; retained full craft/native/human and all five archived parked attempts remain open/closed as recorded | NOT_RUN |
+
+Budget: ORIGINAL12:45:00→13:45:00UTC2026-11-06,60minutes ALL-IN including
+mapping/baseline, implementation, complete checks/render/build/review/integration
+and cleanup. TWO substantive corrections allowed, frozen before code because
+this crosses presentation, physical pilot/camera and animated access owners.
+Routine compiler/caller repairs keep every case/threshold/deadline. No serial
+validators/schema families or evidence-only implementation. Every Godot call
+Dummy; headless or private x11 Xvfb with independent abort and released input.
+Stop at first failure, capture operands/cause and cumulative cost; exhaustion or
+deadline parks with explicit reopening conditions. Accepted output changes the
+running game and ships in a fresh playable checkpoint; full art/craft/roles/
+release/native/human gates remain open. Close records actuals and cleanup.
+
 ### Dynamic/Utopia/Salyut foundation batch — PARKED, source retained
 
 Combined unmerged candidate **a0446136e** retains the three new original craft
