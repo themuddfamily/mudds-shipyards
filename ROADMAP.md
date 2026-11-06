@@ -81,6 +81,11 @@ Earlier accepted changes remain included in their recorded scopes.
   incorrect-caller/assertion fixes are routine within the unchanged budget. Stop
   dependent work on first unexpected failure and retain actual operands. Existing
   suite_process watchdog; all automated audio Dummy/headless, no desktop/CI.
+- **Correction 1/1:** source review demonstrated that pending existence alone
+  admitted early public reset, bypassing the real delay and leaving sealed cargo.
+  Require the actual active regeneration attempt and elapsed ready_at_msec. The
+  existing Hero pending-reset capability fences lease-signal reentry. Explicit
+  early refusal is mandatory; no remaining substantive correction allowance.
 - **Close:** NOT_RUN. All finite cases, clean paired Windows/Linux export, three
   strict startups, existing nine package predicates, actual packaged ordinary+
   lifecycle+cold checks, accepted source merge/push and verified owned cleanup
