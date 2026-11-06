@@ -43,7 +43,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"titan_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size() == 10, "own berth discovered exactly once alongside unchanged nine")
+	_check(matching == 1 and world.get_berth_ids().size() == 11, "own berth discovered exactly once alongside unchanged nine")
 	var unchanged := true
 	for berth_id in OLD_TRANSFORMS:
 		unchanged = unchanged and world.get_berth_transform(berth_id).is_equal_approx(OLD_TRANSFORMS[berth_id])

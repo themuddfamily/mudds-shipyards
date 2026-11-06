@@ -16,6 +16,7 @@ func _run() -> void:
 	_test_definition_profiles_and_detached_audit()
 	await _test_definition_resource_round_trip()
 	await _test_berth_transform_volume_and_lookup()
+	await _test_offset_landing_volume()
 	await _test_berth_reservation_and_occupancy()
 	_finish()
 
@@ -392,3 +393,32 @@ func _finish() -> void:
 	else:
 		print("SHIP_DEFINITION_BERTH_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+func _test_offset_landing_volume() -> void:
+	var berth := BerthScript.new() as ShipBerth
+	berth.berth_id = &"offset_volume"
+	root.add_child(berth)
+	berth.transform = Transform3D(Basis(Vector3.UP, 0.7), Vector3(30, 12, -15))
+	var dock := berth.get_dock_transform()
+	var capture := berth.get_assist_capture_transform()
+	var staging := berth.get_assist_staging_transform()
+	_check(berth.landing_volume_center == Vector3.ZERO and berth.contains(dock.origin), "legacy default strict volume remains zero-centered")
+	berth.landing_volume_center = Vector3(0, 2.5, 1.5)
+	berth.landing_half_extents = Vector3(5.5, 4, 11.5)
+	var hull := AABB(Vector3(-4.5, 0, -8), Vector3(9, 5, 19))
+	_check(berth.get_dock_transform() == dock and berth.get_assist_capture_transform() == capture and berth.get_assist_staging_transform() == staging, "strict center never changes parked/capture/staging transforms")
+	_check(berth.contains(dock * Vector3(0, 6, 12)) and not berth.contains(dock * Vector3(0, -2, 0)), "rotated elevated strict point query subtracts offset center")
+	_check(berth.contains_oriented_bounds(dock, hull) and not berth.contains_oriented_bounds(Transform3D(dock.basis, dock * Vector3(2,0,0)), hull), "complete deployed bounds fit offset box while outside hull refuses")
+	_check(berth.audit().landing_volume_center == berth.landing_volume_center, "offset is included in detached diagnostic data")
+	for malformed in [Vector3(NAN,0,0), Vector3(0,INF,0), Vector3(0,0,-INF)]:
+		berth.landing_volume_center = malformed
+		_check(not berth.contains(dock.origin) and not berth.contains_transform(dock)
+			and not berth.contains_oriented_bounds(dock,hull)
+			and not berth.contains_assist_capture(capture.origin)
+			and not berth.contains_assist_oriented_bounds(dock,hull)
+			and not berth.evaluate_landing_candidate(dock,hull,Vector3.ZERO,11).valid
+			and not berth.evaluate_assist_capture_candidate(dock,hull,Vector3.ZERO,11).valid
+			and _has_error(berth.get_validation_errors(),"landing_volume_center"), "nonfinite strict center fails closed in every direct and candidate path")
+	berth.queue_free()
+	await process_frame

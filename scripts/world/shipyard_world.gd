@@ -68,6 +68,7 @@ const SHIP_BERTH_PRODUCTION_IDS: Array[StringName] = [
 	&"dock_05_bomber",
 	&"dock_06_interceptor",
 	&"titan_home_berth",
+	&"predator_home_berth",
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -766,6 +767,12 @@ const TOW_TRACTOR_SCENE := preload("res://scenes/world/tow_tractor.tscn")
 ## connectors is proved by `station_surface_playability_test.gd` and the
 ## per-module integration suites.
 const STATION_HUB_ENDPOINT_DECLARATIONS := [
+	{
+		"slot_id": &"hub-predator-detention-berth",
+		"expects_module": &"predator-detention-berth",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "PredatorConnectorRouteAnchor",
+	},
 	{
 		"slot_id": &"hub-titan-transport-berth",
 		"expects_module": &"titan-transport-berth",
@@ -3970,7 +3977,7 @@ func get_station_navigation_audit_report() -> Dictionary:
 		if not is_instance_valid(berth):
 			continue
 		var half := berth.get_landing_half_extents()
-		berth_volumes.append(_station_local_aabb_to_world(berth.get_dock_transform(), -half, half))
+		berth_volumes.append(_station_local_aabb_to_world(berth.get_dock_transform(), berth.get_landing_volume_center() - half, berth.get_landing_volume_center() + half))
 
 	var placements := {}
 	var smallest_berth_gap := INF
@@ -4220,9 +4227,10 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 	expected_ids.assign(SHIP_BERTH_FEEDBACK_BERTH_IDS)
 	var initial_berth_ids: Array[StringName] = expected_ids.duplicate()
 	initial_berth_ids.append(&"titan_home_berth")
+	initial_berth_ids.append(&"predator_home_berth")
 	# The Dock 04/05/06 berths assemble after the world's initial index pass.
 	# Until GameFlow refreshes that index, the three berth caches truthfully hold
-	# the six feedback-equipped berths plus Titan; afterwards all ten berths.
+	# the six feedback-equipped berths plus Titan and Predator; afterwards all eleven berths.
 	# Both atomic states are valid, but partial or foreign cache rosters are not.
 	if (
 		not _dictionary_has_exact_keys(_berth_nodes, initial_berth_ids)
@@ -4436,6 +4444,9 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 
 
 func is_landing_position_for_berth(world_position: Vector3, berth_id: StringName) -> bool:
+	var berth := get_berth_node(berth_id)
+	if is_instance_valid(berth):
+		return berth.contains(world_position)
 	if not _berth_transforms.has(berth_id):
 		return false
 	var berth_transform := get_berth_transform(berth_id)
