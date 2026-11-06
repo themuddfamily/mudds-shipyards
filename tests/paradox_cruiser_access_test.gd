@@ -20,6 +20,8 @@ var _current_route_axis := -1
 var _current_route_target := INF
 var _previous_inside := false
 var _commands: FixtureCommands
+var _tick_observer: CompletedPlayerTick
+var _observe_positive_ticks := false
 
 
 class FixtureCommands:
@@ -28,6 +30,20 @@ class FixtureCommands:
 	var brake := false
 	func _sample_controls() -> Dictionary:
 		return {"throttle": throttle, "brake": brake}
+
+
+## The observer runs after both ordinary Player physics and the interior frame,
+## including the latter's temporary Player-priority assignment. A slow rendered
+## frame can contain several physics ticks; each is observed independently.
+class CompletedPlayerTick:
+	extends Node
+	signal completed_tick
+	var observe: Callable
+
+	func _physics_process(_delta: float) -> void:
+		if observe.is_valid():
+			observe.call()
+		completed_tick.emit()
 
 
 func _init() -> void:
@@ -66,6 +82,12 @@ func _run() -> void:
 	_ship.add_child(_commands)
 	_ship.set_command_source(_commands)
 	_player.interact_requested.connect(_route_interaction)
+	_tick_observer = CompletedPlayerTick.new()
+	_tick_observer.name = "CompletedPlayerPhysicsObserver"
+	_tick_observer.process_physics_priority = maxi(_player.process_physics_priority,
+		_frame.process_physics_priority + _frame.occupant_priority_offset) + 1
+	_tick_observer.observe = _observe_completed_player_tick
+	root.add_child(_tick_observer)
 	await _frames(12)
 	if not _check(_player.is_on_floor() and _local().distance_to(Vector3(0,0,20)) < 0.02
 		and _frame.get_interior_bounds().is_equal_approx(ROOM), "one staged actual Player and exact bounded supported cabin"):
@@ -73,6 +95,7 @@ func _run() -> void:
 	if not _observe_geometry() or not _measure_trajectory():
 		return
 	# Closed refusal is real movement into the sealed physical access assembly.
+	_observe_positive_ticks = true
 	await _walk_axis(2,10,150,false)
 	if _failed:
 		return
@@ -118,6 +141,7 @@ func _run() -> void:
 		if not _check(_ship.get_landing_collision_report().local_bounds.is_equal_approx(AABB(Vector3(-8,0,-14),Vector3(16,6,28))),
 			"sealed physical geometry restores exact16x28x6 envelope"):
 			return
+	_observe_positive_ticks = false
 	# Existing timed startup and ordinary idle: no actor/ship clock mutation.
 	_ship.set_piloted(true)
 	_commands.brake = true
@@ -152,6 +176,7 @@ func _run() -> void:
 	await _frames(95)
 	_ship.set_piloted(false)
 	_release_inputs()
+	_tick_observer.queue_free()
 	_player.queue_free()
 	_ship.queue_free()
 	deck.queue_free()
@@ -173,9 +198,14 @@ func _route_interaction() -> void:
 
 func _interact(open: bool, safety: bool) -> bool:
 	var before := _interactions
+	# Deliver the ordinary edge before Player's next physics callback. The
+	# completed-tick observer already monitors this tick and every prior tick.
+	await physics_frame
 	Input.action_press(&"interact")
-	await _frames(1)
+	await _tick_observer.completed_tick
 	Input.action_release(&"interact")
+	if _failed:
+		return false
 	if not _check(_interactions == before+1 and _ship.is_canopy_open() == open, "ordinary Player Interact operates discovered reachable physical hatch"):
 		return false
 	if safety:
@@ -183,9 +213,8 @@ func _interact(open: bool, safety: bool) -> bool:
 		_commands.throttle = 1
 		_ship.request_engine_start()
 	for index in 30:
-		await physics_frame
-		await process_frame
-		if not _observe_geometry() or not _observe_player():
+		await _tick_observer.completed_tick
+		if _failed:
 			return false
 		if safety and not _check(_ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE
 			and _ship.velocity.length()<0.001 and _ship.global_position.distance_to(_fixture.origin)<0.001,
@@ -212,17 +241,15 @@ func _walk_axis(axis: int, target: float, limit: int, require_endpoint: bool = t
 		if distance <= 0.035:
 			break
 		Input.action_press(action,0.35 if distance<0.7 else 1.0)
-		await physics_frame
-		await process_frame
+		await _tick_observer.completed_tick
 		frames += 1
-		if not _observe_player() or not _observe_geometry():
+		if _failed:
 			_release_inputs()
 			return false
 	Input.action_release(action)
 	for index in 12:
-		await physics_frame
-		await process_frame
-		if not _observe_player():
+		await _tick_observer.completed_tick
+		if _failed:
 			return false
 	print("PARADOX_ACCESS_WALK: axis=",axis," target=",target," start=",start," end=",_local()," frames=",frames)
 	return not require_endpoint or _check(absf(_local()[axis]-target)<0.06,"ordinary movement reaches unchanged exact route endpoint")
@@ -230,6 +257,24 @@ func _walk_axis(axis: int, target: float, limit: int, require_endpoint: bool = t
 
 func _local() -> Vector3:
 	return _fixture.affine_inverse() * _player.global_position
+
+
+func _observe_completed_player_tick() -> void:
+	if not _observe_positive_ticks or _failed:
+		return
+	var current_frame := Engine.get_physics_frames()
+	var completed: Dictionary = _player.get_step_up_assist_audit().get("completed_motion",{})
+	if not _check(_tick_observer.process_physics_priority > _player.process_physics_priority
+		and _tick_observer.process_physics_priority > _frame.process_physics_priority
+		and int(completed.get("frame",-1)) == current_frame,
+		"observer runs after the actual Player completes this physical tick"):
+		return
+	if not _check(_last_observed_physics_frame < 0 or current_frame == _last_observed_physics_frame + 1,
+		"every observed completed physical tick is adjacent previous="+str(_last_observed_physics_frame)+" current="+str(current_frame)):
+		return
+	if not _observe_player():
+		return
+	_observe_geometry()
 
 
 func _observe_player() -> bool:
