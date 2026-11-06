@@ -8,6 +8,11 @@ const CABIN_VOID := AABB(Vector3(-2, 0.9, -5.6), Vector3(4, 2.5, 11.2))
 const AISLE_RESERVE := AABB(Vector3(-0.7, 0.9, -3.3), Vector3(1.4, 2.5, 8.9))
 const PORT_CHAIR_RESERVE := AABB(Vector3(-1.7, 0.9, -1.1), Vector3(0.9, 2.0, 1.2))
 const STARBOARD_CHAIR_RESERVE := AABB(Vector3(0.8, 0.9, -1.1), Vector3(0.9, 2.0, 1.2))
+var _original_shell: Node3D
+
+
+func get_variant_visual_root() -> Node3D:
+	return _original_shell
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -58,8 +63,13 @@ func _build_ship() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	set_meta("authenticated_historical_silhouette", false)
 	set_meta("geometry_status", &"original_modern_candidate")
+	_original_shell = Node3D.new()
+	_original_shell.name = "SalyutOriginalShell"
+	add_child(_original_shell)
+	# Solid mesh sections share the root collision frame during turns. Only the
+	# non-solid cockpit presentation receives HeroShip's cosmetic bank.
 	_visual_root = Node3D.new()
-	_visual_root.name = "SalyutOriginalShell"
+	_visual_root.name = "SalyutPilotPresentation"
 	add_child(_visual_root)
 	var white := _salyut_finish(Color("e1e5e3"), 0.6)
 	var keel := _salyut_finish(Color("253039"), 0.8)
@@ -186,7 +196,7 @@ func _salyut_section(label: String, footprint: Array, bottom: float, top: float,
 	var mesh := MeshInstance3D.new()
 	mesh.name = label
 	mesh.mesh = surface.commit()
-	_visual_root.add_child(mesh)
+	_original_shell.add_child(mesh)
 	return mesh
 
 
