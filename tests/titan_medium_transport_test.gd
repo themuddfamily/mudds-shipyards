@@ -767,10 +767,101 @@ func _test_passengers(ship: HeroShip) -> void:
 	controls.brake = false
 	await _frames(95)
 	ship.set_piloted(false)
+	var pilot := preload("res://scenes/player/player.tscn").instantiate() as PlayerController
+	pilot.transform = ship.get_boarding_entry_transform()
+	root.add_child(pilot)
+	pilot.set_control_enabled(false)
+	var area := ShipBoardingArea.new()
+	area.name = "ShipBoardingArea"
+	ship.add_child(area)
+	_check(area.try_reserve(pilot) and authority.claim(1, 1, &"fixture_pilot", &"pilot_station", &"pilot", 9).accepted
+		and pilot.begin_boarding(ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 0.75, ship),
+		"third actual local Player claims and boards real pilot station")
+	frame.unregister_occupant(pilot, false, &"pilot_seat_handoff")
+	frame.register_occupant(pilot, {"require_inside_bounds": true})
+	ship.set_piloted(true)
+	pilot.set_camera_active(false)
+	await _frames(50)
+	var occupied_before := ship.get_telemetry()
+	var claims_before := authority.get_snapshot()
+	_check(pilot.is_seated_at(ship.get_pilot_seat_anchor()) and players[0].is_seated_at(seats[0].get_seat_anchor())
+		and players[1].is_seated_at(seats[1].get_seat_anchor()) and frame.get_occupant_count() == 3
+		and ship.get_camera().current and not ship.preflight_reset_for_reuse(ship.global_transform).accepted
+		and ship.get_telemetry() == occupied_before and authority.get_snapshot() == claims_before and area.get_reservation_token() == pilot,
+		"three actual occupied roles/camera reject reset before hull, claims or reservations mutate")
+	# A supported recovery apron is independent of the destroyed moving hull.
+	var recovery_deck := StaticBody3D.new()
+	recovery_deck.collision_layer = PhysicsLayers.WORLD
+	var collision := CollisionShape3D.new()
+	var floor_shape := BoxShape3D.new()
+	floor_shape.size = Vector3(12, 1, 12)
+	collision.shape = floor_shape
+	collision.position = Vector3(-50, -0.5, 0)
+	recovery_deck.add_child(collision)
+	root.add_child(recovery_deck)
+	var recovery := Transform3D(Basis.IDENTITY, Vector3(-50, 0, 0))
+	var recover := func(_position: Vector3, _velocity: Vector3) -> void: ship.call("recover_destroyed_local_occupants", recovery)
+	ship.destroyed.connect(recover)
+	controls.throttle = 0.18
+	controls.yaw = 0.12
+	ship.request_engine_start()
+	await _frames(210)
+	var death_pose := ship.global_transform
+	_check(ship.velocity.length() > 0.1 and pilot.is_seated() and players[0].is_seated() and players[1].is_seated(),
+		"all three actual claimed bodies are aboard moving Titan before terminal production damage")
+	ship.apply_damage(220)
+	controls.throttle = 0
+	controls.yaw = 0
+	await _frames(8)
+	_check(ship.is_destroyed() and not ship.is_piloted() and not ship.get_camera().current
+		and not area.is_reserved() and frame.get_occupant_count() == 0
+		and (authority.get_snapshot().assignments as Array).is_empty() and ship.call("get_crew_role_authority") == null,
+		"terminal production damage releases all three claims, helm camera and frame bodies")
+	var all_recovered := true
+	for actor: PlayerController in [pilot, players[0], players[1]]:
+		all_recovered = all_recovered and not actor.is_seated() and actor.is_control_enabled() and actor.is_on_floor() \
+			and not actor.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and not actor.get_cabin_containment_report().active \
+			and actor.global_position.distance_to(recovery.origin) < 2
+	_check(all_recovered, "all three local Players recover as supported on-foot bodies with cleared containment/metadata")
+	var generation_after := int(ship.get("_crew_generation"))
+	ship.call("recover_destroyed_local_occupants", recovery)
+	_check(int(ship.get("_crew_generation")) == generation_after
+		and not ship.call("attach_crew_role_authority", authority).accepted
+		and not ship.attach_solo_crew_role_occupant(&"fixture_passenger_0", seats[0], players[0]).accepted,
+		"duplicate loss is inert and old role/body requests cannot reacquire dead Titan")
+	# Compare gameplay outside the temporary pending-reset capability: commit
+	# rejection retires that capability and its weapon-admission status.
+	var dead_before := ship.get_telemetry()
+	var proof := ship.preflight_reset_for_reuse(death_pose)
+	# A real occupant appearing after preflight invalidates commit atomically.
+	var late_body := Node3D.new()
+	root.add_child(late_body)
+	late_body.global_position = ship.to_global(Vector3(0, 0.8, 0))
+	var registration := frame.register_occupant(late_body, {"require_inside_bounds": true})
+	var stale_commit := ship.commit_reset_for_reuse(proof)
+	print("TITAN_OCCUPIED_RESET: ", {"proof": proof, "registration": registration, "commit": stale_commit,
+		"before": dead_before, "after": ship.get_telemetry()})
+	_check(proof.accepted and registration.registered and not stale_commit.accepted
+		and stale_commit.reason == &"titan_occupied" and ship.get_telemetry() == dead_before
+		and frame.is_occupant_registered(late_body) and area.get_reservation_token() == null,
+		"current receipt with newly occupied frame refuses before any reset mutation")
+	frame.unregister_occupant(late_body, false, &"fixture_cleanup")
+	late_body.queue_free()
+	_check(ship.reset_for_reuse(death_pose).accepted and not ship.is_destroyed()
+		and not ship.call("attach_crew_role_authority", authority).accepted,
+		"empty current reset restores hull while old-generation roster remains rejected")
+	var fresh_authority := CrewSeatRoleAuthority.new(1)
+	_check(ship.call("register_crew_seat_roster", fresh_authority).accepted
+		and ship.call("attach_crew_role_authority", fresh_authority).accepted
+		and int(fresh_authority.get_snapshot().seats[0].seat_generation) == generation_after,
+		"regenerated chairs publish one fresh generation through existing role authority")
+	ship.destroyed.disconnect(recover)
 	for index in 2:
-		ship.release_solo_crew_role_occupant(StringName("fixture_passenger_" + str(index)), seats[index].get_seat_id(), players[index], index + 7, 1, authority)
 		players[index].queue_free()
-	_check(ship.call("detach_crew_role_authority", authority), "empty fixture ledger detaches cleanly")
+	pilot.queue_free()
+	recovery_deck.queue_free()
+	area.queue_free()
+	_check(ship.call("detach_crew_role_authority", fresh_authority), "empty fixture ledger detaches cleanly")
 	controls.queue_free()
 	await _frames(3)
 

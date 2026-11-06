@@ -22,6 +22,8 @@ var _endpoint_generation := 0
 var _request_serial := 0
 var _last_pair: Dictionary = {}
 var _committing := false
+var _sealed := false
+var _sealed_holder: Node
 var status := "Cargo custody unavailable"
 
 func initialize(owner: CargoTransferAuthority, persistence: UserDataStore, craft: HeroShip, supply: Node3D, admission: Callable) -> Dictionary:
@@ -66,7 +68,7 @@ func initialize(owner: CargoTransferAuthority, persistence: UserDataStore, craft
 	return {"accepted": true, "reason": &"ready"}
 
 func is_available() -> bool:
-	if not is_inside_tree() or is_queued_for_deletion() or not _available or not is_instance_valid(authority) or not authority.is_inside_tree() \
+	if _sealed or not is_inside_tree() or is_queued_for_deletion() or not _available or not is_instance_valid(authority) or not authority.is_inside_tree() \
 			or authority.is_queued_for_deletion() or not is_instance_valid(ship) or ship.is_destroyed():
 		return false
 	var first := authority.get_manifest_snapshot(locker_handle)
@@ -77,9 +79,82 @@ func is_available() -> bool:
 func restore_live_binding() -> void:
 	if not _available:
 		return
+	if _sealed:
+		# Main reentry may restore the station locker, never the lost hull.
+		if not bool(authority.get_manifest_snapshot(locker_handle).get("attached", false)) \
+				and not bool(authority.reattach_entity(locker, locker_handle).get("accepted", false)):
+			_refuse(&"custody_unavailable")
+		return
 	var restored := authority.reattach_entity_pair(locker, locker_handle, ship, ship_handle)
 	if not bool(restored.get("accepted", false)):
 		_refuse(&"custody_unavailable")
+
+
+## Keep the authority's exact manifest, but take it off every live endpoint.
+## The holder's ordinary tree exit invokes the existing authority detachment.
+func seal_destroyed_ship() -> Dictionary:
+	if _sealed:
+		return {"accepted": true, "reason": &"already_sealed"}
+	if _committing or not is_instance_valid(ship) or not ship.is_destroyed() \
+			or not _pair_is_current():
+		return _refuse(&"seal_unavailable")
+	_sealed_holder = Node.new()
+	_sealed_holder.name = "SealedTitanManifest"
+	add_child(_sealed_holder)
+	var moved := authority.reassign_entity(ship_handle, _sealed_holder, &"titan_provisional", &"titan_cargo_manifest")
+	if not bool(moved.get("accepted", false)):
+		_sealed_holder.queue_free()
+		_sealed_holder = null
+		return _refuse(&"seal_unavailable")
+	ship_handle = moved.handle
+	_sealed = true
+	remove_child(_sealed_holder)
+	status = "Titan lost — parcels sealed for berth regeneration"
+	return {"accepted": true, "reason": &"sealed"}
+
+
+func preflight_regeneration() -> bool:
+	return is_instance_valid(ship) and ship.is_destroyed() and _sealed_binding_is_current()
+
+
+## GameFlow calls only after its reset and exact pending/home-lease proofs.
+## Reassign has no callbacks and retains quantities/receipt fences atomically.
+func restore_regenerated_ship() -> bool:
+	if not is_instance_valid(ship) or ship.is_destroyed() or not _sealed_binding_is_current():
+		return false
+	var moved := authority.reassign_entity(ship_handle, ship, &"titan_provisional", &"titan_cargo_manifest")
+	if not bool(moved.get("accepted", false)):
+		return false
+	ship_handle = moved.handle
+	_sealed = false
+	_sealed_holder.free()
+	_sealed_holder = null
+	status = "Parcels restored: locker %d / Titan %d" % [_last_pair.locker, _last_pair.titan]
+	return is_available()
+
+
+func _sealed_binding_is_current() -> bool:
+	if not _sealed or not is_instance_valid(_sealed_holder) or _sealed_holder.is_inside_tree() \
+			or not _pair_is_current():
+		return false
+	var manifest := authority.get_manifest_snapshot(ship_handle)
+	return not manifest.is_empty() and not bool(manifest.get("attached", true))
+
+
+func _pair_is_current() -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() or _committing or not _available \
+			or not is_instance_valid(authority) or not authority.is_inside_tree() or authority.is_queued_for_deletion():
+		return false
+	var read := _read_pair(false)
+	var live := {"locker": authority.get_quantity(locker_handle, ITEM), "titan": authority.get_quantity(ship_handle, ITEM)}
+	return bool(read.get("accepted", false)) and read.pair == live and live == _last_pair \
+		and bool(authority.get_manifest_snapshot(locker_handle).get("attached", false))
+
+
+func _notification(what: int) -> void:
+	# A detached Main may return. Free its off-tree holder only on actual disposal.
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(_sealed_holder):
+		_sealed_holder.free()
 
 func snapshot() -> Dictionary:
 	return {"available": is_available(), "locker": authority.get_quantity(locker_handle, ITEM) if is_instance_valid(authority) else -1,
@@ -89,6 +164,8 @@ func snapshot() -> Dictionary:
 func request_transfer(actor: Node, panel: Node3D, loading: bool, quantity: Variant = 1, transfer_id: StringName = &"", source: Dictionary = {}, destination: Dictionary = {}) -> Dictionary:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return _reject(&"custody_unavailable")
+	if _sealed:
+		return _reject(&"custody_sealed")
 	if _committing:
 		return {"accepted": false, "reason": &"transfer_busy"}
 	if not is_available() and not retry_custody():
@@ -178,7 +255,7 @@ func _refuse(reason: StringName) -> Dictionary:
 ## Retrying a repaired store may unlock only the unchanged last committed pair.
 ## An interrupted document or different durable pair remains fail-closed.
 func retry_custody() -> bool:
-	if not is_instance_valid(authority) or locker_handle.is_empty() or ship_handle.is_empty():
+	if _sealed or not is_instance_valid(authority) or locker_handle.is_empty() or ship_handle.is_empty():
 		return false
 	var read := _read_pair(false)
 	var live := {"locker": authority.get_quantity(locker_handle, ITEM), "titan": authority.get_quantity(ship_handle, ITEM)}

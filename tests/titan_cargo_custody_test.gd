@@ -30,6 +30,7 @@ func _run() -> void:
 		await _cold_main()
 	else:
 		await _semantic_store()
+		await _sealed_custody()
 	if _failures.is_empty():
 		print("TITAN_CARGO_CUSTODY_TEST_OK")
 		quit(0)
@@ -131,6 +132,63 @@ func _semantic_store() -> void:
 		and f.custody.snapshot().locker == 2 and f.custody.snapshot().titan == 2,
 		"backup-only transfer refuses with both live sides unchanged")
 	await _dispose(f)
+
+func _sealed_custody() -> void:
+	var f := _fixture({"unrelated": {"retained": 73}})
+	var custody := f.custody as TitanCargoCustody
+	var craft := f.ship as HeroShip
+	_check(custody.request_transfer(f.locker, f.panel, true, 2).accepted, "lifecycle starts from actual committed2/2")
+	var before := custody.snapshot()
+	var raw_locker := custody.locker_handle.duplicate(true)
+	var raw_ship := custody.ship_handle.duplicate(true)
+	var bytes := FileAccess.get_file_as_bytes(f.path)
+	craft.apply_damage(220)
+	_check(custody.seal_destroyed_ship().accepted and custody.seal_destroyed_ship().accepted,
+		"terminal production damage seals exactly once")
+	var sealed := custody.snapshot()
+	var holder: WeakRef = weakref(custody._sealed_holder)
+	_check(not sealed.available and sealed.locker == 2 and sealed.titan == 2
+		and sealed.ship_handle != before.ship_handle and not custody.can_launch()
+		and not f.authority.get_manifest_snapshot(custody.ship_handle).attached
+		and FileAccess.get_file_as_bytes(f.path) == bytes,
+		"same finite2/2 is truly detached with fresh handle and untouched durable/unrelated bytes")
+	_check(not f.authority.transfer(&"old_dead", raw_locker, raw_ship, TitanCargoCustody.ITEM, 1).accepted
+		and not f.authority.transfer(&"current_sealed", custody.locker_handle, custody.ship_handle, TitanCargoCustody.ITEM, 1).accepted
+		and not custody.request_transfer(f.locker, f.panel, true, 1).accepted,
+		"old raw, current sealed raw and ordinary service endpoints all refuse while dead")
+	root.remove_child(custody)
+	root.add_child(custody)
+	custody.restore_live_binding()
+	_check(not custody.is_available() and not f.authority.get_manifest_snapshot(custody.ship_handle).attached
+		and custody.preflight_regeneration(), "normal reentry keeps sealed holder detached and original custody recoverable")
+	craft.set(&"lifecycle_reset_guard", func(_pose: Transform3D) -> bool: return custody.preflight_regeneration())
+	var proof := craft.preflight_reset_for_reuse(Transform3D.IDENTITY)
+	var stale := proof.duplicate(true)
+	stale.receipt_id = int(stale.receipt_id) + 1
+	_check(proof.accepted and not craft.commit_reset_for_reuse(stale).accepted
+		and craft.is_destroyed() and custody.snapshot().ship_handle == sealed.ship_handle
+		and FileAccess.get_file_as_bytes(f.path) == bytes,
+		"stale reset proof cannot restore hull, quantity or endpoint")
+	_check(craft.commit_reset_for_reuse(proof).accepted and custody.restore_regenerated_ship(),
+		"accepted empty current reset rebinds the retained sealed manifest")
+	var restored := custody.snapshot()
+	_check(restored.available and restored.locker == 2 and restored.titan == 2
+		and restored.ship_handle != before.ship_handle and restored.ship_handle != sealed.ship_handle
+		and not custody.restore_regenerated_ship() and holder.get_ref() == null
+		and FileAccess.get_file_as_bytes(f.path) == bytes,
+		"one regenerated endpoint conserves2/2, retires holder and cannot restore twice")
+	_check(not custody.request_transfer(f.locker, f.panel, false, 1, &"stale_after_reset", before.ship_handle).accepted
+		and custody.request_transfer(f.locker, f.panel, false, 1).accepted
+		and custody.snapshot().locker == 3 and custody.snapshot().titan == 1,
+		"stale service handle refuses after regeneration; current endpoint remains usable")
+	await _dispose(f)
+	var sealed_fixture := _fixture()
+	sealed_fixture.ship.apply_damage(220)
+	sealed_fixture.custody.seal_destroyed_ship()
+	var disposed_holder: WeakRef = weakref(sealed_fixture.custody._sealed_holder)
+	await _dispose(sealed_fixture)
+	_check(disposed_holder.get_ref() == null, "disposing destroyed Main/custody frees its detached holder")
+
 
 func _cold_main() -> void:
 	var seed_path := OS.get_environment("TITAN_COLD_SEED_PATH")

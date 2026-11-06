@@ -19316,6 +19316,10 @@ func _on_ship_destroyed(
 	) -> void:
 	if not is_instance_valid(source_ship) or not ships.has(source_ship):
 		return
+	if source_ship.get_ship_id() == &"titan_provisional":
+		if is_instance_valid(titan_cargo) and titan_cargo.ship == source_ship:
+			titan_cargo.seal_destroyed_ship()
+		source_ship.call(&"recover_destroyed_local_occupants", world.get_player_spawn())
 	_release_network_destroyed_ship_boarding(source_ship)
 	if source_ship == _network_exterior_canopy_ship:
 		_cancel_network_exterior_transition()
@@ -24004,6 +24008,10 @@ func _attempt_pending_regeneration(
 			and not _ship_owns_exact_occupied_berth(pending_ship, berth_id)):
 		_release_ship_berth(pending_ship)
 		return
+	if pending_ship.get_ship_id() == &"titan_provisional" \
+			and (not is_instance_valid(titan_cargo) or titan_cargo.ship != pending_ship \
+			or not titan_cargo.restore_regenerated_ship()):
+		return
 	hud.toast(
 		"Berth regeneration complete",
 		"%s is available again" % pending_ship.get_display_name(),
@@ -27936,6 +27944,7 @@ func _initialize_titan_cargo() -> void:
 	titan_cargo.custody_committed.connect(_on_titan_cargo_committed)
 	craft.set(&"cargo_custody_guard", Callable(titan_cargo, "is_available"))
 	craft.set(&"cargo_launch_guard", Callable(titan_cargo, "can_launch"))
+	craft.set(&"lifecycle_reset_guard", _authorize_titan_regeneration.bind(craft))
 	_titan_hold_panel = TitanCargoPanel.new()
 	_titan_hold_panel.name = "TitanHoldPanel"
 	_titan_hold_panel.custody = titan_cargo
@@ -27948,6 +27957,17 @@ func _initialize_titan_cargo() -> void:
 	_titan_locker_panel.position = Vector3(0, 1.15, 0)
 	locker.add_child(_titan_locker_panel)
 	titan_cargo.initialize(cargo_transfer_authority, _runtime_settings_user_data_store, craft, locker, _authorize_titan_cargo_actor)
+
+
+func _authorize_titan_regeneration(spawn_transform: Transform3D, craft: HeroShip) -> bool:
+	return is_instance_valid(craft) and craft in ships and craft.is_destroyed() \
+		and _regeneration_attempts_active.has(craft.get_instance_id()) \
+		and _pending_regeneration_is_current(craft.get_instance_id(), craft) \
+		and Time.get_ticks_msec() >= int((_regeneration_pending.get(craft.get_instance_id(), {}) as Dictionary).get("ready_at_msec", 0)) \
+		and is_instance_valid(titan_cargo) and titan_cargo.ship == craft \
+		and world.has_berth(&"titan_home_berth") \
+		and spawn_transform.is_equal_approx(world.get_berth_transform(&"titan_home_berth")) \
+		and titan_cargo.preflight_regeneration()
 
 func _on_titan_cargo_committed(context: Variant, generation: int) -> void:
 	if context is Dictionary:
