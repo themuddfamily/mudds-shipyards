@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/paradox_cruiser.gd" id="1_paradox"]
+[ext_resource type="Resource" path="res://assets/ships/paradox_provisional.tres" id="2_definition"]
+[ext_resource type="PackedScene" path="res://scenes/audio/ship_audio_rig.tscn" id="3_audio"]
+
+[node name="ParadoxCruiser" type="CharacterBody3D"]
+script = ExtResource("1_paradox")
+ship_definition = ExtResource("2_definition")
+home_berth_id = &""
+cockpit_camera_position = Vector3(0, 3.41, -4.05)
+minimum_chase_camera_distance = 30.0
+maximum_chase_camera_distance = 46.0
+
+[node name="ShipAudioRig" parent="." instance=ExtResource("3_audio")]
