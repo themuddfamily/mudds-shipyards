@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **0c2f322** — [Windows ZIP](builds/windows/MuddsShipyards-0c2f322-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-0c2f322-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-0c2f322-linux-x86_64.tar.gz).
+Latest playable checkpoint: **f3c20bf** — [Windows ZIP](builds/windows/MuddsShipyards-f3c20bf-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-f3c20bf-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-f3c20bf-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,29 +26,50 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-f3c20bf-paradox-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Paradox standalone hull and pilot — build card1
+### Paradox standalone hull and pilot — build card1 DONE (standalone scope)
 
-Goal / contract: [approved Paradox card1](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-cards--only-after-approval), an independent unstarted content capability. Titan remote and Vortex access remain parked; this card neither resets nor reopens their failures/cost/allowances.
-Result: original editable Paradox scene/definition instantiates as HeroShip and actually starts/flies/turns/brakes/shuts down through its existing controller in an isolated fixture. This is standalone content, not selectable Main craft or ordinary access/combat/role qualification; Main remains10/17.
-Candidate / start: clean53c1ed7f2; one staged initial ship/pilot/source setup, then real existing ShipCommandSource only. No caller runtime pose/velocity/engine-state/clock mutation. Faceted long foredeck, raised aft bridge, two compact stern engine blocks/inset boarding well; authored16×28×6m envelope(x±8,z±14,y0..6). Reserve bridge floor1.2,clearx±2.8,z−5..11,ceiling≥4 for later access; fixed decorative weapon fittings stay inside envelope and grant no firing capability.
-Owner / files: one medium-effort candidate implementer owns only `assets/ships/paradox_provisional.tres`, `scripts/ships/paradox_cruiser.gd`, `scenes/ships/paradox_cruiser.tscn`, `tests/paradox_cruiser_test.gd` and script UIDs. Root reviews and owns docs, checks, release, integration and cleanup. No shared runtime/Main/registry-role edit, copied sibling hull, cargo, gunner/passenger or combat grant.
-Dependencies / fixed fields: owner already adopted the complete modern baseline. Exact identity paradox_provisional/Paradox-class Cruiser candidate/Cruiser/PROVISIONAL, required tags medium_craft/cruiser/paradox_cruiser/multi_crew, exact approved evidence-notes boundary, stern-hatch/open/seal/board and heavy_quad_freighter. All16 numeric values fixed: maximum_speed84,boost110,thrust24,brake34,drag2.1,response6.8,boost_multiplier1.27,yaw42,roll59,assist4,bank5,mouse11,start3.2,cooldown.62,hull270,landing_maximum_speed11. No silent numeric/shape revision if combined contracts fail. Pilot anchor exactly(0,1.65,−3.8); room/camera geometry must fit it. Future physical role anchors/weapon/berth/recovery/network are not fitted by this card.
-Proof: `/srv/mudds-work/paradox-foundation-20261106/`, exact clean source/cache guards, actual controller/mesh/physics observations and three fixed private GLES/Xvfb images; actual source-isolated Windows-PCK fixture and complete ordinary Main under pinned Linux Godot. Every Godot invocation Dummy, rendered display explicitx11, independent abort/reap/released inputs. Native/human/full craft gates stay open.
-Budget: original start06:13:39UTC2026-11-06 (definition/priority lookup included), absolute deadline06:58:39UTC,45minutes all-in including implementation, complete gates/checkpoint, merge/push/archive/exact-tip branch/worktree/process cleanup. One substantive production correction; routine compiler/caller/assertion corrections retain every endpoint/threshold and deadline. First unexpected failure retains operands/stops dependent checks; exhausted allowance/deadline or real design conflict parks this original card, no renamed retry/subset acceptance.
-Cases / commands: new `paradox_cruiser_test.gd`(90s); existing `ship_definition_berth_test.gd`(120s), `fleet_role_registry_test.gd`(120s), exact legacy-nine `fleet_role_differentiation_test.gd` fixture adapter(300s, original cases/floors/waits unchanged); complete unchanged ordinary Titan Main(300s ALONE). Full resource/current-profile separation uses unchanged registry functions over all10Main definitions plus accepted standalone Vortex plus Paradox(12 profiles), preserves14-axis/non-dominance/existing signature floors. Legacy adapter asserts exact10unique live Main IDs(the original nine+Titan; neither Vortex nor Paradox), then runs originalnine assertions; it does not qualify full current-ten handling. Repeat full new standalone fixture and complete ordinary Main on actual Windows PCK in blank source-isolated directory. Fresh paired exports/strict startup3/existing nine package predicates and eight checkpoint/notes/preview artifacts required.
-Close: NOT_RUN; no production fleet count or full cruiser claim before later Main/ordinary craft cards.
+Source **f3c20bf10**, merged/pushed via **624761483**, adds the approved original
+Paradox definition, editable procedural scene/hull and existing HeroShip pilot
+controller. Its faceted long foredeck, raised aft bridge, twin compact stern
+engine blocks and inset stern well fit the exact16×28×6m envelope;21
+actual convex sections match visible vertices, face outward, do not overlap
+and leave the reserved bridge/cockpit eye clear. All16 approved values remain
+unchanged, including landing speed11 and engine start3.2s. The pilot anchor is
+exactly(0,1.65,-3.8). Actual command-source flight completes inherited manual
+and automatic timed startup, forward translation/turning, braking/arrest and
+normal idle OFFLINE with engine audio retired. No runtime pose/velocity/clock
+override, cargo/crew/combat grant or historical-model claim.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Approved definition/profile | Load actual new resource/scene, compare fields on resource and real controller | Exact approved identity/tags/entry/audio/provenance and all16 values, valid definition; current registered-six audit and all12 profile separation/non-dominance/signatures pass without sibling/registry-role changes | NOT_RUN |
-| Native geometry/camera | Query actual scene convex points/visible vertices/normals/intersections and reserved bridge/eye; inspect aft/front/actual cockpit views | Original foredeck/raised bridge/twin engine blocks/boarding well, exact16×28×6 envelope; finite matching outward non-overlapping convex/mesh sections, no room-blocking full hull box, exact pilot anchor and clear finite camera; native editable source retained | NOT_RUN |
-| Real timed controller | Bind existing source/pilot once, request manual and automatic normal startup, thrust/turn/brake/neutral | OFFLINE→STARTING→ONLINE after approved3.2s inherited clock; actual translation/velocity/rotation, brake arrest, normal idleOFFLINE/audio retirement and usable second timed start; no direct pose/clock/velocity/state forcing | NOT_RUN |
-| Existing behavior | Run all named source regressions and unchanged full Titan Main serially | Each exits0/one exact marker/zero diagnostics with source/cache guards; exactMain10/legacy-nine scope explicit, complete ordinary Titan/Quit/clean markers retained | NOT_RUN |
-| Actual package/closure | Clean paired export, strict startup3, actual PCK standalone+Main, map/archive/template/ZIP/source audit | All nine existing predicates pass; EXE/Windows ZIP/notes/preview and paired Linux files in builds; source merged/pushed, verified archive and owned branch/worktree/process/scratch cleanup. Notes clearly say Paradox standalone only, Main10/17 and all physical-role/combat/recovery/network gates open | NOT_RUN |
+Four source checks and unchanged complete ordinary Titan Main pass on the exact
+clean commit with source/cache guards and clean Quit. All ten current craft
+plus accepted standalone Vortex and Paradox (12 profiles) pass unchanged
+14-axis/non-dominance/signature constraints. The registered-six audit remains
+unchanged. An independently reviewed external adapter asserts exact live Main10
+then runs all original legacy-nine cases/floors/waits unchanged; neither Vortex
+nor Paradox is in Main. This is legacy-nine regression inside ten-craft Main,
+not full current-ten/Titan handling qualification. Three fixed source views
+were inspected using private Xvfb/OpenGL ES/Dummy audio.
+
+Fresh paired checkpoint **f3c20bf** passes strict startup3 and all nine existing
+package predicates; Windows/Linux payload maps match. Actual Windows packaged
+content under pinned Linux Godot separately passes the unchanged standalone
+Paradox fixture and full ordinary Titan Main loop from source-isolated blank
+directories. Native Windows/GPU/device/human/full-craft gates remain open.
+
+**Paradox is standalone content, not selectable in Main. Main remains10/17.**
+The checkpoint includes its runtime scene and a companion preview; continuous
+physical access, berth/Main registration, gunner/passenger roles, both weapons,
+damage/service/recovery/save and network journeys remain later cards. Vortex
+access and Titan remote attempts remain PARKED/archived/unmerged; this delivery
+neither retries nor resets either allowance. No new work is selected here.
+Original06:13:39→06:58:39UTC all-in budget, clean base53c1ed7f2, frozen card,
+source bundle, raw checks/images and package records are retained in verified
+`/srv/mudds-work/paradox-foundation-20261106/records.tar.gz`; adjacent closeout
+records actual publication and owned branch/worktree/process cleanup.
 
 ### Vortex continuous physical access — build card2 PARKED
 

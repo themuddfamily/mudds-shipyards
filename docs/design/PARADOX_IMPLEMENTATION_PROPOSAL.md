@@ -1,6 +1,6 @@
 # Paradox implementation proposal — APPROVED MODERN BASELINE
 
-Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. Standalone hull/pilot foundation card1 is delivered in f3c20bf10 via624761483, with checkpointf3c20bf. Paradox is not registered/selectable in Main; the complete craft remains unqualified.
 
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
@@ -92,7 +92,7 @@ Each card delivers a running-game capability. Estimates are **30–75 minute wor
 
 | Card / estimate | Owner and files | Visible outcome, proof and stopping condition |
 | --- | --- | --- |
-| 1 / 45m | Candidate implementer: new definition/script/scene | Honest candidate identity, original hull/collision and trial pilot controller load in isolated fixture; real start/stop/flight responds to definition. Check finite valid definition/controller. Stop at standalone pilot flight. |
+| 1 / 45m — DONEf3c20bf10 (standalone only) | Candidate implementer: new definition/script/scene | Honest candidate identity, original hull/collision and trial pilot controller load in isolated fixture; real start/stop/flight responds to definition. Check finite valid definition/controller. Stop at standalone pilot flight. |
 | 2 / 60m | Candidate implementer: same files/access composition | Real Player walks fixture deck → ramp/hatch → bridge/helm → back; sealed refusal and actual camera/collision clear. Stop at continuous physical access, no teleports. |
 | 3 / 60m | Root station owner: ShipyardWorld/comb/berth | Own deck/spur/sign/lease is physically reachable; full deployed envelope, staging, launch sweep and neighbours clear. Wrong tag/occupied lease refuse. Stop at one usable inspected home berth. |
 | 4 / 60m | Root fleet/flight: Main/GameFlow/registry plus candidate hooks | Production spawn walk → board/start/launch → ordinary flight → own strict landing → neutral automatic shutdown/OFFLINE → physical exit/fresh reboard works. Nearby craft remains usable and candidate labels/active identity correct. Stop at first meaningful playable checkpoint. |
@@ -123,8 +123,8 @@ Card 13 is specifically **a playing-host pilot plus two remote-client journey**,
 
 Future automated Godot invocations require `--audio-driver Dummy`, headless or owned isolated Xvfb with explicit `--display-driver x11`, independent abort and released synthetic inputs/cursor capture. No active-desktop test is authorized. Safe export starts from a clean commit; Windows EXE/checkpoint ZIP/actual notes stay in repository `builds/windows/`, never Downloads. Startup smoke requires `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`; fixed quit frames or an external script override are insufficient. Do not enable/dispatch GitHub Actions. None of these execution steps was performed for this proposal.
 
-## Finite owner choice — pending
+## Recorded owner choice
 
-**Approve or reject this one explicitly modern Paradox candidate:** original **16×28×6m** cruiser with continuous stern access, the exact trial handling/berth above, one pilot heavy forward cannon, one independently claimed physical short-range gunner pulse mount, one ordinary passenger, no engineer/cargo/Navigator, and the stated safe on-foot restart policy. Approval authorizes bounded implementation after root review; it accepts neither craft completion, historical geometry, supported capacity nor full release. No approval is recorded.
+**Approve or reject this one explicitly modern Paradox candidate:** original **16×28×6m** cruiser with continuous stern access, the exact trial handling/berth above, one pilot heavy forward cannon, one independently claimed physical short-range gunner pulse mount, one ordinary passenger, no engineer/cargo/Navigator, and the stated safe on-foot restart policy. Approval authorizes bounded implementation after root review; it accepts neither craft completion, historical geometry, supported capacity nor full release. The owner adopted this complete modern baseline2026-11-05; no repeat design approval is needed. This section preserves the original proposed choice and its limits.
 
 If rejected, choose **a revised modern interpretation naming the exact fields to change**, or **keep Paradox frozen for historical reconstruction** pending legally available name-tied spawn/multiple views and feature/unknowns review. Repeated label-only research is not implementation. SCOPE-LIMIT and SCOPE-DESKTOP remain separate finite decisions already tracked. There is no unspecified mechanic that must be invented before approved candidate implementation can begin.
