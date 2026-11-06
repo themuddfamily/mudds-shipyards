@@ -1,8 +1,8 @@
 # Development roadmap
 
-**Playable alpha; the full game is unfinished.** Ten of the promised 17 craft
-now exist in Main, including Titan's minimum playable pilot loop. This count
-is implementation, not full craft qualification. The seven remaining craft have
+**Playable alpha; the full game is unfinished.** Eleven of the promised17 craft
+now exist in Main, including Titan and Predator pilot checkpoints. This count
+is implementation, not full craft qualification. The six remaining craft have
 owner-approved modern design baselines. All 36 original parent outcomes and ten
 phase exit gates remain open. There is no evidence-backed completion percentage
 or finish date.
@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **3bd0c06** — [Windows ZIP](builds/windows/MuddsShipyards-3bd0c06-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-3bd0c06-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-3bd0c06-linux-x86_64.tar.gz).
+Latest playable checkpoint: **16a6361** — [Windows ZIP](builds/windows/MuddsShipyards-16a6361-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-16a6361-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-16a6361-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,34 +26,62 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator standalone hull/pilot, continuous landed physical access and own reachable home berth infrastructure are included, with [preview](builds/windows/MuddsShipyards-3bd0c06-predator-berth-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-16a6361-predator-main-preview.png). Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Predator ordinary Main pilot loop — build card4
+### Predator ordinary Main pilot loop — build card4 DONE (first live pilot checkpoint)
 
-Goal / contract: approved Predator card4 in docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md. Add the eleventh usable production craft: actual normal-spawn Main Player walks accepted station/spur/ramp/aisle, claims exact physical helm, starts/launches/flies, receives actual UNARMED feedback, returns to strict own home/OFFLINE, stands inside supported cabin, walks out, reboards and completes second usable sortie/home/exit. Correct active identity and unchanged oldfleet remain. This is first pilot checkpoint, not detention/crew/network/fullcraft or wholeMain-reentry qualification.
-Candidate / start: clean1fabe63886a1f9a5650ce911812e6820a9b3cc4e, accepted foundation53201/accessb803/berth3bd. Original selection/mapping starts11:07:00UTC2026-11-06. Same actual MainPlayer normalspawn and actual registered craft; no fixture ship, actor pose/velocity/state writes, direct seatclaims, custom flight command sources, clock/transition overrides or staged outcomes. Only normal Input for positive route; existing production boarding/disembarking animation and collision changes are allowed. Four old parked attempts remain closed; no oldrestart/remote/member is retried.
-Owner / files: one high implementer owns scripts/ships/predator_detention_transport.gd, new production scene scenes/ships/predator_detention_transport_pilot.tscn, scenes/main.tscn, narrow hooks in scripts/game/game_flow.gd, scripts/ui/hud.gd (UNARMED readiness only), new tests/game_flow_predator_integration_test.gd/UID; necessary legitimate roster/occupied-state updates in tests/game_flow_titan_integration_test.gd,titan_transport_berth_test.gd,predator_detention_transport_berth_test.gd,game_flow_fleet_expansion_physical_switching_test.gd only. Existing base-scene foundation/access fixtures retain complete original cases and source files unless missing-entry-marker assertion is minimally added. No resource/tuning/hull/access-trajectory/berthgeometry/FleetRoleRegistry-policy/network/role/weapon-resource/Player edits. Independent high reviewer covers shared authority/lifecycle/identity/fire guards and production fitout; root owns release helpers/gates/docs/merge/push/archive/cleanup.
-Production composition: reusable accepted standalone base remains unchanged in geometry; a real pilot-fitout PackedScene extends it and is the prefab Main uses, with one actual ShipBoardingArea at the supported helm approach and physical pilot furniture at approved helm, outside clear aisle. This is authored production composition, no testing-mode flag. Main instance unique predator_provisional/homepredator_home_berth at exactroot(39,-.02,-30), one current occupied lease/settings/audio/registration, 11flyables/11physicalberths/9stationmodules/57markers. Existing six FleetRoleRegistry policy contracts stay unchanged; actual flyable registry/console derives Mainships and already supports11rows. Preserve all14 combined definition profiles/16fields/provenance/unarmed baseline; no production weapon source ID, cargo, guard/detainee/cell or movingframe.
-Candidate / shared seams: allocate previously missing _boarding_entry_marker exactly(1,1,-5.5), retain anchor(0,1.45,-5.5), eye(0,3.21,-5.75), DockingReceiver(0,2.5,1.5), set supported inside stand/exit(1,1,-5.5). Actual main pilot furniture/collider/visual agree and leave aisle x.2..1.8/y1..3.6 clear; newMainroute uses actualcapsulecentre x1. No through-wall/proximity-fallback boarding: candidate predicate requires real Player inside supported helm approach, open/deployed landed/OFFLINE/apron and fullnormalbody; GameFlow checks it during discovery AND before reserving/boarding. Existing ShipBoardingArea/Player APIs are sole seat transition/reservation. Can mark this physically reached landed approach as interior boarding without MovingInteriorFrame; normal generation fencing and seated checks, coordinator seals hatch, exact real3.8s wake. Do not invent an authority/frame or expose free-standing flight.
-Landed exit: Predator-only GameFlow branch requires exact current pilot, supported landed/OFFLINE/noactive landing, current owned strict berth and clear supported inside stand. Normal Player.begin_disembark(actualstand,normalduration,ship), same transitiongeneration/currentPlayer/currentShip checks, normal camera/control/body/audio/HUD release, reservation retire once; failure restores seatedauthority atomically. Keep outer hatch CLOSED until actual on-foot Player walks stern and operates real control. Do not call _leave_seat_into_cabin (requiresframe/grantsmovingoccupancy), do not animate seat→stern or set actor pose. Airborne/OFFLINE and active-engine exit refuse; held/duplicate exit or stale transaction must not duplicate body/claim. Door/engine safety retained. Full walking body restored on completednormaltransition; pending deferred restoration remains part of transition, not skipped walking evidence.
-Unarmed/UI: leave Predator absent PLAYER_SOURCE_IDS, still damageable under existing lifecycle owner. Explicit empty weapon profiles/direct GameFlow projectile callback refusal for Predator; no fallback pulse/travelling bolt, damage, projectile, heat or weapon cooldown from FIRE. Existing candidate inert direct/held methods/muzzles absent unchanged. HUD active ship/role/cockpit and readiness show candidate/Detention transport/UNARMED through actual bindings. Add only unarmed→UNARMED readiness mapping; other statuses/ships unchanged. No invulnerability/enemy/physics retuning to pass flight.
-Exact positive cases: begin normal shift, unique actualMainPredator with ownoccupiedlease/all old10poses+claims unchanged; same actualPlayer follows full accepted berth ROUTE (spawn→8,11→8,13.5→35,13.5→35,15.5→39,15.5→39,8.5→39,7→39,-17→39,-17.9→42.2,-17.9→42.2,-21.2). Normal process-phase Interact/aim discovers actual reachable stern hatch atlocal(3.2,0,8.8); wait complete opening outside sweep, walk viaapronlocalz13/alignx1 continuously up ramp11→9→7/aisle6→0→-5.5, actual Interact atstand reserves/normalboards realpilot/camera/claim andseals. No direct authority calls replace positive ordinary actions.
-Flight/home/reuse TWICE: ordinary move_forward starts inherited3.8s clock, edge count227..229physics ticks fromSTARTING→ONLINE, actual5mdeparture releasesownlease. Same existing Titan physical input controller/limits: up to500ticksdeparture, up to1800ticks tohome-localtarget(0,10,-31.2), finalwithin2m of(0,10,-30), -z>=30,speed<=.5 and wholehull clear; normalpitch/thrust/brake Input only, no pose/velocity/clock override. Actual FIRE gives UNARMED/nooutgoingevent/damage/source/profile; active exit refuses; brake/neutral95ticks reachesairborneOFFLINE, actual Interact refusesairborne exit and retains exact pilot/body/camera/claim. Existing normal flight input restarts3.8 before landing ifrequired; existing capture validates own berth, normal landing_assist Input reachesSHUT_DOWN within600ticks, exact ownroot/basis<=.05/velocity<=.05/currentstrictoccupiedlease/fullclosedhull fit. Normal neutral95ticks reachesOFFLINE. Interact normalstandat(1,1,-5.5), body/claim/audio/camera restored, outerhatchstillclosed; walk realaisle/ramp tosterncontrol, operate realhatch andwalk ontoapron13, seal outside sweep. Physically walkback/reopen/fullaisle/reboard and repeat complete flight/home/OFFLINE/stand/walkout/seal. Finish actualPauseTab/Exit to desktop with normal clean Quit. Old10poses/leases/sourceIDs/control settings remain, actualconsole roster includes11/uniqueidentities; no secondPrefab/duplicatebody/stale helm/hatch states.
-Walking/negative proof: independent observer runs afteractualPlayer eachcompleted walkingphysics tick, completed_motion.frame=current and adjacentIDs; support/head/realcapsuleclearance/continuity<.2, originalmask/layer/gravity/capsule unchanged. Queryskinonly .005radius/.01height permitted; normal boarding/seated/disembark temporarycollision changes allowed and observed as transitions, restorebeforewalking. No skippedphysics due slowprocessframes, no actor staging afterspawn. Retain exact berthroutetolerance.035/900ticks/12braking; localaisle endpoints.02 and400tickperleg fromacceptedaccess; process-phaseInput edges. Negative outsidehelm/throughwall, duplicate/foreign/stale reservation using existingAPI only, open/movinglaunch, unsupported/active/airborneexit, fire/directgenericfire refuse atomically without replacing positive gameplay. Camera/seat/fullactualproductionfitoutcapsuleclearance checked.
-Existing-test adaptation contract: default standalone foundation/access remain original base scope and no boarding grant; production Main journey is authoritative for actual pilot-fitout prefab. Existing Predatorberth test now uses real registered MainPredator/occupiedlease, removes additional stagedduplicate and keeps full original geometry/sweeps/camera/normalspawnroute/control/return/old10snapshots. Real occupied lease gets idempotency/refusal checks; existing empty-ledgerreserve/occupy/release/reuse cases run against independent same-config ShipBerth fixture (unique testID, cleaned beforewalking), and actual departure/home/reuse is proved twice by newordinary Mainjourney. Never release/reacquire productionlease behind GameFlow. TitanfullMain300/Titanberth240 and physicalswitching300 change only legitimate livecount10→11 andretain all originalcases/routes/limits/inputs (old fixture-specific9counts untouched). No MainRestartShift/re-entry claim; fullcraft/role/recovery/network gates remain later work.
-Frozen source commands / scope: serial exactcleancommit/source/cache/head/worktreeguards, each exit0/one marker/raw0. Ninefocusedcases: new tests/game_flow_predator_integration_test.gd600s markerGAME_FLOW_PREDATOR_INTEGRATION_TEST_PASS (ALONE); accepted defaultPredatorfoundation90 markerPREDATOR_DETENTION_TRANSPORT_TEST_OK; accepted accessidentity180 and --transformed180 markerPREDATOR_DETENTION_TRANSPORT_ACCESS_TEST_OK; adaptedfullPredatorberth240 markerPREDATOR_DETENTION_TRANSPORT_BERTH_TEST_PASS; consolidatedship_definition_berth120 markerSHIP_DEFINITION_BERTH_TEST_OK; fullstation_route_registry_integration180 markerSTATION_ROUTE_REGISTRY_INTEGRATION_TEST_OK; fullTitanberth240 markerTITAN_TRANSPORT_BERTH_TEST_PASS; fullgame_flow_fleet_expansion_physical_switching300 marker^PASS game_flow_fleet_expansion_physical_switching_test. CompleteunchangedTitanordinaryMain300ALONE separately (livecount11 only) markerGAME_FLOW_TITAN_INTEGRATION_TEST_PASS, full original cargo/cannon/damage/standing/home/cleanQuit intact.
-Package / delivery: same full newMain600ALONE and fullTitan300ALONE againstactualWindowsPCK from blank sourceisolateddirs, exactsamecommittedcases/limits; only same-commit route/oldtransform literals inlined plusrawsourceisolation guards. ActualPCK also repeats foundation90/bothaccess180/fulloccupiedberth240. Three source images production-fitout/berth-ready/cockpit-eye actualproductionprefab, stagedworld/ambient/sun/worldlocal-lightsdisabled as priorcapturedprofile, original180s eachcapturecall/no targetGPU/human/productionlighting qualification. Fresh cleancommit safe pairedexports/startup3 exit0/oneSTARTUP_MENU_READY_OK/raw0, completeWin/Linuxmaps/UIDs andexistingpackageaudit9; eightcheckpointartifacts EXE/ZIP/notes/pilotpreview plusLinuxcompanion inrepobuilds, noDownloads. EveryGodotDummy/headlessorprivateXvfbGLES explicitx11, independentsuite_process abort/reap/inputrelease. Allrequiredownersfinishbeforemerge/push/archive/branch/worktree/scratchcleanup.
-Budget / stop: original11:07:00→absolute12:22:00UTC2026-11-06,75minutes ALL-IN (mapping/reading included) forcross-componentpilot/lifecycleandfulltwo-sortieproof. FreezeTWOsubstantiveproductioncorrections; routinecompiler/caller/assertioncorrections retaineveryoriginalcase/threshold/timeouts/deadline. Firstunexpectedfailure retainsoperands/stopsdependents, require demonstratedcause/cumulativecost decisionbeforefix; exhaustion/deadline/contractconflict parksoriginalcard, no renamedretry/subsetpass/silentfieldrevision/automaticparkedreopening. No unrelated shared framework/role/AI work. CloseNOT_RUN: expected11/17Maincraft/11berths, incompletePredatordetention/fullcraft/nativehardware/human/network/recovery/Main-reentry retained.
+Source **16a6361a4**, merged/pushed via **0c5bb67b8**, adds the eleventh usable Main
+craft at its own reachable `predator_home_berth`. Main uses the authored production
+pilot-fitout prefab extending the accepted standalone base: one actual physical
+pilot chair and boarding area, with the real capsule, eye and aisle clear. The
+same actual normal-spawn Player walks the complete accepted station/spur/ramp/aisle
+route, operates the real stern hatch and claims the exact supported physical helm.
+Normal controls run the inherited3.8s spool, launch and fly. Candidate identity,
+Detention transport role and UNARMED cockpit/readiness feedback remain correct.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Real Main pilot fitout | Normalspawn/registeredunique11thcraft/physicalroute/hatch/helmInteract | Real seat/body/camera/reservation, no throughwall boarding, correctidentity/UNARMED | NOT_RUN |
-| Two complete sorties | Normal3.8s start/lift/flight/fire-refusal/strictownhome/OFFLINE/stand/walkout/reboard/repeat | Actuallease release/reacquire, exactdock, supportedinsideexit/bodyrestoration and fullreuse, no actorsnapshotstaging | NOT_RUN |
-| Unsafe/authority | Active/airborne/open/moving/foreign/duplicate/stale/fire attempts | Atomicrefusals/currentbody/claim/camera/healthsourcepreserved, no extraauthority | NOT_RUN |
-| Fleet/regressions | Complete9focused/Titanordinary andold10snapshots | Alloriginalroutes/limits/sourceguardretained, legitimatecount11, no oldcraftretuning/claimloss | NOT_RUN |
-| Current package/closure | ActualPCKnewMain/Titan/berth/foundation/accessI+T, pairedstartup3/maps/audit9/3views/eightartifacts | Exactcases currentcleanC, merged/pushed/verifiedarchive/exactref/worktree/processcleanup before12:22 | NOT_RUN |
+Two complete ordinary sorties each return to exact strict own home, release
+controls to automatic shutdown/OFFLINE, stand through normal generation-fenced
+Player disembarkation at supported inside(1,1,-5.5), then physically walk to the
+stern control, open, walk out and seal. Physical reboard and a second usable sortie
+are demonstrated with the same body. Full normal walking body restoration and
+support/head/capsule/continuity checks pass. Through-wall/outside-helm claims and
+unsafe/active/airborne exit refuse; no moving frame/cabin authority is added.
+Predator has no offensive source ID, weapon profile or outgoing projectile/damage
+from FIRE, including direct generic callback refusal, while existing lifecycle
+damageability remains. All16 approved fields/all14 compared definitions and all
+old10 craft poses/leases remain unchanged. The dynamic console lists11 unique craft.
+
+Nine exact-clean-source cases pass: ordinary Predator Main600s ALONE, foundation90s,
+access identity/transformed180s each, occupied berth240s, definitions120s,
+registry180s, full Titan berth240s and physical switching300s. Full original Titan
+Main300s ALONE retains all cases with livecount11 only. Actual Windows PCK repeats
+the same complete Predator Main600s ALONE, full Titan Main300s ALONE, berth240s,
+foundation90s and both access180s profiles; adapters only inline excluded same-commit
+route/old-transform constants and add source-isolation guards. Both Main source/PCK
+journeys finish normal clean Quit with clean_shutdown/clean/session_ended state.
+Every case has exit0/one marker/raw0 and original source/cache/head/worktree guards.
+
+Three private Dummy-audio views production-fitout/berth-ready/cockpit-eye are
+inspected using the retained staged ambient/sun profile with world local lights
+disabled. Production lighting, target-GPU and human readability stay unqualified.
+Fresh paired checkpoint **16a6361** passes strict startup3, complete equal
+Windows/Linux maps and all nine existing package predicates. Eight artifacts include
+EXE/ZIP/notes/pilot preview and paired Linux executable/archive/export result/notes.
+This early package satisfies the scoped card5 pipeline without full-release credit.
+
+**Main now11/17 flyable craft and11 physical berths.** Card4 first pilot checkpoint
+is delivered. Cards6+ moving cabin, guard/detainee/cell detention, networking,
+full damage/service/recovery/save and full-craft qualification remain pending.
+Whole Main re-entry is not qualified by this card. Native Windows/GPU/device/audio/
+readability/human/capacity/world/full-release gates remain OPEN/NOT_RUN. All four
+parked attempts remain closed; no failed source/retry or next assignment is selected.
+Original11:07:00→12:22:00UTC75minute all-in budget, clean base1fabe6388 and TWO-
+production-repair limit (0 used), source bundle, all9source/5PCK
+Predator checks plus full Titan Main source/PCK,10statuses, views and package records
+are retained in verified `/srv/mudds-work/predator-main-20261106/records.tar.gz`;
+adjacent closeout records publication and exact process/ref/worktree cleanup.
 
 ### Predator own reachable home berth — build card3 DONE (infrastructure scope)
 
