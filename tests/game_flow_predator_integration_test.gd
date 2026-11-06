@@ -171,7 +171,7 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 		if not _check((mesh.mesh as BoxMesh).size==size and mesh.transform==solid.transform
 			and solid.position.x+size.x*0.5<=0.2+0.000001 and not solid.disabled,
 			"actual pilot furniture visual/solid match outside clear aisle "+str(pair[0])): return false
-	var hud := _game.hud.get_weapon_heat_component_hud_snapshot()
+	var hud: Dictionary = _game.hud.get_weapon_heat_component_hud_snapshot()
 	var cockpit := _ship.get_node("PredatorOriginalShell/PilotFixture/CockpitCamera") as Camera3D
 	var eye := SphereShape3D.new()
 	eye.radius = 0.08
