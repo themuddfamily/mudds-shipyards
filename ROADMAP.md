@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **53201f8** — [Windows ZIP](builds/windows/MuddsShipyards-53201f8-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-53201f8-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-53201f8-linux-x86_64.tar.gz).
+Latest playable checkpoint: **b803cd3** — [Windows ZIP](builds/windows/MuddsShipyards-b803cd3-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-b803cd3-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-b803cd3-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,30 +26,50 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator standalone hull/pilot foundation is included, with [preview](builds/windows/MuddsShipyards-53201f8-predator-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator standalone hull/pilot and continuous landed physical access are included, with [preview](builds/windows/MuddsShipyards-b803cd3-predator-access-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Predator continuous stern access — build card2
+### Predator continuous stern access — build card2 DONE (standalone landed scope)
 
-Goal / contract: approved Predator card2 in docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md; same actual Player walks supported apron→physical stern control→deployed ramp/bridge→full starboard aisle→exact helm approach(1,1,-5.5), returns and seals, repeats twice. Closed passage and unsafe opening/start refuse. This card stops at continuous landed physical access, with no helm claim, crew/cell/detention/moving-cabin or Main grant.
-Candidate / start: clean5684b3ef4ee49b59314d3301a34507cff323f42e, accepted foundation53201f8. Separate identity and elevated35degree-yaw processes, one initial actual ship/deck/Player setup per process. Player starts/returns local(1,0,13); safe operator pose(3.2,0,8.8), stern control within original closed bounds/reach2.5 outside complete ramp sweep, route x1 fromapron13 throughramp11→7/floor1→helmz-5.5. No subsequent actor/ship pose/velocity/clock changes, jump, reach, gravity or mask bypass.
-Owner / files: one high implementer owns only scripts/ships/predator_detention_transport.gd, scenes/ships/predator_detention_transport.tscn ifneeded, tests/predator_detention_transport_test.gd (retain full foundation cases; change section count/geometry expectations only for actual resection), new tests/predator_detention_transport_access_test.gd and UID. Independent high read-only geometry/lifecycle review; root gates/release/docs/merge/push/archive/cleanup. Resource/all16fields/provenance/tags fixed. No shared HeroShip/Player/GameFlow/world/registry/network/role owners or validators. Missing shared prerequisite stops selection rather than expanding.
-Dependencies / geometry: adopted baseline, exact approved foundation and existing ShipCabinHatch/Player. Preserve original chamfered9x16x5 pressure cabin/twinpods/securewall/window, closedx±4.5,z±8,y0..5. Deployedmaxz11, all other bounds unchanged throughout entire motion. Actual supported rampx[-.2,2.2],z7..11, surfacey1→0; stern aperturecenterx1 nearz7 at least2.2x2.4m. Cabin floor1, aislex.2..1.8,z±6.5 and rearcorridorz4.2..6.5/secureclearwidth>=2 retained. Resection existing floor in rampbandx[-.2,2.2],z7..8; bridge cabin6.5→hinge7 remains supported. Pilotanchor(0,1.45,-5.5), eye(0,3.21,-5.75), entry(1,1,-5.5), DockingReceiver(0,2.5,1.5) unchanged. No solid full-cabin collider; visible hull/closure/ramp points and actual collision/transforms agree. Closed/open/intermediate interiors do not overlap. Demonstrate pure complete trajectory and critical extrema BEFORE freeze, then observe actual moving vertices; no bounding-envelope inflation.
-Motion / safety: existing inherited canopy tween is sole clock; candidate uses local geometry transforms/points and existing physical ShipCabinHatch. A two-section ramp is allowed within prescribed total surface/run/width; author finite nonintersecting stages and exact toe extrema. Root mapped a viable option: two2m/.5m-drop wedge leaves stowed vertically in separatez planes belowroof; door first slides into an authored stern-side wall pocket, outer leaf translates outward vertically/lowers then rotates (compensate tiny toe arc), inner leaf rotates last above deployed outer. Reverse closing order. This is an implementation option, not permission to change geometry. Analytic mapping found the original port chamfer intersects that proposed pocket: locally resection the wall in z7.25..7.4 to inner x=-2.6 while preserving its original outer face and all cabin/aisle reservations; keep full2.4m door travel and opening centeredx1, never reduce travel/opening to hide overlap. Moving/unsupported/active/airborne opening refuses; open/moving command sampling and manual/automatic starts remain inert. No walking interior frame or pilot/crew authority needed. Preserve inherited3.8 clock and unconditional UNARMED from foundation.
-Cases / walking proof: missing support refuses opening before deck setup. Real closed Player crossing attempt atx1 fromz13 towardz6 refuses beforecabin; ordinary retreat to13. Twice: walk safecontrol(3.2,0,8.8), actual Player remappable Interact emitted in process phase discovers/operates existing reachable hatch, wait full motion outside sweep, returnapron13/alignx1, continuously walk full ramp/bridge/aisle to(1,1,-5.5), verifyfloor1/camera, walk back13, walk safecontrol/seal and return13. Every completed walking/motion physics tick has actual completed_motion.frame=current, adjacent frame IDs, distance<.2, floor support and real capsule/head clearance; originalwalkinglayer/mask/gravity/capsule unchanged. Query-only .005radius/.01height contactskin permitted, neveractor shape. Keep observation active across render-frame/input waits. Exact endpoint tolerances remain accepted .02 localposition/floor, axiswalking100/120/400tick limits asneeded, no skipped ticks. Actual mesh/collision agreement and bounded/no-overlap complete motion. Full identity and same complete elevated35yaw fixture.
-Cases / negative: open and moving manual start/throttle refuse; unsupported opening refuses; sealed normal demand respects inherited3.8s (222ticks stillSTARTING,10moreONLINE), active opening refuses, neutral95ticks reachesOFFLINE without pose change. Final realcommand throttle flight proves velocity>1 and landedfalse then airborne opening refuses, brake/neutralcleanup. This is explicitly a negative API fixture with temporary piloted/source demand, not ordinary helm access/claim or flight qualification. Every negative closes/releases inputs and retires fixture. Default full foundation test preserves all16fields/all14profiles/registered6, exact hull/eye/room/capsule, flight/brake/start/reuse, held/direct UNARMED cases.
-Proof / commands: external /srv/mudds-work/predator-access-20261106. Five serial focused source cases: default tests/predator_detention_transport_test.gd90s markerPREDATOR_DETENTION_TRANSPORT_TEST_OK; new tests/predator_detention_transport_access_test.gd180s markerPREDATOR_DETENTION_TRANSPORT_ACCESS_TEST_OK, same test --transformed180s same marker; existing ship_definition_berth120s markerSHIP_DEFINITION_BERTH_TEST_OK and ship_boarding_area120s markerSHIP_BOARDING_AREA_TEST_OK. Exact clean source/cache/head/worktree guards; each exit0/one marker/rawdiagnostics0. Unchanged full tests/game_flow_titan_integration_test.gd300s ALONE source and actual Windows PCK300s ALONE, original complete cases/limits/clean Quit/custody. Source captures closed-aft, open-stern, actual cockpit-eye under privateXvfb/GLES explicitx11, all inspected. Fresh safe pairedexports/startup3 exit0/oneSTARTUP_MENU_READY_OK/raw0, complete Win/Linux maps/UIDs and existing packageaudit9. Actual Windows PCK from blank source-isolated folders repeats exact unchanged foundation90s and BOTH full access180s profiles (external exact source +isolationguard only; sameaccessadapter flags), plusfullMain. Eight checkpoint artifacts inclEXE/ZIP/notes/accesspreview in repo builds; nativeWindows/GPU/device/human/fullcraft/Main/cell/capacity remain open. Every Godot Dummy, headless or isolateddisplay only, independent suite_process abort/reap/inputrelease.
-Budget / stop: original selection/mapping start09:37:37UTC2026-11-06, absolute deadline10:37:37UTC;60minutes ALL-IN including implementation, every source/PCK/fullMain/build/merge/push/archive and exact-tip branch/worktree/process/scratch cleanup. One substantive production repair. Routine compiler/caller/assertion corrections preserve all original cases/endpoints/thresholds/timeouts/deadline. Stop dependent checks at first unexpected failure, retain exact operands. Exhaustion/deadline/contract conflict parks original card; no renamed retry/subset acceptance/silent baseline revision or automatic reopening. Four earlier parked attempts remain closed; no owner reprioritization inferred.
-Close: NOT_RUN. Main10/17 and10physical berths. Predator remains standalone/unregistered; physical pilotclaims, guard/detainee/cell/detention, berth/Main, movingcabin/recovery/network/fulljourneys remain open.
+Source **b803cd377**, merged/pushed via **d8620b1d7**, adds continuous physical stern
+access to accepted foundation53201f8e09dc8b94ce3f22b776c7e30906c57267. The same actual
+Player walks apron→reachable physical stern control→real Interact→deployed ramp
+and bridge→full starboard aisle→exact helm stand(1,1,-5.5), returns and seals,
+twice at identity and elevated35degree yaw. Every completed Player walking/motion
+physics tick is observed for support, actual capsule/head clearance and continuity.
+Closed crossing and unsupported/moving/active/airborne exterior opening refuse;
+open or moving access blocks manual/automatic start and throttle. Original
+closed9x16x5m hull/pods/secure-wall/window, floor1, aisle and anchors are retained;
+ramp x[-.2,2.2],z7..11,surfacey1→0 stays within deployedz11 through complete motion.
+Actual visible/collision geometry agrees without overlapping interiors.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Continuous access/reuse | Same Player closed refusal then actual Interact/ramp/fullaisle/helmstand/return/seal twice | Supported complete ordinarycontrols, exact endpoints, unchanged walking body, every completedtick audited | NOT_RUN |
-| Transformed/unsafe | Complete elevated35yaw case, unsupported/open/moving/active/airborne negatives | Same whole route; atomic physical safety refusals and normal sealed3.8 clock | NOT_RUN |
-| Geometry | Actual closed/open/intermediate mesh/collider plus complete pure trajectory | Exact envelopes/width/run/aperture/cabin/camera; no overlap/hidden floor/sweep inflation | NOT_RUN |
-| Foundation/regression/package | Complete defaultfoundation/all14profiles, existing definitions/boarding, fullMain source/PCK, startup3/maps/audit9 | Original full cases/raw0/exactmarkers/cache guards; paired eightartifact checkpoint | NOT_RUN |
-| Closure | Reviewed exact clean source/package | Merge/push/archive/exactref/worktree/process/scratch cleanup inside original deadline; remaining scope honest | NOT_RUN |
+Five focused source checks cover full default Predator foundation, full access
+identity and transformed cases, definition/berth and boarding-area. Foundation
+retains all16fields/all14profiles/registered6, inherited3.8s startup and UNARMED.
+Full ordinary Titan Main source and actual Windows PCK loops pass separately ALONE
+with original300s limits and clean Quit. The source-isolated actual Windows PCK
+also passes unchanged foundation90s and BOTH full access180s profiles, using one
+exact committed external access test plus isolation guard only. Three fixed views
+closed-aft, open-stern and cockpit-eye are inspected privately with Dummy audio.
+Fresh paired checkpoint **b803cd3** passes strict startup3 and all nine package
+predicates with complete matching Win/Linux payload maps. Eight published artifacts
+include EXE/ZIP/notes/access preview and paired Linux executable/archive/export
+result/notes. VM/Linux-PCK evidence does not qualify native Windows/GPU performance.
+
+**Predator remains standalone, not registered/selectable in Main; Main10/17 and
+10physical berths are unchanged.** Continuous landed physical access is delivered.
+Card3 own home berth, pilot seat claims, moving cabin, guard/detainee/cell/detention,
+production integration, damage/service/recovery/save/network and full journeys
+remain open. No seated claim or three-player capacity is established.
+Native Windows/GPU/device/audio/readability/human/full-release gates remain open.
+Katana access bf5834b22, Paradox berth9d124e5cd, Vortex access1416c9ece and Titan
+remote867565997 remain parked/unmerged with their original failures and allowances.
+Original09:37:37→10:37:37UTC all-in budget, clean base5684b3ef4, frozen card and
+one-production-repair allowance (0 used), source bundle,
+raw source/PCK checks/cache guards/views and package records are retained in verified
+`/srv/mudds-work/predator-access-20261106/records.tar.gz`; adjacent closeout records
+publication and owned process/ref/worktree cleanup. No next assignment is selected.
 
 ### Predator standalone hull and pilot — build card1 DONE (foundation scope)
 
