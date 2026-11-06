@@ -13,12 +13,13 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **c3ba813** — [Windows ZIP](builds/windows/MuddsShipyards-c3ba813-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-c3ba813-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-c3ba813-linux-x86_64.tar.gz).
+Latest playable checkpoint: **2794cfa** — [Windows ZIP](builds/windows/MuddsShipyards-2794cfa-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-2794cfa-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-2794cfa-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
-walk out. Both physical passenger chairs now support local sit/stand/reseat.
+walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
+now load, fly home and return through physical controls with conserved cold custody.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
@@ -26,94 +27,50 @@ Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Titan conserved four-parcel loading and return loop
+### Titan finite parcel transport and cold custody — DONE in parcel scope
 
-Approved proposal children7/8, combined where durability is an actual loading
-prerequisite. Readiness **00:42:59 UTC 2026-11-06**, including root seam inspection;
-**75 minutes all-in, hard deadline01:57:59 UTC**. Aim clean passing source by01:30
-for the paired checkpoint/closure. One high implementer owns Titan-local cargo
-composition/panel, Titan script, narrow GameFlow hookup, exact payload adapter and
-nearest Titan/cargo tests. One independent high reviewer checks transaction and
-recovery semantics. Root integrates/packages/cleans. No nested agents.
+Source **2794cfa4c**, merged/pushed via **27f57a620**, delivers four inert sealed repair-kit
+parcels, a supported stern supply locker and compact port hold panel. Normal E
+loads at supply and returns at hold; both show current stock. Existing cargo
+quantity authority owns the pair; no new mission, reward, healing or shared-stock
+mutation. Both quantities and safe on-foot recovery commit together before
+success. Stale/duplicate/range/actor/seat/lease/quantity/capacity and write failures
+refuse without a second spendable pair. Opaque panels/pedestal have solid collision;
+status labels clear the surfaces.
 
-Use the existing CargoItemDefinition/CargoTransferAuthority quantity owner.
-Register only `titan_repair_kit_parcel`, display `Sealed repair kit`, unit capacity1.
-Own locker entity `titan_supply_locker`/manifest `titan_supply_manifest` capacity4;
-Titan entity and `titan_cargo_manifest` capacity4. Seed locker4/Titan0 only on first
-use of this save lineage. Never reuse Jovian kits, rewards, shared stock or its
-mission-specific persistence adapter. No heal/tool/inventory conversion.
+Cold restoration returns the four already committed parcels to locker4/Titan0,
+using first-use markers and fresh scoped endpoints rather than additive refill.
+Corrupt/missing initialized data and unresolved storage recovery fail closed for
+cargo/launch. Actual-file refusal/interruption/corruption tests pass. Other ships'
+saved recovery contexts remain verbatim in both durable data and live GameFlow;
+new actual-store/Main-startup and packaged checks cover that regression.
 
-A compact physical hold panel at ship-local(-1.2,1.6,5.2), approached from
-(0,.8,5.2), and supported stern-apron locker panel expose actual stock and normal
-E transfer. Whole quantities1..4 are validated; E may move one parcel per request.
-Keep the aisle/ramp/chairs/helm/capsule/camera clear, existing reach unchanged.
-Existing CargoTransferTerminal's fixed3m deck cannot fit the1.3m alcove: use a
-bounded Titan presentation adapter over the existing cargo owner, or an explicit
-opt-in compact adapter with all existing defaults preserved. Do not duplicate the
-inventory authority or copy the1200-line generic terminal.
+Safely docked Titan passenger stand now releases cabin/boarding containment into
+ordinary supported on-foot movement. Actual full Main input proof loads2/2,
+cycles both chairs, returns4/0 after standing, physically exits/reloads2/2/reenters,
+then completes healthy flight, own home landing,90 OFFLINE ticks, return4/0,
+physical exit and UI Quit. Moving passenger containment remains intact in flight.
+Fresh source and packaged retained profiles confirm clean shutdown/recovery.
+The packaged route observes 4,493 supported/capsule-clear walking samples.
+Two separate packaged cold processes restore the actual physical2/2 commit to4/0,
+repeat Main replacement without duplication and reject old scoped requests.
 
-Only current supported on-foot Player at the fitted panel, with Titan at its
-own occupied/reserved lease, landed and OFFLINE, may transfer. Seated/passenger,
-remote/out-of-range, wrong actor/endpoint, stale handles/duplicate receipts,
-invalid quantity, insufficient source and capacity overflow refuse with readable
-feedback and zero quantity mutation. Every acknowledged boundary conserves
-locker+Titan=4. Both panels show actual current manifest values.
+Core immutable checks at037f5bf73 pass; later label/context changes have focused
+proof plus final-source full Main and final packaged replay/cold/captures. Legacy
+Jovian cargo passes176 checks on the preceding implementation; its mission/authority
+code is unchanged and unrelated recovery preservation is separately proved. The
+previous Jovian engineer admission failure remains an unqualified gate, not fixed.
+Three strict startups and all nine package predicates pass; all1,545 Win/Linux
+payload entries match. Three isolated local packaged panel/cabin views inspected;
+Main/native GPU/device/audio/human/art and full craft qualification remain open.
+No full-project green claim or new craft count: Main remains10/17.
 
-Persist this exact pair and the existing SOLO_SAFE_RECOVERY_SLOT on-foot context
-in one UserDataStore commit BEFORE acknowledging success. Use one Titan-owned
-payload entry and an initialization marker sufficient to distinguish a missing
-previously committed entry from first use. No schema/version bump or persistence
-framework. Existing UserDataStore already accepts arbitrary validated payload
-fields; preserve unrelated Jovian/Cinder/settings/session data and store serials.
-Existing delivery persistence validates a one-way mission receipt count and is
-not a reusable two-way Titan record. Implement the smallest exact scalar pair
-composition; live quantities remain CargoTransferAuthority-owned. If atomic live
-publication needs an actual shared-authority seam, report the exact missing
-precommit/rollback requirement before expanding ownership.
-
-Refused/interrupted writes preserve the last committed pair and expose no
-successful live transfer; rollback/refusal must settle both manifests or block,
-never one side. Corrupt/missing previously committed Titan data, invalid primary
-or backup-only recovery fails closed with readable custody-unavailable feedback,
-preserves damaged data and refuses Titan cargo/launch. Never treat it as first use.
-Cold Main/fresh process retires the old pair, returns exactly the four already
-committed parcels to locker4/Titan0, registers fresh handles and resumes only a
-supported on-foot Player (no saved helm/seat/camera/in-flight/hull authority).
-Repeated cold restore/Main replacement cannot append stock. Same-session return,
-seat use and ordinary repair must not reseed. Destruction/recall broader lifecycle
-and remote-peer integration remain child10–12; guard unavailable custody safely.
-
-Extend the existing Main Titan normal-input loop: ordinary Boot/Begin/spawn and
-21-leg station walk, inspect physical locker, real hatch/ramp/cabin route, normal
-E load two parcels (assert2/2 and visible stock), existing port/starboard/port
-chair cycles, then the entire accepted healthy pilot start/flight/own-home/
-90OFFLINE route. Physically leave helm, E return both parcels from hold panel
-(assert4/0), walk out and actual UI Quit with durable clean markers. No caller
-pose/velocity/engine/lease writes/private boarding shortcut/longer reach/shorter
-transitions/weakened endpoint. Additional real-process cold probe starts from a
-committed loaded2/2 pair, verifies4/0 and safe on-foot authority after cold restore,
-then repeats replacement/restore without duplication. Focused actual-store tests
-cover refused/interrupted commit, corrupt/missing initialized entry and both-side
-conservation/refusal. API/unit proof cannot replace the ordinary physical loop.
-
-Preserve failed raw attempts. Routine compiler/fixture repairs remain within
-this original deadline. Stop on an uncovered broad framework/cost requirement;
-no reset, session-only loading substitute, smaller successful endpoint or
-unapproved cargo-policy change. Existing Jovian engineer test baseline FAIL is
-retained; no unrelated repair or all-green claim. Existing nine craft, Titan
-approved tuning/hull/access/chairs/berth, weapon inactivity and other missions
-stay unchanged. No new cargo mission/reward, network, global schema or validator.
-
-After clean immutable source and relevant actual-cargo/settings/access/crew/Main
-checks, publish a fresh paired Windows/Linux checkpoint, three strict startups,
-all nine package predicates and actual packaged extended-loop replay. Silent
-pinned4.7.1/Dummy/isolate all Godot runs; rendered only privateXvfb/x11 with abort.
-Inspect a bounded local packaged panel/cabin view; retain the predecessor's Main
-llvmpipe timeout/native/human/device gates OPEN. Source, notes and actual validation
-must distinguish this finite parcel loop from full Titan/full-release acceptance.
-Merge/push accepted work, verified archive, exact-tip branch/worktree/process and
-scratch cleanup are inside the same75-minute box.
-
+Verified records, failed candidates, source bundles, profiles and captures:
+`/srv/mudds-work/titan-parcels-20261106/records.tar.gz`. Adjacent closeout records
+actual publication/cleanup and original00:42:59→01:57:59UTC all-in budget. Owned
+branch/worktree/process/scratch cleanup is part of closure. Next dependency-ready
+construction: **Titan child9 pilot cannon**, split into its exact normal-controls
+hit/miss/cadence/ownership outcome before broader component/service work.
 
 ### Titan's two physical passenger chairs — DONE in local scope
 
