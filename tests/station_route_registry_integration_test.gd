@@ -17,12 +17,13 @@ const HUB_ENDPOINT_ID: StringName = &"station-hub"
 const CONNECTION_SLOT_META: StringName = &"station_connection_slot"
 const APPROACH_ROUTE_ID: StringName = &"approach"
 
-const EXPECTED_MODULE_COUNT := 8
-const EXPECTED_HUB_ENDPOINT_COUNT := 8
-const EXPECTED_CONNECTION_SLOT_COUNT := 8
-const EXPECTED_ROUTE_MARKER_COUNT := 54
+const EXPECTED_MODULE_COUNT := 9
+const EXPECTED_HUB_ENDPOINT_COUNT := 9
+const EXPECTED_CONNECTION_SLOT_COUNT := 9
+const EXPECTED_ROUTE_MARKER_COUNT := 57
 
 const EXPECTED_MODULE_IDS: Array[StringName] = [
+	&"predator-detention-berth",
 	&"titan-transport-berth",
 	&"aft-junction-stack",
 	&"fleet-dock-comb",
@@ -35,6 +36,7 @@ const EXPECTED_MODULE_IDS: Array[StringName] = [
 
 ## slot id -> the single module that must claim it opposite the station hub.
 const EXPECTED_EDGES := {
+	&"hub-predator-detention-berth": &"predator-detention-berth",
 	&"hub-titan-transport-berth": &"titan-transport-berth",
 	&"fabrication_annex_inbound": &"fabrication_annex",
 	&"hub-aft-junction": &"aft-junction-stack",
@@ -46,6 +48,7 @@ const EXPECTED_EDGES := {
 }
 
 const EXPECTED_SLOT_ROUTES := {
+	&"predator-detention-berth": &"approach",
 	&"titan-transport-berth": &"approach",
 	&"aft-junction-stack": &"approach",
 	&"fabrication_annex": &"annex_inbound",
@@ -336,12 +339,12 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	var report := world.get_station_route_registry_report()
 	var authority_claims := report.get("authority_claims", {}) as Dictionary
 	_check(
-		authority_claims == {&"titan_home_berth": &"titan-transport-berth"},
-		"only the Titan module declares its own existing ShipBerth authority"
+		authority_claims == {&"titan_home_berth": &"titan-transport-berth", &"predator_home_berth": &"predator-detention-berth"},
+		"only the Titan and Predator modules declare their own ShipBerth authority"
 	)
 
 	var live_berth_ids := world.get_berth_ids()
-	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 1 and live_berth_ids.has(&"titan_home_berth")
+	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 2 and live_berth_ids.has(&"predator_home_berth") and live_berth_ids.has(&"titan_home_berth")
 	var berths_unchanged := true
 	for berth_id in EXPECTED_BERTH_IDS:
 		berth_roster_exact = berth_roster_exact and live_berth_ids.has(berth_id)
@@ -349,7 +352,7 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 		berths_unchanged = berths_unchanged \
 			and berth != null \
 			and world.get_berth_transform(berth_id).is_equal_approx(EXPECTED_BERTH_TRANSFORMS[berth_id] as Transform3D)
-	_check(berth_roster_exact, "the world owns the original nine physical berths and the own Titan berth")
+	_check(berth_roster_exact, "the world preserves all original ten physical berths alongside Predator infrastructure")
 	_check(berths_unchanged, "all nine authoritative berth identities and transforms are untouched by the route registry")
 
 	var modules := report.get("modules", {}) as Dictionary
@@ -480,7 +483,7 @@ func _test_report_is_deeply_detached(world: ShipyardWorld) -> void:
 	)
 	_check(
 		(fresh.get("hub_endpoints", {}) as Dictionary).size() == EXPECTED_HUB_ENDPOINT_COUNT
-		and (fresh.get("authority_claims", {}) as Dictionary) == {&"titan_home_berth": &"titan-transport-berth"},
+		and (fresh.get("authority_claims", {}) as Dictionary) == {&"titan_home_berth": &"titan-transport-berth", &"predator_home_berth": &"predator-detention-berth"},
 		"hub endpoints and authority claims survive caller mutation"
 	)
 	_check(
@@ -587,7 +590,7 @@ func _edge_module_by_slot(adjacency: Dictionary) -> Dictionary:
 
 func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 	var result: Array[Node] = []
-	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth"]:
+	for node_name in ["AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth", "PredatorDetentionTransportBerth"]:
 		var module := world.get_node_or_null(NodePath(node_name))
 		if module != null:
 			result.append(module)

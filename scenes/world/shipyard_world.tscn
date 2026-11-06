@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -16,6 +16,8 @@
 [ext_resource type="Script" path="res://scripts/interaction/ship_service_console.gd" id="14_fabrication_ship_service"]
 
 [ext_resource type="PackedScene" path="res://scenes/world/modules/titan_transport_berth.tscn" id="15_titan_berth"]
+
+[ext_resource type="PackedScene" path="res://scenes/world/modules/predator_detention_transport_berth.tscn" id="16_predator_berth"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -181,3 +183,11 @@ cue_half_length = 16.5
 
 [node name="VipReceptionSuite" parent="." instance=ExtResource("9_vip_reception")]
 position = Vector3(-5.15, 4.2, 70.6)
+
+[node name="PredatorConnectorRouteAnchor" type="Marker3D" parent="."]
+position = Vector3(39, -0.02, 8.5)
+metadata/station_hub_route_anchor = true
+metadata/route_support = &"starboard_node_to_predator_spur"
+
+[node name="PredatorDetentionTransportBerth" parent="." instance=ExtResource("16_predator_berth")]
+position = Vector3(39, -0.02, -30)

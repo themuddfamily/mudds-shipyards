@@ -21,6 +21,8 @@ const ASSIST_CAPTURE_SCHEMA_VERSION := 1
 @export var dock_transform := Transform3D.IDENTITY
 ## Exact physical parked volume. This remains deliberately tight: widening the
 ## assist must never make an overhanging hull count as docked.
+## Strict volume offset in dock-local space; never moves the parked ship root.
+@export var landing_volume_center := Vector3.ZERO
 @export var landing_half_extents := Vector3(6.0, 4.0, 8.0)
 
 @export_category("Landing Assist Capture")
@@ -82,6 +84,10 @@ func get_dock_transform() -> Transform3D:
 	return global_transform * dock_transform
 
 
+func get_landing_volume_center() -> Vector3:
+	return landing_volume_center
+
+
 func get_landing_half_extents() -> Vector3:
 	return landing_half_extents
 
@@ -123,7 +129,7 @@ func contains(world_position: Vector3) -> bool:
 	var target := get_dock_transform()
 	if not _is_valid_transform(target):
 		return false
-	var local_position := target.affine_inverse() * world_position
+	var local_position := target.affine_inverse() * world_position - landing_volume_center
 	return absf(local_position.x) <= landing_half_extents.x \
 		and absf(local_position.y) <= landing_half_extents.y \
 		and absf(local_position.z) <= landing_half_extents.z
@@ -136,7 +142,7 @@ func contains_transform(world_transform: Transform3D) -> bool:
 ## Broad, root-based acquisition test used only to decide whether landing
 ## assistance may take control. It never attests final hull clearance.
 func contains_assist_capture(world_position: Vector3) -> bool:
-	if not _is_valid_assist_capture() or not world_position.is_finite():
+	if not landing_volume_center.is_finite() or not _is_valid_assist_capture() or not world_position.is_finite():
 		return false
 	var capture := get_assist_capture_transform()
 	if not _is_valid_transform(capture):
@@ -154,7 +160,7 @@ func contains_assist_oriented_bounds(
 	local_bounds: AABB,
 	clearance_margin: float = 0.0
 	) -> bool:
-	if not _is_valid_assist_capture() \
+	if not landing_volume_center.is_finite() or not _is_valid_assist_capture() \
 			or not _is_valid_transform(world_transform) \
 			or not _is_valid_transform(get_assist_capture_transform()) \
 			or not _is_valid_bounds(local_bounds) \
@@ -194,7 +200,7 @@ func contains_oriented_bounds(
 		return false
 	var berth_inverse := get_dock_transform().affine_inverse()
 	for corner in _aabb_corners(local_bounds):
-		var berth_local_corner := berth_inverse * (world_transform * corner)
+		var berth_local_corner := berth_inverse * (world_transform * corner) - landing_volume_center
 		if absf(berth_local_corner.x) > available.x + 0.0001 \
 				or absf(berth_local_corner.y) > available.y + 0.0001 \
 				or absf(berth_local_corner.z) > available.z + 0.0001:
@@ -295,6 +301,7 @@ func evaluate_landing_candidate(
 		"swept_volume_precomputed": false,
 		"dock_transform": get_dock_transform(),
 		"landing_half_extents": landing_half_extents,
+		"landing_volume_center": landing_volume_center,
 	}
 
 
@@ -408,6 +415,7 @@ func evaluate_assist_capture_candidate(
 		"staging_transform": staging,
 		"dock_transform": dock,
 		"landing_half_extents": landing_half_extents,
+		"landing_volume_center": landing_volume_center,
 		"approach_clearance_authority": &"runtime_current_and_step_pose_checks",
 		"continuous_swept_clearance_proved": false,
 		"swept_volume_precomputed": false,
@@ -577,7 +585,9 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("berth_id must be a 1-64 character lowercase snake_case identifier")
 	if not _is_valid_transform(dock_transform):
 		errors.append("dock_transform must be finite and have an invertible basis")
-	if not _is_valid_volume():
+	if not landing_volume_center.is_finite():
+		errors.append("landing_volume_center must contain three finite values")
+	if not landing_half_extents.is_finite() or landing_half_extents.x <= 0.0 or landing_half_extents.y <= 0.0 or landing_half_extents.z <= 0.0:
 		errors.append("landing_half_extents must contain three finite values greater than zero")
 	if not assist_capture_center.is_finite():
 		errors.append("assist_capture_center must contain three finite values")
@@ -613,6 +623,7 @@ func audit() -> Dictionary:
 		"berth_id": berth_id,
 		"dock_transform": get_dock_transform(),
 		"landing_half_extents": landing_half_extents,
+		"landing_volume_center": landing_volume_center,
 		"assist_capture_center": assist_capture_center,
 		"assist_capture_half_extents": assist_capture_half_extents,
 		"assist_capture_maximum_speed": assist_capture_maximum_speed,
@@ -673,7 +684,8 @@ static func _weak_node(reference: WeakRef) -> Node:
 
 
 func _is_valid_volume() -> bool:
-	return landing_half_extents.is_finite() \
+	return landing_volume_center.is_finite() \
+		and landing_half_extents.is_finite() \
 		and landing_half_extents.x > 0.0 \
 		and landing_half_extents.y > 0.0 \
 		and landing_half_extents.z > 0.0
