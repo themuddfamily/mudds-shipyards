@@ -99,17 +99,21 @@ func _run() -> void:
 	ship.set_piloted(true)
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE, "initial OFFLINE"):
 		return
+	if not _test_physical_alignment(ship,"initial OFFLINE"): return
 	ship.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3) -> void: _projectiles += 1)
 	ship.request_engine_start()
 	await _frames(222)
+	if not _test_physical_alignment(ship,"STARTING"): return
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_STARTING, "3.8s spool still STARTING after3.7s"):
 		return
 	await _frames(7)
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_ONLINE, "actual inherited spool ONLINE after3.8s"):
 		return
+	if not _test_physical_alignment(ship,"ONLINE"): return
 	var start := ship.global_transform
 	commands.throttle = 1
 	await _frames(120)
+	if not _test_physical_alignment(ship,"steady thrust"): return
 	var speed := ship.velocity.length()
 	print("PREDATOR_THRUST: speed=", speed, " displacement=", ship.position - start.origin)
 	if not _check(is_finite(speed) and speed > 0 and speed <= 73 and ship.position.z < start.origin.z - 1
@@ -141,6 +145,7 @@ func _run() -> void:
 	if not _check(ship.global_basis.is_finite() and ship.global_basis.get_rotation_quaternion().angle_to(start.basis.get_rotation_quaternion()) > 0.1,
 		"real yaw/pitch/roll source changes attitude"):
 		return
+	if not _test_physical_alignment(ship,"actual yaw pitch roll",true): return
 	commands.throttle = 0
 	commands.yaw = 0
 	commands.pitch = 0
@@ -148,6 +153,7 @@ func _run() -> void:
 	commands.brake = true
 	var before_brake := ship.velocity.length()
 	await _frames(30)
+	if not _test_physical_alignment(ship,"braking"): return
 	print("PREDATOR_BRAKE: before=", before_brake, " after0.5s=", ship.velocity.length())
 	if not _check(ship.velocity.length() < before_brake and ship.velocity.length() > 0, "actual brake reduces motion"):
 		return
@@ -159,10 +165,12 @@ func _run() -> void:
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE and ship.velocity.length() < 0.001
 		and is_zero_approx(float(ship.get("_throttle"))) and not ship.get_ship_audio_rig().is_engine_running(), "ordinary neutral idle reaches OFFLINE and retires engine audio"):
 		return
+	if not _test_physical_alignment(ship,"first shutdown OFFLINE"): return
 	# Automatic thrust demand must also respect the approved spool, rather than
 	# silently using HeroShip's immediate fighter wake path on the second sortie.
 	commands.throttle = 0.5
 	await _frames(1)
+	if not _test_physical_alignment(ship,"second STARTING"): return
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_STARTING, "ordinary automatic wake retains timed startup"):
 		return
 	await _frames(222)
@@ -171,6 +179,7 @@ func _run() -> void:
 	await _frames(10)
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_ONLINE and ship.velocity.length() > 0, "second real sortie becomes usable"):
 		return
+	if not _test_physical_alignment(ship,"second ONLINE"): return
 	commands.throttle = 0
 	commands.brake = true
 	await _frames(60)
@@ -179,6 +188,7 @@ func _run() -> void:
 	if not _check(ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE and ship.velocity.length() < 0.001
 		and not ship.get_ship_audio_rig().is_engine_running() and _projectiles == 0, "second sortie retires propulsion/audio without latent weapon effects"):
 		return
+	if not _test_physical_alignment(ship,"second shutdown OFFLINE"): return
 	ship.set_piloted(false)
 	ship.queue_free()
 	await _frames(3)
@@ -325,3 +335,77 @@ func _check(condition: bool, label: String) -> bool:
 		push_error("PREDATOR_FAIL: " + label)
 		quit(1)
 	return false
+
+
+## Compose the live local hierarchy: world inverse products lose precision once
+## the real controller has travelled far from the world origin.
+func _ship_relative_pose(ship: HeroShip, node: Node3D) -> Transform3D:
+	var pose := node.transform
+	var parent := node.get_parent()
+	while parent != ship:
+		if not parent is Node3D:
+			return Transform3D(Basis.IDENTITY, Vector3.INF)
+		pose = (parent as Node3D).transform * pose
+		parent = parent.get_parent()
+	return pose
+
+
+func _test_physical_alignment(ship: HeroShip, phase: String, turning: bool = false) -> bool:
+	var shell := ship.get_node("PredatorOriginalShell") as Node3D
+	var bank := ship.get_node("PredatorCosmeticBank") as Node3D
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var live_bank := float(ship.get("_visual_bank"))
+	if not _check(ship.get_variant_visual_root() == shell
+		and _ship_relative_pose(ship,shell).is_equal_approx(Transform3D.IDENTITY)
+		and bank.get_parent() == ship and bank.get_meta("presentation_only",false)
+		and bank.get_child_count() == 1 and readout.get_parent() == bank
+		and bank.position == Vector3.ZERO and bank.rotation.x == 0 and bank.rotation.y == 0
+		and is_equal_approx(bank.rotation.z,live_bank)
+		and (not turning or absf(live_bank)>0.001), "stable physical hull; readout-only live cosmetic bank " + phase):
+		return false
+	var physical_count := 0
+	for child in ship.get_children():
+		if not child is CollisionShape3D:
+			continue
+		var collision := child as CollisionShape3D
+		if not collision.shape is ConvexPolygonShape3D:
+			continue
+		var label := String(collision.name).trim_suffix("Collision")
+		var mesh := shell.get_node_or_null(NodePath(label)) as MeshInstance3D
+		if not _check(mesh != null and mesh.is_visible_in_tree() and not collision.disabled
+			and _ship_relative_pose(ship,mesh).is_equal_approx(_ship_relative_pose(ship,collision)),
+			"actual visible mesh/collider hierarchy pose " + phase + " " + label):
+			return false
+		physical_count += 1
+	var paired_meshes := 0
+	var overlays := 0
+	var engine_active := StringName(ship.get("_engine_state")) in [HeroShip.ENGINE_STARTING,HeroShip.ENGINE_ONLINE]
+	var registered: Array = ship.get("_engine_core_glows")
+	for child in shell.get_children():
+		if not child is MeshInstance3D:
+			continue
+		var mesh := child as MeshInstance3D
+		if mesh.get_meta("presentation_only",false):
+			if not _check(mesh.name in ["PortExhaustGlow","StarboardExhaustGlow"]
+				and mesh.mesh is QuadMesh and mesh.get_child_count()==0
+				and not ship.has_node(String(mesh.name)+"Collision")
+				and registered.has(mesh) and mesh.visible==engine_active,
+				"separate noncolliding state-driven exhaust overlay " + phase + " " + mesh.name):
+				return false
+			overlays += 1
+		elif mesh.name != &"SternAccessControl":
+			var collision := ship.get_node_or_null(String(mesh.name)+"Collision") as CollisionShape3D
+			if not _check(collision != null and mesh.is_visible_in_tree() and not collision.disabled
+				and _ship_relative_pose(ship,collision).is_equal_approx(_ship_relative_pose(ship,mesh))
+				and not registered.has(mesh), "physical mesh has visible paired collider " + phase + " " + mesh.name):
+				return false
+			paired_meshes += 1
+	if not _check(physical_count==32 and paired_meshes==32 and overlays==2 and registered.size()==2,
+		"unchanged32 physical pairs and only two cosmetic engine overlays " + phase):
+		return false
+	var pilot := _ship_relative_pose(ship,ship.get_pilot_seat_anchor())
+	var eye := _ship_relative_pose(ship,ship.get_node("PredatorOriginalShell/PilotFixture/CockpitCamera") as Camera3D)
+	return _check(pilot.origin.distance_to(Vector3(0,1.45,-5.5))<0.000001
+		and eye.origin.distance_to(Vector3(0,3.21,-5.75))<0.000001
+		and pilot.basis.is_equal_approx(Basis.IDENTITY) and eye.basis.is_equal_approx(Basis.IDENTITY),
+		"actual exact pilot and cockpit eye remain in physical frame " + phase)

@@ -11,6 +11,7 @@ const RAMP_POINTS := [Vector3(-1.2,0,0),Vector3(-1.2,-0.08,0),Vector3(-1.2,-0.5,
 	Vector3(1.2,0,0),Vector3(1.2,-0.08,0),Vector3(1.2,-0.5,2)]
 const STOW_ANGLE := PI * 0.5 + atan(0.25)
 var _access_fraction := 0.0
+var _solid_root: Node3D
 
 
 ## Only the authored pilot composition supplies this real physical seat area.
@@ -120,7 +121,7 @@ func _set_canopy_open_fraction(open_fraction: float) -> void:
 	var poses := get_access_transforms(_access_fraction)
 	for label: StringName in poses:
 		(get_node(String(label)+"Collision") as CollisionShape3D).transform = poses[label]
-		(_visual_root.get_node(NodePath(label)) as MeshInstance3D).transform = poses[label]
+		(_solid_root.get_node(NodePath(label)) as MeshInstance3D).transform = poses[label]
 
 
 ## Actual convex vertices, not the empty corners of rotated bounding boxes.
@@ -141,6 +142,11 @@ func get_landing_collision_report() -> Dictionary:
 	if not first:
 		report.local_bounds = bounds
 	return report
+
+
+## The authored physical shell never inherits the cosmetic readout bank.
+func get_variant_visual_root() -> Node3D:
+	return _solid_root if is_instance_valid(_solid_root) else null
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -191,8 +197,13 @@ func _build_ship() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	set_meta("authenticated_historical_silhouette", false)
 	set_meta("geometry_status", &"original_modern_candidate")
+	_solid_root = Node3D.new()
+	_solid_root.name = "PredatorOriginalShell"
+	add_child(_solid_root)
+	# HeroShip applies the approved four-degree bank only to this display.
 	_visual_root = Node3D.new()
-	_visual_root.name = "PredatorOriginalShell"
+	_visual_root.name = "PredatorCosmeticBank"
+	_visual_root.set_meta("presentation_only", true)
 	add_child(_visual_root)
 	var armor := _finish(Color("8c9da6"), 0.65)
 	var structure := _finish(Color("25333b"), 0.8)
@@ -242,11 +253,11 @@ func _build_ship() -> void:
 		var left := minf(side*3.4,side*4.5)
 		var right := maxf(side*3.4,side*4.5)
 		_prism(label + "EnginePod",[Vector2(left,-5),Vector2(right,-4.5),Vector2(right,5.5),Vector2(left,6)],1.1,3.4,structure)
-		var glow := _rect(label + "Exhaust",left,right,5.5,6,3.4,3.6,_finish(Color("60cbd1"),0.2))
-		_engine_core_glows.append(glow)
+		_rect(label + "Exhaust",left,right,5.5,6,3.4,3.6,_finish(Color("60cbd1"),0.2))
+		_build_exhaust_glow(label, (left+right)*0.5)
 	_cockpit_root = Node3D.new()
 	_cockpit_root.name = "PilotFixture"
-	_visual_root.add_child(_cockpit_root)
+	_solid_root.add_child(_cockpit_root)
 	_pilot_seat_anchor = Marker3D.new()
 	_pilot_seat_anchor.name = "PilotSeatAnchor"
 	_pilot_seat_anchor.position = PILOT_ORIGIN
@@ -267,7 +278,7 @@ func _build_ship() -> void:
 	_boarding_marker.position = Vector3(1,1,-5.5)
 	_exit_marker.position = Vector3(1,1,-5.5)
 	_camera_pivot.position = Vector3(0,3,0)
-	_install_variant_cockpit_system_readout(_cockpit_root)
+	_install_variant_cockpit_system_readout(_visual_root)
 	_cockpit_readout.position = Vector3(0,2.75,-6.6)
 	var receiver := Marker3D.new()
 	receiver.name = "DockingReceiver"
@@ -275,7 +286,7 @@ func _build_ship() -> void:
 	add_child(receiver)
 	_canopy_pivot = Node3D.new()
 	_canopy_pivot.name = "AccessMotionClock"
-	_visual_root.add_child(_canopy_pivot)
+	_solid_root.add_child(_canopy_pivot)
 	_build_ramp_leaf("InnerSternRamp",accent)
 	_build_ramp_leaf("OuterSternRamp",accent)
 	_set_canopy_open_fraction(0)
@@ -286,9 +297,28 @@ func _build_ship() -> void:
 	panel.mesh = panel_shape
 	panel.position = Vector3(2.29,1.6,7.985)
 	panel.material_override = accent
-	_visual_root.add_child(panel)
-	ShipCabinHatch.install(_visual_root,self,Vector3(2.29,1.6,7.985))
+	_solid_root.add_child(panel)
+	ShipCabinHatch.install(_solid_root,self,Vector3(2.29,1.6,7.985))
 	_sync_engine_visuals_immediately()
+
+
+## A noncolliding light surface sits just aft of each solid exhaust panel.
+## Only these overlays participate in inherited engine visibility changes.
+func _build_exhaust_glow(label: String, center_x: float) -> void:
+	var glow := MeshInstance3D.new()
+	glow.name = label + "ExhaustGlow"
+	glow.set_meta("presentation_only", true)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.9, 0.14)
+	glow.mesh = quad
+	glow.position = Vector3(center_x, 3.5, 6.002)
+	var material := _finish(Color("60cbd1"), 0.2)
+	material.emission_enabled = true
+	material.emission = Color("60cbd1")
+	material.emission_energy_multiplier = 2.0
+	glow.material_override = material
+	_solid_root.add_child(glow)
+	_engine_core_glows.append(glow)
 
 
 func _finish(color: Color, roughness: float) -> StandardMaterial3D:
@@ -336,7 +366,7 @@ func _prism(label: String, footprint: Array, bottom: float, top: float, material
 	var mesh := MeshInstance3D.new()
 	mesh.name = label
 	mesh.mesh = surface.commit()
-	_visual_root.add_child(mesh)
+	_solid_root.add_child(mesh)
 	return mesh
 
 
@@ -367,4 +397,4 @@ func _build_ramp_leaf(label: String, material: Material) -> void:
 	var mesh := MeshInstance3D.new()
 	mesh.name = label
 	mesh.mesh = surface.commit()
-	_visual_root.add_child(mesh)
+	_solid_root.add_child(mesh)
