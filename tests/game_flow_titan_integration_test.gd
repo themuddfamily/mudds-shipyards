@@ -353,13 +353,44 @@ func _test_lifecycle(identity: int, berth: ShipBerth, dock: Transform3D) -> void
 		and not _ship.get_camera().current,
 		"twenty actual opponent hits retire actual pilot/helm/camera and queue ordinary regeneration")
 	var sealed := cargo.snapshot()
+	# Invoke every refusal independently; a persistence mismatch must not skip
+	# the service or direct-authority regression attempts.
+	var dead_service := cargo.request_transfer(_player, _game._titan_locker_panel, true, 1)
+	var dead_old := _game.cargo_transfer_authority.transfer(&"main_dead_old", raw_locker, raw_ship, TitanCargoCustody.ITEM, 1)
+	var dead_current := _game.cargo_transfer_authority.transfer(&"main_dead_sealed", cargo.locker_handle, cargo.ship_handle, TitanCargoCustody.ITEM, 1)
+	var store_after := _game._runtime_settings_user_data_store.get_snapshot()
+	# The existing active race deliberately fails and saves on ship loss through
+	# _fail_active_activity/_on_cinder_session_presentation_changed. Permit only
+	# its seven terminal state/reason/clock fields; preserve every other field.
+	# JSON canonicalization matches the actual store round trip (including floats).
+	var expected_store: Dictionary = JSON.parse_string(JSON.stringify(store_before))
+	var canonical_after: Dictionary = JSON.parse_string(JSON.stringify(store_after))
+	var live_race := _game.cinder_race_session.capture_persistence_state()
+	var expected_activity: Dictionary = expected_store.cinder_timed_race_session.activities[0]
+	expected_activity.state = TimedCheckpointRace.State.FAILED
+	expected_activity.progress.state = TimedCheckpointRace.State.FAILED
+	expected_activity.progress.session_state.activity_state.state = CheckpointRouteActivity.State.FAILED
+	expected_activity.progress.session_state.activity_state.failure_reason = "ship_destroyed"
+	expected_activity.progress.session_state.race_state.state = TimedCheckpointRace.State.FAILED
+	expected_activity.progress.session_state.race_state.failure_reason = "ship_destroyed"
+	expected_activity.progress.session_state.race_state.race_elapsed_seconds = live_race.race_state.race_elapsed_seconds
+	expected_store = JSON.parse_string(JSON.stringify(expected_store))
+	var changed_keys: Array[String] = []
+	for key: String in store_before:
+		if store_before[key] != store_after.get(key): changed_keys.append(key)
+	for key: String in store_after:
+		if not store_before.has(key): changed_keys.append(key)
+	print("TITAN_DEATH_STORE: ", JSON.stringify({"before": store_before, "after": store_after, "changed_keys": changed_keys,
+		"dead_service": dead_service, "dead_old": dead_old, "dead_current": dead_current,
+		"sealed": sealed, "detached": not _game.cargo_transfer_authority.get_manifest_snapshot(cargo.ship_handle).attached,
+		"expected_normal_death_store": expected_store}))
 	_check(not sealed.available and sealed.locker == 2 and sealed.titan == 2
 		and not _game.cargo_transfer_authority.get_manifest_snapshot(cargo.ship_handle).attached
-		and _game._runtime_settings_user_data_store.get_snapshot() == store_before
-		and not cargo.request_transfer(_player, _game._titan_locker_panel, true, 1).accepted
-		and not _game.cargo_transfer_authority.transfer(&"main_dead_old", raw_locker, raw_ship, TitanCargoCustody.ITEM, 1).accepted
-		and not _game.cargo_transfer_authority.transfer(&"main_dead_sealed", cargo.locker_handle, cargo.ship_handle, TitanCargoCustody.ITEM, 1).accepted,
-		"actual dead Main preserves exact2/2/store and refuses old and current detached transfer endpoints")
+		and store_after[TitanCargoCustody.SLOT] == store_before[TitanCargoCustody.SLOT]
+		and store_after[TitanCargoCustody.MARKER] == true and store_before[TitanCargoCustody.MARKER] == true
+		and live_race.race_state.failure_reason == "ship_destroyed" and canonical_after == expected_store
+		and not dead_service.accepted and not dead_old.accepted and not dead_current.accepted,
+		"actual dead Main preserves exact2/2 and all store fields except normal race failure; all dead endpoints refuse")
 	var seed_path := OS.get_environment("TITAN_LIFECYCLE_SEED_PATH")
 	if seed_path != "":
 		var payload := FileAccess.open(seed_path, FileAccess.WRITE)
