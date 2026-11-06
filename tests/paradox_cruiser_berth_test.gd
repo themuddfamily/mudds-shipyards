@@ -267,7 +267,46 @@ func _walk_to(target: Vector3, leg: int) -> bool:
 		await _observer.completed_tick
 		if _failed: return false
 	print("PARADOX_BERTH_ROUTE_LEG: ", {"leg": leg, "target": target, "actual": _player.global_position, "reached": reached})
+	if not reached:
+		_log_route_failure(target, leg)
 	return _check(reached, "ordinary walk reaches frozen endpoint " + str(leg))
+
+## Diagnostic-only operands after the unchanged full walking leg has failed.
+func _log_route_failure(target: Vector3, leg: int) -> void:
+	print("PARADOX_BERTH_ROUTE_FAILURE_ACTOR: ", {"leg": leg, "target": target,
+		"position": _player.global_position, "velocity": _player.velocity,
+		"physics_frame": Engine.get_physics_frames(), "floor": _player.is_on_floor(),
+		"floor_normal": _player.get_floor_normal(), "collision_mask": _player.collision_mask,
+		"collision_layer": _player.collision_layer, "gravity_multiplier": _player.gravity_multiplier,
+		"gravity": _player.get_gravity(), "motion_audit": _player.get_step_up_assist_audit(),
+		"slide_count": _player.get_slide_collision_count()})
+	for index in _player.get_slide_collision_count():
+		var hit := _player.get_slide_collision(index)
+		var collider := hit.get_collider() as Node
+		print("PARADOX_BERTH_ROUTE_FAILURE_SLIDE: ", {"index": index,
+			"collider_path": str(collider.get_path()) if collider != null else "<none>",
+			"collider_name": str(collider.name) if collider != null else "<none>",
+			"rid": hit.get_collider_rid(), "position": hit.get_position(),
+			"normal": hit.get_normal(), "depth": hit.get_depth(),
+			"travel": hit.get_travel(), "remainder": hit.get_remainder()})
+	var collision := _player.get_node("PlayerCollision") as CollisionShape3D
+	var direction := (target - _player.global_position).slide(Vector3.UP).normalized()
+	for advance in [0.05, 0.1, 0.2, 0.4]:
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = collision.shape
+		query.transform = collision.global_transform
+		query.transform.origin += direction * advance
+		query.collision_mask = _player.collision_mask
+		query.margin = 0
+		query.exclude = [_player.get_rid()]
+		var operands: Array[Dictionary] = []
+		for hit in _player.get_world_3d().direct_space_state.intersect_shape(query, 64):
+			var collider := hit.collider as Node
+			operands.append({"collider_path": str(collider.get_path()) if collider != null else "<none>",
+				"collider_name": str(collider.name) if collider != null else "<none>",
+				"rid": hit.rid, "shape": hit.shape})
+		print("PARADOX_BERTH_ROUTE_FAILURE_FORWARD_CAPSULE: ", {"advance": advance,
+			"transform": query.transform, "mask": query.collision_mask, "hits": operands})
 
 func _observe_completed_tick() -> void:
 	if not _observing or _failed: return
