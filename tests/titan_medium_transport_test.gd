@@ -766,6 +766,7 @@ func _test_passengers(ship: HeroShip) -> void:
 	await _frames(120)
 	controls.brake = false
 	await _frames(95)
+	ship.set_piloted(false)
 	var pilot := preload("res://scenes/player/player.tscn").instantiate() as PlayerController
 	pilot.transform = ship.get_boarding_entry_transform()
 	root.add_child(pilot)
