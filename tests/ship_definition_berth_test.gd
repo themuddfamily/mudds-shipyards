@@ -16,6 +16,7 @@ func _run() -> void:
 	_test_definition_profiles_and_detached_audit()
 	await _test_definition_resource_round_trip()
 	await _test_berth_transform_volume_and_lookup()
+	await _test_offset_landing_volume()
 	await _test_berth_reservation_and_occupancy()
 	_finish()
 
@@ -383,6 +384,30 @@ func _check(condition: bool, description: String) -> void:
 	else:
 		_failures.append(description)
 		push_error("FAIL: " + description)
+
+
+func _test_offset_landing_volume() -> void:
+	var berth := BerthScript.new() as ShipBerth
+	berth.berth_id = &"offset_landing_fixture"
+	berth.transform = Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(18,-3,6))
+	berth.dock_transform = Transform3D(Basis.IDENTITY, Vector3(1,2,3))
+	berth.landing_half_extents = Vector3(9,4,17)
+	root.add_child(berth)
+	await physics_frame
+	var dock := berth.get_dock_transform()
+	var capture := berth.get_assist_capture_transform()
+	_check(berth.get_landing_volume_transform().is_equal_approx(dock), "zero center preserves exact original tight-volume transform")
+	berth.landing_volume_center = Vector3(0,3,2)
+	var shape := AABB(Vector3(-8,0,-14), Vector3(16,6,32))
+	_check(berth.get_dock_transform().is_equal_approx(dock) and berth.get_assist_capture_transform().is_equal_approx(capture), "geometric center never moves exact dock root or broad assist")
+	_check(berth.get_landing_volume_transform().is_equal_approx(dock*Transform3D(Basis.IDENTITY,Vector3(0,3,2))) and berth.contains_oriented_bounds(dock,shape), "offset tight volume contains full approved Paradox hull and ramp under rotated translated dock")
+	_check(berth.contains(dock*Vector3(8.99,6.99,18.99)) and not berth.contains(dock*Vector3(9.01,7,19)), "tight offset volume accepts interior corner and refuses real outside corner")
+	var displaced := dock * Transform3D(Basis.IDENTITY,Vector3(1.01,0,0))
+	_check(not berth.contains_oriented_bounds(displaced,shape), "offset volume refuses hull overhang instead of widening extent")
+	berth.landing_volume_center = Vector3(NAN,0,0)
+	_check(not berth.get_validation_errors().is_empty() and not berth.contains(dock.origin) and not berth.contains_oriented_bounds(dock,shape) and _has_error(berth.get_validation_errors(),"landing_volume_center"), "nonfinite center fails closed with specific validation")
+	berth.queue_free()
+	await process_frame
 
 
 func _finish() -> void:

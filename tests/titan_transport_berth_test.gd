@@ -43,7 +43,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"titan_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size() == 10, "own berth discovered exactly once alongside unchanged nine")
+	_check(matching == 1 and world.get_berth_ids().size() == 11 and world.get_berth_node(&"paradox_home_berth") != null and world.get_berth_node(&"paradox_home_berth").get_occupant() == null, "own Titan berth exactly once alongside original nine and unoccupied Paradox berth")
 	var unchanged := true
 	for berth_id in OLD_TRANSFORMS:
 		unchanged = unchanged and world.get_berth_transform(berth_id).is_equal_approx(OLD_TRANSFORMS[berth_id])
@@ -68,7 +68,7 @@ func _run() -> void:
 		and edge.get("hub_node_id") == &"station-hub:hub-titan-transport-berth"
 		and edge.get("module_node_id") == &"titan-transport-berth:approach",
 		"real supported 1.5m Titan connector edge keeps the complete navigation graph valid")
-	_check(bool(world.get_ship_berth_feedback_audit_report().valid), "existing six feedback placements remain valid with the legitimate tenth berth")
+	_check(bool(world.get_ship_berth_feedback_audit_report().valid), "existing six feedback placements remain valid with the legitimate eleventh berth")
 	var ship := game.get_node("TitanMediumTransport") as HeroShip
 	var titans := 0
 	for craft in game.get_flyable_ships():
