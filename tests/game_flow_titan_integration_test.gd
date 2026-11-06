@@ -114,6 +114,9 @@ func _run() -> void:
 		if not await _passenger_round_trip(seat_id, identity):
 			await _fail_exit("physical passenger contract failed")
 			return
+	if not await _post_chair_cargo_round_trip(identity):
+		await _fail_exit("grounded passenger cargo/exit/reload contract failed")
+		return
 	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 1.8)), 32) \
 			or not await _walk_to(_ship.to_global(Vector3(0, 0.8, -4.2)), 33):
 		await _fail_exit("physical passenger to helm walk failed")
@@ -424,7 +427,10 @@ func _passenger_round_trip(seat_id: StringName, identity: int) -> bool:
 		and _player.global_position.distance_to(entry.origin) < 0.05
 		and authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty()
 		and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META)
-		and _ship.call(&"get_crew_role_authority") == null and not _game._piloting,
+		and _ship.call(&"get_crew_role_authority") == null and not _game._piloting
+		and _game.phase in [GameFlow.Phase.APPROACH_SHIP, GameFlow.Phase.COMPLETE]
+		and _game._boarding_area == null and not (_ship.get_node("ShipBoardingArea") as ShipBoardingArea).is_reserved()
+		and not bool(_player.get_cabin_containment_report().get("active", false)),
 		"normal E stands supported and empties exact " + String(seat_id) + " claim")
 	return _failures.is_empty()
 
@@ -461,3 +467,35 @@ func _check_panel_solids() -> void:
 	_check((pedestal_shape.shape as BoxShape3D).size.is_equal_approx(Vector3(0.8, 1, 0.6))
 		and pedestal_shape.position.is_equal_approx(Vector3(0, 0.5, 0)),
 		"supported supply pedestal has matched real solid furniture")
+
+
+func _post_chair_cargo_round_trip(identity: int) -> bool:
+	if not await _walk_to(_ship.to_global(Vector3(0, 0.8, 5.2)), 34): return false
+	await _aim(_game._titan_hold_panel.global_position)
+	_check(_game.station_interaction_candidate == _game._titan_hold_panel,
+		"grounded former passenger normally selects physical hold panel")
+	await _tap(&"interact")
+	await _tap(&"interact")
+	_check(_game.titan_cargo.snapshot().locker == 4 and _game.titan_cargo.snapshot().titan == 0
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].locker) == 4,
+		"normal E after passenger stand durably returns both parcels4/0")
+	_check(_ship.is_canopy_open() and not bool(_player.get_cabin_containment_report().get("active", false)),
+		"grounded passenger retains actual open access and free supported walking")
+	for point in [Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 8), Vector3(0, 0.4, 10.5),
+		Vector3(0, 0, 13), Vector3(0, 0, 14.3), Vector3(1.9, 0, 14.3)]:
+		if not await _walk_to(_ship.to_global(point), 35): return false
+	_check(_player.get_instance_id() == identity and _player.is_on_floor()
+		and not (_ship.get_node("ShipBoardingArea") as ShipBoardingArea).is_reserved(),
+		"same former passenger physically exits open ramp to supported supply stand")
+	await _aim(_game._titan_locker_panel.global_position)
+	_check(_game.station_interaction_candidate == _game._titan_locker_panel,
+		"former passenger normally selects physical locker panel outside")
+	await _tap(&"interact")
+	await _tap(&"interact")
+	_check(_game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2
+		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].titan) == 2,
+		"normal exterior E reload durably restores2/2 before original full flight")
+	for point in [Vector3(0, 0, 14.3), Vector3(0, 0, 13), Vector3(0, 0.4, 10.5),
+		Vector3(0, 0.8, 8), Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]:
+		if not await _walk_to(_ship.to_global(point), 36): return false
+	return _failures.is_empty()

@@ -10494,7 +10494,20 @@ func _stand_from_solo_crew_seat() -> void:
 	_solo_crew_seat_generation = 0
 	_station_seated = false
 	_transition_busy = false
-	_bind_cabin_occupancy(craft)
+	if _titan_grounded_crew_stand_is_supported(craft):
+		# A grounded passenger is ordinary on-foot cabin traffic again. Retain
+		# containment for actual flight; at the owned safe berth it would trap
+		# this standing Player and deny the physical cargo/exit route.
+		_release_cabin_occupancy()
+		_boarding_area.release_reservation(player)
+		_boarding_area = null
+		_clear_boarding_confirmation_reservation()
+		phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+		hud.set_mode("on-foot")
+		hud.set_objective("Explore the shipyard or board another spacecraft")
+		audio.set_on_foot(true)
+	else:
+		_bind_cabin_occupancy(craft)
 	_release_solo_crew_authority()
 	player.set_control_enabled(true)
 	audio.play_ui_confirm()
@@ -27959,3 +27972,31 @@ func _authorize_titan_cargo_actor(actor: Node, panel: Node3D, loading: bool) -> 
 			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE:
 		return {"accepted": false, "reason": &"own_landed_offline_berth_required"}
 	return {"accepted": true, "reason": &"authorized"}
+
+
+func _titan_grounded_crew_stand_is_supported(craft: HeroShip) -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() or _network_session_is_live() \
+			or not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
+			or craft.get_ship_id() != &"titan_provisional" or craft != _cabin_ship or craft != active_ship \
+			or craft not in ships or craft.is_destroyed() or not craft.is_boardable() or _piloting \
+			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
+			or not is_ancestor_of(player) or player.is_seated() or player.is_sleeping() \
+			or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != craft \
+			or _boarding_area.get_reservation_token() != player:
+		return false
+	var telemetry := craft.get_telemetry()
+	var berth := world.get_berth_node(&"titan_home_berth") as ShipBerth
+	if berth == null or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
+			or not bool(telemetry.get("landed", false)) \
+			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE \
+			or not craft.has_method(&"has_supported_exterior_access") or not craft.call(&"has_supported_exterior_access"):
+		return false
+	var up := craft.global_basis.y.normalized()
+	var query := PhysicsRayQueryParameters3D.create(player.global_position + up * 0.2,
+		player.global_position - up * 0.25, PhysicsLayers.WORLD | PhysicsLayers.SHIP)
+	query.exclude = [player.get_rid()]
+	query.collide_with_areas = false
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := hit.get("collider") as Node
+	return is_instance_valid(collider) and (collider == craft or craft.is_ancestor_of(collider)) \
+		and (hit.get("normal", Vector3.ZERO) as Vector3).normalized().dot(up) >= cos(player.floor_max_angle)
