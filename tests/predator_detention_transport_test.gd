@@ -232,7 +232,7 @@ func _test_geometry(ship: HeroShip) -> bool:
 		envelope = bounds if first else envelope.merge(bounds)
 		first = false
 		sections += 1
-	if not _check(sections == 26 and envelope.position.is_equal_approx(Vector3(-4.5, 0, -8))
+	if not _check(sections == 32 and envelope.position.is_equal_approx(Vector3(-4.5, 0, -8))
 		and envelope.size.is_equal_approx(Vector3(9, 5, 16)), "actual authored9x16x5 hull/collision envelope"):
 		return false
 	for i in shapes.size():
