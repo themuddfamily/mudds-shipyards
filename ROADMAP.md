@@ -48,7 +48,8 @@ Earlier accepted changes remain included in their recorded scopes.
   `titan_medium_transport_test.gd`, `live_combat_integration_test.gd`,
   `zenith_fleet_dock_integration_test.gd`,
   `cinder_light_interceptor_combat_production_test.gd`, and
-  `game_flow_titan_integration_test.gd`. Root owns docs, release, integration and
+  `game_flow_titan_integration_test.gd`. The sixth suite is the unchanged
+  `combat_receipt_identity_test.gd` (100s). Root owns docs, release, integration and
   cleanup. Independent high-effort reviewer reads those exact changes; no edits.
 - **Dependencies:** accepted pilot/chairs/parcels source2794cfa via27f57a620 and
   checkpoint2794cfa. No dependency on parked Hauler weapon candidate. Source1110
@@ -74,7 +75,7 @@ Earlier accepted changes remain included in their recorded scopes.
 
 | Case | Initial state and action | Expected result | Actual result and proof |
 | --- | --- | --- | --- |
-| Exact hardware/profile | Instantiate actual Titan and ordinary staged Main; inspect muzzle/resource/registration | One co-located centre muzzle at(0,1.1,-8.9), unique source1110, unchanged Jovian650m/70 profile/cadence/cues; existing sources/profiles retained; ten player sources | NOT_RUN |
+| Exact hardware/profile | Instantiate actual Titan and ordinary staged Main; inspect muzzle/resource/registration | One co-located centre muzzle at(0,1.1,-8.9), nose skin recessed toz=-8.8 at its clear bore with matched collision and unchanged12x18x5 outer bounds, unique source1110, unchanged Jovian650m/70 profile/cadence/cues; existing sources/profiles retained; ten player sources | NOT_RUN |
 | Ordinary hit and miss | Full existing Begin/walk/cargo/chairs/start/flight route, normal FIRE toward staged production damageable then clear space | One emitted/admitted shot gives one70 damage event with Titan source; deliberate miss gives zero target damage; visible telemetry heat/cooldown reflects shot; no direct shot submission for this case | NOT_RUN |
 | Cadence and authority | Existing live integration extended for Titan; exercise cooldown, self, friendly, world occlusion, foreign/unregistered/stale source and client authority | Original resolver rejection/status invariants remain; early repeat cannot damage twice; self/friendly/blocked/invalid source never mutate protected hulls; no cross-craft weapon borrowing | NOT_RUN |
 | Preserved complete route | Continue normal Main after shots through own L landing,90 neutral OFFLINE ticks, physical hold return/exit and actual UI Quit | Same Player; healthy220 hull; supported/capsule-clear walking; conserved parcels locker4/Titan0; clean shutdown/recovery; old assertions and endpoints retained | NOT_RUN |
