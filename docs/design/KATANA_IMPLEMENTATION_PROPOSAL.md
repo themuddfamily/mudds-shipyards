@@ -1,6 +1,6 @@
 # Katana implementation proposal — APPROVED MODERN BASELINE
 
-Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. Standalone hull/pilot foundation card1 is delivered in b0f97baf1 via4b1c19777, with checkpointb0f97ba. Katana is not registered/selectable in Main; the complete craft and actual comparative handling remain unqualified.
 
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
@@ -77,7 +77,7 @@ Estimates are work boxes, not measured promises. Each stops at its named running
 
 | Card / estimate | Owner and bounded files | Player-visible outcome, focused proof and stop |
 | --- | --- | --- |
-| 1 / 45m | Candidate implementer: three new candidate files | Original closed hull/collision/definition loads and flies through real HeroShip with valid candidate identity/trial values. Check fixture/controller and single helm; stop at standalone flight. |
+| 1 / 45m — DONEb0f97baf1 (standalone only) | Candidate implementer: three new candidate files | Original closed hull/collision/definition loads and flies through real HeroShip with valid candidate identity/trial values. Check fixture/controller and single helm; stop at standalone flight. |
 | 2 / 60m | Candidate implementer: same files; root narrow HeroShip access hook if needed | Real Player walks ramp/recess, claims helm, safely releases and walks back; canopy/ramp collision agrees and sealed launch state refuses unsafe access. Verify actual capsule/camera/supported exit; stop at physical access. |
 | 3 / 60m | Root station owner: ShipyardWorld/comb | One signed, reachable physical berth/deck/spur with safe approach/departure sweeps; wrong tags/occupied lease refuse. Check root marker versus complete deployed bounds and adjacent routes; stop at usable home. |
 | 4 / 60m | Root fleet owner: Main/GameFlow/registry/console; candidate hooks | Ordinary station start → walk → board → launch → own strict home → neutral OFFLINE → exit/reboard works with correct UI/active identity. Existing neighbouring craft remain reachable; stop at first meaningful live checkpoint. |
@@ -91,7 +91,7 @@ Estimates are work boxes, not measured promises. Each stops at its named running
 | 12 / 60–75m | Root integration owner: candidate ordinary journey test and production fixes only | Full two-sortie journey below plus cross-craft/Main re-entry on combined source; preserve accepted Arrow journeys and other craft source identities. Failures become bounded runtime fixes, not new evidence layers; stop at exact qualified route. |
 | 13 / 45–60m | Root release owner: existing safe workflow/build notes | Fresh combined clean-commit checkpoint, relevant focused regression and silent isolated actual-package startup/archives smoke; run applicable ordinary acceptance on current package. Record exact source/package/environment and open gates; stop after reviewed artifacts. |
 
-Package every subsequent meaningful accepted gameplay milestone promptly; card 13 does not permit hours of completed changes without a fresh playable build. No implementation, check or package in these cards has been executed for this proposal.
+Package every subsequent meaningful accepted gameplay milestone promptly; card 13 does not permit hours of completed changes without a fresh playable build. Card1 standalone source/fixture/package work is delivered in b0f97baf1 in the scope above; later cards remain unperformed.
 
 ## Full acceptance and explicit limits
 
@@ -103,8 +103,8 @@ All seventeen promised craft and historical reconstruction obligations remain. *
 
 Every future automated Godot invocation must include `--audio-driver Dummy`; run headlessly or on owned isolated Xvfb with explicit `--display-driver x11`, independent abort and released synthetic input/cursor capture. No active-desktop run or real audio is authorized here. Use the existing safe clean-commit export workflow and repository `builds/windows/`, not Downloads. Package readiness requires `--startup-check`, exit 0 **and** `STARTUP_MENU_READY_OK`, never fixed `--quit-after` frames. Keep GitHub Actions disabled: no enablement, dispatch or restored triggers.
 
-## Finite owner choice — pending
+## Recorded owner choice
 
-**Approve or reject this single explicitly modern Katana candidate:** original 11×12×3.8m single-pilot hull, port physical ramp/canopy access, exact braking-focused tuning, unchanged reused Arrow emitter, no cargo/navigation/specialist/passenger fittings, own full-envelope berth, five-component service/recovery and safe on-foot restart policy. Approval permits bounded implementation after root review; it accepts neither a finished craft, historical model, multiplayer capacity nor full-release scope. No approval is recorded.
+**Approve or reject this single explicitly modern Katana candidate:** original 11×12×3.8m single-pilot hull, port physical ramp/canopy access, exact braking-focused tuning, unchanged reused Arrow emitter, no cargo/navigation/specialist/passenger fittings, own full-envelope berth, five-component service/recovery and safe on-foot restart policy. Approval permits bounded implementation after root review; it accepts neither a finished craft, historical model, multiplayer capacity nor full-release scope. The owner adopted this complete modern baseline2026-11-05; earlier pending/unapproved wording is superseded. No repeat design approval is needed. This section preserves the original proposed choice and its limits.
 
 If rejected, choose **a revised modern candidate naming the exact fields to change**, or **keep Katana frozen for historical reconstruction**, requiring legally available name-tied spawn/multiview evidence and feature/unknowns review. Repeated label-only research is not a substitute for either decision. SCOPE-LIMIT and SCOPE-DESKTOP remain separate existing owner choices. Proposal preparation alone does not complete SPEC-KATANA, BUILD-SPLIT-KATANA or CRAFT-ACCEPT-KATANA.

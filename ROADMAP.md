@@ -13,9 +13,9 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **2898b63** — [Windows ZIP](builds/windows/MuddsShipyards-2898b63-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-2898b63-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-2898b63-linux-x86_64.tar.gz).
+Latest playable checkpoint: **b0f97ba** — [Windows ZIP](builds/windows/MuddsShipyards-b0f97ba-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-b0f97ba-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-b0f97ba-linux-x86_64.tar.gz).
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,29 +26,56 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
-### Selected: Katana standalone hull and pilot — build card1
+### Katana standalone hull and pilot — build card1 DONE (standalone scope)
 
-Goal / contract: [approved Katana card1](docs/design/KATANA_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-cards--only-after-approval). Independent unstarted capability from adopted modern baseline; Paradox berth/Vortex access/Titan remote remain parked and are not retried or reset. Pending Paradox reprioritization question remains unanswered.
-Result: original closed Katana scene/definition and one pilot fixture instantiate and actually start/fly/turn/brake/idle/shut down through existing HeroShip/ShipCommandSource. This is standalone content, not Main craft registration, ordinary Player access or comparative handling/combat qualification. Main remains10/17 and10physical berths.
-Candidate / start: clean d5132eaa1, one initial isolated ship/command-source/pilot setup, then ordinary command source only; no runtime pose/velocity/clock/engine-state forcing. Original broad central cockpit tub/blunt squared nose/compact aft outriggers, exact closed11×12×3.8m (x±5.5,z±6,y0..3.8); reserved cockpit floor.6,clearx±1.5,z−2..2.5, canopy roof3.8. Outriggers behind future port openingz±1.1. No copied sibling hull/historical model. Physical ramp/canopy/claim/exit belongs card2; no travelling cabin fitted.
-Owner / files: one medium implementer owns ONLY new assets/ships/katana_provisional.tres, scripts/ships/katana_fighter.gd, scenes/ships/katana_fighter.tscn, tests/katana_fighter_journey_test.gd and UIDs. Root static review, checks, docs/release/integration/cleanup. No shared/Main/registry-role/cargo/weapon/othercraft edits. This one journey test is extended later, no versioned/parallel validator family.
-Dependencies / exact fields: identitykatana_provisional/Katana-class Fighter candidate/Fighter/PROVISIONAL; tags[small_craft,fighter,single_pilot,katana_fighter], exact approved3provenance strings/evidence_notes, canopy/raise/seal/board andstandard_fighter audio. All16fixed numericfields: cruise88,boost114,thrust38,brake64,drag2.4,response11,boost_multiplier1.35,yaw58,roll98,assist5.2,bank11,mouse17,start2.3,cooldown.38,hull145,landing15. PilotSeatAnchor(0,.55,−1), cockpitcamera(0,2.31,−1.25), DockingReceiver identityatroot. Matchingeditablevisibleconvexsections/outwardnormals/nonoverlap/exactclosedenvelope, reservedrecess and actualeye clear. Disable inheritedprimary untilcombatcard; no specialist/movinginterior/guest/access/cargo authority. Existing2.3s inheritedclock manual+automaticstart, actualcommand-source flight/turn/brake arrest, normal neutralidleOFFLINE/audio retirement and second timed start; no directclock replacements.
-Cases / exactscope: new isolatedfixture90s markerKATANA_FIGHTER_JOURNEY_TEST_OK; existingdefinition/berth120s, fleet_role_registry120s and exactlegacy-nine differentiationadapter300s (originalcases/floors/waits unchanged) assertingliveMainexact10 beforelocallyexcludingTitan. Combined current10Main+standaloneVortex+Paradox+Katana13profiles use unchanged registry14-axis separation/non-dominance/signatures; registered-six audit unchanged; Katana64 remainsnewnumericbrakingmaximum. Actual comparativeequal-speedbraking/turn/boost/weapontradeoff is card6 and not claimed by this fixture. OrdinaryMain unchangedcompleteTitan300s ALONE. Threefixedsourceviews aft/front/actualcockpit-eye underprivateGLES/Xvfb. Repeat exactfullnewfixture90s andfullordinaryMain300s ALONE onactualWindowsPCK fromblank source-isolated directories. Freshpairedsafeexports/strictstartup3 each exit0+oneSTARTUP_MENU_READY_OK/rawdiagnostics0; completeWin/Linuxmaps/existing9packagepredicates/8checkpointartifacts+notes/preview required. Native/GPU/device/human/fullcraft/release remainopen.
-Proof / environment: /srv/mudds-work/katana-foundation-20261106/, pinnedGodot4.7.1; everyenginecallDummy, headless orprivateXvfb explicitx11/GLES with independent suite_process abort/reap/inputrelease. Cleanexactcommit/source/cacheguards, rawphysics/controller/geometry/profileobservations and images; source-isolated actualWindowsPCK underpinnedLinuxGodot. Source/packageprobes do notqualify nativeWindows orordinaryMainKatana journey.
-Budget / stop: originalstart08:01:12UTC2026-11-06 (selection/definitionreadingincluded), absolutedeadline08:46:12UTC,45minutesALLIN includingimplementation/fullgates/freshcheckpoint/merge/push/archive/exacttipbranch/worktree/process/scratchcleanup. One substantiveproductioncorrection; routinecompiler/caller/assertionfixes retainoriginalcases/thresholds/timeouts/deadline. Firstunexpectedfailure retainsoperands/stopsdependentchecks; exhaustion/deadline/designconflict parksoriginalcard, no renamedretry/subsetacceptance/silentnumberscopechange. No parkedworkreopening without its explicit reprioritization.
-Close: NOT_RUN. Main10/17, standaloneonly, originalfull17craft objective unchanged.
+Source **b0f97baf1**, merged/pushed via **4b1c19777**, adds the approved original Katana
+definition, editable procedural hull/scene and existing HeroShip pilot controller.
+Its broad central cockpit pod, blunt squared nose and compact aft outriggers fit
+the exact closed11×12×3.8m envelope. Actual convex sections match visible
+vertices, face outward, do not overlap and leave the reserved cockpit recess
+and eye clear. All16 approved values remain unchanged, including braking64,
+landing15 and engine start2.3s. PilotSeatAnchor is exactly(0,.55,-1), cockpit
+eye(0,2.31,-1.25), with identity DockingReceiver at the root. Actual command-source
+flight completes inherited manual and automatic timed startup, translation,
+turning, braking/arrest and normal neutral OFFLINE with engine audio retired,
+then a second usable timed start. No runtime pose/velocity/clock override,
+access/cargo/specialist/moving-cabin/guest/combat grant or historical-model claim.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Exact definition/profile | Loadactualnewresource/controller and13profiles | Exactidentity/provenance/tags/entry/audio/16values, validdefinition; unchangedregistered-six/13profile14axis/non-dominance/signatures, numericbrake64maximum | NOT_RUN |
-| Original geometry/helm/eye | Actualmeshvertices/convexpoints/normals/intersection/recessqueries and3fixedviews | Exact11×12×3.8 closedhull, originalbroadpod/bluntnose/aftoutriggers, matchingoutward/nonoverlapgeometry; clearreservedrecess/eye, oneexactpilotanchor/DockingReceiver | NOT_RUN |
-| Actual inherited controller | Realcommands manual+automatictimedstart/thrust/turn/brake/neutral/secondstart | Actual2.3sOFFLINE→STARTING→ONLINE, usablemovement/rotation/brakearrest, neutralOFFLINE/audio retirement andsecondtimedstart; no state/pose/clockforcing | NOT_RUN |
-| Preserved behavior | AllnamedfocusedcasesandunchangedfullMain serially | Each0/oneexactmarker/raw0/source-cache-headguards; legacy-nine scopeexplicit, normalMainQuit/cleanmarkers | NOT_RUN |
-| Package/closure | Cleanpairedexports/actualPCKnewfixture+Main/startup3/maps/audit9/publish/cleanup | 8correctartifacts/notes/preview, source merged/pushed, verifiedarchive/exactbranch/worktree/processcleanup; Main10/17/fullKatanaopen | NOT_RUN |
+Four source checks and unchanged complete ordinary Titan Main pass on the exact
+clean commit with source/cache guards and clean Quit. All ten current Main craft
+plus accepted standalone Vortex, Paradox and Katana (13 profiles) pass unchanged
+14-axis/non-dominance/signature constraints; the registered-six audit is unchanged.
+An independently reviewed external adapter asserts exact live Main10, then runs
+all original legacy-nine cases/floors/waits unchanged. Vortex, Paradox and Katana
+are excluded from Main. This is legacy-nine regression inside ten-craft Main,
+not full current-ten/Titan handling qualification. Numeric braking64 establishes
+no equal-speed comparative braking/turn/boost/weapon tradeoff qualification;
+actual comparative handling remains Katana card6. Three fixed source views were
+inspected using private Xvfb/OpenGL ES with Dummy audio.
+
+Fresh paired checkpoint **b0f97ba** passes strict startup3 and all nine existing
+package predicates; complete Windows/Linux payload maps match. Actual Windows
+packaged content under pinned Linux Godot separately passes the unchanged full
+standalone Katana fixture and complete ordinary Titan Main loop from blank
+source-isolated directories. Native Windows/GPU/device/audio/human/full-craft
+and full-game gates remain open.
+
+**Katana is standalone content, not selectable in Main. Main remains10/17 and
+10 physical berths.** The checkpoint includes its runtime scene and companion
+preview. Ordinary physical access, berth/Main registration, real emitter damage,
+comparative handling, component service, recovery/save and remote pilot journeys
+remain later cards. Paradox berth9d124, Vortex access1416 and Titan remote867
+remain PARKED/archived/unmerged; their text and exhausted allowances are retained
+below. The pending Paradox reprioritization question remains unanswered. No
+parked attempt is retried and no next assignment is selected.
+Original08:01:12→08:46:12UTC all-in budget, clean based5132eaa1, frozen card,
+source bundle, raw checks/source-cache guards/views and package records remain
+in verified `/srv/mudds-work/katana-foundation-20261106/records.tar.gz`; adjacent
+closeout records actual publication and owned branch/worktree/process cleanup.
 
 ### Paradox own reachable home berth — build card3 PARKED
 
