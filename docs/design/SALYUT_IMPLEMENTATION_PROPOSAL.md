@@ -2,6 +2,8 @@
 
 Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The craft remains unbuilt and unqualified.
 
+First standalone foundation batch **a0446136e is PARKED, unmerged and archived**. Dynamic/Utopia source fixtures pass but the combined release card is incomplete; Salyut has invisible solid engine panels with active colliders OFFLINE after its1/1 bank correction was consumed. No new Main craft/checkpoint is credited. Original12:10→12:55UTC45minute budget, all cases/cumulative cost, source and proposed one-line repair are retained in `/srv/mudds-work/fleet-foundations-20261106/records.tar.gz`. Additional work requires explicit owner reprioritization and renewed bounded allowance. Full craft qualification remains open.
+
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
 
 ## Supported facts and evidence boundary
