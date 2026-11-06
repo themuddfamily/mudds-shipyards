@@ -161,14 +161,23 @@ func _geometry(data: Dictionary) -> bool:
 		if not node is CollisionShape3D: continue
 		var collision = node as CollisionShape3D
 		var mesh = shell.get_node_or_null(String(collision.name).trim_suffix("Collision")) as MeshInstance3D
-		if not _check(not collision.disabled and collision.shape is ConvexPolygonShape3D and mesh!=null,"actual enabled convex section and matching editable mesh "+str(collision.name)): return false
+		if not _check(not collision.disabled and collision.shape is ConvexPolygonShape3D and mesh!=null and mesh.visible,"actual enabled convex section and matching editable mesh "+str(collision.name)): return false
 		var points = PackedVector3Array()
 		var local = collision.transform
 		for p: Vector3 in (collision.shape as ConvexPolygonShape3D).points: points.append(local*p)
 		var faces = PackedVector3Array()
 		var mesh_pose = _root_pose(mesh)
 		_solid_poses[mesh] = mesh_pose
-		for p: Vector3 in mesh.mesh.get_faces(): faces.append(mesh_pose*p)
+		# Read actual render buffers. Mesh.get_faces() uses a cached triangle
+		# representation whose quantization changes rational sheared vertices.
+		for surface_index in mesh.mesh.get_surface_count():
+			var arrays = mesh.mesh.surface_get_arrays(surface_index)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			if indices.is_empty():
+				for p: Vector3 in vertices: faces.append(mesh_pose*p)
+			else:
+				for index in indices: faces.append(mesh_pose*vertices[index])
 		var center = Vector3.ZERO
 		for p: Vector3 in points: center += p/float(points.size())
 		for p: Vector3 in points:
