@@ -1,0 +1,13 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/katana_fighter.gd" id="1_katana"]
+[ext_resource type="Resource" path="res://assets/ships/katana_provisional.tres" id="2_definition"]
+[ext_resource type="PackedScene" path="res://scenes/audio/ship_audio_rig.tscn" id="3_audio"]
+
+[node name="KatanaFighter" type="CharacterBody3D"]
+script = ExtResource("1_katana")
+ship_definition = ExtResource("2_definition")
+home_berth_id = &""
+cockpit_camera_position = Vector3(0, 2.31, -1.25)
+
+[node name="ShipAudioRig" parent="." instance=ExtResource("3_audio")]
