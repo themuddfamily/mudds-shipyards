@@ -1,7 +1,6 @@
 extends SceneTree
 
 const MAIN := preload("res://scenes/main.tscn")
-const PREDATOR := preload("res://scenes/ships/predator_detention_transport.tscn")
 const DEFINITION := preload("res://assets/ships/predator_provisional.tres")
 const WRONG := preload("res://assets/ships/torrent_provisional.tres")
 const OLD_TRANSFORMS := preload("res://tests/station_route_registry_integration_test.gd").EXPECTED_BERTH_TRANSFORMS
@@ -58,7 +57,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"predator_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size()==11 and game.get_flyable_ships().size()==10, "one new eleventh physical berth with exactly ten unchanged flyable craft")
+	_check(matching == 1 and world.get_berth_ids().size()==11 and game.get_flyable_ships().size()==11, "eleven physical berths and eleven registered flyable craft")
 	var original_berths := OLD_TRANSFORMS.duplicate()
 	original_berths[&"titan_home_berth"] = TITAN_POSE
 	var old_leases := {}
@@ -84,15 +83,32 @@ func _run() -> void:
 		and edge.get("hub_node_id")==&"station-hub:hub-predator-detention-berth"
 		and edge.get("module_node_id")==&"predator-detention-berth:approach", "complete nine-module/57-marker supported 1.5m navigation edge")
 	_check(world.get_ship_berth_feedback_audit_report().valid, "existing six feedback owners remain valid with eleventh berth")
-	var ship := PREDATOR.instantiate() as HeroShip
-	ship.transform = berth.get_dock_transform()
-	root.add_child(ship)
-	await _wait_frames(3)
-	_check(not game.get_flyable_ships().has(ship) and berth.get_occupant()==null, "initial geometry-only Predator fixture is not registered or claimed")
+	var ship := game.get_node("PredatorDetentionTransport") as HeroShip
+	_check(game.get_flyable_ships().has(ship) and berth.get_occupant()==ship and berth.get_reservation_owner()==ship, "actual registered production pilot craft owns its existing occupied lease")
 	_check(berth.contains_oriented_bounds(ship.global_transform,ship.get_landing_collision_report().local_bounds), "complete closed actual Predator fits exact strict volume")
 	_check(world.is_landing_position_for_berth(berth.to_global(Vector3(0,6,12)),&"predator_home_berth")
 		and not world.is_landing_position_for_berth(berth.to_global(Vector3(0,-2,0)),&"predator_home_berth"), "world direct strict query honors offset volume")
-	_test_leases(berth,ship,_player)
+	var occupied_before := berth.audit()
+	var live_token := berth.get_reservation_token(ship)
+	_check(berth.try_reserve(ship,DEFINITION)==live_token and berth.occupy(ship,live_token)
+		and not berth.occupy(_player,live_token) and not berth.release(_player,live_token)
+		and not berth.release(ship,&"stale") and berth.try_reserve(_player,DEFINITION).is_empty()
+		and berth.audit()==occupied_before,"actual occupied lease idempotency and foreign/stale refusals preserve exact rightful claim")
+	var ledger := ShipBerth.new()
+	ledger.berth_id = &"predator_independent_lease_fixture"
+	ledger.compatibility_tags = berth.compatibility_tags.duplicate()
+	ledger.dock_transform = berth.dock_transform
+	ledger.landing_volume_center = berth.landing_volume_center
+	ledger.landing_half_extents = berth.landing_half_extents
+	ledger.assist_capture_center = berth.assist_capture_center
+	ledger.assist_capture_half_extents = berth.assist_capture_half_extents
+	ledger.assist_capture_maximum_speed = berth.assist_capture_maximum_speed
+	ledger.assist_maximum_tilt_degrees = berth.assist_maximum_tilt_degrees
+	ledger.departure_lift_height = berth.departure_lift_height
+	root.add_child(ledger)
+	_test_leases(ledger,ship,_player)
+	ledger.free()
+	_check(berth.audit()==occupied_before,"independent empty-ledger cases never release production lease")
 	var bounds: AABB = ship.get_landing_collision_report().local_bounds
 	_check(berth.evaluate_assist_capture_candidate(berth.get_assist_staging_transform(),bounds,Vector3.ZERO,11).valid
 		and berth.get_departure_lift_for(ship.global_position).height==5, "real closed hull captures with original defaults and exact departure owner")
@@ -143,7 +159,6 @@ func _run() -> void:
 	print("PREDATOR_MODULE_BUDGET: ",module.get_performance_contract())
 	_release_inputs()
 	_observer.queue_free()
-	ship.queue_free()
 	game.queue_free()
 	await _wait_frames(3)
 	if not _failed:

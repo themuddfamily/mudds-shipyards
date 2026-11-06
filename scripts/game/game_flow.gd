@@ -11225,6 +11225,10 @@ func _board_ship(candidate: HeroShip = null) -> void:
 			or not candidate.is_boardable():
 		_present_boarding_confirmation(&"rejected", candidate, &"craft_unavailable")
 		return
+	if candidate.get_ship_id() == &"predator_provisional" \
+			and not candidate.can_board_from_landed_approach(player):
+		_present_boarding_confirmation(&"rejected", candidate, &"physical_helm_approach_required")
+		return
 	var candidate_area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if candidate_area != null and not candidate_area.try_reserve(player):
 		_present_boarding_confirmation(&"rejected", candidate, &"seat_reserved")
@@ -11279,7 +11283,9 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		and interior_frame != null \
 		and (interior_frame.is_occupant_registered(player) or candidate.get_ship_id() == &"titan_provisional") \
 		and interior_frame.contains_world_position(player.global_position)
-	var from_cabin := returning_to_flight_seat or from_landed_interior
+	var from_landed_pilot_approach := candidate.get_ship_id() == &"predator_provisional" \
+		and candidate.can_board_from_landed_approach(player)
+	var from_cabin := returning_to_flight_seat or from_landed_interior or from_landed_pilot_approach
 	if returning_to_flight_seat:
 		_release_cabin_occupancy()
 	# Every route generation is bound to the physical sortie that started it.
@@ -11363,7 +11369,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 			active_ship.get_in_flight_cabin_report().get(
 				"stand_transform", active_ship.get_boarding_entry_transform()
 			) as Transform3D
-			if from_cabin
+			if from_cabin and not from_landed_pilot_approach
 			else active_ship.get_boarding_entry_transform()
 		),
 		active_ship.get_pilot_seat_anchor(),
@@ -11412,7 +11418,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		return
 	# Titan is boarded from a physically walked cabin; unlike the existing
 	# pressurised seat-return route its landed stern access can still be open.
-	if not from_cabin or (active_ship.get_ship_id() == &"titan_provisional" and active_ship.is_canopy_open()):
+	if not from_cabin or ((active_ship.get_ship_id() == &"titan_provisional" or from_landed_pilot_approach) and active_ship.is_canopy_open()):
 		audio.play_canopy(false)
 		active_ship.set_canopy_open(false, canopy_motion_time)
 		await active_ship.canopy_motion_finished
@@ -11470,6 +11476,72 @@ func _is_same_craft_remote_berth_reboarding(candidate: HeroShip) -> bool:
 		and _ship_owns_exact_occupied_berth(candidate, berth_id)
 
 
+## The first Predator pilot fitout has a supported landed cabin, never moving
+## occupancy. Keep the stern sealed until the standing player operates it.
+func _exit_predator_into_landed_cabin() -> void:
+	if _transition_busy or not _piloting or not is_instance_valid(active_ship) \
+			or active_ship.get_ship_id() != &"predator_provisional":
+		return
+	var craft := active_ship
+	var actor := player
+	var area := _boarding_area
+	var telemetry := craft.get_telemetry()
+	var landing := craft.get_landing_contract_report()
+	var berth_id := StringName(landing.get("berth_id", &""))
+	var berth := _resolve_berth_node(berth_id)
+	if not is_instance_valid(actor) or not actor.is_seated_at(craft.get_pilot_seat_anchor()) \
+			or not craft.is_piloted() or not is_instance_valid(area) \
+			or area.get_ship() != craft or area.get_reservation_token() != actor \
+			or not bool(telemetry.get("landed",false)) \
+			or StringName(telemetry.get("engine_state",&"")) != HeroShip.ENGINE_OFFLINE \
+			or bool(landing.get("active",false)) or not bool(landing.get("strict_dock_acceptance",false)) \
+			or not bool(landing.get("contract_accepted",false)) \
+			or not is_instance_valid(berth) or not berth.is_inside_tree() or berth.is_queued_for_deletion() \
+			or int(landing.get("berth_instance_id",0)) != berth.get_instance_id() \
+			or int(landing.get("berth_parent_instance_id",0)) != berth.get_parent().get_instance_id() \
+			or berth_id != craft.get_home_berth_id() \
+			or not _ship_owns_exact_occupied_berth(craft,berth_id) \
+			or craft.is_canopy_open() or not craft.has_clear_landed_pilot_stand(actor):
+		hud.toast("Exit locked", "Secure the supported home berth and shut down propulsion")
+		return
+	var previous_phase := phase
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	phase = Phase.DISEMBARKING
+	# Begin first: a refused normal transition leaves all seated authority intact.
+	if not actor.begin_disembark(craft.get_exit_transform(),disembarking_motion_time,craft):
+		phase = previous_phase
+		_transition_busy = false
+		return
+	craft.set_piloted(false)
+	craft.get_camera().current = false
+	actor.set_camera_active(true)
+	hud.set_interaction("",false)
+	_present_boarding_confirmation(&"disembarking",craft)
+	await actor.disembarking_completed
+	if not _is_transition_current(generation,craft,Phase.DISEMBARKING) \
+			or player != actor or _boarding_area != area \
+			or not is_instance_valid(area) or area.get_reservation_token() != actor:
+		return
+	_piloting = false
+	_observe_session_diagnostic_runtime_mode()
+	_landing_request_active = false
+	actor.set_control_enabled(true)
+	area.release_reservation(actor)
+	_boarding_area = null
+	_clear_boarding_confirmation_reservation()
+	_reboard_blocked_ship = craft
+	phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+	hud.set_mode("on-foot")
+	hud.clear_hero_component_ship()
+	hud.set_objective("Walk to the stern hatch and return to the shipyard")
+	_present_boarding_confirmation(&"approach",craft)
+	audio.set_on_foot(true)
+	audio.play_ui_confirm()
+	_transition_busy = false
+	_capture_solo_safe_recovery_context()
+
+
 func _reset_lifecycle_command_cursor() -> void:
 	_last_lifecycle_command_ship_instance_id = 0
 	_last_lifecycle_command_stream_id = -1
@@ -11499,6 +11571,9 @@ func _try_exit_ship() -> void:
 	var telemetry: Dictionary = active_ship.get_telemetry()
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
 		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
+		return
+	if active_ship.get_ship_id() == &"predator_provisional":
+		_exit_predator_into_landed_cabin()
 		return
 	if not bool(telemetry.get("landed", false)):
 		# Idled offline away from a berth. Whether the seat may be left at all is the
@@ -15616,6 +15691,9 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 	var firing_ship := source_ship if is_instance_valid(source_ship) else active_ship
 	if not is_instance_valid(firing_ship) or firing_ship != active_ship:
 		return
+	if firing_ship.get_ship_id() == &"predator_provisional":
+		_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"unarmed"}
+		return
 	if _network_session_mode == &"client":
 		# A client receives the server's already-resolved pulse presentation below;
 		# it never reaches CombatResolver or damage authority from local weapon input.
@@ -18533,6 +18611,8 @@ func _combat_registration_matches(
 
 
 func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
+	if is_instance_valid(candidate) and candidate.get_ship_id() == &"predator_provisional":
+		return {}
 	var profiles := PLAYER_WEAPON_PROFILES.duplicate(true)
 	if not is_instance_valid(candidate):
 		return profiles
@@ -18825,6 +18905,8 @@ func _find_boarding_candidate() -> HeroShip:
 			and boarding_area.is_available_for(player)
 		):
 			continue
+		if candidate.get_ship_id() == &"predator_provisional" and not candidate.can_board_from_landed_approach(player):
+			continue
 		if candidate.get_ship_id() == &"titan_provisional":
 			var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 			if not is_instance_valid(frame) or not frame.contains_world_position(player.global_position):
@@ -18854,6 +18936,8 @@ func _find_boarding_candidate() -> HeroShip:
 			if not candidate_area.is_available_for(player):
 				continue
 		elif not candidate.is_boardable():
+			continue
+		if candidate.get_ship_id() == &"predator_provisional" and not candidate.can_board_from_landed_approach(player):
 			continue
 		if candidate.get_ship_id() == &"titan_provisional":
 			var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
