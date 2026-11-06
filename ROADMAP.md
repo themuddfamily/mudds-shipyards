@@ -59,7 +59,10 @@ predicate was removed; no survey/reward/full return is claimed.
 Original14:38→16:08UTC90minute ALL-IN clock and1/1 substantive pipeline IO repair
 retained, including both prior stops and final partial trial. Remaining distance
 and cleanup cannot fit the original window. Owner extension to16:30 was requested
-but unanswered before stopping; no approval inferred and no clock reset. Reopen
+but unanswered before stopping; no approval inferred and no clock reset. Native
+execution stopped16:05:11; archive/ref/worktree cleanup finished16:08:52.364,
+already52.364s past the original deadline. This overrun and final verification
+cost remain recorded in the adjacent closeout rather than claimed within budget. Reopen
 only after explicit owner reprioritization retaining all source/failures/cost and
 passing the complete original2700/2760 route plus tighter members/checkpoint/
 audit/review/cleanup. No unchanged retry or successor is selected automatically.
