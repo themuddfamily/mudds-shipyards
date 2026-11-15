@@ -5763,11 +5763,24 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
                 require(not s['flight_demand'] and s['lease'], 'ninety neutral seated physics ticks at home')
                 self.receipts['neutral'] = self.receipt(s)
                 self.departure = s['position'][:]
+                geometry = s['departure_geometry']
+                require(geometry['home_id'] == s['berth_id'] and geometry['aft_extent'] > 0,
+                        'actual same-home apron and whole aft collision envelope')
+                self.departure_forward = unit(geometry['forward'])
+                self.departure_clearance = (dot(sub(geometry['apron_foreedge'], self.departure),
+                                               self.departure_forward)
+                                            + geometry['aft_extent'] + s['geometry']['hull_margin'])
+                self.departure_cleared = False
                 self.climb_direction = unit([.8*u-.6*b for u,b in zip(s['up'], s['back'])])
                 self.enter('climb', s)
         elif self.stage == 'climb':
             require(s['frame']-self.stage_frame <= 1800, 'original Aurora climb 1800 physics ticks')
-            target = [p+d*1000 for p,d in zip(s['position'], self.climb_direction)]
+            # Keep the neutral home attitude through the ordinary automatic lift
+            # and forward exit; pitching early sweeps the aft hull into the apron.
+            self.departure_cleared |= (dot(sub(s['position'], self.departure), self.departure_forward)
+                                       > self.departure_clearance)
+            direction = self.climb_direction if self.departure_cleared else self.departure_forward
+            target = [p+d*1000 for p,d in zip(s['position'], direction)]
             dx, dy, alignment = self.steer(s, target)
             keys.add('w')
             if norm(sub(s['position'], self.departure)) > 500:

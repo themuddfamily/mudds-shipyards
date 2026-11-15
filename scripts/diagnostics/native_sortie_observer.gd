@@ -37,6 +37,7 @@ const AURORA_VISIT_TYPE := preload("res://scripts/game/planetary_surface_visit_e
 var _aurora_outbound := false
 var _aurora_support: Dictionary = {}
 var _aurora_support_frame := -1
+var _aurora_departure_geometry: Dictionary = {}
 var _arrow := false
 var _torrent_reuse := false
 var _torrent_damaged := false
@@ -2754,6 +2755,18 @@ func _aurora_outbound_observation() -> Dictionary:
 	result["mode"] = "aurora-outbound"
 	if not bool(result.get("actors_current", false)):
 		return result
+	# Freeze the authored home exit operands before any origin translation.
+	# The apron nose, rather than the berth acceptance volume, is the deck edge.
+	if _aurora_departure_geometry.is_empty():
+		var home := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+		var bounds: AABB = _ship.get_landing_collision_report().get("local_bounds", AABB())
+		if is_instance_valid(home) and bounds.has_volume():
+			_aurora_departure_geometry = {"home_id": home.get_instance_id(),
+				"forward": _v(-home.get_dock_transform().basis.z.normalized()),
+				"apron_foreedge": _v(_game.world.to_global(Vector3(37, 4.2, ShipyardWorld.HALYARD_APRON_NOSE_MIN_Z))),
+				"local_bounds_position": _v(bounds.position), "local_bounds_size": _v(bounds.size),
+				"aft_extent": bounds.end.z}
+	result["departure_geometry"] = _aurora_departure_geometry
 	var expedition: RefCounted = _game.get("_aurora_expedition") as RefCounted
 	var bootstrap := _game.aurora_streaming_bootstrap
 	var frame := bootstrap.get_coordinate_frame_for_session()

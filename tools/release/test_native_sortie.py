@@ -8176,6 +8176,30 @@ class AuroraOutboundTests(unittest.TestCase):
         s['look']['yaw']=0
         self.assertNotEqual(p.steer(s,[1000,1000,-1000])[:2],(0,0))
 
+    def test_departure_holds_home_attitude_until_whole_aft_clears_actual_apron(self):
+        p,s=native.AuroraOutboundPilot(),self.observation()
+        s.update(position=[37,4.2,53.3],right=[1,0,0],up=[0,1,0],back=[0,0,1],
+                 flight_demand=False,lease=True,
+                 departure_geometry=dict(home_id=s['berth_id'],forward=[0,0,-1],
+                     apron_foreedge=[37,4.2,36.3],aft_extent=14.55))
+        p.stage='neutral';p.stage_frame=s['frame']-90;p.last_state=s
+        p.update(s,1)
+        self.assertEqual(p.stage,'climb')
+        self.assertAlmostEqual(p.departure_clearance,31.60)
+        # Ordinary 4m lift and almost all forward travel still leave the aft
+        # collision envelope over the authored apron: no steep look is allowed.
+        for forward in (0,4,31.59):
+            s['frame']+=4;s['position']=[37,8.2,53.3-forward]
+            keys,dx,dy,_=p.update(s,2)
+            self.assertIn('w',keys);self.assertEqual((dx,dy),(0,0))
+            self.assertFalse(p.departure_cleared)
+        s['frame']+=4;s['position']=[37,8.2,53.3-31.61]
+        keys,dx,dy,_=p.update(s,3)
+        self.assertIn('w',keys);self.assertNotEqual(dy,0)
+        self.assertTrue(p.departure_cleared)
+        p.stage_frame=s['frame']-1801
+        with self.assertRaisesRegex(AssertionError,'1800'):p.update(s,4)
+
     def test_authored_gravity_is_honest_and_aurora_arrival_requires_independent_lease(self):
         p,s=native.AuroraOutboundPilot(),self.observation()
         s['visit'].update(state='landed',journey=dict(final_approach_handoff_ready=True,
