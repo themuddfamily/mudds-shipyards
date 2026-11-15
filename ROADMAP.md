@@ -32,6 +32,33 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### SOLO-AURORA ordinary access/outbound — PARKED, unaccepted
 
+**Latest continuation stop, 2026-11-15: b7371e0dbb9bdbc360882e1ffc98e89f1e29b3dc
+is unaccepted and unmerged.** The approved additional correction keeps ordinary
+W and home attitude until actual aft geometry clears the apron, then pitches;
+no world/physics change. Full323 native Python/9 package, compiler/CLI privacy,
+paired exports/startup3/equal1575maps pass. The full native run fails95.800s at
+same1800-tick climb gate: entry2298,trigger4099,1801ticks, maximum38.327007m
+instead of>500m. Passive readbacks directly identify AftBayDeckCollision against
+UpperOperations/SolidBatch02/Collision01 at(37.63,5.70,23.11),depth.630349m,
+normal(0,.598235,.801321),zero travel. Apron-only clearance was insufficient;
+the same aft sweep catches the forward roof. Rawdiagnostics0/all4cleanuptrue.
+No full outbound pass, retry, package finalizer/audit, publication or runtime merge.
+
+The earlier exact-pose staged probe confirms apron/rung/slab intersections and
+raised-pose clearance; its first invalid body-removal probe is retained as invalid.
+An observation-only replay cleared the original apron without contact and was
+stopped before acceptance; this never counted as a fix. Both native failures,
+all diagnostic source/raw/packages and prior records remain in the verified
+continuation archive; only archive/closeout remain after owned cleanup.
+
+Same original finishing deadline12:51:33UTC and all cumulative cost remain.
+Both substantive corrections are now used2/2. Further guidance changes require
+explicit owner authorization; no automatic successor, clock reset, narrowed
+route or threshold change. The concrete remaining correction is to include
+UpperOperations in the physical clearance condition, followed by every original
+source/package/journey/checkpoint/integration gate. Latest accepted build remains
+cc38736; Main11/17 and full survey/reward/save/return/native/hardware gates unchanged.
+
 **Owner-authorized continuation, 2026-11-15 11:51:33→12:51:33 UTC.**
 Resume the same archived candidate4e9ec1de2 for one 60-minute finishing window.
 Owner additionally approved contact diagnosis and ONE additional substantive

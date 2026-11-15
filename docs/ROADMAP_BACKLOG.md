@@ -3452,6 +3452,16 @@ within20:05:51,with prior definition/failed-attempt costs retained.
 
 <a id="solo-aurora-rime-ordinary-contracts"></a>
 
+Later same-window additional correction b7371e0db is also PARKED/unmerged:
+actual aft hull clears apron but contacts UpperOperations/SolidBatch02/Collision01.
+Full native fails original1800-tick climb at1801ticks/38.327007m rather than>500m;
+zero diagnostics/all cleanup pass. Fresh323native/9package/source/privacy/paired
+startup3/maps pass, no full journey/finalizer/publication acceptance. Both repairs
+used2/2; owner must authorize further guidance change. Same12:51:33UTC deadline,
+all original cases and cumulative cost remain, with both failures/diagnostics
+preserved in the adjacent current-roadmap continuation archive/closeout.
+
+
 Owner-approved same-candidate Aurora continuation on2026-11-15 is PARKED before
 cruise: exact4e9ec1de2 fresh full packaged trial fails unchanged1800-tick climb
 at1801ticks, maximum departure4.522889m rather than>500m. Native thrust/ONLINE/
