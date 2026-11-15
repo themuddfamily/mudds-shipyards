@@ -2817,6 +2817,20 @@ func _aurora_outbound_observation() -> Dictionary:
 		and str(_ship.get("_landing_phase")) == HeroShip.LANDING_PHASE_DOCKED \
 		and bool((_ship.get("_landing_contract") as Dictionary).get("strict_dock_acceptance", false)) \
 		and int(_ship.get("_landing_berth_instance_id")) == berth.get_instance_id()
+	var contacts: Array[Dictionary] = []
+	for index: int in _ship.get_slide_collision_count():
+		var contact: KinematicCollision3D = _ship.get_slide_collision(index)
+		var body := contact.get_collider() as Node
+		var shape := contact.get_collider_shape() as Node
+		var local_shape := contact.get_local_shape() as Node
+		contacts.append({"collider": str(body.get_path()) if is_instance_valid(body) else "",
+			"collider_id": body.get_instance_id() if is_instance_valid(body) else 0,
+			"shape": str(shape.get_path()) if is_instance_valid(shape) else "",
+			"local_shape": str(local_shape.get_path()) if is_instance_valid(local_shape) else "",
+			"normal": _v(contact.get_normal()), "position": _v(contact.get_position()),
+			"travel": _v(contact.get_travel()), "remainder": _v(contact.get_remainder()), "depth": contact.get_depth()})
+	result["contacts"] = contacts
+	result["departure_lift_active"] = _ship.get("_departure_lift_active")
 	result.merge({"fleet": fleet, "sleeping": _player.is_sleeping(),
 		"authored_spawn": _v(_game.world.get_player_spawn().origin),
 		"spawn_marker_id": _game.world.player_spawn.get_instance_id(),
