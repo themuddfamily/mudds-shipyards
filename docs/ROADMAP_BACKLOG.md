@@ -3451,6 +3451,17 @@ explicitly unimplemented. No branch/worktree/scratch created; closure/push stays
 within20:05:51,with prior definition/failed-attempt costs retained.
 
 <a id="solo-aurora-rime-ordinary-contracts"></a>
+
+Owner-approved same-candidate Aurora continuation on2026-11-15 is PARKED before
+cruise: exact4e9ec1de2 fresh full packaged trial fails unchanged1800-tick climb
+at1801ticks, maximum departure4.522889m rather than>500m. Native thrust/ONLINE/
+default source/home release pass; physical contact cause remains unobserved.
+No routine caller correction proven, no new substantive allowance, retry,
+checkpoint or runtime merge. Original95.817minutes plus continuation actual cost
+and all attempts remain retained. Current [roadmap result](../ROADMAP.md#current-work-and-next-selection)
+and `/srv/mudds-work/aurora-outbound-resume-20261115/closeout.json` bind the
+archive, cleanup and exact additional-correction reopening condition.
+
 #### Aurora and Rime — ordinary solo journey contracts
 
 SOLO-AURORA access/outbound candidate4e9ec1de2 is PARKED/unmerged2026-11-06 at its original14:38–16:08UTC all-in boundary. Full source322+9/import/privacy/paired exports/startup3/equalmaps pass. First metadata-read failure, valid-generation0 caller failure and bounded IO repair1/1 are retained; final continuous partial run reaches703rebases before task-budget stop, not arrival/exit/Quit. No approved time extension, no new checkpoint or automatic retry. See ROADMAP for exact source/cumulative conditions and verified archive; complete canonical journey remains OPEN.

@@ -30,7 +30,7 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
-### SOLO-AURORA ordinary access/outbound — resumed, unaccepted
+### SOLO-AURORA ordinary access/outbound — PARKED, unaccepted
 
 **Owner-authorized continuation, 2026-11-15 11:51:33→12:51:33 UTC.**
 Resume the same archived candidate4e9ec1de2 for one 60-minute finishing window.
@@ -44,7 +44,24 @@ parked task is reopened. Acceptance still requires full arrival/landing/supporte
 surface walking/normal Quit, original source/package gates, reviewed audit,
 merge/push and owned cleanup; first unexpected failure stops dependent gates.
 Current continuation record: `/srv/mudds-work/aurora-outbound-resume-20261115/`.
-The original parked result follows unchanged.
+**Continuation result: first-failure stop, unmerged.** Fresh unchanged-source
+322 native Python/9 package checks, import/direct observer/loader, full CLI
+privacy, paired exports and all three strict startups pass; complete1575-entry
+maps match, with only the two intended scripts and typed node_ids metadata.
+The complete native route stops91.958s after launch at its original climb cap:
+entryframe2282, triggering observation4083 (1801ticks against1800), maximum
+actual departure4.522889m against required>500m. Ordinary thrust, ONLINE engine,
+default sampler and released home lease are observed. Initial authored lift
+works; position remains near home after pitching despite increasing velocity.
+Exact contact collider/normal is absent; obstruction is plausible, not proven.
+Independent review NO-GO: no routine assertion/caller correction is established.
+Raw diagnostics0; inputs/game/Xvfb/helper cleanup all pass. No blind retry,
+weakened threshold, extra repair, package finalization, runtime merge or checkpoint
+publication. Repair1/1 remains used. Closure cost and archive are recorded in the
+adjacent continuation closeout. Reopening needs exact physical contact cause
+and explicit authorization for an additional substantive correction, retaining
+both windows, all failures and complete original acceptance. The earlier
+parked result follows unchanged.
 
 Unmerged candidate **4e9ec1de22dd16c55077b15203646c653eb4280b** adds the explicit ordinary Aurora driver/observer,
 private CLI admission and regression checks. Source review GO;322 native Python
