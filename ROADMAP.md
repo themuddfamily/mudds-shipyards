@@ -34,6 +34,10 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 **Owner-authorized continuation, 2026-11-15 11:51:33→12:51:33 UTC.**
 Resume the same archived candidate4e9ec1de2 for one 60-minute finishing window.
+Owner additionally approved contact diagnosis and ONE additional substantive
+correction on2026-11-15 at12:03:55UTC after the departure failure below. The
+same12:51:33UTC deadline and full original cases remain; allowance is now1/2
+used before the cause-specific repair. First failed continuation remains archived.
 All original cases,2700/2760s route caps, tighter member limits, earlier failures
 and95.817minutes spent remain attached. Substantive repair allowance stays1/1
 used; this approval extends time, not scope or the repair allowance. Root owns
