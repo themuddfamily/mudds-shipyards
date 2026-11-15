@@ -30,7 +30,21 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
-### SOLO-AURORA ordinary access/outbound — PARKED, unaccepted
+### SOLO-AURORA ordinary access/outbound — resumed, unaccepted
+
+**Owner-authorized continuation, 2026-11-15 11:51:33→12:51:33 UTC.**
+Resume the same archived candidate4e9ec1de2 for one 60-minute finishing window.
+All original cases,2700/2760s route caps, tighter member limits, earlier failures
+and95.817minutes spent remain attached. Substantive repair allowance stays1/1
+used; this approval extends time, not scope or the repair allowance. Root owns
+restoration, unchanged full packaged run, release/integration/cleanup; one HIGH
+reviewer checks the original contract and final result. Existing five-file
+ownership and all cases in the retained frozen card remain binding. No other
+parked task is reopened. Acceptance still requires full arrival/landing/supported
+surface walking/normal Quit, original source/package gates, reviewed audit,
+merge/push and owned cleanup; first unexpected failure stops dependent gates.
+Current continuation record: `/srv/mudds-work/aurora-outbound-resume-20261115/`.
+The original parked result follows unchanged.
 
 Unmerged candidate **4e9ec1de22dd16c55077b15203646c653eb4280b** adds the explicit ordinary Aurora driver/observer,
 private CLI admission and regression checks. Source review GO;322 native Python
