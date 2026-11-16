@@ -76,7 +76,53 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Paradox physical gunner cannon — BUILD-SPLIT-PARADOX/card8
+### Selected dependency repair: durable save float roundtrip — FINAL-RECONCILE
+
+Outcome: valid runtime diagnostic timestamps survive a committed save, reload,
+subsequent events and normal shutdown. Actual Godot JSON decoding can change a
+floating-point value by one ULP; the existing writer hashes the pre-encoded value,
+then its own reader rejects the staged file (`temp_verification_failed`). A
+reproducer using the failed Titan primary records tick5996/99.9333333333289s,
+then CLEAN_SHUTDOWN: both commits reject and leave generation59/event count3.
+This is a reproduced persistence defect; the original Titan event tick was not
+captured, so its exact causal attribution remains unproven.
+
+Scope: only production `scripts/persistence/user_data_store.gd` and its existing
+numeric/legacy regression cases in `tests/user_data_store_test.gd`. Preserve the
+schema, old valid saves/readers, full-precision numeric boundary, strict digest
+verification, transaction authority and rotation/recovery behavior. Hash the
+payload as decoded from the actual wire document. No validator/schema family.
+One HIGH implementer, one independent HIGH reviewer; root owns checks, package,
+integration and cleanup. Branch `work/save-float-roundtrip-1116`, worktree and
+raw records `/srv/mudds-work/save-float-roundtrip-20261116`.
+
+Acceptance: deterministic regression fails against unchanged writer and passes
+candidate; original failed primary plus bad-float event and terminal event commit
+and reload; existing store/rotation/crash-point and diagnostic record/lifecycle/
+production/Main integration and safe-start suites pass. Full ordinary Titan
+Main ends with actual clean_shutdown/clean/session_ended. Clean paired checkpoint
+exports, three strict startup checks, actual Windows-PCK store and full Titan
+checks, package delta and independent review before merge/push. Native Windows,
+GPU, hardware and human gates remain NOT_RUN; hosted CI stays disabled.
+
+Budget: 2026-11-16 21:05:00→22:35:00UTC, 90 minutes all-in, renewed substantive
+repair0/1. Stop on first unexpected failure, preserve actual operands and causal
+repair; no weakened checksum or skipped acceptance. Prior gunner cost/failures
+stay with that card. No product completion or accepted gunner build claimed.
+
+### Waiting for save dependency: Paradox physical gunner cannon — BUILD-SPLIT-PARADOX/card8
+
+At21:05UTC the original attempt is unaccepted: source14/16 passed, Titan gameplay
+passed but its actual primary lacked session_ended; Predator source and all PCK,
+views/export/package gates are NOT_RUN. Exact candidate
+`aba013cc76388ba7527ec689e2d41696455954be` and all raw data remain under the task
+root below. Diagnostic replay passed without reproducing the original failure;
+deterministic real-store probe reproduced the float checksum defect separately.
+The original window is not extended. After the dependency is accepted, select
+this same complete card into a fresh bounded window under the latest owner reset,
+retain all prior cost/failures, and rerun its complete gates on the integrated
+candidate. No smaller subset is accepted.
+
 
 Goal / contract: approved docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md gunner actions/Actual weapons/card8. Result: ordinary physical gunner claims, aims and fires the actual defensive pulse cannon, damages a production target once, stands and reseats; no pilot authority. Cards1–7 accepted through86c5a9024/maina449d932363d89965a8d4e191c6efc228399e6f0. No missing design input. Main12/17/12berths, originalpilot primary retained. No network/fullmovingcabin/fullcraft credit.
 Candidate / owners: clean isolated worktree /srv/mudds-work/paradox-gunner-20261116/worktree, branch work/paradox-gunner-1116. One HIGH implementer owns scripts/ships/paradox_cruiser.gd, scenes/ships/paradox_cruiser_pilot.tscn and new tests/paradox_cruiser_gunner_test.gd/UID. Root owns narrow scripts/game/game_flow.gd local input/profile/authority/HUD/interior admission and existing tests/game_flow_paradox_integration_test.gd plus mechanical fitted-gunner expectation in tests/paradox_cruiser_crew_carry_test.gd. Existing livecombat/primary cases retained. Root release/docs/merge/push/archive/cleanup; independent HIGH reviewer. No shared HeroShip/Player/ShipCrewSeat/role-authority/resolver/resource/sibling edits or recursive agents.
