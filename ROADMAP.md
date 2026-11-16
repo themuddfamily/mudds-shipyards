@@ -647,7 +647,7 @@ and every failure remain preserved. Renewed0/1 allowance; the actual south-side
 opening repair uses1/1. HIGH implementer owns the original source/test integration
 plus mechanical current Predator roster expectations; root owns release/docs/
 cleanup, independent HIGH reviewer checks shared docking/spatial/actual results.
-Clean candidatea8c92aac1264718dac5dc3f2eab376c7fe75aa45 preserves accepted
+Clean candidate5e7db655248b925b334e7542b7da0830a8e4b44d preserves accepted
 ShipBerth center behavior and adds only its composed-volume readback accessor.
 Current world has11oldflyable/11oldberths plus newunoccupiedParadox=12berths;
 all11oldposes/centers/leases includingPredator are protected. Paradox is NOT
@@ -657,6 +657,14 @@ return/lease/closed+deployedfit/8mlift/forward/chase cases and all caps remain.
 Original7sourcecases plus whole existingPredatorberth300 regression, unchanged
 fullTitanMain300 ALONE source/PCK, wholePCKberth300,3fixedviews,pairedexports/
 strictstartup3/maps/audit9/eightartifacts/merge/push/archive/ownedcleanup required.
+Firstcandidatea8 passed all8source suites; fullTitanMain failed its muzzle-local
+measurement because the ship moved0.022345m during9ticks after emission. Exact
+emission-frame error was0.00000574m. Routine test-only correction5e captures
+local origin in the existing emission callback, retaining the .01m tolerance,
+all actions/counts/damage/ownership and all caps. Independent HIGH SOURCE_GO;
+production bytes unchanged, substantive allowance remains1/1. All8source cases
+and complete Main are rerun on5e before render/export/PCK; no earlier pass
+counts as final acceptance. Original failed run and diagnostic remain retained.
 Fresh card/records: `/srv/mudds-work/paradox-berth-renewal-20261116/`. Historical
 counts/deadlines/failed statuses below describe the earlier attempt only.
 
