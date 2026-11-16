@@ -1,9 +1,23 @@
 extends HeroShip
 
 ## Original modern cruiser, not an authenticated historical silhouette.
-## Continuous stern access and local crew; only the pilot primary is fitted.
+## Continuous stern access and local crew; pilot and claimed gunner pulse cannons are fitted.
 ## Editable convex sections use metres, +Y up and -Z forward.
 signal primary_fire_refused(reason: StringName)
+signal gunner_fire_refused(reason: StringName)
+
+const GUNNER_DEFINITION := preload("res://assets/weapons/bulwark_combat_pulse.tres")
+const GUNNER_MUZZLE := Vector3(0,5.7,-8)
+const GUNNER_FACTION := &"shipyard_flight_test"
+@export var gunner_weapon_fitted := false
+var _gunner_combat_authority: LiveCombatAuthority
+var _gunner_mount_timer := 0.0
+var _gunner_admission_in_progress := false
+var _gunner_last_result: Dictionary = {}
+var _gunner_mount: Node3D
+var _gunner_muzzle: Marker3D
+var _gunner_barrel: MeshInstance3D
+var _gunner_barrel_collision: CollisionShape3D
 
 var _primary_last_refusal: StringName = &""
 const PRIMARY_DEFINITION := preload("res://assets/weapons/jovian_combat_pulse.tres")
@@ -67,7 +81,10 @@ func is_boardable() -> bool:
 	# helm while sealed. GameFlow retains that exact registered-cabin context.
 	if not _landed:
 		return is_instance_valid(_interior_frame)
-	return is_canopy_open() and _access_fraction >= 0.999 and has_supported_exterior_access()
+	# Availability permits fresh reservations from the sealed supported room.
+	# Physical exterior ingress still requires the solid hatch/ramp, while the
+	# existing landed pilot predicate requires the actual clear inside helm.
+	return has_supported_exterior_access()
 
 
 func can_board_from_landed_approach(actor: PlayerController) -> bool:
@@ -121,10 +138,13 @@ func request_engine_start() -> void:
 		super.request_engine_start()
 
 
-func _wake_engine_for_automatic_demand(_release_dock_latch: bool = true) -> void:
+func _wake_engine_for_automatic_demand(release_dock_latch: bool = true) -> void:
 	# Both manual and demand-driven starts retain HeroShip's single timed clock.
 	if _engine_state == ENGINE_OFFLINE:
+		var retained_latch := _docked_latch
 		request_engine_start()
+		if not release_dock_latch:
+			_docked_latch = retained_latch
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -438,6 +458,7 @@ func _build_ship() -> void:
 		_exit_marker.position = Vector3(0,1.2,-2.4)
 		_exit_marker.rotation = Vector3.ZERO
 		_build_local_crew_chairs(dark, brass)
+		_build_defensive_mount(dark, brass)
 		_install_variant_cockpit_system_readout(_visual_root)
 		_cockpit_readout.position = Vector3(0,3.1,-4.9)
 	_canopy_pivot = Node3D.new()
@@ -491,6 +512,8 @@ func get_variant_visual_root() -> Node3D:
 func _sync_solid_root_visibility() -> void:
 	if is_instance_valid(_solid_root) and is_instance_valid(_visual_root):
 		_solid_root.visible = _visual_root.visible
+	if is_instance_valid(_gunner_mount) and is_instance_valid(_visual_root):
+		_gunner_mount.visible = _visual_root.visible
 
 
 ## The exhaust panel remains solid and visible OFFLINE; only light is cosmetic.
@@ -708,6 +731,212 @@ func attach_solo_crew_role_occupant(avatar_id: StringName, seat: ShipCrewSeat, o
 	return super.attach_solo_crew_role_occupant(avatar_id, seat, occupant)
 
 
-## No fitted defensive cannon exists until its separate accepted weapon card.
-func request_solo_crew_weapon_power(_avatar_id: StringName, _seat: ShipCrewSeat, _occupant: Node3D, _occupant_peer_id: int = 1) -> bool:
-	return false
+## The generic power tag/start clock remains the sole power handoff owner.
+func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D, occupant_peer_id: int = 1) -> bool:
+	if not gunner_weapon_fitted or _crew_anchors.size() != 2 or not is_instance_valid(occupant) \
+			or not is_instance_valid(seat) or _canopy_open or _access_fraction > 0.0001 \
+			or _current_gunner(occupant_peer_id,avatar_id,_crew_role_authority) != occupant \
+			or not is_instance_valid(seat) or seat.get_seat_anchor() != _crew_anchors[0]:
+		return false
+	return super.request_solo_crew_weapon_power(avatar_id,seat,occupant,occupant_peer_id)
+
+
+func _physics_process(delta: float) -> void:
+	if not _reset_for_reuse_mutation_blocked():
+		_gunner_mount_timer = maxf(0,_gunner_mount_timer-maxf(delta,0))
+	super._physics_process(delta)
+
+
+func get_gunner_weapon_definition() -> WeaponDefinition:
+	return GUNNER_DEFINITION.duplicate(true) as WeaponDefinition if gunner_weapon_fitted else null
+
+
+func get_gunner_muzzle() -> Marker3D:
+	return _gunner_muzzle if is_instance_valid(_gunner_muzzle) else null
+
+
+## Binding verifies the existing complete source; it never overwrites profiles.
+func attach_gunner_combat_authority(authority: LiveCombatAuthority) -> Dictionary:
+	if not gunner_weapon_fitted or not is_instance_valid(authority) or not authority.is_inside_tree() \
+			or (_gunner_combat_authority != null and _gunner_combat_authority != authority):
+		return _gunner_refusal(&"gunner_authority_unavailable")
+	if authority.get_source_id(self) != 1111 or authority.get_source_faction(self) != GUNNER_FACTION:
+		return _gunner_refusal(&"gunner_source_mismatch")
+	var expected_primary := WeaponDefinitionResolverProfile.to_resolver_profiles(PRIMARY_DEFINITION,GUNNER_FACTION,32)
+	var expected_gunner := WeaponDefinitionResolverProfile.to_resolver_profiles(GUNNER_DEFINITION,GUNNER_FACTION,24)
+	var registration: Dictionary = authority.call("_get_registration",self)
+	if (registration.get("weapons",{}) as Dictionary).size() != 2 \
+			or authority.get_weapon_profile(self,PRIMARY_DEFINITION.weapon_id) != expected_primary[PRIMARY_DEFINITION.weapon_id] \
+			or authority.get_weapon_profile(self,GUNNER_DEFINITION.weapon_id) != expected_gunner[GUNNER_DEFINITION.weapon_id]:
+		return _gunner_refusal(&"gunner_profiles_mismatch")
+	_gunner_combat_authority = authority
+	return {"accepted":true,"status":&"gunner_authority_attached"}
+
+
+func get_gunner_gameplay_state() -> Dictionary:
+	var status: StringName = &"ready"
+	if not gunner_weapon_fitted: status = &"gunner_not_fitted"
+	elif _destroyed or _hull<=0: status = &"ship_destroyed"
+	elif _canopy_open or _access_fraction>0.0001: status = &"gunner_access_open"
+	elif _engine_state != ENGINE_ONLINE: status = &"engine_not_online"
+	elif _get_damage_weapon_multiplier()<=0 or bool(get_operational_modifiers().get("fire_disabled",false)): status = &"gunner_weapon_component_failed"
+	elif _gunner_mount_timer>0: status = &"gunner_cooldown"
+	return {"target_generation":_crew_generation,"cooldown_remaining":_gunner_mount_timer,
+		"status":status,"ready":status == &"ready","last_result":_gunner_last_result.duplicate(true)}
+
+
+func get_gunner_aim_status(direction: Vector3) -> Dictionary:
+	if not gunner_weapon_fitted or not direction.is_finite() or direction.length_squared() <= 0.000001:
+		return {"accepted":false,"status":&"gunner_aim_invalid"}
+	var local := global_basis.inverse()*direction.normalized()
+	var yaw := atan2(local.x,-local.z)
+	var elevation := atan2(local.y,Vector2(local.x,local.z).length())
+	var accepted := absf(yaw) <= deg_to_rad(35)+0.000001 and elevation >= -0.000001 and elevation <= PI*0.25+0.000001
+	return {"accepted":accepted,"status":&"gunner_aim_valid" if accepted else &"gunner_aim_out_of_arc",
+		"yaw":yaw,"elevation":elevation,"direction":direction.normalized()}
+
+
+## Only the exact current local body/seat/ledger/frame composition may act.
+func _current_gunner(peer: int,avatar: StringName,expected_owner: CrewSeatRoleAuthority) -> PlayerController:
+	if not gunner_weapon_fitted or _destroyed or _hull <= 0 or _reset_for_reuse_mutation_blocked() \
+			or not is_inside_tree() or is_queued_for_deletion() or peer != 1 or expected_owner == null \
+			or expected_owner != _crew_role_authority or _crew_anchors.size() != 2:
+		return null
+	var assignment := expected_owner.get_assignment(peer,avatar)
+	if assignment.get("vessel_id") != get_ship_id() or assignment.get("seat_id") != CREW_IDS[0] \
+			or assignment.get("role") != &"gunner" or assignment.get("anchor_id") != CREW_IDS[0] \
+			or assignment.get("frame_id") != CREW_FRAME_ID or int(assignment.get("seat_generation",0)) != _crew_generation:
+		return null
+	for body in _interior_frame.get_registered_occupants():
+		if not body is PlayerController or not is_instance_valid(body) or not body.is_inside_tree() or body.is_queued_for_deletion():
+			continue
+		var metadata: Dictionary = body.get_meta(SOLO_CREW_ROLE_OCCUPANT_META,{})
+		if metadata.get("craft") == self and metadata.get("authority") == expected_owner and metadata.get("avatar_id") == avatar \
+				and int(metadata.get("occupant_peer_id",0)) == peer and metadata.get("seat_id") == CREW_IDS[0] \
+				and metadata.get("role") == &"gunner" and int(metadata.get("seat_generation",0)) == _crew_generation \
+				and metadata.get("frame") == _interior_frame and body.is_seated_at(_crew_anchors[0]):
+			return body as PlayerController
+	return null
+
+
+func submit_crew_intent(source_peer_id: int,occupant_peer_id: int,avatar_id: StringName,action: StringName,
+		payload: Dictionary,request_sequence: int,expected_owner: CrewSeatRoleAuthority) -> Dictionary:
+	if _gunner_admission_in_progress or source_peer_id != 1 or _current_gunner(occupant_peer_id,avatar_id,expected_owner) == null \
+			or action != CrewSeatRoleAuthority.ACTION_GUNNER_FIRE:
+		return _gunner_refusal(&"gunner_claim_not_current")
+	var validation := CrewRoleGameplayProfile.validate_intent(&"gunner",action,payload)
+	if not bool(validation.get("accepted",false)):
+		return _gunner_refusal(StringName(validation.get("status",&"gunner_payload_invalid")))
+	if payload.get("weapon_id") != GUNNER_DEFINITION.weapon_id or payload.get("target_id") != &"free_aim" \
+			or int(payload.get("target_generation",0)) != _crew_generation:
+		return _gunner_refusal(&"gunner_identity_mismatch")
+	var origin: Variant = payload.get("origin")
+	var direction: Variant = payload.get("direction")
+	if not origin is Vector3 or not direction is Vector3 or not is_instance_valid(_gunner_muzzle) \
+			or not (origin as Vector3).is_finite() or (origin as Vector3).distance_to(_gunner_muzzle.global_position)>0.001:
+		return _gunner_refusal(&"gunner_origin_mismatch")
+	var aim := get_gunner_aim_status(direction)
+	if not aim.accepted:
+		return _gunner_refusal(aim.status)
+	if _canopy_open or _access_fraction > 0.0001:
+		return _gunner_refusal(&"gunner_access_open")
+	if _engine_state != ENGINE_ONLINE:
+		return _gunner_refusal(&"engine_not_online")
+	var modifiers := get_operational_modifiers()
+	var power := _get_damage_weapon_multiplier(modifiers)
+	if power<=0 or bool(modifiers.get("fire_disabled",false)):
+		return _gunner_refusal(&"gunner_weapon_component_failed")
+	if _gunner_mount_timer>0:
+		return _gunner_refusal(&"gunner_cooldown")
+	if not is_instance_valid(_gunner_combat_authority) or _gunner_combat_authority.get_source_id(self) != 1111:
+		return _gunner_refusal(&"gunner_authority_unavailable")
+	var ray_direction: Vector3 = aim.direction
+	var query := PhysicsRayQueryParameters3D.create(_gunner_muzzle.global_position+ray_direction*0.002,
+		_gunner_muzzle.global_position+ray_direction*float(GUNNER_DEFINITION.range_meters),PhysicsLayers.WORLD|PhysicsLayers.SHIP)
+	var obstruction := get_world_3d().direct_space_state.intersect_ray(query)
+	if not obstruction.is_empty():
+		var collider := obstruction.collider as CollisionObject3D
+		if collider == self or (collider != null and collider.collision_layer & PhysicsLayers.WORLD):
+			return _gunner_refusal(&"gunner_hull_blocked" if collider == self else &"gunner_world_blocked")
+	var combat_owner := _gunner_combat_authority
+	_gunner_admission_in_progress = true
+	var admission := expected_owner.submit_intent(source_peer_id,occupant_peer_id,avatar_id,action,payload,request_sequence)
+	_gunner_admission_in_progress = false
+	if not bool(admission.get("accepted",false)):
+		return _gunner_refusal(StringName(admission.get("status",&"gunner_intent_refused")))
+	if _current_gunner(occupant_peer_id,avatar_id,expected_owner) == null \
+			or not is_instance_valid(combat_owner) or combat_owner != _gunner_combat_authority \
+			or combat_owner.get_source_id(self) != 1111 or _canopy_open or _engine_state != ENGINE_ONLINE:
+		return _gunner_refusal(&"gunner_claim_retired_during_admission")
+	power = _get_damage_weapon_multiplier()
+	if power<=0 or bool(get_operational_modifiers().get("fire_disabled",false)):
+		return _gunner_refusal(&"gunner_weapon_component_failed")
+	_set_defensive_mount_aim(float(aim.yaw),float(aim.elevation))
+	if not bool(payload.trigger):
+		admission["consumed"] = true
+		admission["effect"] = {"accepted":true,"status":&"gunner_aim_updated"}
+		return admission
+	# Commit this one mount clock before synchronous resolver observers run.
+	_gunner_mount_timer = (1.0/float(GUNNER_DEFINITION.cadence_shots_per_second))/power
+	var effect := _gunner_combat_authority.submit_hitscan(self,GUNNER_DEFINITION.weapon_id,_gunner_muzzle.global_position,ray_direction)
+	_gunner_last_result = effect.duplicate(true)
+	admission["consumed"] = bool(effect.get("accepted",false))
+	admission["effect"] = effect
+	return admission
+
+
+func _gunner_refusal(reason: StringName) -> Dictionary:
+	var result := {"accepted":false,"consumed":false,"status":reason,"effect":{"accepted":false,"status":reason}}
+	_gunner_last_result = result.duplicate(true)
+	gunner_fire_refused.emit(reason)
+	return result
+
+
+func _build_defensive_mount(structure: Material,finish: Material) -> void:
+	if not gunner_weapon_fitted:
+		return
+	_gunner_mount = Node3D.new()
+	_gunner_mount.name = "ParadoxDefensiveMount"
+	add_child(_gunner_mount)
+	var pedestal := MeshInstance3D.new()
+	pedestal.name = "Pedestal"
+	var pedestal_mesh := BoxMesh.new()
+	pedestal_mesh.size = Vector3(0.35,2.8,0.35)
+	pedestal.mesh = pedestal_mesh
+	pedestal.position = Vector3(0,4.2,-8)
+	pedestal.material_override = structure
+	_gunner_mount.add_child(pedestal)
+	var pedestal_collision := CollisionShape3D.new()
+	pedestal_collision.name = "DefensiveMountPedestalCollision"
+	var pedestal_shape := BoxShape3D.new()
+	pedestal_shape.size = pedestal_mesh.size
+	pedestal_collision.shape = pedestal_shape
+	pedestal_collision.transform = pedestal.transform
+	add_child(pedestal_collision)
+	_gunner_muzzle = Marker3D.new()
+	_gunner_muzzle.name = "DefensiveCannonMuzzle"
+	_gunner_muzzle.position = GUNNER_MUZZLE
+	_gunner_mount.add_child(_gunner_muzzle)
+	_gunner_barrel = MeshInstance3D.new()
+	_gunner_barrel.name = "Barrel"
+	var barrel_mesh := BoxMesh.new()
+	barrel_mesh.size = Vector3(0.12,0.12,0.8)
+	_gunner_barrel.mesh = barrel_mesh
+	_gunner_barrel.material_override = finish
+	_gunner_mount.add_child(_gunner_barrel)
+	_gunner_barrel_collision = CollisionShape3D.new()
+	_gunner_barrel_collision.name = "DefensiveMountBarrelCollision"
+	var barrel_shape := BoxShape3D.new()
+	barrel_shape.size = barrel_mesh.size
+	_gunner_barrel_collision.shape = barrel_shape
+	add_child(_gunner_barrel_collision)
+	_set_defensive_mount_aim(0,0)
+
+
+func _set_defensive_mount_aim(yaw: float,elevation: float) -> void:
+	if not is_instance_valid(_gunner_barrel):
+		return
+	var pose := Transform3D(Basis(Vector3.UP,-yaw)*Basis(Vector3.RIGHT,elevation),GUNNER_MUZZLE)
+	pose *= Transform3D(Basis.IDENTITY,Vector3(0,0,0.6))
+	_gunner_barrel.transform = pose
+	_gunner_barrel_collision.transform = pose

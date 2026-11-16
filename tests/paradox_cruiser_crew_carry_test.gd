@@ -119,8 +119,8 @@ func _run() -> void:
 		"gunner has weapon-control only and passenger has passenger-access only")
 	for action in [CrewSeatRoleAuthority.ACTION_FLIGHT_COMMAND,CrewSeatRoleAuthority.ACTION_GUNNER_FIRE,CrewSeatRoleAuthority.ACTION_ENGINEER_REPAIR]:
 		_check(not authority.submit_intent(1,1,&"fixture_crew_1",action,{},3).accepted,"passenger cannot issue ship/weapon/system intent")
-	_check(authority.get_snapshot() == before and not ship.request_solo_crew_weapon_power(&"fixture_crew_0",seats[0],players[0])
-		and ship.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE,"unfitted gunner has no weapon power consumer or action side effect")
+	_check(authority.get_snapshot() == before and not ship.request_solo_crew_weapon_power(&"wrong_avatar",seats[0],players[0])
+		and ship.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE,"wrong gunner identity cannot wake fitted weapon power or mutate ship")
 	var controls := FixtureCommands.new()
 	ship.add_child(controls)
 	ship.set_command_source(controls)

@@ -8849,6 +8849,7 @@ func _update_on_foot_flow() -> void:
 		if station_interaction_candidate is ShipCrewSeat:
 			var seat := station_interaction_candidate as ShipCrewSeat
 			var prompt := seat.get_interaction_prompt()
+			if prompt.is_empty(): prompt=_grounded_paradox_crew_prompt(seat)
 			if _can_request_network_halyard_cabin_berth(seat):
 				prompt = "[ E ] JOIN CABIN // %s" % seat.get_ship().get_display_name().to_upper()
 			if prompt.is_empty() and _can_reseat_host_remote_crew_seat(seat):
@@ -8874,6 +8875,8 @@ func _update_on_foot_flow() -> void:
 		# console recreates the card from the live boarding candidate as before.
 		_detach_boarding_confirmation_hud_composition()
 		var interaction_text := str(station_interaction_candidate.call("get_interaction_prompt"))
+		if interaction_text.is_empty() and station_interaction_candidate is ShipCrewSeat:
+			interaction_text=_grounded_paradox_crew_prompt(station_interaction_candidate as ShipCrewSeat)
 		var show_board_tutorial := station_interaction_candidate == activity_board_console \
 			and _should_show_activity_board_proximity_tutorial()
 		if show_board_tutorial:
@@ -10342,6 +10345,60 @@ func _can_reseat_host_remote_crew_seat(seat: ShipCrewSeat) -> bool:
 		and area.get_reservation_token() == player
 
 
+func _can_claim_grounded_paradox_crew_seat(seat: ShipCrewSeat) -> bool:
+	if _network_session_is_live() or not is_instance_valid(seat) or not seat.is_inside_tree() \
+			or seat.is_queued_for_deletion() or not is_instance_valid(player) or player.is_seated() \
+			or not player.is_control_enabled() or not player.is_on_floor() or _piloting:
+		return false
+	var craft := seat.get_ship()
+	if not is_instance_valid(craft) or craft not in ships or craft.get_ship_id()!=&"paradox_provisional" \
+			or craft.is_destroyed() or craft.is_piloted() or seat.get_seat_id() not in [&"gunner_station",&"passenger_station"] \
+			or player.get_interaction_origin().distance_to(seat.global_position)>2.5 \
+			or seat.get_role_contract().is_empty():
+		return false
+	var berth := world.get_berth_node(&"paradox_home_berth") as ShipBerth
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var telemetry := craft.get_telemetry()
+	var bounds: AABB = craft.get_in_flight_cabin_report().get("local_bounds",AABB())
+	if berth==null or berth.get_occupant()!=craft or berth.get_reservation_owner()!=craft \
+			or not bool(telemetry.get("landed",false)) or StringName(telemetry.engine_state)!=HeroShip.ENGINE_OFFLINE \
+			or not bounds.has_point(craft.to_local(player.global_position)) or area==null \
+			or (area.is_reserved() and area.get_reservation_token()!=player) \
+			or player.collision_layer!=PhysicsLayers.PLAYER_BODY_LAYER or player.collision_mask!=PhysicsLayers.PLAYER_BODY_MASK:
+		return false
+	var collision := player.get_node("PlayerCollision") as CollisionShape3D
+	if collision.disabled or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius-=0.005
+	capsule.height-=0.01
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape=capsule
+	query.transform=collision.global_transform
+	query.margin=0
+	query.collision_mask=PhysicsLayers.WORLD|PhysicsLayers.SHIP
+	query.exclude=[player.get_rid()]
+	if not craft.get_world_3d().direct_space_state.intersect_shape(query,16).is_empty():
+		return false
+	var up := craft.global_basis.y.normalized()
+	var floor_query := PhysicsRayQueryParameters3D.create(player.global_position+up*0.2,player.global_position-up*0.25,
+		PhysicsLayers.WORLD|PhysicsLayers.SHIP,[player.get_rid()])
+	var hit := craft.get_world_3d().direct_space_state.intersect_ray(floor_query)
+	return not hit.is_empty() and (hit.collider==craft or craft.is_ancestor_of(hit.collider)) \
+		and (hit.normal as Vector3).normalized().dot(up)>=cos(player.floor_max_angle)
+
+
+func _grounded_paradox_crew_prompt(seat: ShipCrewSeat) -> String:
+	if not _can_claim_grounded_paradox_crew_seat(seat):
+		return ""
+	var owner: CrewSeatRoleAuthority=seat.get_ship().call("get_crew_role_authority")
+	if owner!=null:
+		for assignment: Dictionary in owner.get_snapshot().get("assignments",[]):
+			if assignment.get("seat_id")==seat.get_seat_id():
+				return "[ E ] %s SEAT OCCUPIED" % seat.get_role_label().to_upper()
+	return "[ E ] SIT // %s %s" % [seat.get_ship().get_display_name().to_upper(),seat.get_role_label().to_upper()]
+
+
 func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	if _transition_busy or _station_seated or _piloting or player.is_seated() \
 			or (_network_session_is_live() and not (_network_session_mode == &"server" and seat is ShipCrewSeat and _network_physical_crew_seat_is_wired(seat))) or _planetary_visit_blocks_network_session() \
@@ -10351,6 +10408,10 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var craft := seat.get_ship()
 	var contract := seat.get_role_contract()
 	var retained_host_cabin := _can_reseat_host_remote_crew_seat(seat)
+	# Sealed local admission acquires its real boarding reservation below.
+	if is_instance_valid(craft) and craft.get_ship_id()==&"paradox_provisional" \
+			and bool(craft.get_telemetry().get("landed",false)) and not _can_claim_grounded_paradox_crew_seat(seat):
+		return
 	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_host_cabin) \
 			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional"] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
@@ -10411,7 +10472,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	if not bool(claimed.get("accepted", false)):
 		hud.toast("Crew seat unavailable", "The crew roster refused this chair")
 		return
-	if _solo_crew_role == &"gunner" and craft is BulwarkHeavyGunship and not bool((craft.call(&"attach_gunner_combat_authority", combat_authority) as Dictionary).get("accepted", false)):
+	if _solo_crew_role == &"gunner" and (craft is BulwarkHeavyGunship or craft.get_ship_id() == &"paradox_provisional") and not bool((craft.call(&"attach_gunner_combat_authority", combat_authority) as Dictionary).get("accepted", false)):
 		_solo_crew_authority.release(1, 1, SOLO_CREW_AVATAR_ID, _solo_crew_seat_id, _solo_crew_sequence + 1)
 		_release_solo_crew_authority()
 		return
@@ -10465,7 +10526,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	_bind_solo_navigator_audio_claim()
 	hud.set_mode("cabin", craft.get_display_name())
 	if craft.get_ship_id() == &"paradox_provisional" and _solo_crew_role == &"gunner":
-		hud.set_objective("Defensive cannon NOT FITTED // stand to walk the cabin or take the pilot seat")
+		_update_paradox_gunner_objective({})
 	else:
 		hud.set_objective("%s aboard %s — %s" % [String(_solo_crew_role).capitalize(), craft.get_display_name(), "hold FIRE for siege lance; stand to walk the cabin or take the pilot seat" if _solo_crew_role == &"gunner" else "stand to walk the cabin or take the pilot seat"])
 	audio.play_ui_confirm()
@@ -10645,7 +10706,8 @@ func _update_solo_gunner_input(delta: float) -> void:
 	_solo_gunner_fire = command.fire
 	if _solo_crew_ship.get_ship_id() == &"paradox_provisional":
 		_solo_gunner_input_elapsed = 0.0
-		hud.set_objective("Defensive cannon NOT FITTED // stand [%s] to walk the cabin or take the helm" % hud.get_action_prompt(&"interact"))
+		var result: Dictionary = _submit_solo_gunner_fire() if command.fire else {}
+		_update_paradox_gunner_objective(result)
 		return
 	if _solo_crew_ship is CinderCargoHauler:
 		if _solo_crew_seat_id == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
@@ -10830,7 +10892,7 @@ func _submit_solo_gunner_fire() -> Dictionary:
 			or _solo_gunner_source.get_input_profile_generation() != _solo_gunner_source_profile:
 		return {"accepted": false, "status": &"gunner_not_seated"}
 	if _solo_crew_ship.get_ship_id() == &"paradox_provisional":
-		return {"accepted": false, "status": &"gunner_weapon_not_fitted"}
+		return _submit_paradox_gunner_fire()
 	if not _solo_crew_ship.request_solo_crew_weapon_power(SOLO_CREW_AVATAR_ID, _solo_crew_seat, player):
 		return {"accepted": false, "status": &"gunner_power_unavailable"}
 	var state: Dictionary = _solo_crew_ship.call(&"get_gunner_gameplay_state")
@@ -10882,6 +10944,54 @@ func _submit_solo_gunner_fire() -> Dictionary:
 		"target_generation": int(state.get("target_generation", 0)), "trigger": true,
 		"origin": muzzle, "direction": direction,
 	}, _solo_crew_sequence)
+
+
+func _submit_paradox_gunner_fire() -> Dictionary:
+	if _solo_crew_role != &"gunner" or not _solo_crew_claim_is_current() \
+			or not player.is_seated_at(_solo_crew_seat.get_seat_anchor()):
+		return {"accepted":false,"status":&"gunner_not_seated"}
+	var direction := player.get_interaction_direction().normalized()
+	var aim: Dictionary = _solo_crew_ship.call("get_gunner_aim_status",direction)
+	# Refused aim cannot wake power or mutate the role sequence ledger.
+	if not bool(aim.get("accepted",false)):
+		return aim
+	if not _solo_crew_ship.request_solo_crew_weapon_power(SOLO_CREW_AVATAR_ID,_solo_crew_seat,player):
+		return {"accepted":false,"status":&"engine_not_online"}
+	var state: Dictionary = _solo_crew_ship.call("get_gunner_gameplay_state")
+	var muzzle := _solo_crew_ship.get_node_or_null("ParadoxDefensiveMount/DefensiveCannonMuzzle") as Marker3D
+	if not is_instance_valid(muzzle):
+		return {"accepted":false,"status":&"gunner_muzzle_unavailable"}
+	var prior := _solo_crew_authority.get_last_intent(1,SOLO_CREW_AVATAR_ID)
+	_solo_crew_sequence=maxi(_solo_crew_sequence,int(prior.get("request_sequence",0)))+1
+	return _solo_crew_ship.call("submit_crew_intent",1,1,SOLO_CREW_AVATAR_ID,
+		CrewSeatRoleAuthority.ACTION_GUNNER_FIRE,{
+			"weapon_id":BULWARK_COMBAT_WEAPON_ID,"target_id":&"free_aim",
+			"target_generation":int(state.get("target_generation",0)),"trigger":true,
+			"origin":muzzle.global_position,"direction":direction,
+		},_solo_crew_sequence,_solo_crew_authority)
+
+
+func _update_paradox_gunner_objective(result: Dictionary) -> void:
+	var effect := result.get("effect",result) as Dictionary
+	var reason := StringName(effect.get("status",&"ready"))
+	var state: Dictionary = _solo_crew_ship.call("get_gunner_gameplay_state")
+	var aim: Dictionary = _solo_crew_ship.call("get_gunner_aim_status",player.get_interaction_direction())
+	var condition := "READY"
+	if not bool(aim.get("accepted",false)):
+		condition="OUT OF ARC // aim forward and level or upward"
+	elif StringName(_solo_crew_ship.get_telemetry().engine_state) != HeroShip.ENGINE_ONLINE:
+		condition="STARTING" if StringName(_solo_crew_ship.get_telemetry().engine_state)==HeroShip.ENGINE_STARTING else "SAFE // hold FIRE for weapon power"
+	elif StringName(state.get("status",&""))==&"gunner_weapon_component_failed":
+		condition="DISABLED // service required"
+	elif reason==&"friendly_fire_blocked":
+		condition="FRIENDLY FIRE REFUSED"
+	elif reason in [&"gunner_world_blocked",&"gunner_hull_blocked"]:
+		condition="BLOCKED"
+	elif float(state.get("cooldown_remaining",0))>0:
+		condition="CYCLING"
+	elif not result.is_empty() and not bool(effect.get("accepted",false)):
+		condition={&"gunner_weapon_component_failed":"DISABLED // service required",&"gunner_world_blocked":"BLOCKED",&"gunner_hull_blocked":"BLOCKED BY CRUISER HULL",&"world_blocked":"BLOCKED",&"friendly_fire_blocked":"FRIENDLY FIRE REFUSED"}.get(reason,"FIRE REFUSED")
+	hud.set_objective("Defensive cannon // %s // 360m / 50 damage // stand [%s]" % [condition,hud.get_action_prompt(&"interact")])
 
 
 func get_solo_crew_seat_status() -> Dictionary:
@@ -18673,7 +18783,14 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 			JOVIAN_COMBAT_WEAPON_ID, JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS,
 			JOVIAN_COMBAT_PRESENTATION_ID, JOVIAN_COMBAT_FIRE_AUDIO_ID,
 			JOVIAN_COMBAT_IMPACT_AUDIO_ID, JOVIAN_COMBAT_DRY_FIRE_AUDIO_ID)
-		return {JOVIAN_COMBAT_WEAPON_ID: profile} if not profile.is_empty() else {}
+		var gunner_definition := candidate.call("get_gunner_weapon_definition") as WeaponDefinition
+		if profile.is_empty() or gunner_definition == null or gunner_definition.weapon_id != BULWARK_COMBAT_WEAPON_ID:
+			return {}
+		var gunner_profiles := WeaponDefinitionResolverProfileType.to_resolver_profiles(
+			gunner_definition, PLAYER_FACTION, BULWARK_COMBAT_ORIGIN_TOLERANCE_METERS)
+		if gunner_profiles.size() != 1 or not gunner_profiles.has(BULWARK_COMBAT_WEAPON_ID):
+			return {}
+		return {JOVIAN_COMBAT_WEAPON_ID: profile, BULWARK_COMBAT_WEAPON_ID: gunner_profiles[BULWARK_COMBAT_WEAPON_ID]}
 	var profiles := PLAYER_WEAPON_PROFILES.duplicate(true)
 	if not is_instance_valid(candidate):
 		return profiles

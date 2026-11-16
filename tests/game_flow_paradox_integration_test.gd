@@ -23,6 +23,7 @@ var _engine_edges: Array[Dictionary] = []
 var _shots := 0
 var _projectiles := 0
 var _crew_mode := false
+var _mount_requests: Array[ShotRequest] = []
 const CREW_CRAFT := preload("res://scripts/ships/paradox_cruiser.gd")
 
 class CompletedPlayerTick:
@@ -57,7 +58,9 @@ func _run() -> void:
 	_ship.engine_state_changed.connect(_on_engine_edge)
 	_ship.projectile_fired.connect(func(_o: Vector3,_d: Vector3): _projectiles += 1)
 	_game.get_combat_authority().authoritative_shot_submitted.connect(func(request: Variant,_result: Dictionary):
-		if request.source_entity==_ship: _shots += 1)
+		if request.source_entity==_ship:
+			_shots += 1
+			if request.weapon_id==GameFlow.BULWARK_COMBAT_WEAPON_ID: _mount_requests.append(request))
 	var identity := _player.get_instance_id()
 	var world := _game.world
 	var berth := world.get_berth_node(&"paradox_home_berth") as ShipBerth
@@ -203,6 +206,7 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 
 
 func _exercise_local_crew_seats() -> bool:
+	if not await _crew_hatch_control(false): return false
 	for index in 2:
 		var id: StringName = CREW_CRAFT.CREW_IDS[index]
 		var role: StringName = CREW_CRAFT.CREW_ROLES[index]
@@ -260,6 +264,7 @@ func _exercise_local_crew_seats() -> bool:
 				and not authority.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_SYSTEMS_CONTROL).accepted
 				and (role != &"passenger" or not authority.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_WEAPON_CONTROL).accepted),
 				"exact crew capability only, no extra pilot or passenger action"): return false
+			if role==&"gunner" and not await _aim_crew_direction(Vector3.RIGHT): return false
 			var ship_pose := _ship.global_transform
 			var ship_velocity := _ship.velocity
 			var hull: float = _ship.get_telemetry().hull
@@ -275,12 +280,13 @@ func _exercise_local_crew_seats() -> bool:
 			if not _check(_ship.global_transform.is_equal_approx(ship_pose) and _ship.velocity == ship_velocity
 				and _ship.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE and _ship.get_telemetry().hull == hull
 				and _shots == shots and _projectiles == projectiles and _ship._weapon_heat == 0 and _ship._weapon_timer == 0
-				and _game._get_player_weapon_profiles(_ship).size() == 1 and _game.get_combat_authority().get_source_id(_ship) == 1111
+				and _game._get_player_weapon_profiles(_ship).size() == 2 and _game.get_combat_authority().get_source_id(_ship) == 1111
 				and GameFlow.PLAYER_SOURCE_IDS.get(&"paradox_provisional") == 1111 and authority.get_snapshot() == snapshot
 				and _game._solo_crew_claim_is_current() and not _ship.is_piloted()
 				and "siege" not in objective.to_lower() and "charge" not in objective.to_lower() and "ammunition" not in objective.to_lower()
-				and (role != &"gunner" or "DEFENSIVE CANNON NOT FITTED" in objective.to_upper()),
-				"ordinary held throttle/turn/FIRE20 ticks has no propulsion/shot/heat/cooldown/damage/claim mutation, retained pilot profile and honest crew HUD"): return false
+				and (role != &"gunner" or "OUT OF ARC" in objective.to_upper()),
+				"ordinary refused-aim gunner or passenger FIRE20/throttle/turn has no power/propulsion/shot/body/claim mutation and honest role HUD"): return false
+			if role==&"gunner" and not await _exercise_ordinary_gunner(cycle): return false
 			await _tap(&"interact")
 			for tick in 180:
 				if not _game._transition_busy and not _player.is_seated(): break
@@ -295,14 +301,105 @@ func _exercise_local_crew_seats() -> bool:
 				and _game._solo_crew_seat == null and _game._solo_crew_ship == null and _game._solo_crew_role == &""
 				and _game._solo_gunner_source == null and _game._solo_gunner_source_stream == -1 and not _game._solo_gunner_fire
 				and not _player.get_cabin_containment_report().get("active",false)
-				and _game.get_combat_authority().get_source_id(_ship) == 1111 and _game._get_player_weapon_profiles(_ship).size() == 1,
+				and _game.get_combat_authority().get_source_id(_ship) == 1111 and _game._get_player_weapon_profiles(_ship).size() == 2,
 				"normal stand restores exact authored supported body and retires all role/claim/metadata/input/containment fields"): return false
 			var forward := -_player.global_basis.z
 			var aisle := _ship.global_basis.x * (1.0 if index == 0 else -1.0)
 			if not _check(forward.slide(_ship.global_basis.y).normalized().dot(aisle)>0.99,"authored stand faces cabin aisle"): return false
+	if not await _crew_hatch_control(true): return false
 	for point in [Vector3(0,1.2,2.8),Vector3(0,1.2,-2.4)]:
 		if not await _walk_to(_ship.to_global(point),90,true): return false
 	return true
+
+func _crew_hatch_control(open: bool) -> bool:
+	for point in [Vector3(0,1.2,_ship.to_local(_player.global_position).z),Vector3(0,1.2,9.8),Vector3(1.9,1.2,10.3)]:
+		if not await _walk_to(_ship.to_global(point),95,true): return false
+	var hatch := _ship.get_node("ParadoxOriginalShell/InteriorHatchInteraction") as ShipCabinHatch
+	await _aim(hatch.global_position)
+	if not _check(_game.station_interaction_candidate==hatch,"normal walking gunner route reaches real interior hatch control"): return false
+	await _tap(&"interact")
+	await _wait_frames(30)
+	if not _check(_ship.is_canopy_open()==open,"normal inside Interact sets actual access open="+str(open)): return false
+	for point in [Vector3(0,1.2,10.3),Vector3(0,1.2,3),Vector3(0,1.2,-2.4)]:
+		if not await _walk_to(_ship.to_global(point),96,true): return false
+	return true
+
+
+func _aim_crew_direction(local_target: Vector3) -> bool:
+	for frame in 180:
+		var direction := (_ship.global_basis.inverse()*_player.get_interaction_direction()).normalized()
+		var yaw := wrapf(atan2(local_target.x,-local_target.z)-atan2(direction.x,-direction.z),-PI,PI)
+		var pitch := asin(clampf(local_target.y,-1,1))-asin(clampf(direction.y,-1,1))
+		if absf(yaw)<0.015 and absf(pitch)<0.015: break
+		for pair in [[JOY_AXIS_RIGHT_X,signf(yaw)*clampf(absf(yaw)*2,0.25,1) if absf(yaw)>=0.015 else 0.0],
+			[JOY_AXIS_RIGHT_Y,-signf(pitch)*clampf(absf(pitch)*2,0.25,1) if absf(pitch)>=0.015 else 0.0]]:
+			var event := InputEventJoypadMotion.new()
+			event.axis=int(pair[0])
+			event.axis_value=float(pair[1])
+			Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await _wait_frames(1)
+	for axis in [JOY_AXIS_RIGHT_X,JOY_AXIS_RIGHT_Y]:
+		var release := InputEventJoypadMotion.new()
+		release.axis=axis
+		Input.parse_input_event(release)
+	Input.flush_buffered_events()
+	await _wait_frames(2)
+	return _check((_ship.global_basis.inverse()*_player.get_interaction_direction()).normalized().dot(local_target)>0.999,
+		"normal seated right-stick aim reaches explicit local direction "+str(local_target))
+
+
+func _exercise_ordinary_gunner(cycle: int) -> bool:
+	var desired := Vector3(0,sin(deg_to_rad(20)), -cos(deg_to_rad(20)))
+	if not await _aim_crew_direction(desired): return false
+	var direction := _player.get_interaction_direction().normalized()
+	var muzzle := _ship.get_node("ParadoxDefensiveMount/DefensiveCannonMuzzle") as Marker3D
+	_game.world._create_target(_game.world,9100+cycle,_game.world.to_local(muzzle.global_position+direction*100))
+	var target := _game.world._targets.back() as StaticBody3D
+	_game.get_combat_authority().attach_range_targets(_game.world)
+	var adapter := target.get_node("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	await _wait_frames(3)
+	var health := adapter.get_health()
+	var before := _shots
+	var emissions := _projectiles
+	var requests := _mount_requests.size()
+	var pose := _ship.global_transform
+	var lease := _game.world.get_berth_node(&"paradox_home_berth") as ShipBerth
+	var edge_start := _engine_edges.size()
+	Input.action_press(&"fire")
+	for tick in 240:
+		await _wait_frames(1)
+		if _shots>before: break
+	Input.action_release(&"fire")
+	await _wait_frames(2)
+	if not _check(_shots==before+1 and _mount_requests.size()==requests+1
+		and _projectiles==emissions and is_equal_approx(health-adapter.get_health(),50)
+		and _mount_requests[-1].source_id==1111 and _mount_requests[-1].weapon_id==GameFlow.BULWARK_COMBAT_WEAPON_ID
+		and is_equal_approx(_mount_requests[-1].range,360) and is_equal_approx(_mount_requests[-1].damage,50)
+		and _ship._weapon_timer==0 and _ship._weapon_heat==0
+		and _engine_edges.size()==edge_start+2 and _engine_edges[edge_start].state==HeroShip.ENGINE_STARTING
+		and _engine_edges[edge_start+1].state==HeroShip.ENGINE_ONLINE
+		and is_equal_approx(float(_engine_edges[edge_start].remaining),3.2)
+		and int(_engine_edges[edge_start+1].tick)-int(_engine_edges[edge_start].tick)>=191
+		and int(_engine_edges[edge_start+1].tick)-int(_engine_edges[edge_start].tick)<=193,
+		"ordinary physical gunner FIRE powers actual3.2 startup and resolves one50/360/source1111 mount hit cycle="+str(cycle)): return false
+	Input.action_press(&"move_forward")
+	Input.action_press(&"move_right")
+	Input.action_press(&"pitch_up")
+	Input.action_press(&"sprint_boost")
+	await _wait_frames(20)
+	_release_inputs()
+	if not _check(_ship.global_transform.is_equal_approx(pose) and _ship.velocity==Vector3.ZERO
+		and lease.get_occupant()==_ship and lease.get_reservation_owner()==_ship
+		and not _ship.is_piloted() and not _game._piloting and _projectiles==emissions and _shots==before+1
+		and "DEFENSIVE CANNON" in String(_game.hud._objective_label.text).to_upper()
+		and "siege" not in String(_game.hud._objective_label.text).to_lower(),
+		"ONLINE gunner throttle/turn/boost cannot move craft, release dock, claim pilot or fire primary"): return false
+	_game.world._targets.erase(target)
+	target.queue_free()
+	await _wait_frames(2)
+	return true
+
 
 func _crew_body_and_eye_clear() -> bool:
 	var collision := _player.get_node("PlayerCollision") as CollisionShape3D
