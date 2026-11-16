@@ -2,6 +2,7 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
+Use --route aurora-outbound for ordinary Halyard access and canonical Aurora landing/exterior/Quit (2700s).
 Use --route heavy-breach for physical Heavy arm, real picket kill/payment and home/next posting.
 Use --route retained-heavy --retained-data FILE to load the accepted paid Heavy save and walk normally.
 Use --route corrupt-retained-heavy --retained-data FILE for confirmed backup repair and cold Heavy continuation.
@@ -37,7 +38,7 @@ Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake 
 Use --route crew-recovery for ordinary Jovian engineer admission, owned kill and cold helm continuation.
 Use --route station-flash for actual supported-spawn Reduced Flash UI and resource readbacks.
 The default is Guided through normal HUD Exit and actual process exit zero.
-No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
+No source/pack overrides. Ordinary routes retain their fixed 300-second cap; Aurora uses2700 seconds.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
 """
 import argparse
@@ -61,6 +62,12 @@ import time
 
 PREFIX = b"NATIVE_SORTIE_OBSERVATION: "
 CAP = 300
+AURORA_CAP = 2700
+
+
+def route_cap(route):
+    return AURORA_CAP if route == "aurora-outbound" else CAP
+
 ANSI_ESCAPE = re.compile(rb'\x1b\[[0-?]*[ -/]*[@-~]')
 DIAGNOSTIC = re.compile(
     rb'^\s*(?:SCRIPT\s+ERROR|ERROR:|WARNING:|FAIL:|NATIVE_SORTIE_REJECTED:)'
@@ -89,6 +96,34 @@ def observations_from_lines(lines, allowed_warnings=()):
     if diagnostics:
         raise RuntimeError('native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
     return [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
+
+
+def stream_log_observations(path, offset=0, allowed_warnings=()):
+    """Replay raw lines once, retaining only one decoded observation at a time."""
+    with Path(path).open('rb') as stream:
+        stream.seek(offset)
+        for line in stream:
+            diagnostics = [item for item in diagnostic_lines([line]) if item not in allowed_warnings]
+            if diagnostics:
+                raise RuntimeError('native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
+            if line.startswith(PREFIX):
+                yield json.loads(line[len(PREFIX):])
+
+
+def scan_log_diagnostics(path, allowed_warnings=()):
+    """Count every raw diagnostic with bounded memory; preserve its first operand."""
+    counts = {line: 0 for line in allowed_warnings}
+    count, first = 0, None
+    if Path(path).exists():
+        with Path(path).open('rb') as stream:
+            for raw in stream:
+                for line in diagnostic_lines([raw]):
+                    if line in counts:
+                        counts[line] += 1
+                    else:
+                        count += 1
+                        if first is None: first = line
+    return count, first, counts
 
 
 def drain_game_output(process, log_path):
@@ -5467,6 +5502,348 @@ class ArrowReturnReusePilot(Pilot):
         return self.result
 
 
+class AuroraOutboundPilot(ArrowReturnReusePilot):
+    """Ordinary Boot, Halyard access, canonical Aurora outbound and normal Quit."""
+    MARKER = 'NATIVE_AURORA_OUTBOUND_OK'
+    IDS = ('pid', 'main_id', 'world_id', 'player_id', 'ship_id', 'source_id',
+           'capsule_id', 'shape_id', 'seat_id', 'berth_id', 'spawn_marker_id')
+    GOALS = LifeTowPilot.ARM_GOALS[:12] + (
+        ('halyard_bridge', [37, 4.2, 68.3]), ('halyard_turn', [32.4, 4.2, 68.2]),
+        ('halyard_access', [32, 4.2, 62.2]), ('halyard_apron', [32, 4.2, 54.2]))
+
+    def __init__(self):
+        super().__init__()
+        self.now = self.since = self.ui_since = 0
+        self.stage_frame = 0
+        self.goal_index = 0
+        self.distance = self.rebases = self.max_ship_step = self.max_player_step = 0
+        self.look_pending_frame = None
+        self.settle_frame = None
+        self.ui_pending = None
+        self.focus_seen = set()
+        self.board_since = None
+        self.native_begin = self.native_board = self.native_exit = self.native_thrust = False
+        self.walk_ticks = 0
+        self.look_normalized = False
+
+    def enter(self, stage, s):
+        super().enter(stage, s)
+        self.since, self.stage_frame = self.now, s['frame']
+        self.focus_seen.clear()
+
+    def receipt(self, s):
+        return copy.deepcopy(s)
+
+    def validate_observation(self, s):
+        require(s.get('mode') == 'aurora-outbound' and s['actors_current'], 'current ordinary Aurora owners')
+        if hasattr(self, 'expected_pid'):
+            require(s['pid'] == self.expected_pid, 'exact owned exported process')
+        previous = self.last_state
+        if self.initial is None:
+            self.initial = copy.deepcopy(s)
+            require(s['definition_id'] == 'halyard_new_design' and s['home_id'] == 'halyard_fleet_dock_berth'
+                    and norm(sub(s['authored_spawn'], [-8.5, .18, 11])) < .001
+                    and s['spawn_marker_id'] != 0 and s['spawn_marker_path'].endswith('/ShipyardWorld/PlayerSpawn')
+                    and math.hypot(s['player'][0]-s['authored_spawn'][0], s['player'][2]-s['authored_spawn'][2]) < .001
+                    and s['grounded'] and s['supported'] and s['capsule_enabled'] and s['lease'] and s['landed']
+                    and s['phase'] == 'INTRO' and not s['guided_complete'],
+                    'authored fresh spawn and occupied Halyard home')
+            require(len(s['fleet']) == 11 and len({x['id'] for x in s['fleet']}) == 11
+                    and len({x['home'] for x in s['fleet']}) == 11 and all(x['occupied'] for x in s['fleet']),
+                    'eleven distinct actual Main craft and occupied unique homes')
+        require(all(s[k] == self.initial[k] for k in self.IDS), 'same Player capsule craft default source seat and home')
+        require(s['default_controls'] and s['default_sampler'] and s['tuning_unchanged']
+                and s['ship_tuning'] == self.initial['ship_tuning'] and s['walk_tuning'] == LifeTowPilot.DEFAULT_WALK
+                and not s['remote_piloted'] and s['physics_ticks'] == 60 and s['time_scale'] == 1,
+                'authored controls exact default LocalShipInputSource/provider tuning and clock')
+        require([(x['id'], x['home']) for x in s['fleet']] == [(x['id'], x['home']) for x in self.initial['fleet']]
+                and all(x['occupied'] for x in s['fleet'] if x['id'] != s['ship_id']),
+                'same eleven current craft identities and other occupied homes')
+        look = s['look']
+        require(look['maximum_turn_degrees'] == look['definition_maximum_turn_degrees'] == 8
+                and look['definition_path'] == 'res://assets/ships/halyard_new_design.tres'
+                and s['ship_tuning']['mouse'] == .0022,
+                'actual authored Halyard eight-degree maximum turn and default sensitivity')
+        self.look_normalized |= look['source_next_sequence'] > 0
+        expected_pixels = math.radians(8) / abs(s['ship_tuning']['mouse']) if self.look_normalized else 140
+        require(math.isclose(look['pixels_per_axis'], expected_pixels, rel_tol=1e-6, abs_tol=1e-6),
+                'native source default140 before consumption then actual Halyard maximum-turn/sensitivity normalization')
+        require(not s['destroyed'] and s['hull'] > 0 and not s['sleeping'] and not s['approach_is_command_source'],
+                'live awake actors; Aurora readiness Node never becomes command source')
+        require(s['bootstrap']['world_id'] == 'aurora_temperate_world' and s['bootstrap']['body_id'] == 'aurora_temperate_body'
+                and s['bootstrap']['initial_body_center'] == [12000000, 0, 0] and s['bootstrap']['body_radius'] == 120000
+                and s['bootstrap']['navigation'] == [0, 130000, 0], 'canonical Aurora datum radius and navigation')
+        require(s['geometry'] == dict(region='aurora_foundation_landing', center=[0,120000,0], corridor=[0,60,300],
+                half_extents=[45,60,300], pad='aurora_pad', pad_size=[28,32], entry_half_extents=[42,25,75],
+                maximum_speed=12, maximum_attitude=12, hull_margin=.05), 'unchanged authored landing geometry and collision envelope')
+        approach = s['visit']['approach_source']
+        if approach.get('ready'):
+            binding = s['cruise']['final_approach']
+            require(s['approach_id'] != 0 and approach['generation'] >= 0 and approach['attachment_generation'] > 0
+                    and approach['coordinate_frame_generation'] == s['frame_snapshot']['generation']
+                    and approach['location_generation'] == s['bootstrap']['location_generation'],
+                    'actual current Aurora readiness Node and frame/location generations')
+            if binding['host_instance_id']:
+                require(binding['host_instance_id'] == s['approach_id'] and binding['host_generation'] == approach['generation']
+                        and binding['host_attachment_generation'] == approach['attachment_generation'],
+                        'cruise consumes exactly the registered Aurora readiness Node')
+        require(not s['convoy_active'] and s['visit']['staging_events'] == 0, 'idle activity and zero expedition staging')
+        require(s['visit']['orbit_ticks'] <= 48000 and s['visit']['corridor_ticks'] <= 12000
+                and s['visit']['cruise_resume_attempts'] <= 600 and s['surface']['landing_elapsed'] <= 60,
+                'original concurrent outbound corridor resume and landing budgets')
+        if previous:
+            require(s['sequence'] == previous['sequence'] + 1 and s['frame'] == previous['frame'] + 1,
+                    'every consecutive physical sample retained, including paused UI')
+            transactions = s['origin']['transactions'] - previous['origin']['transactions']
+            require(transactions in (0, 1), 'at most one committed common origin translation per sample')
+            translation = s['origin']['translation'] if transactions else [0, 0, 0]
+            if transactions:
+                require(s['origin']['receipt'].get('reason') == 'rebase_committed'
+                        and s['origin']['receipt'].get('transaction_index') == s['origin']['transactions']
+                        and s['visit']['journey']['last_origin_result'].get('accepted'),
+                        'actual accepted common-origin and journey rebase receipts')
+            ship_step = norm(sub(sub(s['position'], previous['position']), translation))
+            player_step = norm(sub(sub(s['player'], previous['player']), translation))
+            require(ship_step < 335 and player_step < 335, 'continuous same craft and Player under 335m every physics sample')
+            self.max_ship_step = max(self.max_ship_step, ship_step)
+            self.max_player_step = max(self.max_player_step, player_step)
+            if self.stage in ('travel', 'exit', 'surface_walk', 'pause', 'quit_wait'):
+                self.distance += ship_step
+                self.rebases += transactions
+            if s['native_interact'] and not previous['native_interact']:
+                self.native_edges.append(dict(stage=self.stage, frame=s['frame']))
+                self.native_begin |= self.stage == 'begin_shift'
+                self.native_board |= self.stage == 'board'
+                self.native_exit |= self.stage == 'exit'
+        if s['phase'] == 'BOARDING':
+            require(self.stage == 'board' and self.native_board and s['boarding_reserved'] and s['transition_busy'],
+                    'ordinary fresh E drives live reserved boarding animations')
+            self.boarding_seen = True
+        if s['seated'] and not s['transition_busy']:
+            require(s['piloted'] and s['active_ship'] and s['seated_at_pilot'] and s['ship_camera'] and not s['capsule_enabled'],
+                    'same actual Halyard pilot anchor and camera')
+        self.native_thrust |= s['native_thrust'] and s['flight_demand'] and s['engine'] == 'ONLINE'
+        if self.stage in ('walk', 'approach'):
+            self.require_foot(s, surface=False)
+        if self.stage in ('surface_walk', 'pause', 'quit_wait'):
+            self.require_foot(s, surface=True)
+            self.require_surface(s)
+        if self.stage == 'exit':
+            self.require_surface(s)
+        self.last_state = s
+        self.frame = s['frame']
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+
+    def require_foot(self, s, surface=False):
+        require(not s['seated'] and not s['piloted'] and s['control_enabled'] and s['capsule_enabled']
+                and s['capsule_geometry'] == self.initial['capsule_geometry'] and not s['transition_busy']
+                and s['grounded'] and s['supported'] and (not surface or s['surface_supported']),
+                'same awake controlled full capsule supported on actual floor')
+
+    def require_surface(self, s):
+        visit, g = s['visit'], s['gravity']
+        require(visit['state'] in ('landed', 'opening_exit', 'disembarking', 'surface') and s['surface']['current']
+                and s['surface']['strict'] and s['landed'] and s['engine'] == 'OFFLINE'
+                and visit['journey']['final_approach_handoff_ready']
+                and visit['journey']['final_approach_completion_receipt'].get('accepted'),
+                'real approach retirement and strict current occupied DOCKED offline Aurora lease')
+        require(s['frame_snapshot']['generation'] == s['cruise']['current_coordinate_frame_generation']
+                and s['frame_id'] == s['cruise']['coordinate_frame_instance_id'],
+                'arrival binds actual current Aurora frame independently of gravity source')
+        require(g['project_mps2'] == 18 and g['multiplier'] == 1 and abs(g['actual_mps2']-18) < .0001
+                and ((g['source'] == 'physics_space' and g['source_id'] == 0)
+                     or (g['source'] == 'moving_interior' and g['source_id'] != 0 and g['interior_current']))
+                and abs(norm(g['effective_vector'])-18) < .0001,
+                'authored actual effective gravity source vector and multiplier through exterior exit')
+
+    def steer(self, s, target):
+        """One bounded native look impulse, acknowledged before another is sent."""
+        direction = unit(sub(target, s['position']))
+        local = [dot(direction, s[a]) for a in ('right', 'up', 'back')]
+        alignment = -local[2]
+        look = s['look']
+        if self.look_pending_frame is not None:
+            if s['frame'] <= self.look_pending_frame + 2 or any(look['pending']) or look['yaw'] or look['pitch']:
+                return 0, 0, alignment
+            self.look_pending_frame = None
+        divisor = look['pixels_per_axis'] / math.radians(look['maximum_turn_degrees'])
+        yaw = math.atan2(local[0], -local[2])
+        pitch = math.atan2(local[1], math.hypot(local[0], local[2]))
+        clamp = lambda value: round(max(-70, min(70, value)))
+        dx, dy = clamp(yaw * divisor * .6), clamp(-pitch * divisor * .6)
+        if dx or dy: self.look_pending_frame = s['frame']
+        return dx, dy, alignment
+
+    def menu(self, s, now):
+        require(now-self.ui_since <= 10, 'original ten-second ordinary UI episode')
+        if self.ui_key:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_key = None; self.ui_release_until = now+.10
+            return set(), 0, 0, False
+        if now < self.ui_release_until or any(s['native_keys'].values()): return set(), 0, 0, False
+        if self.ui_pending:
+            action, before = self.ui_pending
+            if action == 'Tab':
+                require(s['ui']['focus_path'] != before, 'ordinary Tab changes actual focused control')
+            elif self.stage == 'setup_pause':
+                require(s['paused'], 'ordinary Escape opens pause'); self.enter('setup_activity', s)
+            elif self.stage == 'setup_activity':
+                require(s['ui']['activity_visible'], 'actual Activity Board opened'); self.enter('setup_select', s)
+            elif self.stage == 'setup_select':
+                require(s['selected_activity'] == 'convoy_escort', 'actual UI selects idle convoy'); self.enter('setup_back', s)
+            elif self.stage == 'setup_back':
+                require(s['ui']['main_visible'], 'ordinary Back returns to main'); self.enter('setup_resume', s)
+            elif self.stage == 'setup_resume':
+                require(not s['paused'], 'ordinary Resume'); self.enter('walk', s)
+            elif self.stage == 'destination_pause':
+                require(s['paused'], 'ordinary pause for Destination Board'); self.enter('destination_open', s)
+            elif self.stage == 'destination_open':
+                self.enter('destination_action', s)
+            elif self.stage == 'destination_action':
+                require(s['request_serial'] == self.initial['request_serial']+1 and s['visit']['state'] == 'outbound'
+                        and s['visit']['journey']['world_id'] == 'aurora_temperate_world',
+                        'fresh actual Aurora destination request accepted through normal UI')
+                self.receipts['destination_accepted'] = self.receipt(s)
+                self.enter('travel', s)
+            self.ui_pending = None
+            if self.stage in ('walk', 'travel'): return set(), 0, 0, False
+        if self.stage.endswith('_pause') or self.stage in ('setup_back', 'setup_resume'):
+            key = 'Escape'
+        else:
+            target = {'setup_activity':'ActivityBoardButton', 'setup_select':'ConvoyEscortActivityButton',
+                      'destination_open':'PlanetaryDestinationOpenButton',
+                      'destination_action':'PlanetaryDestinationAction_aurora_temperate_world'}[self.stage]
+            require(s['paused'] and s['ui']['focus_path'], 'actual paused keyboard UI focus')
+            if s['ui']['focus_name'] == target:
+                require(s['ui']['focus_visible'] and s['ui']['focus_enabled'], 'visible enabled authored UI action')
+                self.receipts[self.stage] = self.receipt(s)
+                key = 'Return'
+            else:
+                require(s['ui']['focus_path'] not in self.focus_seen and len(self.focus_seen) < 64, 'keyboard focus reaches literal action without cycle')
+                self.focus_seen.add(s['ui']['focus_path']); key = 'Tab'
+        self.ui_pending = (key, s['ui']['focus_path'])
+        self.ui_key, self.ui_until = key, now+.08
+        return {key}, 0, 0, False
+
+    def update(self, s, now):
+        require(self.last_state is s, 'all physical observations validated before OS input')
+        self.now = now
+        keys, dx, dy = set(), 0, 0
+        if self.stage.startswith(('setup_', 'destination_')): return self.menu(s, now)
+        if self.stage in ('pause', 'quit_wait'):
+            require(now-self.since <= 10, 'normal Quit ten-second UI bound')
+            return self.ui_update(s, now)
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s); self.tap('e', now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP':
+            require(self.native_begin, 'normal fresh OS E Begin Shift observed')
+            self.require_foot(s)
+            self.ui_since = now; self.enter('setup_pause', s)
+        elif self.stage == 'walk':
+            require(now-self.since <= 15, 'original fifteen-second station walking goal')
+            name, target = self.GOALS[self.goal_index]
+            dx, done = self.walk_to(s, target, keys)
+            if done:
+                self.visited.append(dict(name=name, frame=s['frame'], player=s['player']))
+                self.goal_index += 1
+                self.enter('walk' if self.goal_index < len(self.GOALS) else 'approach', s)
+                if self.stage == 'approach': self.board_since = now
+        elif self.stage == 'approach':
+            require(now-self.board_since <= 12, 'original live approach and boarding twelve-second bound')
+            if s['candidate'] and not s['station_candidate'] and not s['reboard_blocked'] and s['boarding_distance'] <= 7:
+                self.receipts['board'] = self.receipt(s); self.enter('board', s); self.tap('e', now)
+            else: dx, _ = self.walk_to(s, s['boarding'], keys)
+        elif self.stage == 'board':
+            require(now-self.board_since <= 12, 'normal authored boarding twelve-second bound')
+            if s['seated_at_pilot'] and not s['transition_busy']:
+                require(self.boarding_seen and self.native_board, 'full ordinary boarding animations and actual E')
+                self.receipts['seated'] = self.receipt(s); self.enter('neutral', s)
+        elif self.stage == 'neutral':
+            if s['frame']-self.stage_frame >= 90:
+                require(not s['flight_demand'] and s['lease'], 'ninety neutral seated physics ticks at home')
+                self.receipts['neutral'] = self.receipt(s)
+                self.departure = s['position'][:]
+                geometry = s['departure_geometry']
+                require(geometry['home_id'] == s['berth_id'] and geometry['aft_extent'] > 0
+                        and geometry['upper_operations_complete']
+                        and geometry['upper_operations_shape_count'] > 0,
+                        'actual same-home apron, complete UpperOperations and whole aft collision envelope')
+                self.departure_forward = unit(geometry['forward'])
+                self.departure_clearance = (max(dot(sub(geometry[edge], self.departure),
+                                                   self.departure_forward)
+                                                for edge in ('apron_foreedge', 'upper_operations_foreedge'))
+                                            + geometry['aft_extent'] + s['geometry']['hull_margin'])
+                self.departure_cleared = False
+                self.climb_direction = unit([.8*u-.6*b for u,b in zip(s['up'], s['back'])])
+                self.enter('climb', s)
+        elif self.stage == 'climb':
+            require(s['frame']-self.stage_frame <= 1800, 'original Aurora climb 1800 physics ticks')
+            # Keep the neutral home attitude through the ordinary automatic lift
+            # and forward exit; the entire aft hull must pass both the apron and
+            # UpperOperations roof/deck before a steep pitch can sweep it down.
+            self.departure_cleared |= (dot(sub(s['position'], self.departure), self.departure_forward)
+                                       > self.departure_clearance)
+            direction = self.climb_direction if self.departure_cleared else self.departure_forward
+            target = [p+d*1000 for p,d in zip(s['position'], direction)]
+            dx, dy, alignment = self.steer(s, target)
+            keys.add('w')
+            if norm(sub(s['position'], self.departure)) > 500:
+                require(self.native_thrust and s['lease_free'] and not s['landed'], 'ordinary W really departs and releases actual home')
+                self.receipts['departure'] = self.receipt(s); self.enter('align', s)
+        elif self.stage == 'align':
+            require(s['frame']-self.stage_frame <= 900, 'original Aurora alignment 900 physics ticks')
+            keys.add('Prior'); dx, dy, alignment = self.steer(s, s['navigation'])
+            quiet = not any(s['look']['pending']) and not s['look']['yaw'] and not s['look']['pitch'] and not dx and not dy
+            if alignment > .99995 and norm(s['ship_velocity']) == 0 and quiet:
+                if self.settle_frame is None: self.settle_frame = s['frame']
+                if s['frame']-self.settle_frame >= 4:
+                    self.receipts['aligned'] = self.receipt(s)
+                    self.ui_since = now; self.enter('destination_pause', s)
+            else: self.settle_frame = None
+        elif self.stage == 'travel':
+            require(s['frame']-self.stage_frame <= 48000, 'original full outward 48000 physics ticks including corridor and landing')
+            require(s['visit']['state'] != 'idle', 'ordinary Aurora visit stays active through arrival')
+            if s['visit']['state'] == 'landed' and s['engine'] == 'OFFLINE':
+                self.require_surface(s)
+                require(self.distance > 11800000 and self.rebases > 1100, 'canonical twelve-million-metre physical outbound and over1100 actual rebases')
+                self.receipts['landed'] = self.receipt(s)
+                self.enter('exit', s); self.tap('e', now)
+        elif self.stage == 'exit':
+            require(now-self.since <= 4 and s['frame']-self.stage_frame <= 240, 'original normal exterior exit four-second bound')
+            if s['visit']['state'] == 'surface' and not s['transition_busy'] and not s['seated']:
+                require(self.native_exit, 'distinct normal OS E exterior exit')
+                self.require_foot(s, True)
+                self.exit_origin = s['player'][:]; self.receipts['exterior'] = self.receipt(s)
+                self.enter('surface_walk', s)
+        elif self.stage == 'surface_walk':
+            self.walk_ticks = s['frame']-self.stage_frame
+            if self.walk_ticks < 20: keys.add('d')
+            else:
+                distance = norm(sub(s['player'], self.exit_origin))
+                require(.25 < distance < 5, 'twenty fresh supported same-Player walking ticks between .25m and5m')
+                self.walk_distance = distance; self.receipts['walked'] = self.receipt(s)
+                self.enter('pause', s)
+        if self.tap_key:
+            if now < self.tap_until or self.frame < self.tap_frame+6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None; self.tap_cooldown = now+.3; self.tap_release_frame = self.frame
+        return keys, dx, dy, False
+
+    def check_weapon_deadline(self, now):
+        pass  # No weapon phase exists on this outbound route.
+
+    def finish(self, exit_code):
+        require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait' and self.walk_ticks >= 20,
+                'normal HUD Quit and actual clean OS0 after outbound exterior walking')
+        self.result = dict(completion_marker=self.MARKER, normal_ui_exit=True, exit_code=exit_code,
+            stages=self.stages, phases=self.phases, receipts=self.receipts, visited=self.visited,
+            distance_flown_m=self.distance, rebases=self.rebases, max_ship_step_m=self.max_ship_step,
+            max_player_step_m=self.max_player_step, supported_walk_ticks=self.walk_ticks, walked_m=self.walk_distance,
+            same_actor_identities={k:self.initial[k] for k in self.IDS},
+            surface_survey='NOT_RUN', reward_save='NOT_RUN', full_return='NOT_RUN', full_solo_aurora='NOT_RUN')
+        return self.result
+
+
 class ZenithReturnReusePilot(ArrowReturnReusePilot):
     """Selected ordinary Zenith pilot/weapon/home/reuse member; other craft gates stay open."""
     MARKER = 'NATIVE_ZENITH_RETURN_REUSE_OK'
@@ -10771,6 +11148,22 @@ def capture_guided_shutdown(profile, output):
                 safe_start_recovery_state=payload.get('safe_start_recovery', {}).get('state'))
 
 
+def capture_aurora_shutdown(profile, output):
+    snapshot = capture_guided_shutdown(profile, output)
+    require(snapshot.get('captured'), 'actual Aurora post-exit primary is retained')
+    primary = Path(snapshot['path'])
+    backup = Path(str(primary)+'.bak')
+    require(backup.is_file() and not backup.is_symlink() and backup.resolve().is_relative_to(profile/'data'),
+            'actual Aurora backup inside original private profile')
+    raw = backup.read_bytes()
+    document = json.loads(raw)
+    require(document['schema_version'] == 1 and 0 < document['generation'] <= snapshot['document']['generation'],
+            'actual committed backup envelope and monotonic generation')
+    (output/'aurora-post-exit-backup.json').write_bytes(raw)
+    snapshot['backup'] = dict(path=str(backup), sha256=hashlib.sha256(raw).hexdigest(), document=document)
+    return snapshot
+
+
 def game_leg_arguments(base_arguments, route, output, leg):
     """Keep desktop engine logs outside the unsupported save directory."""
     arguments = list(base_arguments)
@@ -10800,7 +11193,7 @@ def game_leg_umask(route, future_format):
 
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
-    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol", "station-flash"), "known ordinary-input route")
+    require(route in ("aurora-outbound", "zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol", "station-flash"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     require((route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save')) == (retained_data is not None),
@@ -10825,14 +11218,14 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
     route_warnings = unsupported_class.WARNINGS if route == 'unsupported-save' else ()
     zenith_files = None
     outbound_timing = None
-    result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
+    result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': route_cap(route), 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
     def abort(_signal, _frame): raise TimeoutError('independent abort/deadline')
     old_signals = {sig: signal.signal(sig, abort) for sig in (signal.SIGALRM, signal.SIGTERM, signal.SIGINT)}
-    signal.setitimer(signal.ITIMER_REAL, CAP)
+    signal.setitimer(signal.ITIMER_REAL, route_cap(route))
     try:
-        temporary_profile = tempfile.TemporaryDirectory(prefix='mudds-native-sortie-')
+        temporary_profile = tempfile.TemporaryDirectory(prefix='mudds-native-sortie-', dir=output.parent if route == 'aurora-outbound' else None)
         if temporary_profile:
             profile = Path(temporary_profile.name)
             for name in ('data','config','cache','state','runtime','data-dirs','config-dirs','tmp'):
@@ -10952,12 +11345,12 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                              RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
                              CrewRecoveryPilot(cold=bool(leg), expected_pid=game.pid) if isinstance(restart_files, CrewRecoveryFiles) else
                              HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-escorted-withdrawal": CourierEscortedWithdrawalPilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "aurora-outbound": AuroraOutboundPilot, "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-escorted-withdrawal": CourierEscortedWithdrawalPilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol"), "station-flash": StationFlashPilot}[route]()))
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
-                    if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot)): pilot.expected_pid = game.pid
+                    if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot, AuroraOutboundPilot)): pilot.expected_pid = game.pid
                     if isinstance(pilot, StationFlashPilot): pilot.profile, pilot.output = profile, output
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
@@ -10968,9 +11361,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     code = record_terminal_game_exit(game, leg_result, output/'game.log')
                                     if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot, StationFlashPilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
-                                        tail = (game_leg_output_lines(output/'game.log',leg_log_offset) if unsupported_files else
-                                                (output/'game.log').read_bytes().splitlines())
-                                        for observation in observations_from_lines(tail, leg_warnings):
+                                        replay_offset = leg_log_offset if unsupported_files else 0
+                                        for observation in stream_log_observations(output/'game.log', replay_offset, leg_warnings):
                                             if (corrupt_files or unsupported_files) and observation['pid'] != game.pid: continue
                                             if observation['sequence'] > pilot.last_state['sequence']:
                                                 pilot.validate_observation(observation)
@@ -10986,10 +11378,10 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                         if corrupt_files: corrupt_files.finish_leg(leg, pilot)
                                         if unsupported_files: unsupported_files.finish_leg(leg, pilot)
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
-                                        if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot)):
+                                        if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot, StationFlashPilot, AuroraOutboundPilot)):
                                             leg_result['exit_ui'] = pilot.receipts['exit_ui']
-                                            result['post_exit_user_data'] = capture_guided_shutdown(profile, output)
-                                            if isinstance(pilot, (ZenithTorrentHandbackPilot, StationFlashPilot)):
+                                            result['post_exit_user_data'] = capture_aurora_shutdown(profile, output) if isinstance(pilot, AuroraOutboundPilot) else capture_guided_shutdown(profile, output)
+                                            if isinstance(pilot, (ZenithTorrentHandbackPilot, StationFlashPilot, AuroraOutboundPilot)):
                                                 closed = result['post_exit_user_data']
                                                 require(closed.get('captured') and closed.get('crash_recovery_state') == 'clean'
                                                         and closed.get('safe_start_recovery_state') == 'clean_shutdown',
@@ -11002,7 +11394,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
                                     break
                                 if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
-                                if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
+                                if time.monotonic()-start >= route_cap(route): raise TimeoutError(f'{route_cap(route)}-second sortie cap')
                                 if outbound_timing: outbound_timing.check_deadline(time.monotonic())
                                 if isinstance(pilot, ArrowReturnReusePilot):
                                     pilot.check_weapon_deadline(time.monotonic())
@@ -11177,6 +11569,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             if isinstance(pilot, GuidedExitPilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts,
                                                guided_prerequisite=pilot.guided_result)
+            if isinstance(pilot, AuroraOutboundPilot):
+                result['partial_aurora'] = dict(distance_flown_m=pilot.distance, rebases=pilot.rebases, max_ship_step_m=pilot.max_ship_step, max_player_step_m=pilot.max_player_step, native_edges=pilot.native_edges)
             if isinstance(pilot, ArrowReturnReusePilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts, trips=pilot.trips, weapon=pilot.weapon)
             if isinstance(pilot, CourierPilot):
@@ -11262,20 +11656,18 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             result['cleanup_errors'] = cleanup_errors
             result['success'] = False
         log_path = output/'game.log'
-        diagnostics = diagnostic_lines(log_path.read_bytes().splitlines()) if log_path.exists() else []
+        diagnostic_count, first_diagnostic, warning_counts = scan_log_diagnostics(log_path, route_warnings if route == 'unsupported-save' else ())
         if route == 'unsupported-save':
-            expected = [line for line in diagnostics if line in route_warnings]
-            diagnostics = [line for line in diagnostics if line not in route_warnings]
-            result['expected_warning_count'] = len(expected)
-            result['expected_warning_counts'] = {line.decode(): expected.count(line) for line in route_warnings}
-            result['unexpected_diagnostic_count'] = len(diagnostics)
-            if len(result.get('game_legs', [])) != 2 or any(expected.count(line) != sum(unsupported_class.WARNING_LEGS) for line in route_warnings):
+            result['expected_warning_count'] = sum(warning_counts.values())
+            result['expected_warning_counts'] = {line.decode(): count for line, count in warning_counts.items()}
+            result['unexpected_diagnostic_count'] = diagnostic_count
+            if len(result.get('game_legs', [])) != 2 or any(warning_counts[line] != sum(unsupported_class.WARNING_LEGS) for line in route_warnings):
                 result['success'] = False
                 result.setdefault('error', 'future-load warnings must match the exact declared per-process roster')
-        result['diagnostic_count'] = len(diagnostics)
-        if diagnostics:
+        result['diagnostic_count'] = diagnostic_count
+        if first_diagnostic is not None:
             result['success'] = False
-            result.setdefault('error', 'native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
+            result.setdefault('error', 'native game diagnostic: ' + first_diagnostic.decode('utf-8', errors='replace'))
         result['elapsed_seconds'] = round(time.monotonic()-start,3)
         for sig,handler in old_signals.items(): signal.signal(sig,handler)
         (output/'result.json').write_text(json.dumps(result,indent=2)+'\n')
@@ -11294,7 +11686,7 @@ def main():
                         help='unsupported-save format, default outer; settings/legacy require primary and their dedicated fixture')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol', 'station-flash'), default='guided',
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol', 'station-flash', 'aurora-outbound'), default='guided',
                         help='station-flash checks ordinary station OFF/ON/OFF/ON, final Save and normal UI exit using actual property readbacks; zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-escorted-withdrawal wounds the runner once, waits for both actual escorts, kills the defender and verifies withdrawal through strict home/physical exit; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':

@@ -61,6 +61,7 @@ func _run() -> void:
 		and _player.global_position.distance_to(world.get_player_spawn().origin)<0.25
 		and _game.get_flyable_ships().size()==11 and berth.get_occupant()==_ship
 		and berth.get_reservation_owner()==_ship,"actual normal Main spawn and eleventh production craft with occupied own home"): return
+	if not _test_physical_alignment(_ship,"Main initial OFFLINE"): return
 	var sources := {}
 	var poses := {}
 	var leases := {}
@@ -192,11 +193,17 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBerth,dock: Transform3D) -> bool:
 	if not _check(_hull_leg_clear(Vector3.UP*5),"whole production fitout clears exact departure lift"): return false
 	_engine_edges.clear()
+	var checked_starting := false
 	Input.action_press(&"move_forward")
 	for frame in 500:
 		if not bool(_ship.get_telemetry().landed) and not _ship._departure_lift_active: break
 		await _wait_frames(1)
+		if not checked_starting and StringName(_ship.get("_engine_state"))==HeroShip.ENGINE_STARTING:
+			if not _test_physical_alignment(_ship,"Main STARTING sortie="+str(sortie)): return false
+			checked_starting = true
 	_release_inputs()
+	if not _check(checked_starting,"actual STARTING alignment observed"): return false
+	if not _test_physical_alignment(_ship,"Main ONLINE departure sortie="+str(sortie)): return false
 	if not _check(_engine_edges.size()==2 and _engine_edges[0].state==HeroShip.ENGINE_STARTING
 		and _engine_edges[1].state==HeroShip.ENGINE_ONLINE
 		and is_equal_approx(float(_engine_edges[0].remaining),3.8)
@@ -213,6 +220,7 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 	var target := dock*Vector3(0,10,-31.2)
 	if not _check(_hull_leg_clear(target-_ship.global_position),"whole production hull clears flight lane"): return false
 	var arrived := false
+	var checked_pitch := false
 	for frame in 1800:
 		var offset := target-_ship.global_position
 		var distance := offset.length()
@@ -229,6 +237,9 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 		elif distance>0.45:
 			Input.action_press(&"move_forward",clampf((desired_speed-_ship.velocity.length())*0.3+0.13,0.12,0.8))
 		await _wait_frames(1)
+		if not checked_pitch and _ship.global_basis.get_rotation_quaternion().angle_to(dock.basis.get_rotation_quaternion())>0.01:
+			if not _test_physical_alignment(_ship,"Main actual pitch turn sortie="+str(sortie)): return false
+			checked_pitch = true
 		if frame%180==0: print("PREDATOR_FLIGHT: sortie=",sortie," frame=",frame," local=",dock.affine_inverse()*_ship.global_position," speed=",_ship.velocity.length())
 	_release_inputs()
 	var point := dock.affine_inverse()*_ship.global_position
@@ -236,6 +247,8 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 		and point.distance_to(Vector3(0,10,-30))<=2 and -point.z>=30 and _ship.velocity.length()<=0.5
 		and not berth.contains_oriented_bounds(_ship.global_transform,_ship.get_landing_collision_report().local_bounds),
 		"actual same Titan-controller flight endpoint="+str(point)+" speed="+str(_ship.velocity.length())): return false
+	if not _check(checked_pitch,"actual pitch-turn alignment observed"): return false
+	if not _test_physical_alignment(_ship,"Main steady flight sortie="+str(sortie)): return false
 	var shots := _shots
 	var projectiles := _projectiles
 	var health: float = float(_ship.get_telemetry().hull)
@@ -257,6 +270,7 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 	await _wait_frames(95)
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_OFFLINE
 		and not bool(_ship.get_telemetry().landed),"real neutral95 reaches airborne OFFLINE"): return false
+	if not _test_physical_alignment(_ship,"Main airborne OFFLINE sortie="+str(sortie)): return false
 	var generation := _game._transition_generation
 	await _tap(&"interact")
 	await _tap(&"interact")
@@ -286,6 +300,7 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 		"normal L within600 restores strict whole hull exact own dock/current occupied lease"): return false
 	await _wait_frames(95)
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_OFFLINE,"normal landed neutral95 shuts down"): return false
+	if not _test_physical_alignment(_ship,"Main landed OFFLINE sortie="+str(sortie)): return false
 	await _tap(&"interact")
 	for frame in 180:
 		if not _game._transition_busy and not _player.is_seated(): break
@@ -474,3 +489,84 @@ func _check(condition: bool,message: String) -> bool:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		quit(1)
 	return condition
+
+
+## Compose the live local hierarchy: world inverse products lose precision once
+## the real controller has travelled far from the world origin.
+func _ship_relative_pose(ship: HeroShip, node: Node3D) -> Transform3D:
+	var pose := node.transform
+	var parent := node.get_parent()
+	while parent != ship:
+		if not parent is Node3D:
+			return Transform3D(Basis.IDENTITY, Vector3.INF)
+		pose = (parent as Node3D).transform * pose
+		parent = parent.get_parent()
+	return pose
+
+
+func _test_physical_alignment(ship: HeroShip, phase: String, turning: bool = false) -> bool:
+	var shell := ship.get_node("PredatorOriginalShell") as Node3D
+	var bank := ship.get_node("PredatorCosmeticBank") as Node3D
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var live_bank := float(ship.get("_visual_bank"))
+	if not _check(ship.get_variant_visual_root() == shell
+		and _ship_relative_pose(ship,shell).is_equal_approx(Transform3D.IDENTITY)
+		and bank.get_parent() == ship and bank.get_meta("presentation_only",false)
+		and bank.get_child_count() == 1 and readout.get_parent() == bank
+		and bank.position == Vector3.ZERO and bank.rotation.x == 0 and bank.rotation.y == 0
+		and is_equal_approx(bank.rotation.z,live_bank)
+		and (not turning or absf(live_bank)>0.001), "stable physical hull; readout-only live cosmetic bank " + phase):
+		return false
+	var physical_count := 0
+	for child in ship.get_children():
+		if not child is CollisionShape3D:
+			continue
+		var collision := child as CollisionShape3D
+		if not collision.shape is ConvexPolygonShape3D:
+			continue
+		var label := String(collision.name).trim_suffix("Collision")
+		var mesh := shell.get_node_or_null(NodePath(label)) as MeshInstance3D
+		if not _check(mesh != null and mesh.is_visible_in_tree() and not collision.disabled
+			and _ship_relative_pose(ship,mesh).is_equal_approx(_ship_relative_pose(ship,collision)),
+			"actual visible mesh/collider hierarchy pose " + phase + " " + label):
+			return false
+		physical_count += 1
+	var paired_meshes := 0
+	var overlays := 0
+	var engine_active := StringName(ship.get("_engine_state")) in [HeroShip.ENGINE_STARTING,HeroShip.ENGINE_ONLINE]
+	var registered: Array = ship.get("_engine_core_glows")
+	for child in shell.get_children():
+		if not child is MeshInstance3D:
+			continue
+		var mesh := child as MeshInstance3D
+		if mesh.get_meta("presentation_only",false):
+			if not _check(mesh.name in ["PortExhaustGlow","StarboardExhaustGlow"]
+				and mesh.mesh is QuadMesh and mesh.get_child_count()==0
+				and not ship.has_node(String(mesh.name)+"Collision")
+				and registered.has(mesh) and mesh.visible==engine_active,
+				"separate noncolliding state-driven exhaust overlay " + phase + " " + mesh.name):
+				return false
+			overlays += 1
+		elif mesh.name != &"SternAccessControl":
+			var collision := ship.get_node_or_null(String(mesh.name)+"Collision") as CollisionShape3D
+			if not _check(collision != null and mesh.is_visible_in_tree() and not collision.disabled
+				and _ship_relative_pose(ship,collision).is_equal_approx(_ship_relative_pose(ship,mesh))
+				and not registered.has(mesh), "physical mesh has visible paired collider " + phase + " " + mesh.name):
+				return false
+			paired_meshes += 1
+	if not _check(physical_count==32 and paired_meshes==32 and overlays==2 and registered.size()==2,
+		"unchanged32 physical pairs and only two cosmetic engine overlays " + phase):
+		return false
+	for label in ["PilotSeat","PilotBack"]:
+		var mesh := ship.get_node(label) as MeshInstance3D
+		var collision := ship.get_node(label+"Collision") as CollisionShape3D
+		if not _check(mesh.is_visible_in_tree() and not collision.disabled
+			and _ship_relative_pose(ship,mesh).is_equal_approx(_ship_relative_pose(ship,collision)),
+			"actual production pilot furniture stays aligned " + phase + " " + label):
+			return false
+	var pilot := _ship_relative_pose(ship,ship.get_pilot_seat_anchor())
+	var eye := _ship_relative_pose(ship,ship.get_node("PredatorOriginalShell/PilotFixture/CockpitCamera") as Camera3D)
+	return _check(pilot.origin.distance_to(Vector3(0,1.45,-5.5))<0.000001
+		and eye.origin.distance_to(Vector3(0,3.21,-5.75))<0.000001
+		and pilot.basis.is_equal_approx(Basis.IDENTITY) and eye.basis.is_equal_approx(Basis.IDENTITY),
+		"actual exact pilot and cockpit eye remain in physical frame " + phase)

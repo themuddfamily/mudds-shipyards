@@ -8087,5 +8087,188 @@ class CrewRecoverySafetyTests(unittest.TestCase):
             with self.assertRaises(AssertionError): files.observe(s, pilot)
 
 
+class AuroraOutboundTests(unittest.TestCase):
+    def observation(self):
+        s = ArrowReturnReuseTests().observation()
+        s.update(mode='aurora-outbound', definition_id='halyard_new_design', home_id='halyard_fleet_dock_berth',
+            authored_spawn=[-8.5,.18,11],spawn_marker_id=999,spawn_marker_path='/root/StartupLoader/Main/ShipyardWorld/PlayerSpawn',
+            fleet=[dict(id=i+1, home=str(i), occupied=True) for i in range(11)], sleeping=False,
+            convoy_active=False, approach_is_command_source=False, approach_id=0, request_serial=0,
+            visit=dict(staging_events=0, orbit_ticks=0, corridor_ticks=0, cruise_resume_attempts=0,
+                       state='idle', approach_source={}, journey={}), surface=dict(landing_elapsed=0),
+            origin=dict(transactions=0, translation=[0,0,0], receipt={}),
+            bootstrap=dict(world_id='aurora_temperate_world', body_id='aurora_temperate_body',
+                           initial_body_center=[12000000,0,0], body_radius=120000, navigation=[0,130000,0]),
+            geometry=dict(region='aurora_foundation_landing', center=[0,120000,0], corridor=[0,60,300],
+                half_extents=[45,60,300], pad='aurora_pad', pad_size=[28,32], entry_half_extents=[42,25,75],
+                maximum_speed=12, maximum_attitude=12, hull_margin=.05),
+            look=dict(pending=[0,0], yaw=0, pitch=0, pixels_per_axis=140, maximum_turn_degrees=8, source_next_sequence=0,
+                      definition_path='res://assets/ships/halyard_new_design.tres', definition_maximum_turn_degrees=8),
+            cruise=dict(current_coordinate_frame_generation=1, coordinate_frame_instance_id=90),
+            frame_id=90, frame_snapshot=dict(generation=1),
+            gravity=dict(project_mps2=18, actual_mps2=18, multiplier=1, effective_vector=[0,-18,0],
+                source='physics_space', source_id=0, interior_current=False))
+        return s
+
+    def test_explicit_route_has_2700_cap_and_old_routes_keep_300(self):
+        self.assertEqual(native.CAP, 300)
+        self.assertEqual(native.route_cap('aurora-outbound'), 2700)
+        for route in ('guided','beacon-home','zenith-return-reuse','station-flash'):
+            self.assertEqual(native.route_cap(route), 300)
+        source = Path(native.__file__).read_text()
+        self.assertIn('signal.setitimer(signal.ITIMER_REAL, route_cap(route))', source)
+        self.assertIn('time.monotonic()-start >= route_cap(route)', source)
+        self.assertIn("'cap_seconds': route_cap(route)", source)
+        self.assertEqual(native.AuroraOutboundPilot.GOALS[:12], native.LifeTowPilot.ARM_GOALS[:12])
+        self.assertEqual([point for _,point in native.AuroraOutboundPilot.GOALS[12:]],
+                         [[37,4.2,68.3],[32.4,4.2,68.2],[32,4.2,62.2],[32,4.2,54.2]])
+
+    def test_authored_marker_and_physically_settled_start_are_distinct_producers(self):
+        p,s=native.AuroraOutboundPilot(),self.observation()
+        s['spawn'][1]=s['player'][1]=-.019863275811076164
+        p.validate_observation(s)
+        for mutate in (lambda v:v['authored_spawn'].__setitem__(1,0),
+                       lambda v:v.update(supported=False), lambda v:v.update(grounded=False),
+                       lambda v:v['player'].__setitem__(0,0)):
+            bad=copy.deepcopy(s);mutate(bad)
+            with self.assertRaises(AssertionError):native.AuroraOutboundPilot().validate_observation(bad)
+
+    def test_halyard_normalization_tracks_first_real_source_consumption_and_retains_it(self):
+        p,s=native.AuroraOutboundPilot(),self.observation();p.validate_observation(copy.deepcopy(s))
+        s['sequence']+=1;s['frame']+=1;s['look'].update(source_next_sequence=1,pixels_per_axis=math.radians(8)/.0022)
+        p.validate_observation(copy.deepcopy(s));self.assertTrue(p.look_normalized)
+        s['sequence']+=1;s['frame']+=1;s['look']['source_next_sequence']=0
+        p.validate_observation(copy.deepcopy(s))
+        s['sequence']+=1;s['frame']+=1;s['look']['pixels_per_axis']=140
+        with self.assertRaisesRegex(AssertionError,'normalization'):p.validate_observation(s)
+        initial=self.observation();initial['look']['maximum_turn_degrees']=18
+        with self.assertRaisesRegex(AssertionError,'eight-degree'):native.AuroraOutboundPilot().validate_observation(initial)
+
+    def test_every_physics_sample_rejects_gaps_pose_jumps_and_source_swap(self):
+        for mutate in (lambda s:s.update(frame=s['frame']+1), lambda s:s['position'].__setitem__(0,1000),
+                       lambda s:s.update(source_id=999), lambda s:s.update(default_sampler=False),
+                       lambda s:s.update(remote_piloted=True), lambda s:s['walk_tuning'].update(sprint=30),
+                       lambda s:s['visit'].update(staging_events=1)):
+            p,s=native.AuroraOutboundPilot(),self.observation();p.validate_observation(copy.deepcopy(s))
+            s['frame']+=1;s['sequence']+=1;mutate(s)
+            with self.assertRaises(AssertionError):p.validate_observation(s)
+
+    def test_only_actual_committed_translation_is_removed_from_physical_motion(self):
+        p,s=native.AuroraOutboundPilot(),self.observation();p.validate_observation(copy.deepcopy(s));p.stage='travel'
+        s['frame']+=1;s['sequence']+=1
+        for key in ('position','player'):s[key][0]-=10000
+        s['position'][0]+=333;s['player'][0]+=333
+        s['origin']=dict(transactions=1,translation=[-10000,0,0],receipt=dict(reason='rebase_committed',transaction_index=1))
+        s['visit']['journey']['last_origin_result']=dict(accepted=True)
+        p.validate_observation(s)
+        self.assertAlmostEqual(p.distance,333);self.assertEqual(p.rebases,1)
+        self.assertAlmostEqual(p.max_player_step,333)
+
+    def test_look_impulse_waits_for_actual_consumption_and_pending_release(self):
+        p,s=native.AuroraOutboundPilot(),self.observation()
+        s.update(position=[0,0,0],right=[1,0,0],up=[0,1,0],back=[0,0,1])
+        first=p.steer(s,[1000,1000,-1000]);self.assertTrue(first[0] and first[1])
+        self.assertLessEqual(max(abs(first[0]),abs(first[1])),70)
+        s['frame']+=3;s['look']['pending']=[1,0]
+        self.assertEqual(p.steer(s,[1000,1000,-1000])[:2],(0,0))
+        s['look']['pending']=[0,0];s['look']['yaw']=.2
+        self.assertEqual(p.steer(s,[1000,1000,-1000])[:2],(0,0))
+        s['look']['yaw']=0
+        self.assertNotEqual(p.steer(s,[1000,1000,-1000])[:2],(0,0))
+
+    def test_departure_holds_level_past_old_apron_bound_until_whole_upper_operations_clears(self):
+        p,s=native.AuroraOutboundPilot(),self.observation()
+        s.update(position=[37,4.2,53.3],right=[1,0,0],up=[0,1,0],back=[0,0,1],
+                 flight_demand=False,lease=True,
+                 departure_geometry=dict(home_id=s['berth_id'],forward=[0,0,-1],
+                     apron_foreedge=[37,4.2,36.3],aft_extent=14.55,
+                     upper_operations_foreedge=[-11.5,4,.77],
+                     upper_operations_shape_count=23,upper_operations_complete=True))
+        p.stage='neutral';p.stage_frame=s['frame']-90;p.last_state=s
+        p.update(s,1)
+        self.assertEqual(p.stage,'climb')
+        self.assertAlmostEqual(p.departure_clearance,67.13)
+        old_apron_clearance=53.3-36.3+14.55+s['geometry']['hull_margin']
+        self.assertAlmostEqual(old_apron_clearance,31.60)
+        # At 31.61m the previous policy pitched while the aft hull still
+        # overlapped the real UpperOperations roof at z=23.11. The conservative
+        # whole-structure bound includes the further-forward landing rail.
+        self.assertGreater(53.3-31.61+14.55,23.11)
+        for forward in (0,4,31.59,31.61,67.12):
+            s['frame']+=4;s['position']=[37,8.2,53.3-forward]
+            keys,dx,dy,_=p.update(s,2)
+            self.assertIn('w',keys);self.assertEqual((dx,dy),(0,0))
+            self.assertFalse(p.departure_cleared)
+        s['frame']+=4;s['position']=[37,8.2,53.3-67.14]
+        keys,dx,dy,_=p.update(s,3)
+        self.assertIn('w',keys);self.assertNotEqual(dy,0)
+        self.assertTrue(p.departure_cleared)
+        p.stage_frame=s['frame']-1801
+        with self.assertRaisesRegex(AssertionError,'1800'):p.update(s,4)
+        p.stage='align';p.stage_frame=s['frame']-901
+        with self.assertRaisesRegex(AssertionError,'900'):p.update(s,4)
+
+    def test_authored_gravity_is_honest_and_aurora_arrival_requires_independent_lease(self):
+        p,s=native.AuroraOutboundPilot(),self.observation()
+        s['visit'].update(state='landed',journey=dict(final_approach_handoff_ready=True,
+                           final_approach_completion_receipt=dict(accepted=True)))
+        s['surface'].update(current=True,strict=True)
+        p.require_surface(s)
+        for mutation in (lambda v:v['gravity'].update(actual_mps2=9.8),
+                         lambda v:v['gravity'].update(source='moving_interior',source_id=5),
+                         lambda v:v['surface'].update(strict=False),
+                         lambda v:v['gravity'].update(multiplier=.5),
+                         lambda v:v['cruise'].update(current_coordinate_frame_generation=2)):
+            bad=copy.deepcopy(s);mutation(bad)
+            with self.assertRaises(AssertionError):p.require_surface(bad)
+
+    def test_original_outbound_and_exit_member_caps_are_not_extended(self):
+        p,s=native.AuroraOutboundPilot(),self.observation();p.last_state=s;p.stage='travel';p.stage_frame=s['frame']-48001
+        with self.assertRaisesRegex(AssertionError,'48000'):p.update(s,1)
+        p.stage='exit';p.since=1;p.stage_frame=s['frame']
+        with self.assertRaisesRegex(AssertionError,'four-second'):p.update(s,5.001)
+
+    def test_aurora_rejects_retained_and_beacon_flags_before_engine_or_output(self):
+        with self.assertRaises(AssertionError):
+            native.run(Path('/unused'),Path('/unused-output'),'aurora-outbound',qualify_beacon_outbound=True)
+        with self.assertRaises(AssertionError):
+            native.run(Path('/unused'),Path('/unused-output'),'aurora-outbound',retained_data=Path('/unused'))
+
+
+class NativeStreamingLogTests(unittest.TestCase):
+    def test_terminal_replay_is_single_pass_and_honors_exact_tail_offset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'game.log'
+            prefix=b'ordinary startup\n'+native.PREFIX+b'{"sequence":1}\n'
+            path.write_bytes(prefix+native.PREFIX+b'{"sequence":2}\n')
+            with patch.object(native.json,'loads',wraps=json.loads) as decode:
+                self.assertEqual(list(native.stream_log_observations(path,len(prefix))),[{'sequence':2}])
+                self.assertEqual(decode.call_count,1)
+
+    def test_every_line_uses_existing_diagnostic_classifier_and_exact_counts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'game.log'; warning=b'WARNING: expected'
+            path.write_bytes(b'PASS: allowed\n'+warning+b'\nERROR: first\nERROR: second\n')
+            with patch.object(native,'diagnostic_lines',wraps=native.diagnostic_lines) as classify:
+                count,first,expected=native.scan_log_diagnostics(path,(warning,))
+                self.assertEqual(classify.call_count,4)
+            self.assertEqual((count,first,expected),(2,b'ERROR: first',{warning:1}))
+            with self.assertRaisesRegex(RuntimeError,'ERROR: first'):
+                list(native.stream_log_observations(path,allowed_warnings=(warning,)))
+
+    def test_aurora_ready_generation_zero_is_current_and_binding_stays_exact(self):
+        p,s=native.AuroraOutboundPilot(),AuroraOutboundTests().observation()
+        s['visit']['approach_source']=dict(ready=True,generation=0,attachment_generation=1,
+                                         coordinate_frame_generation=1,location_generation=2)
+        s['approach_id']=42;s['bootstrap']['location_generation']=2
+        s['cruise']['final_approach']=dict(host_instance_id=42,host_generation=0,host_attachment_generation=1)
+        p.validate_observation(copy.deepcopy(s))
+        for key,value in (('generation',-1),('coordinate_frame_generation',2),('location_generation',3)):
+            bad=copy.deepcopy(s);bad['visit']['approach_source'][key]=value
+            with self.assertRaises(AssertionError):native.AuroraOutboundPilot().validate_observation(bad)
+        bad=copy.deepcopy(s);bad['cruise']['final_approach']['host_generation']=1
+        with self.assertRaises(AssertionError):native.AuroraOutboundPilot().validate_observation(bad)
+
+
 if __name__ == '__main__':
     unittest.main()

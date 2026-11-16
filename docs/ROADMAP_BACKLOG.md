@@ -7,6 +7,18 @@ The [working roadmap](../ROADMAP.md#current-work-and-next-selection) selects exe
 [delivery history](history/ROADMAP_DELIVERIES.md) records accepted and failed attempts.
 This backlog preserves remaining scope, not a ready queue or remaining-job count.
 
+**Owner allowance reset, 2026-11-16:** all unfinished tasks receive a renewed
+correction allowance of **0 used** against their last positive approved limit,
+or **one** if none was recorded. Completed tasks are excluded. The reset applies
+once per task and supersedes older exhausted-allowance permission requirements
+in this backlog and linked records. Select resumed work into a fresh bounded
+all-in window under the [working roadmap](../ROADMAP.md#owner-allowance-reset).
+No further approval is needed solely for the historical exhausted count or
+expired deadline. Retain historical counts, failures, source and cumulative
+cost; preserve actual causal/dependency/input conditions, all acceptance checks
+and original test/journey caps. This does not mark tasks passed or ready, or
+authorize blind retries. Record each renewed allowance on its selected card.
+
 | Find | Existing section |
 | --- | --- |
 | Original promises and their named children | [36-parent crosswalk](#coverage-of-the-original-remaining-outcomes) |
@@ -41,12 +53,13 @@ record its accepted 2026-11-05 definition closure. That closure delivers no
 gameplay and does not close the implementation or qualification goals.
 
 Current routine-repair policy: [working roadmap failure boundary](../ROADMAP.md#fixed-budget-and-failure-boundary).
-Compiler/test-fixture mistakes may be repaired within their original absolute
+Compiler/test-fixture mistakes may be repaired within their selected absolute
 budget without owner permission; preserve all checks, costs and original
 requirements. This supersedes mechanical-error-only approval wording while
-leaving expired/substantive parked reopening conditions binding. The station
-startup-test static-call repair resumes under this rule; no silence/approval,
-new deadline or successful ordinary result is inferred.
+leaving actual causal parked reopening conditions binding. The owner allowance
+reset above governs historical exhausted counts and expired windows. The station
+startup-test static-call repair retains its recorded scope; no successful
+ordinary result is inferred.
 
 <a id="owner-design-baselines-20261105"></a>
 ## Eight missing craft — modern design baselines adopted2026-11-05
@@ -64,10 +77,10 @@ at adoption the fleet remained9/17. Subsequent Titan minimum Main pilot/checkpoi
 | [Vortex](design/VORTEX_IMPLEMENTATION_PROPOSAL.md) | Standalone original hull/definition/timed pilot controller card1 delivered 0c2f322e4 viacde60feb6, paired checkpoint0c2f322. Not registered in Main; fleet remains10/17. Card2 physical-access attempt1416c9ece PARKED/archived/unmerged: actual ramp motion exceeds the frozen z12.0001 envelope atz12.078866. Repair1/1 consumed; explicit reprioritization plus measured trajectory reconciliation/new bounded budget required. Card3 gated; full craft/production/role/recovery/network qualification stays open. |
 | [Paradox](design/PARADOX_IMPLEMENTATION_PROPOSAL.md) | Standalone original hull/definition/timed pilot controller card1 delivered f3c20bf10 via624761483, paired checkpointf3c20bf. Not registered in Main; fleet remains10/17. Continuous standalone physical access card2 delivered 2898b63d1 via0cf71a5d4, checkpoint2898b63. Own berth card3 attempt9d124e5cd PARKED/unmerged: actual Player hits intact south ConnectorSideStarboard atz39.44; flag opened north side. Repair1/1 consumed. Explicit reprioritization/new bounded budget retaining originalcases/cost required; own berth remains unaccepted and Main integration gated. Subsequent role/combat/recovery/network cards remain open. Vortex access and Titan remote remain parked; no automatic retry or new assignment is selected. |
 | [Katana](design/KATANA_IMPLEMENTATION_PROPOSAL.md) | Standalone original hull/definition/timed pilot controller card1 delivered b0f97baf1 via4b1c19777, paired checkpointb0f97ba. Not registered in Main; fleet10/17 and10physical berths. Access card2 PARKED/unmerged bf5834b22: actual closed ramp/sill overlap after sole winding repair; original cases/cost/failures retained in verified archive, explicit reprioritization plus renewed bounded repair budget required. Production integration, comparative handling card6, combat/service/recovery/network remain open. Paradox berth, Vortex access and Titan remote stay parked; no automatic retry or next assignment. |
-| [Predator](design/PREDATOR_IMPLEMENTATION_PROPOSAL.md) | Standalone original hull/definition/timed HeroShip pilot foundation card1 delivered 53201f8e0 via2140a1a22, paired checkpoint53201f8. Continuous landed physical access card2 delivered b803cd377 viad8620b1d7, paired checkpointb803cd3: same actual Player real Interact/apron/ramp/full aisle/exact helm stand/return/seal twice at identity and elevated35yaw, every completed walking/motion tick audited. Full foundation all16fields/14profiles/registered6,3.8s startup and unarmed behavior retained; complete source/PCK cases/startup3/maps/audit9 pass. Own reachable home berth infrastructure card3 delivered 3bd0c0619 viac93cc9e05, paired checkpoint3bd0c06: independent supported starboard spur/deck/control and same normal-spawn Player return; exact offset strict volume/defaultZERO/failclosed, full hull/departure/approach/camera and old10 poses/leases conserved. Seven source cases, new berth plus foundation/both access actual PCK cases, ordinary Main source/PCK ALONE, strictstartup3/maps/audit9 pass. Ordinary Main pilot-loop card4 delivered 16a6361a4 via0c5bb67b8, paired checkpoint16a6361: actual production pilot fitout, same normal-spawn Player full station/ramp/aisle/helm, two complete3.8s-start/launch/flight/unarmed/strict-own-home/OFFLINE/inside-stand/physical-exit sorties and physical reboard, correct identity/dynamic console and unchanged old10 craft. Nine full source cases, new Main plus berth/foundation/both access PCK, full Titan Main source/PCK ALONE with clean Quit, strictstartup3/maps/audit9/three views/eight artifacts pass. Main11/17 and11physical berths; early scoped card5 package delivered. Moving cabin, detention roles/cell, network, full damage/service/recovery/save, whole Main re-entry and full-craft qualification remain pending. Katana access bf5834, Paradox berth9d124, Vortex access1416 and Titan remote867 stay parked; no retry or next assignment. |
-| [Dynamic](design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md) | Codex selects its first dependency-ready bounded BUILD-SPLIT capability; implement and prove it under the accepted baseline. |
-| [Utopia](design/UTOPIA_IMPLEMENTATION_PROPOSAL.md) | Codex selects its first dependency-ready bounded BUILD-SPLIT capability; implement and prove it under the accepted baseline. |
-| [Salyut](design/SALYUT_IMPLEMENTATION_PROPOSAL.md) | Codex selects its first dependency-ready bounded BUILD-SPLIT capability; implement and prove it under the accepted baseline. |
+| [Predator](design/PREDATOR_IMPLEMENTATION_PROPOSAL.md) | Standalone original hull/definition/timed HeroShip pilot foundation card1 delivered 53201f8e0 via2140a1a22, paired checkpoint53201f8. Continuous landed physical access card2 delivered b803cd377 viad8620b1d7, paired checkpointb803cd3: same actual Player real Interact/apron/ramp/full aisle/exact helm stand/return/seal twice at identity and elevated35yaw, every completed walking/motion tick audited. Full foundation all16fields/14profiles/registered6,3.8s startup and unarmed behavior retained; complete source/PCK cases/startup3/maps/audit9 pass. Own reachable home berth infrastructure card3 delivered 3bd0c0619 viac93cc9e05, paired checkpoint3bd0c06: independent supported starboard spur/deck/control and same normal-spawn Player return; exact offset strict volume/defaultZERO/failclosed, full hull/departure/approach/camera and old10 poses/leases conserved. Seven source cases, new berth plus foundation/both access actual PCK cases, ordinary Main source/PCK ALONE, strictstartup3/maps/audit9 pass. Ordinary Main pilot-loop card4 delivered 16a6361a4 via0c5bb67b8, paired checkpoint16a6361: actual production pilot fitout, same normal-spawn Player full station/ramp/aisle/helm, two complete3.8s-start/launch/flight/unarmed/strict-own-home/OFFLINE/inside-stand/physical-exit sorties and physical reboard, correct identity/dynamic console and unchanged old10 craft. Nine full source cases, new Main plus berth/foundation/both access PCK, full Titan Main source/PCK ALONE with clean Quit, strictstartup3/maps/audit9/three views/eight artifacts pass. Main11/17 and11physical berths; early scoped card5 package delivered. Moving cabin, detention roles/cell, network, full damage/service/recovery/save, whole Main re-entry and full-craft qualification remain pending. Katana access bf5834, Paradox berth9d124, Vortex access1416 and Titan remote867 stay parked; no retry or next assignment. Physical presentation alignment delivered cc387367b via424297cf2, paired checkpointcc38736: physical hull/helm/eye aligned through turns, solid OFFLINE exhaust and separate cosmetic bank/glow; full7source/5PCK cases, both Main sorties/clean Quit,3staged views/startup3/maps/audit9 pass. Main11/17 unchanged; card6 local chairs unstarted, no new role/frame or native/human qualification. All historical parked attempts remain closed; no Salyut/trio source included. Local-chair/consent card6 candidate6f1fb71aa PARKED/unmerged: source8+Titan and5Predator PCK cases pass; final Titan PCK saved diagnostic ring lacks required session_ended, while separate diagnostic replay passes. Original failure unresolved; no new accepted build or Main credit. Exact candidate/raw/failed EXE retained in predator-local-seats-20261106 archive; original75min/0-of-2 repairs/cumulative cost retained, explicit owner reprioritization needed to reopen. |
+| [Dynamic](design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md) | First foundation batcha0446136e PARKED/unmerged/archived. Standalone complete flight fixture passes source96ceb4be3, but combined release gates remain unperformed. Main remains11/17; no new checkpoint. Original45minute cost/cases and full source retained under /srv/mudds-work/fleet-foundations-20261106; explicit owner reprioritization and renewed bounded repair allowance required before reopening. |
+| [Utopia](design/UTOPIA_IMPLEMENTATION_PROPOSAL.md) | First foundation batcha0446136e PARKED/unmerged/archived. Standalone complete flight fixture passes source96ceb4be3, but combined release gates remain unperformed. Main remains11/17; no new checkpoint. Original45minute cost/cases and full source retained under /srv/mudds-work/fleet-foundations-20261106; explicit owner reprioritization and renewed bounded repair allowance required before reopening. |
+| [Salyut](design/SALYUT_IMPLEMENTATION_PROPOSAL.md) | First foundation batcha0446136e PARKED/unmerged/archived. Actual solid engine panels become invisible while colliders remain active OFFLINE; second substantive repair is not authorized (bank repair1/1 consumed). Main remains11/17; no new checkpoint. Original45minute cost/cases and full source retained under /srv/mudds-work/fleet-foundations-20261106; explicit owner reprioritization and renewed bounded repair allowance required before reopening. |
 
 Historical authentication and third-party redistribution remain unchanged;
 these are honestly labelled modern interpretations, not evidence of recovered
@@ -231,12 +244,13 @@ next stop. Renamed or split cards retain cumulative cost; review neither
 replenishes the allowance nor authorizes automatic retry.
 
 The selected card fixes its total correction allowance (default one) and absolute
-deadline including closure before editing. Neither replenishes when a new cause
-or branch is found. Validate the final allowed correction; any further failed
-predicate then means FAIL/PARKED and cleanup. Reaching the absolute deadline is
-also terminal. No additional correction or same-run reopening/deadline extension.
-A later explicit user
-reprioritization retains prior cost and names the superseded terminal boundary.
+deadline including closure before editing. Apply the 2026-11-16 owner reset above
+to unfinished tasks instead of reusing their exhausted historical counts or
+expired windows. Once renewed, neither allowance nor deadline replenishes when
+a new cause or branch is found. Validate the final allowed correction; any
+further failed predicate then means FAIL/PARKED and cleanup. Reaching the new
+absolute deadline is also terminal. Further authorization retains prior cost
+and names the superseded terminal boundary.
 Each PASS predicate binds an actual observation and expected value; failed
 compound assertions retain operand values. Dependent commands launch only after
 their prerequisite exit/results pass. Missing observations leave the cause unknown.
@@ -3451,7 +3465,49 @@ explicitly unimplemented. No branch/worktree/scratch created; closure/push stays
 within20:05:51,with prior definition/failed-attempt costs retained.
 
 <a id="solo-aurora-rime-ordinary-contracts"></a>
+
+**Accepted Aurora access/outbound capability — 2026-11-16, source455c15c9f5,
+checkpoint455c15c.** The normal packaged OS-input driver now completes fresh
+Boot/station access/full Halyard boarding, destination UI and physical canonical
+12,011,130.831772m/1163-rebase journey through strict Aurora landing/OFFLINE,
+normal exterior exit,20supported walking ticks/1.293092m and normal HUDQuitOS0.
+All47462 observations are consecutive; unchanged actors/default input/clock,
+no staging, original1800/900/48000/12000/2700/2760 and tighter limits pass.
+Actual primary15/backup14 retain both clean markers; rawdiagnostics0/allcleanup
+pass. Independent raw/source GO,323native/9package/fullprivacy/compiler,
+pairedexports/startup3/equal1575maps/revieweddelta and audit9 pass; published
+Windows EXE/ZIP/notes and paired Linux bytes match. Renewed correction1/2 used;
+all priorcost/failures remain archived. See current ROADMAP and
+`/srv/mudds-work/aurora-outbound-20261116/closeout.json` for release/closure.
+**This closes only access/outbound executable capability.** Full survey/reward/
+save/reboard/ascent/home-return/full SOLO-AURORA remain OPEN; nativeWindows/
+GPU/device/audio/human/final gates remain NOT_RUN. Historical stops below remain
+failures of their exact earlier candidates, not acceptance of those snapshots.
+
+
+Later same-window additional correction b7371e0db is also PARKED/unmerged:
+actual aft hull clears apron but contacts UpperOperations/SolidBatch02/Collision01.
+Full native fails original1800-tick climb at1801ticks/38.327007m rather than>500m;
+zero diagnostics/all cleanup pass. Fresh323native/9package/source/privacy/paired
+startup3/maps pass, no full journey/finalizer/publication acceptance. Both repairs
+used2/2; owner must authorize further guidance change. Same12:51:33UTC deadline,
+all original cases and cumulative cost remain, with both failures/diagnostics
+preserved in the adjacent current-roadmap continuation archive/closeout.
+
+
+Owner-approved same-candidate Aurora continuation on2026-11-15 is PARKED before
+cruise: exact4e9ec1de2 fresh full packaged trial fails unchanged1800-tick climb
+at1801ticks, maximum departure4.522889m rather than>500m. Native thrust/ONLINE/
+default source/home release pass; physical contact cause remains unobserved.
+No routine caller correction proven, no new substantive allowance, retry,
+checkpoint or runtime merge. Original95.817minutes plus continuation actual cost
+and all attempts remain retained. Current [roadmap result](../ROADMAP.md#current-work-and-next-selection)
+and `/srv/mudds-work/aurora-outbound-resume-20261115/closeout.json` bind the
+archive, cleanup and exact additional-correction reopening condition.
+
 #### Aurora and Rime — ordinary solo journey contracts
+
+SOLO-AURORA access/outbound candidate4e9ec1de2 is PARKED/unmerged2026-11-06 at its original14:38–16:08UTC all-in boundary. Full source322+9/import/privacy/paired exports/startup3/equalmaps pass. First metadata-read failure, valid-generation0 caller failure and bounded IO repair1/1 are retained; final continuous partial run reaches703rebases before task-budget stop, not arrival/exit/Quit. No approved time extension, no new checkpoint or automatic retry. See ROADMAP for exact source/cumulative conditions and verified archive; complete canonical journey remains OPEN.
 
 Definition2026-10-27 19:25:52–19:50:52UTC,source5ea3bacd9. Two read-only agents
 bind separate world objectives/persistence; root owns ordinary controls/limits,

@@ -13,9 +13,14 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **16a6361** — [Windows ZIP](builds/windows/MuddsShipyards-16a6361-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-16a6361-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-16a6361-linux-x86_64.tar.gz).
+Latest playable checkpoint: **455c15c** — [Windows ZIP](builds/windows/MuddsShipyards-455c15c-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-455c15c-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-455c15c-linux-x86_64.tar.gz).
+The ordinary Aurora outbound release driver now completes fresh Boot, physical
+Halyard access/departure, canonical travel, strict landing, supported surface
+walking and normal clean Quit. Full survey/reward/save/return qualification
+remains open. Earlier accepted game content remains included.
+
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -26,9 +31,302 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-16a6361-predator-main-preview.png). Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
+
+<a id="owner-allowance-reset"></a>
+
+### Owner allowance reset — 2026-11-16
+
+The owner reset correction allowances for **all unfinished tasks**. Each task
+now has **0 used** against its last positive approved limit, or **one** if no
+positive limit was recorded. Completed tasks are excluded. This is one reset
+per unfinished task, not a reset on every retry or new branch. Aurora received
+**0/2** at this reset and used **1/2** for the accepted outbound renewal below;
+its previous **2/2** remains historical fact.
+
+This authorization supersedes older exhausted-allowance permission requirements
+throughout this roadmap, the backlog and linked task records. On selection,
+record a fresh bounded all-in window under the existing budget rules; do not ask
+again solely because the historical allowance or deadline was exhausted.
+Preserve all prior failures, source and cumulative cost. Original acceptance
+checks and per-test/journey caps, causal reopening conditions, dependencies and
+external inputs remain binding. No task becomes PASS or READY merely from this
+reset. Historical records below and in archives remain unchanged.
+
+### SOLO-AURORA ordinary access/outbound — PASS, outbound capability only
+
+Accepted source **455c15c9f5c7813ca0c20f574c0fb2bac30aa586**, integrated by
+**8ff44c0939e8d00e810752194689d615fd4caf50**; paired checkpoint **455c15c**.
+The ordinary OS-input route now keeps Halyard level until its aft hull clears
+both the actual dock apron and Upper Operations collision geometry, then uses
+the original climb. No world/physics/default-provider change supplied the route.
+
+Full packaged Boot/access/boarding/destination/cruise/strict Aurora landing/
+OFFLINE/exterior walking/normal HUD Quit passes: **12,011,130.831772m**,1163
+rebases,47462 consecutive observations, maximum ship/Player steps333.331435/
+333.332412m (<335),staging0. Climb706/1800ticks,alignment219/900,outward44444/
+48000,corridor4723/12000,landing32.883333s/60 all retain the original limits.
+Actual same controlled capsule walks20supported ticks/1.293092m after normal
+exterior exit. OS0,rawdiagnostics0; actual primarygen15/backup14 both retain
+crashclean/safeclean_shutdown. Inputs and owned game/Xvfb/helper are reaped.
+Independent HIGH full-raw/source review GO; full323native/9package Python,
+compiler/whole CLI privacy, paired exports/strictstartup3/equal1575maps/reviewed
+payload delta and all9package predicates pass. Seven published artifacts match
+the audited bytes. These are Linux/Xvfb/XTest/Dummy results, not native Windows
+or GPU/device/audio/human qualification.
+
+Renewed allowance **1/2 used**; prior131.341minutes and every earlier failure
+remain retained. Current source/raw/release records and closure cost are at
+`/srv/mudds-work/aurora-outbound-20261116/`; prior Nov6/Nov15 archives remain.
+Main11/17 is unchanged. **Surface survey, reward/save, complete physical return
+and full SOLO-AURORA remain OPEN.** No automatic successor is selected. The
+selected window and dated failed-attempt records below describe their earlier
+state; their failures are not reclassified as passes.
+
+**Selected renewal 2026-11-16 13:46:38→15:16:38UTC,90minutes ALL-IN.**
+Same contract and archived b7371e0db lineage; owner reset grants0/2 corrections,
+with all prior131.341minutes/source/failures retained. One bounded implementer
+owns the existing native runner/tests/passive observer; root owns full release
+and integration; one independent HIGH reviewer checks source and final raw.
+The correction binds level departure to actual enabled UpperOperations collision
+bounds as well as the apron and actual aft extent, then the original climb.
+No world/physics/input-provider change or dropped acceptance case is selected.
+Full existing source/privacy, paired exports/startup3/maps, one complete ordinary
+Aurora journey, audit9/checkpoint/merge/push/archive/owned cleanup remain required.
+Original1800climb/900alignment/>500m departure and2700/2760 route/member caps
+are unchanged. First failure stops dependent gates; causal corrections use the
+remaining renewed allowance and same deadline. Full task card and current raw:
+`/srv/mudds-work/aurora-outbound-20261116/`. Earlier stops follow as history.
+
+**Latest continuation stop, 2026-11-15: b7371e0dbb9bdbc360882e1ffc98e89f1e29b3dc
+is unaccepted and unmerged.** The approved additional correction keeps ordinary
+W and home attitude until actual aft geometry clears the apron, then pitches;
+no world/physics change. Full323 native Python/9 package, compiler/CLI privacy,
+paired exports/startup3/equal1575maps pass. The full native run fails95.800s at
+same1800-tick climb gate: entry2298,trigger4099,1801ticks, maximum38.327007m
+instead of>500m. Passive readbacks directly identify AftBayDeckCollision against
+UpperOperations/SolidBatch02/Collision01 at(37.63,5.70,23.11),depth.630349m,
+normal(0,.598235,.801321),zero travel. Apron-only clearance was insufficient;
+the same aft sweep catches the forward roof. Rawdiagnostics0/all4cleanuptrue.
+No full outbound pass, retry, package finalizer/audit, publication or runtime merge.
+
+The earlier exact-pose staged probe confirms apron/rung/slab intersections and
+raised-pose clearance; its first invalid body-removal probe is retained as invalid.
+An observation-only replay cleared the original apron without contact and was
+stopped before acceptance; this never counted as a fix. Both native failures,
+all diagnostic source/raw/packages and prior records remain in the verified
+continuation archive; only archive/closeout remain after owned cleanup.
+
+Same original finishing deadline12:51:33UTC and all cumulative cost remain.
+Both substantive corrections are now used2/2. Further guidance changes require
+explicit owner authorization; no automatic successor, clock reset, narrowed
+route or threshold change. The concrete remaining correction is to include
+UpperOperations in the physical clearance condition, followed by every original
+source/package/journey/checkpoint/integration gate. Latest accepted build remains
+cc38736; Main11/17 and full survey/reward/save/return/native/hardware gates unchanged.
+
+**Owner-authorized continuation, 2026-11-15 11:51:33→12:51:33 UTC.**
+Resume the same archived candidate4e9ec1de2 for one 60-minute finishing window.
+Owner additionally approved contact diagnosis and ONE additional substantive
+correction on2026-11-15 at12:03:55UTC after the departure failure below. The
+same12:51:33UTC deadline and full original cases remain; allowance is now1/2
+used before the cause-specific repair. First failed continuation remains archived.
+All original cases,2700/2760s route caps, tighter member limits, earlier failures
+and95.817minutes spent remain attached. Substantive repair allowance stays1/1
+used; this approval extends time, not scope or the repair allowance. Root owns
+restoration, unchanged full packaged run, release/integration/cleanup; one HIGH
+reviewer checks the original contract and final result. Existing five-file
+ownership and all cases in the retained frozen card remain binding. No other
+parked task is reopened. Acceptance still requires full arrival/landing/supported
+surface walking/normal Quit, original source/package gates, reviewed audit,
+merge/push and owned cleanup; first unexpected failure stops dependent gates.
+Current continuation record: `/srv/mudds-work/aurora-outbound-resume-20261115/`.
+**Continuation result: first-failure stop, unmerged.** Fresh unchanged-source
+322 native Python/9 package checks, import/direct observer/loader, full CLI
+privacy, paired exports and all three strict startups pass; complete1575-entry
+maps match, with only the two intended scripts and typed node_ids metadata.
+The complete native route stops91.958s after launch at its original climb cap:
+entryframe2282, triggering observation4083 (1801ticks against1800), maximum
+actual departure4.522889m against required>500m. Ordinary thrust, ONLINE engine,
+default sampler and released home lease are observed. Initial authored lift
+works; position remains near home after pitching despite increasing velocity.
+Exact contact collider/normal is absent; obstruction is plausible, not proven.
+Independent review NO-GO: no routine assertion/caller correction is established.
+Raw diagnostics0; inputs/game/Xvfb/helper cleanup all pass. No blind retry,
+weakened threshold, extra repair, package finalization, runtime merge or checkpoint
+publication. Repair1/1 remains used. Closure cost and archive are recorded in the
+adjacent continuation closeout. Reopening needs exact physical contact cause
+and explicit authorization for an additional substantive correction, retaining
+both windows, all failures and complete original acceptance. The earlier
+parked result follows unchanged.
+
+Unmerged candidate **4e9ec1de22dd16c55077b15203646c653eb4280b** adds the explicit ordinary Aurora driver/observer,
+private CLI admission and regression checks. Source review GO;322 native Python
+and9 package tests, import/direct observer/loader/whole CLI privacy, paired safe
+exports, three strict startups and reviewed equal1575-entry maps pass. No
+checkpoint is published and none of this candidate is merged into Main.
+
+First candidatea2de33aa7 stops24.464s before input on optional absent metadata;
+actual source operands also correct authored-versus-settled spawn and Halyard8°
+look normalization. Candidate0097d192b physically walks/boards/selects/departs and
+travels1141rebases, then rejects valid initial approachgeneration0. Producer
+starts0/arm retains0/retire increments; binding accepts>=0. No gameplay defect
+is established. Full origin-registry dumps also produce6.527GB logs and unbounded
+whole-file replay/diagnostic processing; postfailure scan is manually reaped.
+All original raw bytes are losslessly gzip/hash verified and retained.
+
+Final candidate4e9ec1de2 accepts exact current generation0 binding, projects
+only required receipt scalars and streams every original raw line/check. It
+reaches fresh Boot,actual idle-convoy UI/full Halyard walk/boarding/90neutral/
+departure/destination UI and continuous unstaged travel. At task-budget stop,
+frame26989,outbound orbit_ticks23687,
+703rebases. **Arrival, surface exit/walk,
+normal Quit and full outbound PASS remain unperformed.** No limit or physical
+predicate was removed; no survey/reward/full return is claimed.
+
+Original14:38→16:08UTC90minute ALL-IN clock and1/1 substantive pipeline IO repair
+retained, including both prior stops and final partial trial. Remaining distance
+and cleanup cannot fit the original window. Owner extension to16:30 was requested
+but unanswered before stopping; no approval inferred and no clock reset. Native
+execution stopped16:05:11; archive/ref/worktree cleanup finished16:08:52.364,
+already52.364s past the original deadline. This overrun and final verification
+cost remain recorded in the adjacent closeout rather than claimed within budget. Reopen
+only after explicit owner reprioritization retaining all source/failures/cost and
+passing the complete original2700/2760 route plus tighter members/checkpoint/
+audit/review/cleanup. No unchanged retry or successor is selected automatically.
+
+Verified source bundle, exact rejected/partial ELF packages, all raw/source/
+privacy/build/map data and task-budget snapshot are retained in
+`/srv/mudds-work/aurora-outbound-20261106/records.tar.gz`; adjacent closeout records
+actual cost and exact owned ref/worktree/process cleanup. Latest accepted
+checkpoint **cc38736**,Main11/17 and all earlier eight PARKED records remain
+unchanged. NativeWindows/GPU/device/audio/human/fullworld/final gates stay open.
+
+### Predator local guard/detainee chairs and consent — card6 PARKED, unaccepted
+
+Unmerged clean candidate **6f1fb71aac5273130bf81b1e01fa7edba2e302c0** extends
+accepted0ef216d65/cc38736 with physical GUARD/DETAINEE chairs, the approved open
+partition passage, explicit voluntary Interact consent, FIRE/Interact withdrawal,
+blocked-stand protection and ordinary on-foot cleanup. No cell sealing, travelling
+occupants, network or full-craft claim. **None of this candidate is in Main.**
+
+Eight focused source cases and full original Titan Main passed. Full extended
+Predator Main retains ordinary local-chair routes and both original complete
+sorties. Three staged production geometry views, paired safe exports, three
+strict startup checks and equal1577-entry maps/reviewed payload delta passed.
+The actual Windows PCK under Linux passed full Predator Main, occupied berth,
+foundation and both access profiles. Original cases/limits/guards were retained.
+
+Release stopped at the final Titan PCK clean-Quit gate. Gameplay exited0 with
+one success marker, no raw diagnostics, locker4/ship0 and clean_shutdown/clean,
+but its saved diagnostic ring ended at sequence3/tick5082/84.69999999999648s,
+**control_source_changed instead of required session_ended**. Saved generations
+55–59 confirm missing terminal persistence, not an event appended after closure.
+Existing GameFlow3427–3472 can close the marker while diagnostic persistence
+fails; HUD25073–25077 quits regardless. The actual rejection is not in the first
+run's log, and no cause in the Predator changes has been demonstrated.
+
+One separate full read-only diagnostic replay passed155.632s and showed normal
+observation_persisted/clean close. That does not resolve the original155.069s
+failure. A cloned-ring restore/append also passed. No assertion was weakened and
+no retry was accepted as proof of a fix. Final package audit/publication/merge
+were not run. Latest accepted checkpoint remains **cc38736**, Main11/17 craft
+and11 berths. Existing native/hardware/human/full-craft gates remain open.
+
+Original **13:36→14:51UTC,75minutes ALL-IN**, two-substantive-repair limit
+(**0 used**) and all failures/cost remain attached to this card. Remaining time
+cannot cover an underlying source fix and the full original same-source suite,
+fresh exports/PCK and closure. Do not rename, shorten or restart it automatically.
+Reopen only after explicit owner reprioritization: capture the exact rejected
+runtime diagnostic write, repair its cause, then pass all original gates. No
+parked predecessor or Salyut/trio source is included and no next task is selected.
+
+Verified source bundle, exact rejected EXE/profile, original raw cases, separate
+diagnostic replay and build/metadata records are retained in
+`/srv/mudds-work/predator-local-seats-20261106/records.tar.gz`; adjacent closeout
+records actual cumulative cost and exact owned branch/worktree/process cleanup.
+
+### Predator physical presentation alignment — ART-FINDINGS DONE (scoped graphics checkpoint)
+
+Source **cc387367b**, merged/pushed via **424297cf2**, keeps Predator's physical hull,
+helm and cockpit eye aligned with its collision frame through actual turns.
+Both solid exhaust panels remain visible OFFLINE. Separate nonphysical glow
+overlays follow existing engine state, and the authored4-degree cosmetic bank
+acts only on the presentation root. Existing hull hide/restore ownership is
+forwarded to the separated physical visuals. No roles or moving cabin are added.
+
+Seven complete clean-source cases pass: foundation90s, both access180s profiles,
+occupied berth240s, definitions120s, registry180s and ordinary Predator Main600s
+ALONE. Five source-isolated actual Windows PCK cases repeat full foundation,
+identity/transformed access, occupied berth and ordinary Main at original limits.
+Main retains both complete sorties, physical exit/reboard and normal clean Quit
+(clean_shutdown/clean/session_ended) in source and PCK. Every case exits0 with
+one exact marker/raw0 and source/cache/head/worktree guards. Actual controller
+startup, turns and shutdown assert solid mesh/collider and physical helm/eye
+agreement without pose, velocity or clock overrides; original cases are retained.
+
+Three inspected private Xvfb/x11/GLES/Dummy views offline-exhaust, online-bank
+and cockpit-eye use the actual production prefab and inherited3.8s startup/yaw
+fixture with staged ambient/sun lighting. Production lighting,
+native GPU, device/audio and human readability remain NOT_RUN/unqualified.
+Fresh paired checkpoint **cc38736** passes three strict startup checks, equal
+complete payload maps, reviewed one-production-file delta and all nine existing
+package predicates. Eight artifacts include the Windows EXE/ZIP/notes/alignment
+preview and paired Linux executable/archive/export result/notes.
+
+**Main remains11/17 flyable craft and11 physical berths.** This scoped graphics
+repair is a prerequisite to local chairs; card6 remains unstarted. Moving cabin,
+guard/detainee/cell detention, networking, full damage/service/recovery/save,
+whole Main re-entry and full craft/release qualification remain pending. All historical
+parked attempts stay closed; no Salyut fix or trio source is included.
+Original12:45→13:45UTC60minute all-in budget and two-production-repair allowance
+(1 used) retained. Source bundle, baseline/compiler,
+all7source/5PCK raw cases,8supervisor statuses, views and export/map/audit records
+are retained in verified `/srv/mudds-work/predator-render-alignment-20261106/records.tar.gz`;
+adjacent closeout records publication and exact process/ref/worktree cleanup.
+No retry or next assignment is selected.
+
+### Dynamic/Utopia/Salyut foundation batch — PARKED, source retained
+
+Combined unmerged candidate **a0446136e** retains the three new original craft
+scenes/controllers and the shared runtime fixture. Dynamic and Utopia each pass
+the complete standalone fixture at clean96ceb4be3: exact adopted values, all17
+actual numeric profiles/registered-six policy, actual geometry/entry/eye,
+real startup/flight/turn/brake/OFFLINE and second flight, one center fire origin
+and cooldown, stable physical mesh/helm/eye through actual turns. They have not
+passed the complete combined release card and are not merged or Main-registered.
+Main remains11/17; latest playable checkpoint stays16a6361.
+
+Salyut stops the combined sequence. Actual OFFLINE startup shows PortDriveCore
+and StarboardDriveCore **visible=false, collidable=true**: the script registers
+solid engine panels in HeroShip's cosmetic glow visibility array. Proposed
+one-line removal is retained for owner review; it has NOT been applied. Salyut's
+ONE substantive allowance was already used correcting cosmetic bank moving solid
+meshes/physical helm frames. Dynamic's bank fix likewise uses1/1; Utopia uses0/1.
+Additional Salyut repair requires explicit owner reprioritization and a renewed
+bounded allowance, retaining cumulative original cost and every original case.
+No automatic continuation, renaming or smaller subset reopens this candidate.
+
+Two caller errors were measured and corrected without relaxing comparators:
+world inverse roundtrip at179m produced15micrometre local-pose error while the
+actual hierarchy was exact; cached Mesh.get_faces vertices differed61.807micrometres
+while actual render-buffer vertices matched collision EXACTLY. Fixture now reads
+physical hierarchy/render buffers and explicitly requires visible solid meshes.
+Corrected final fixture sourcea0446136e is retained, not claimed runtime-validated.
+Earlier runner directory collision was corrected and original worktree restored;
+all attempts and exact operands remain retained.
+
+Remaining source definitions/registry/physical-switching/full ordinary Predator
+Main, captures, exports/startup3, actual PCK fixtures/Main, audit9 and publication
+are NOT_RUN for this candidate. No unaccepted runtime is merged and no new
+checkpoint published. Original12:10→12:55UTC45minute all-in budget, frozen cases,
+source histories, proposed patch and failure records are retained in verified
+`/srv/mudds-work/fleet-foundations-20261106/records.tar.gz`; adjacent closeout
+records actual cost and exact process/ref/worktree/scratch cleanup. Owner question
+for one further Salyut repair remains unanswered at closure. Full craft/access/
+berth/function/lifecycle/network and native/human gates stay open/NOT_RUN.
 
 ### Predator ordinary Main pilot loop — build card4 DONE (first live pilot checkpoint)
 
@@ -1126,7 +1424,7 @@ Use this small table for the cases, then fill the last column at closure:
 | Product choice or external resource missing | State the exact question/artifact and its owner using the [existing input contracts](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources) | Answer/resource recorded; no inferred approval and no blocked implementation |
 | Runtime or ordinary caller missing, but behavior defined | Select its bounded implementation with a fixed check | Implemented result passes that check, or failure is parked; a caller/component check alone cannot qualify the ordinary journey |
 | Prerequisite unfinished | Name its existing ID and required result | Dependency actually passes before dependent work launches |
-| Earlier attempt parked | Retain its failure, source, cumulative cost and causal reopening condition | Reopen only under that condition; exhausted allowance/deadline also requires later explicit user reprioritization |
+| Earlier attempt parked | Retain its failure, source, cumulative cost and causal reopening condition | Apply the owner allowance reset above where eligible, then satisfy actual causal/dependency conditions and record the renewed allowance and fresh bounded window |
 
 An undefined goal is **BLOCKED definition**; an unavailable choice/resource is
 **BLOCKED input**; an unfinished prerequisite is **GATED**. OPEN and UNSCHEDULED
@@ -1139,6 +1437,8 @@ Estimate implementation, checks, required checkpoint, integration and cleanup
 larger production capabilities before starting. Full journeys and soaks retain
 their original durations; do not shorten them to fit an implementation card.
 Default correction allowance is one; freeze it and the absolute deadline first.
+For unfinished tasks covered by the 2026-11-16 owner reset, use the renewed
+allowance above rather than carrying forward an exhausted historical count.
 
 Stop dependent checks at the first unexpected failure and retain its actual
 operands/output. Every correction needs a demonstrated cause and cumulative-cost
@@ -1149,13 +1449,14 @@ They still require a clean candidate and rerunning the complete affected gates;
 no check, threshold or endpoint may be dropped to obtain a pass.
 
 Frozen correction allowances apply to substantive production/behavior repairs.
-Their exhaustion, an unresolved product requirement or the hard deadline parks
-the task. New names, branches or smaller subsets never reset cumulative cost or
-extend a deadline. Expired or substantively blocked parked attempts retain their
-recorded reopening conditions and explicit priority decisions. This is not a
-blanket retry of old work. No dependent check starts before its prerequisites
-pass; unrelated defects return to their existing owner. Ask the user for real
-product/scope/resource decisions, not approval to repair a mistake in a test.
+Exhausting the renewed allowance, an unresolved product requirement or the new
+window's hard deadline parks the task. New names, branches or smaller subsets
+never reset cumulative cost or extend a deadline. The owner reset supersedes
+historical allowance/deadline permission barriers; actual causal reopening
+conditions and dependencies remain. No dependent check starts before its
+prerequisites pass; unrelated defects return to their existing owner. Ask the
+user for real product/scope/resource decisions, not approval already supplied
+by the reset or approval to repair a mistake in a test.
 
 ### What counts as finished
 
@@ -1232,8 +1533,9 @@ Select one ready delivery or qualification goal from an existing row; fill its
 card before editing or running checks. A broad craft/activity/world container is never one assignment. Follow
 literal prerequisite IDs; independent ready capabilities may run in parallel
 with disjoint ownership. A parked task needs its recorded causal reopening
-condition and cumulative-cost decision before selection; exhausted limits also
-require the explicit user reprioritization described above.
+condition and cumulative-cost decision before selection. Apply the owner reset
+above to historical exhausted allowances and expired windows; it supplies that
+authorization without another permission question.
 
 Close each assignment before moving on: actual result and proof, merge/push
 accepted changes, required playable checkpoint, and owned branch/worktree/process

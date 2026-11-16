@@ -1,5 +1,23 @@
 # Agent collaboration policy
 
+## Owner-authorized unfinished-task allowance reset — 2026-11-16
+
+- The owner reset correction allowances for every unfinished task, including
+  parked, failed, blocked and gated tasks. Each receives a fresh used count of
+  zero and its last positive approved correction limit, or one if none was
+  recorded. Completed tasks are excluded. This reset applies once per task;
+  changing branches, retrying or splitting work does not replenish it again.
+- This instruction supplies the authorization previously required solely for
+  an exhausted allowance. Select resumed work into a fresh bounded all-in window
+  under the existing roadmap budget rules; historical expired deadlines do not
+  require another permission question. Original test and journey caps stay fixed.
+- Preserve prior failures, source archives, actual elapsed cost and historical
+  allowance counts. Record the renewed allowance separately on the selected
+  task card. Do not rewrite old closeouts or claim a failed task passed.
+- Actual causal reopening conditions, dependencies, missing product decisions,
+  hardware inputs and acceptance gates remain binding. The reset does not make
+  every unfinished task ready or authorize blind retries.
+
 ## Automated test audio
 
 - Every automated Godot invocation must include `--audio-driver Dummy`, including
