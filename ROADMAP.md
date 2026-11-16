@@ -49,8 +49,19 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-16
 
+**Latest owner renewal: 2026-11-16 21:02:44 UTC.** Every task still unfinished
+at this renewal receives **0 used** against its last positive approved limit,
+or **one** if none was recorded. This includes tasks that consumed renewed
+allowances earlier today. Apply this renewal once per unfinished task, including
+parked, failed, blocked and gated work; completed tasks are excluded. Earlier
+used counts below are historical and do not reduce this fresh allowance.
+On resumption, record the renewed count and a fresh bounded all-in window;
+retain previous elapsed cost, failures and all original acceptance gates.
+
+Earlier reset history:
+
 The owner reset correction allowances for **all unfinished tasks**. Each task
-now has **0 used** against its last positive approved limit, or **one** if no
+then received **0 used** against its last positive approved limit, or **one** if no
 positive limit was recorded. Completed tasks are excluded. This is one reset
 per unfinished task, not a reset on every retry or new branch. Aurora received
 **0/2** at this reset and used **1/2** for the accepted outbound renewal below;
