@@ -15,9 +15,11 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **04a0de1** — [Windows ZIP](builds/windows/MuddsShipyards-04a0de1-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-04a0de1-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-04a0de1-linux-x86_64.tar.gz).
+Latest playable checkpoint: **5e7db65** — [Windows ZIP](builds/windows/MuddsShipyards-5e7db65-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-5e7db65-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-5e7db65-linux-x86_64.tar.gz).
+Paradox now has its own reachable empty home berth ([staged geometry preview](builds/windows/MuddsShipyards-5e7db65-paradox-berth-preview.png)); Main remains 11 flyable craft / 12 physical berths.
+
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Together with Vortex, Paradox and Katana, all six craft outside Main now have
@@ -638,35 +640,52 @@ source bundle, raw checks/source-cache guards/views and package records remain
 in verified `/srv/mudds-work/katana-foundation-20261106/records.tar.gz`; adjacent
 closeout records actual publication and owned branch/worktree/process cleanup.
 
-### Paradox own reachable home berth — card3 renewal in progress
+### Paradox own reachable home berth — card3 DONE (berth scope)
 
-**Owner-reset renewal2026-11-16 15:09:02→16:39:02UTC,90minutes ALL-IN.**
-Same original card3/9d124 source and measured south-rail blocker; current main
-591a0f846 and all accepted craft/Aurora/foundations retained. Prior33.262minutes
-and every failure remain preserved. Renewed0/1 allowance; the actual south-side
-opening repair uses1/1. HIGH implementer owns the original source/test integration
-plus mechanical current Predator roster expectations; root owns release/docs/
-cleanup, independent HIGH reviewer checks shared docking/spatial/actual results.
-Clean candidate5e7db655248b925b334e7542b7da0830a8e4b44d preserves accepted
-ShipBerth center behavior and adds only its composed-volume readback accessor.
-Current world has11oldflyable/11oldberths plus newunoccupiedParadox=12berths;
-all11oldposes/centers/leases includingPredator are protected. Paradox is NOT
-Main-registered by this card. North rail remains full/default-safe; only the
-production south gap opens onto supported newspur. Original walking/control/
-return/lease/closed+deployedfit/8mlift/forward/chase cases and all caps remain.
-Original7sourcecases plus whole existingPredatorberth300 regression, unchanged
-fullTitanMain300 ALONE source/PCK, wholePCKberth300,3fixedviews,pairedexports/
-strictstartup3/maps/audit9/eightartifacts/merge/push/archive/ownedcleanup required.
-Firstcandidatea8 passed all8source suites; fullTitanMain failed its muzzle-local
-measurement because the ship moved0.022345m during9ticks after emission. Exact
-emission-frame error was0.00000574m. Routine test-only correction5e captures
-local origin in the existing emission callback, retaining the .01m tolerance,
-all actions/counts/damage/ownership and all caps. Independent HIGH SOURCE_GO;
-production bytes unchanged, substantive allowance remains1/1. All8source cases
-and complete Main are rerun on5e before render/export/PCK; no earlier pass
-counts as final acceptance. Original failed run and diagnostic remain retained.
-Fresh card/records: `/srv/mudds-work/paradox-berth-renewal-20261116/`. Historical
-counts/deadlines/failed statuses below describe the earlier attempt only.
+Accepted source **5e7db655248b925b334e7542b7da0830a8e4b44d**, integrated by **0900a07521ffca5ba9d2d5f04a00fb899122e381**; paired checkpoint **5e7db65**.
+Paradox now has an empty 20 × 38 m supported home deck, a 2.8 m spur from the existing
+Titan connector, safety rails, approach sign and its own conserved
+`paradox_home_berth` reservation/occupancy lease. The actual normal Main Player
+walks the full unchanged Titan route, new spur and future stern-control approach,
+then physically returns. Every completed walk tick retains support, clearance,
+continuity and ordinary 2.5 m reach. All 11 old craft/berth poses and leases survive.
+
+The production repair opens the actual south Titan rail onto new support;
+north stays intact. Tight landing volume center (0,3,2), half-extents (9,4,17) fits closed
+and deployed candidate; ship root, broad capture and departure stay root-based.
+Actual hull/access queries, complete 8 m lift, 28 m forward path/staging lane and default
+chase camera clear. Wrong-tag, occupied and stale leases refuse atomically.
+Eight exact source suites, full ordinary Titan Main, three inspected fixed views,
+fresh paired exports, all three strict startup checks and equal complete payload maps pass.
+Actual Windows PCK under pinned Linux Godot separately passes the complete new
+berth fixture and full Titan Main from blank source-isolated directories.
+Actual primary state is crashclean/safeclean_shutdown/session_ended. Existing
+nine package audit checks and all eight published artifacts pass independent HIGH review.
+
+**Main remains 11/17 flyable craft, now with 12 physical berths.** Paradox is empty
+and unregistered in production; the once-staged test candidate proves geometry,
+not a Main craft journey. Card 4 ordinary Main boarding/flight/home/exit/reboard
+is the next dependency, not completed by this card. Crew, weapons, lifecycle,
+network, native Windows/GPU/device/audio/human/fullcraft/fullrelease gates remain
+open/NOT_RUN. GitHub Actions remains disabled. No successor is assigned here.
+
+Fresh owner-reset window 2026-11-16 15:09:02→16:39:02UTC; production repair 1/1.
+Prior 33.262 minutes and original failed source/raw archive remain preserved.
+First renewal candidate a8 passed eight source suites but full Main exposed a late-frame
+muzzle measurement: ship drift 0.022345 m over nine ticks versus emission error 0.00000574 m.
+Routine test-only 5e captures local origin in its existing emission callback;
+all actions/counts/damage/ownership, .01m tolerance and per-case caps remain.
+All eight source suites and full Main were rerun on 5e before dependent release gates.
+Earlier 90 s capture timeouts and Intro-only images were rejected; routine external
+camera-order/normal-HUD-start corrections retain the original three views, full world,
+quality, settling waits and 90 s cap. Final actual images show the intended geometry.
+The failed run, causal diagnostic, exact source bundle, fresh raw runs, actual
+reviews/views/package records and allowance ledger are preserved in verified
+`/srv/mudds-work/paradox-berth-renewal-20261116/records.tar.gz`; adjacent closeout
+records actual cumulative cost and owned branch/worktree/process cleanup.
+
+**Historical Nov6 attempt below:** retained as failed, with its original count,
+clock, source and causal gate. Current accepted result is above.
 
 Goal / contract: [approved Paradox card3](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-cards--after-owner-approval-only). Foundation/access cards1–2 accepted; Vortex access/Titan remote remain parked. This card adds actual station geometry and docking authority, not Main craft registration.
 Result: normal Main Player walks existing station route through Titan connector to a new supported Paradox spur/deck/sign and future stern-control approach; own valid unoccupied paradox_home_berth supports exact modern candidate geometry and compatible conserved lease. Main flyable fleet remains10/17; no candidate spawn/role/combat integration.
