@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ships/ship_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+ship_id = &"utopia_provisional"
+display_name = "Utopia-class Dropship candidate"
+role_name = "Supply dropship"
+evidence_status = 1
+evidence_references = PackedStringArray("A3: creator-authored roster captured 2009-11-12T09:12:26Z, written Utopia-class Dropship name and supply role only")
+evidence_notes = "A3 establishes the written Utopia-class Dropship name and supply role only. Name-to-model mapping remains unknown. Hull, scale, payload, access, systems, weapon, pressure encounter and handling are original modern interpretation under the owner-adopted Utopia implementation proposal; no historical geometry or completed supply capability is claimed. This standalone pilot foundation implements no cargo, crew, boarding or battle integration."
+compatibility_tags = PackedStringArray("medium_craft", "supply_dropship", "utopia_supply", "cargo")
+maximum_speed = 71.0
+boost_speed = 93.0
+thrust_acceleration = 19.0
+brake_acceleration = 31.0
+passive_drag = 1.75
+throttle_response = 5.8
+boost_multiplier = 1.23
+yaw_speed_degrees = 40.0
+roll_speed_degrees = 51.0
+flight_assist_strength = 3.7
+visual_bank_degrees = 4.0
+maximum_mouse_turn_degrees = 10.5
+engine_start_time = 3.45
+weapon_cooldown = 0.62
+maximum_hull = 250.0
+landing_maximum_speed = 10.5
+entry_noun = "stern hatch"
+entry_open_verb = "open"
+entry_close_verb = "seal"
+boarding_verb = "board"
+audio_profile_id = &"heavy_quad_freighter"
