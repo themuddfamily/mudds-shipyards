@@ -735,8 +735,11 @@ func _test_pilot_cannon() -> void:
 		and adapter.get_target_entity() == target and is_equal_approx(_ship.weapon_cooldown, 0.62),
 		"Titan1110 owns unchanged650m/70 cannon and real production lifecycle target")
 	var shots: Array[Dictionary] = []
+	# The muzzle contract belongs to the emission frame; normal drift during
+	# the ten-frame observation wait must not transform its recorded origin.
 	var emitted := func(origin: Vector3, direction: Vector3) -> void:
 		shots.append({"tick": Engine.get_physics_frames(), "origin": origin, "direction": direction,
+			"local_origin_at_emission": _ship.to_local(origin),
 			"telemetry": _ship.get_telemetry(), "readout": _ship.call("_get_cockpit_system_readout")})
 	_ship.projectile_fired.connect(emitted)
 	var damages: Array[float] = []
@@ -753,7 +756,7 @@ func _test_pilot_cannon() -> void:
 		and bool(hit.get("damaged", false)) and hit.get("target_entity") == target
 		and request != null and request.source_entity == _ship and request.source_id == 1110
 		and request.weapon_id == GameFlow.JOVIAN_COMBAT_WEAPON_ID
-		and _ship.to_local(shots[0].origin).distance_to(Vector3(0, 1.1, -8.9)) < 0.01,
+		and (shots[0].local_origin_at_emission as Vector3).distance_to(Vector3(0, 1.1, -8.9)) < 0.01,
 		"normal held FIRE emits exactly one centre shot and one70 damage event with Titan ownership")
 	var shot_telemetry := shots[0].telemetry as Dictionary if not shots.is_empty() else {}
 	var shot_readout := shots[0].readout as Dictionary if not shots.is_empty() else {}

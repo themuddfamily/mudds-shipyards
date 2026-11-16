@@ -57,7 +57,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"predator_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size()==11 and game.get_flyable_ships().size()==11, "eleven physical berths and eleven registered flyable craft")
+	_check(matching == 1 and world.get_berth_ids().size()==12 and game.get_flyable_ships().size()==11, "twelve physical berths and eleven registered flyable craft")
 	var original_berths := OLD_TRANSFORMS.duplicate()
 	original_berths[&"titan_home_berth"] = TITAN_POSE
 	var old_leases := {}
@@ -77,12 +77,12 @@ func _run() -> void:
 	var registry := world.get_station_route_registry_report()
 	var graph := world.get_station_navigation_graph_report()
 	var edge := (graph.get("edges",{}) as Dictionary).get(&"hub-predator-detention-berth",{}) as Dictionary
-	_check(registry.valid and registry.modules.size()==9 and registry.route_marker_count==57
-		and registry.hub_endpoints.size()==9 and registry.slots.size()==9
+	_check(registry.valid and registry.modules.size()==10 and registry.route_marker_count==60
+		and registry.hub_endpoints.size()==10 and registry.slots.size()==10
 		and graph.valid and is_equal_approx(float(edge.get("length",-1)),1.5)
 		and edge.get("hub_node_id")==&"station-hub:hub-predator-detention-berth"
-		and edge.get("module_node_id")==&"predator-detention-berth:approach", "complete nine-module/57-marker supported 1.5m navigation edge")
-	_check(world.get_ship_berth_feedback_audit_report().valid, "existing six feedback owners remain valid with eleventh berth")
+		and edge.get("module_node_id")==&"predator-detention-berth:approach", "complete ten-module/60-marker supported 1.5m navigation edge")
+	_check(world.get_ship_berth_feedback_audit_report().valid, "existing six feedback owners remain valid with twelfth berth")
 	var ship := game.get_node("PredatorDetentionTransport") as HeroShip
 	_check(game.get_flyable_ships().has(ship) and berth.get_occupant()==ship and berth.get_reservation_owner()==ship, "actual registered production pilot craft owns its existing occupied lease")
 	_check(berth.contains_oriented_bounds(ship.global_transform,ship.get_landing_collision_report().local_bounds), "complete closed actual Predator fits exact strict volume")

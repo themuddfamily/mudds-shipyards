@@ -88,6 +88,10 @@ func get_landing_volume_center() -> Vector3:
 	return landing_volume_center
 
 
+func get_landing_volume_transform() -> Transform3D:
+	return get_dock_transform() * Transform3D(Basis.IDENTITY, landing_volume_center)
+
+
 func get_landing_half_extents() -> Vector3:
 	return landing_half_extents
 
