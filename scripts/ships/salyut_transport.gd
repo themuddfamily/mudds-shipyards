@@ -112,9 +112,8 @@ func _build_ship() -> void:
 		var pod := [Vector2(side*2.90625,1.5),Vector2(side*3.65,1.5),
 			Vector2(side*4,2.2),Vector2(side*4,5.7),Vector2(side*2.64375,5.7)]
 		_salyut_section(label+"AftDrivePod",pod,1.1,2.9,keel)
-		var core := _salyut_rect(label+"DriveCore",minf(side*2.64375,side*4),
+		_salyut_rect(label+"DriveCore",minf(side*2.64375,side*4),
 			maxf(side*2.64375,side*4),5.7,5.9,1.1,2.9,blue)
-		_engine_core_glows.append(core)
 	_cockpit_root = Node3D.new()
 	_cockpit_root.name = "PilotFixture"
 	# Pilot, entry and eye frames follow the physical ship without cosmetic bank.
