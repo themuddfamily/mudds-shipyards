@@ -3881,7 +3881,7 @@ func _solo_safe_recovery_craft() -> HeroShip:
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
 		return null
-	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional"]:
+	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional"]:
 		return null
 	if context.mode in ["cabin", "rest", "crew"] and _solo_safe_recovery_cabin(craft).is_empty():
 		return null
@@ -10349,7 +10349,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var contract := seat.get_role_contract()
 	var retained_host_cabin := _can_reseat_host_remote_crew_seat(seat)
 	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_host_cabin) \
-			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional"] \
+			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional"] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
 			or player.get_interaction_origin().distance_to(seat.global_position) > STATION_SEAT_MAX_REACH \
@@ -10387,7 +10387,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 			roster = _solo_crew_authority.register_jovian_roster()
 		elif craft is CinderCargoHauler:
 			roster = _solo_crew_authority.register_cinder_roster()
-		elif craft.get_ship_id() == &"titan_provisional":
+		elif craft.get_ship_id() in [&"titan_provisional", &"paradox_provisional"]:
 			roster = craft.call(&"register_crew_seat_roster", _solo_crew_authority)
 		else:
 			roster = _solo_crew_authority.register_bulwark_roster()
@@ -10461,7 +10461,10 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	_transition_busy = false
 	_bind_solo_navigator_audio_claim()
 	hud.set_mode("cabin", craft.get_display_name())
-	hud.set_objective("%s aboard %s — %s" % [String(_solo_crew_role).capitalize(), craft.get_display_name(), "hold FIRE for siege lance; stand to walk the cabin or take the pilot seat" if _solo_crew_role == &"gunner" else "stand to walk the cabin or take the pilot seat"])
+	if craft.get_ship_id() == &"paradox_provisional" and _solo_crew_role == &"gunner":
+		hud.set_objective("Defensive cannon NOT FITTED // stand to walk the cabin or take the pilot seat")
+	else:
+		hud.set_objective("%s aboard %s — %s" % [String(_solo_crew_role).capitalize(), craft.get_display_name(), "hold FIRE for siege lance; stand to walk the cabin or take the pilot seat" if _solo_crew_role == &"gunner" else "stand to walk the cabin or take the pilot seat"])
 	audio.play_ui_confirm()
 	_capture_solo_safe_recovery_context()
 
@@ -10497,7 +10500,7 @@ func _stand_from_solo_crew_seat() -> void:
 	_solo_crew_seat_generation = 0
 	_station_seated = false
 	_transition_busy = false
-	if _titan_grounded_crew_stand_is_supported(craft):
+	if _grounded_local_crew_stand_is_supported(craft):
 		# A grounded passenger is ordinary on-foot cabin traffic again. Retain
 		# containment for actual flight; at the owned safe berth it would trap
 		# this standing Player and deny the physical cargo/exit route.
@@ -10637,6 +10640,10 @@ func _update_solo_gunner_input(delta: float) -> void:
 	_solo_gunner_source_profile = source.get_input_profile_generation()
 	var previous_fire := _solo_gunner_fire
 	_solo_gunner_fire = command.fire
+	if _solo_crew_ship.get_ship_id() == &"paradox_provisional":
+		_solo_gunner_input_elapsed = 0.0
+		hud.set_objective("Defensive cannon NOT FITTED // stand [%s] to walk the cabin or take the helm" % hud.get_action_prompt(&"interact"))
+		return
 	if _solo_crew_ship is CinderCargoHauler:
 		if _solo_crew_seat_id == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
 			if command.fire and not previous_fire and _solo_gunner_source_is_current():
@@ -10819,6 +10826,8 @@ func _submit_solo_gunner_fire() -> Dictionary:
 			or _solo_gunner_source.get_stream_id() != _solo_gunner_source_stream \
 			or _solo_gunner_source.get_input_profile_generation() != _solo_gunner_source_profile:
 		return {"accepted": false, "status": &"gunner_not_seated"}
+	if _solo_crew_ship.get_ship_id() == &"paradox_provisional":
+		return {"accepted": false, "status": &"gunner_weapon_not_fitted"}
 	if not _solo_crew_ship.request_solo_crew_weapon_power(SOLO_CREW_AVATAR_ID, _solo_crew_seat, player):
 		return {"accepted": false, "status": &"gunner_power_unavailable"}
 	var state: Dictionary = _solo_crew_ship.call(&"get_gunner_gameplay_state")
@@ -28099,19 +28108,20 @@ func _authorize_titan_cargo_actor(actor: Node, panel: Node3D, loading: bool) -> 
 	return {"accepted": true, "reason": &"authorized"}
 
 
-func _titan_grounded_crew_stand_is_supported(craft: HeroShip) -> bool:
+func _grounded_local_crew_stand_is_supported(craft: HeroShip) -> bool:
 	if not is_inside_tree() or is_queued_for_deletion() or _network_session_is_live() \
 			or not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
-			or craft.get_ship_id() != &"titan_provisional" or craft != _cabin_ship or craft != active_ship \
-			or craft not in ships or craft.is_destroyed() or not craft.is_boardable() or _piloting \
+			or craft.get_ship_id() not in [&"titan_provisional", &"paradox_provisional"] or craft != _cabin_ship or craft != active_ship \
+			or craft not in ships or craft.is_destroyed() or (not craft.is_boardable() and craft.get_ship_id() != &"paradox_provisional") or _piloting \
 			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
 			or not is_ancestor_of(player) or player.is_seated() or player.is_sleeping() \
 			or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != craft \
 			or _boarding_area.get_reservation_token() != player:
 		return false
 	var telemetry := craft.get_telemetry()
-	var berth := world.get_berth_node(&"titan_home_berth") as ShipBerth
-	if berth == null or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
+	var home: StringName = &"paradox_home_berth" if craft.get_ship_id() == &"paradox_provisional" else &"titan_home_berth"
+	var berth := world.get_berth_node(home) as ShipBerth
+	if berth == null or (craft.get_ship_id() == &"paradox_provisional" and craft.is_piloted()) or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
 			or not bool(telemetry.get("landed", false)) \
 			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE \
 			or not craft.has_method(&"has_supported_exterior_access") or not craft.call(&"has_supported_exterior_access"):

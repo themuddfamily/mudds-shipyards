@@ -1,12 +1,21 @@
 extends HeroShip
 
 ## Original modern cruiser, not an authenticated historical silhouette.
-## Continuous standalone stern access; roles and weapons remain unfitted.
+## Continuous stern access with physical local crew; weapons remain unfitted.
 ## Editable convex sections use metres, +Y up and -Z forward.
 const PILOT_ORIGIN := Vector3(0, 1.65, -3.8)
 const CABIN_VOID := AABB(Vector3(-2.8, 1.2, -5), Vector3(5.6, 2.8, 19))
 const RAMP_POINTS := [Vector3(-1.2,0,0), Vector3(-1.2,-0.68,2), Vector3(-1.2,-1.2,4),
 	Vector3(1.2,0,0), Vector3(1.2,-0.68,2), Vector3(1.2,-1.2,4)]
+const CREW_FRAME_ID := &"paradox_walkable_interior"
+const CREW_IDS := [&"gunner_station", &"passenger_station"]
+const CREW_ANCHOR_NAMES := [&"GunnerStationAnchor", &"PassengerStationAnchor"]
+const CREW_ROLES := [&"gunner", &"passenger"]
+const CREW_POSITIONS := [Vector3(-1.8,1.65,-0.5), Vector3(1.8,1.65,2.8)]
+const CREW_STANDS := [Vector3(-0.8,1.2,-0.5), Vector3(0.8,1.2,2.8)]
+var _crew_anchors: Array[Marker3D] = []
+var _crew_role_authority: CrewSeatRoleAuthority
+var _crew_generation := 1
 var _access_fraction := 0.0
 var _solid_root: Node3D
 var _ramp_collision: CollisionShape3D
@@ -317,6 +326,7 @@ func _build_ship() -> void:
 		_boarding_marker.position = Vector3(0,1.2,-2.4)
 		_exit_marker.position = Vector3(0,1.2,-2.4)
 		_exit_marker.rotation = Vector3.ZERO
+		_build_local_crew_chairs(dark, brass)
 		_install_variant_cockpit_system_readout(_visual_root)
 		_cockpit_readout.position = Vector3(0,3.1,-4.9)
 	_canopy_pivot = Node3D.new()
@@ -474,3 +484,119 @@ func _build_access_ramp(material: Material) -> void:
 	_ramp_mesh.name = "SternRamp"
 	_ramp_mesh.mesh = surface.commit()
 	_solid_root.add_child(_ramp_mesh)
+
+
+## The pilot prefab opts into these chairs; standalone hull geometry is unchanged.
+func _build_local_crew_chairs(structure: Material, cushion: Material) -> void:
+	if not has_node("CrewFurniture"):
+		return
+	for index in 2:
+		var point: Vector3 = CREW_POSITIONS[index]
+		var label := "Gunner" if index == 0 else "Passenger"
+		_rect(label + "Seat", point.x-0.4,point.x+0.4,point.z-0.4,point.z+0.4,1.2,1.65,cushion)
+		_rect(label + "Back",point.x-0.4,point.x+0.4,point.z+0.4,point.z+0.58,1.65,2.75,structure)
+		var anchor := Marker3D.new()
+		anchor.name = CREW_ANCHOR_NAMES[index]
+		anchor.position = point
+		anchor.set_meta("station_id", CREW_IDS[index])
+		anchor.set_meta("crew_role", CREW_ROLES[index])
+		anchor.set_meta("seat_type", &"physical")
+		_solid_root.add_child(anchor)
+		_crew_anchors.append(anchor)
+
+
+func get_crew_seat_role_contract(anchor: Marker3D) -> Dictionary:
+	var index := _crew_anchors.find(anchor)
+	if _destroyed or index < 0 or not is_instance_valid(anchor) or anchor.name != CREW_ANCHOR_NAMES[index] \
+			or anchor.get_parent() != _solid_root:
+		return {}
+	var stand := global_transform * Transform3D(Basis(Vector3.UP,-PI*0.5 if index == 0 else PI*0.5), CREW_STANDS[index])
+	return {"role": CREW_ROLES[index], "vessel_id": get_ship_id(), "seat_id": CREW_IDS[index],
+		"seat": anchor, "entry_transform": stand, "exit_transform": stand,
+		"frame": _interior_frame, "seat_type": &"physical", "role_label": String(CREW_ROLES[index])}
+
+
+func _install_solo_crew_seat() -> void:
+	if not is_inside_tree():
+		return
+	for index in _crew_anchors.size():
+		var anchor := _crew_anchors[index]
+		var interaction := "Solo%sSeatInteraction" % String(CREW_ROLES[index]).capitalize()
+		if anchor.get_node_or_null(interaction) == null:
+			ShipCrewSeat.install(anchor, self)
+
+
+func _crew_seat_records() -> Array[Dictionary]:
+	return [
+		{"seat_id": &"pilot_station", "role": &"pilot", "anchor_id": &"pilot_station"},
+		{"seat_id": CREW_IDS[0], "role": CREW_ROLES[0], "anchor_id": CREW_IDS[0]},
+		{"seat_id": CREW_IDS[1], "role": CREW_ROLES[1], "anchor_id": CREW_IDS[1]},
+	]
+
+
+## Existing authority owns all assignments; never replace or extend another roster.
+func register_crew_seat_roster(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if _destroyed or authority == null or _crew_anchors.size() != 2:
+		return {"accepted": false, "status": &"authority_unavailable"}
+	var snapshot := authority.get_snapshot()
+	if bool(snapshot.get("roster_sealed", false)) or not (snapshot.get("seats", []) as Array).is_empty():
+		return {"accepted": false, "status": &"paradox_roster_mismatch"}
+	for record in _crew_seat_records():
+		var result := authority.register_seat(record.seat_id,get_ship_id(),record.role,CREW_FRAME_ID,_crew_generation,record.anchor_id)
+		if not bool(result.get("accepted", false)):
+			return result
+	return authority.seal_roster([&"pilot", &"gunner", &"passenger"])
+
+
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if _destroyed or authority == null or _crew_anchors.size() != 2 \
+			or (_crew_role_authority != null and _crew_role_authority != authority):
+		return {"accepted": false, "status": &"authority_unavailable"}
+	var snapshot := authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		return {"accepted": false, "status": &"roster_not_sealed"}
+	var seats: Array = snapshot.get("seats", [])
+	if seats.size() != 3:
+		return {"accepted": false, "status": &"paradox_roster_mismatch"}
+	for expected in _crew_seat_records():
+		var matched := false
+		for record: Dictionary in seats:
+			if record.get("seat_id") == expected.seat_id and record.get("role") == expected.role \
+					and record.get("anchor_id") == expected.anchor_id and record.get("vessel_id") == get_ship_id() \
+					and record.get("frame_id") == CREW_FRAME_ID and int(record.get("seat_generation", 0)) == _crew_generation:
+				matched = true
+		if not matched:
+			return {"accepted": false, "status": &"paradox_roster_mismatch"}
+	_crew_role_authority = authority
+	return {"accepted": true, "status": &"authority_attached"}
+
+
+func detach_crew_role_authority(authority: CrewSeatRoleAuthority) -> bool:
+	if authority == null or authority != _crew_role_authority \
+			or not (authority.get_snapshot().get("assignments", []) as Array).is_empty():
+		return false
+	_crew_role_authority = null
+	return true
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+func attach_solo_crew_role_occupant(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> Dictionary:
+	if _destroyed or _reset_for_reuse_mutation_blocked() or _crew_role_authority == null \
+			or not is_instance_valid(seat) or seat.get_ship() != self:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	var assignment := _crew_role_authority.get_assignment(1, avatar_id)
+	var contract := seat.get_role_contract()
+	if contract.is_empty() or assignment.get("vessel_id") != get_ship_id() \
+			or assignment.get("seat_id") != contract.get("seat_id") or assignment.get("role") != contract.get("role") \
+			or assignment.get("frame_id") != CREW_FRAME_ID or assignment.get("anchor_id") != contract.get("seat_id") \
+			or int(assignment.get("seat_generation", 0)) != _crew_generation:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	return super.attach_solo_crew_role_occupant(avatar_id, seat, occupant)
+
+
+## No fitted defensive cannon exists until its separate accepted weapon card.
+func request_solo_crew_weapon_power(_avatar_id: StringName, _seat: ShipCrewSeat, _occupant: Node3D, _occupant_peer_id: int = 1) -> bool:
+	return false
