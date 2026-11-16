@@ -134,8 +134,9 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 	var generation := _game._transition_generation
 	_game._board_ship(_ship)
 	if not _check(not area.is_reserved() and _game._transition_generation==generation,"open but outside helm approach still refuses claim"): return false
-	# Retain the accepted access route around the full deployed stern sweep.
-	for point in [Vector3(1.9,0,20),Vector3(0,0,20),Vector3(0,0,18),Vector3(0,0.52,16),Vector3(0,1.2,14),Vector3(0,1.2,10),Vector3(0,1.2,3),Vector3(0,1.2,-2.4)]:
+	# Cross at the production SternApron marker z19, inside the stern rail
+	# and beyond the full deployed ramp sweep.
+	for point in [Vector3(1.9,0,19),Vector3(0,0,19),Vector3(0,0,18),Vector3(0,0.52,16),Vector3(0,1.2,14),Vector3(0,1.2,10),Vector3(0,1.2,3),Vector3(0,1.2,-2.4)]:
 		if not await _walk_to(_ship.to_global(point),30+sortie,true): return false
 	if not _check(_ship.can_board_from_landed_approach(_player),"full normal Player physically reaches supported helm"): return false
 	if not _check(area.try_reserve(_game) and area.try_reserve(_game) and not area.try_reserve(_player)
@@ -319,7 +320,7 @@ func _walk_out(sortie: int) -> bool:
 	await _tap(&"interact")
 	await _wait_frames(30)
 	if not _check(_ship.is_canopy_open(),"normal inside Interact opens supported physical hatch"): return false
-	for point in [Vector3(0,1.2,10.3),Vector3(0,1.2,14),Vector3(0,0.52,16),Vector3(0,0,18),Vector3(0,0,20),Vector3(1.9,0,20),Vector3(1.9,0,14.5)]:
+	for point in [Vector3(0,1.2,10.3),Vector3(0,1.2,14),Vector3(0,0.52,16),Vector3(0,0,18),Vector3(0,0,19),Vector3(1.9,0,19),Vector3(1.9,0,14.5)]:
 		if not await _walk_to(_ship.to_global(point),70+sortie,true): return false
 	var exterior := _ship.get_node("ParadoxOriginalShell/CabinHatchInteraction") as ShipCabinHatch
 	await _aim(exterior.global_position)
