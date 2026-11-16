@@ -140,6 +140,7 @@ func _run() -> void:
 	_ship.add_child(controls)
 	_ship.set_command_source(controls)
 	_ship.set_piloted(true)
+	await _aim_actual_gunner()
 	_ship.projectile_fired.connect(func(origin: Vector3,direction: Vector3):
 		_check(_ship.call("consume_primary_emission",origin,direction),"primary keeps its own exact single emission")
 		_combat.submit_hitscan(_ship,PRIMARY.weapon_id,origin,direction))
@@ -248,6 +249,35 @@ func _run() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if not _failed: print("PARADOX_CRUISER_GUNNER_TEST_PASS")
 	quit(1 if _failed else 0)
+
+func _aim_actual_gunner() -> void:
+	# Fresh production Players look down ten degrees. Use their normal seated
+	# look input to enter the mount's authored upward arc before holding FIRE.
+	_gunner.set_station_seated_context(true)
+	_gunner.set_control_enabled(true)
+	_gunner.set_camera_active(true)
+	for tick in 180:
+		var direction := (_ship.global_basis.inverse()*_gunner.get_interaction_direction()).normalized()
+		var elevation := asin(clampf(direction.y,-1,1))
+		if elevation >= deg_to_rad(1): break
+		var event := InputEventJoypadMotion.new()
+		event.axis = JOY_AXIS_RIGHT_Y
+		event.axis_value = -clampf((deg_to_rad(1)-elevation)*4,0.3,1)
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await _frames(1)
+	var release := InputEventJoypadMotion.new()
+	release.axis = JOY_AXIS_RIGHT_Y
+	Input.parse_input_event(release)
+	Input.flush_buffered_events()
+	await _frames(2)
+	var observed := (_ship.global_basis.inverse()*_gunner.get_interaction_direction()).normalized()
+	_check(_ship.call("get_gunner_aim_status",_gunner.get_interaction_direction()).accepted
+		and observed.y >= sin(deg_to_rad(0.5)) and observed.y <= sin(deg_to_rad(2)),
+		"actual normal seated right-stick input aims gunner about one degree upward inside fixed arc")
+	_gunner.set_control_enabled(false)
+	_gunner.set_camera_active(false)
+	_ship.get_camera().make_current()
 
 func _test_policy_rays() -> void:
 	var muzzle := (_ship.call("get_gunner_muzzle") as Marker3D).global_position
