@@ -22,6 +22,8 @@ var _capsule_pose := Transform3D.IDENTITY
 var _engine_edges: Array[Dictionary] = []
 var _shots := 0
 var _projectiles := 0
+var _crew_mode := false
+const CREW_CRAFT := preload("res://scripts/ships/paradox_cruiser.gd")
 
 class CompletedPlayerTick:
 	extends Node
@@ -33,6 +35,7 @@ class CompletedPlayerTick:
 
 func _init() -> void:
 	_started = Time.get_ticks_msec()
+	_crew_mode = OS.get_cmdline_user_args().has("--crew-seats")
 	call_deferred("_run")
 
 func _run() -> void:
@@ -139,6 +142,9 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 	for point in [Vector3(1.9,0,19),Vector3(0,0,19),Vector3(0,0,18),Vector3(0,0.52,16),Vector3(0,1.2,14),Vector3(0,1.2,10),Vector3(0,1.2,3),Vector3(0,1.2,-2.4)]:
 		if not await _walk_to(_ship.to_global(point),30+sortie,true): return false
 	if not _check(_ship.can_board_from_landed_approach(_player),"full normal Player physically reaches supported helm"): return false
+	if _crew_mode and sortie == 0:
+		if not await _exercise_local_crew_seats(): return false
+		if not _check(_ship.can_board_from_landed_approach(_player),"same Player physically returns to original helm after complete crew cycles"): return false
 	if not _check(area.try_reserve(_game) and area.try_reserve(_game) and not area.try_reserve(_player)
 		and not area.release_reservation(_player) and area.get_reservation_token()==_game,
 		"foreign and duplicate reservation requests preserve actual owner"): return false
@@ -193,6 +199,127 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 		and hud.readiness=="NOT FITTED" and "NOT FITTED" in hud.label_text
 		and "PRIMARY NOT FITTED" in _ship._cockpit_readout.text,"actual cockpit eye clears full fitout and actual bound identity/readiness show primary not fitted"): return false
 	return true
+
+
+func _exercise_local_crew_seats() -> bool:
+	for index in 2:
+		var id: StringName = CREW_CRAFT.CREW_IDS[index]
+		var role: StringName = CREW_CRAFT.CREW_ROLES[index]
+		var anchor := _ship.get_node("ParadoxOriginalShell/" + String(CREW_CRAFT.CREW_ANCHOR_NAMES[index])) as Marker3D
+		var seat := anchor.get_node("Solo%sSeatInteraction" % String(role).capitalize()) as ShipCrewSeat
+		var expected_stand: Vector3 = CREW_CRAFT.CREW_STANDS[index]
+		for point in [Vector3(0,1.2,_ship.to_local(_player.global_position).z),Vector3(0,1.2,expected_stand.z),expected_stand]:
+			if not await _walk_to(_ship.to_global(point),80+index,true): return false
+		for cycle in 2:
+			await _aim(seat.global_position)
+			if not _check(_game.station_interaction_candidate == seat and seat.get_role() == role
+				and seat.get_role_contract().seat_type == &"physical" and anchor.position == CREW_CRAFT.CREW_POSITIONS[index]
+				and _ship.to_local(seat.get_exit_transform().origin).is_equal_approx(expected_stand),
+				"ordinary look discovers exact authored physical " + String(role) + " cycle=" + str(cycle)): return false
+			await _tap(&"interact")
+			for tick in 180:
+				if _game._station_seated and not _game._transition_busy: break
+				await _wait_frames(1)
+			var authority := _ship.call("get_crew_role_authority") as CrewSeatRoleAuthority
+			if not _check(authority != null and _game._solo_crew_authority == authority and _game._solo_crew_seat == seat
+				and _game._solo_crew_claim_is_current() and _game._solo_crew_role == role and not _game._piloting
+				and not _ship.is_piloted() and _player.is_station_seated() and _player.is_seated_at(anchor)
+				and _ship.get_interior_frame().is_occupant_registered(_player)
+				and (_player.get_node("%PlayerCamera") as Camera3D).current and not _ship.get_camera().current,
+				"normal E seats actual Player with current exact role/ledger/frame/camera; no pilot"): return false
+			var assignment := authority.get_assignment(1,GameFlow.SOLO_CREW_AVATAR_ID)
+			var metadata: Dictionary = _player.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META,{})
+			if not _check(assignment.seat_id == id and assignment.role == role and assignment.anchor_id == id
+				and assignment.frame_id == CREW_CRAFT.CREW_FRAME_ID and assignment.seat_generation == _ship.get("_crew_generation")
+				and metadata.get("craft") == _ship and metadata.get("authority") == authority and metadata.get("frame") == _ship.get_interior_frame()
+				and metadata.get("role") == role and metadata.get("seat_id") == id and metadata.get("seat_generation") == assignment.seat_generation
+				and _crew_body_and_eye_clear(),"actual physical crew full capsule/head/eye and current authored metadata are clear and exact"): return false
+			var snapshot := authority.get_snapshot()
+			var pose := _player.global_transform
+			var sequence := _game._solo_crew_sequence
+			var generation := int(assignment.seat_generation)
+			var other_id: StringName = CREW_CRAFT.CREW_IDS[1-index]
+			if not _check(not authority.claim(1,2,&"occupied_foreign",id,role,1).accepted
+				and not authority.claim(2,1,&"foreign_source",other_id,CREW_CRAFT.CREW_ROLES[1-index],sequence+1).accepted
+				and not authority.claim(1,1,GameFlow.SOLO_CREW_AVATAR_ID,other_id,role,sequence+1).accepted
+				and not authority.claim(1,1,&"extra_pilot",&"second_pilot_station",&"pilot",sequence+1).accepted
+				and not authority.release(1,1,GameFlow.SOLO_CREW_AVATAR_ID,id,sequence,generation).accepted
+				and not authority.release(1,1,GameFlow.SOLO_CREW_AVATAR_ID,id,sequence+1,generation+1).accepted
+				and not _ship.attach_solo_crew_role_occupant(GameFlow.SOLO_CREW_AVATAR_ID,seat,_player).accepted
+				and not _ship.release_solo_crew_role_occupant(&"wrong_avatar",id,_player,sequence+1,generation,authority).accepted
+				and not _ship.release_solo_crew_role_occupant(GameFlow.SOLO_CREW_AVATAR_ID,other_id,_player,sequence+1,generation,authority).accepted
+				and not _ship.release_solo_crew_role_occupant(GameFlow.SOLO_CREW_AVATAR_ID,id,_player,sequence+1,generation+1,authority).accepted
+				and not _ship.call("detach_crew_role_authority",authority)
+				and authority.get_snapshot() == snapshot and _player.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) == metadata
+				and _player.global_transform.is_equal_approx(pose) and _game._solo_crew_claim_is_current(),
+				"occupied/foreign/duplicate/stale/role/cross-seat/extra-pilot refusals preserve exact live claim and body atomically"): return false
+			var allowed := CrewSeatRoleAuthority.CAPABILITY_WEAPON_CONTROL if role == &"gunner" else CrewSeatRoleAuthority.CAPABILITY_PASSENGER_ACCESS
+			if not _check(authority.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,allowed).accepted
+				and not authority.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_SHIP_COMMAND).accepted
+				and not authority.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_SYSTEMS_CONTROL).accepted
+				and (role != &"passenger" or not authority.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_WEAPON_CONTROL).accepted),
+				"exact crew capability only, no extra pilot or passenger action"): return false
+			var ship_pose := _ship.global_transform
+			var ship_velocity := _ship.velocity
+			var hull: float = _ship.get_telemetry().hull
+			var shots := _shots
+			var projectiles := _projectiles
+			Input.action_press(&"move_forward")
+			Input.action_press(&"move_right")
+			Input.action_press(&"pitch_up")
+			Input.action_press(&"fire")
+			await _wait_frames(20)
+			_release_inputs()
+			var objective := String(_game.hud._objective_label.text)
+			if not _check(_ship.global_transform.is_equal_approx(ship_pose) and _ship.velocity == ship_velocity
+				and _ship.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE and _ship.get_telemetry().hull == hull
+				and _shots == shots and _projectiles == projectiles and _ship._weapon_heat == 0 and _ship._weapon_timer == 0
+				and _game._get_player_weapon_profiles(_ship).is_empty() and _game.get_combat_authority().get_source_id(_ship) == 0
+				and not GameFlow.PLAYER_SOURCE_IDS.has(&"paradox_provisional") and authority.get_snapshot() == snapshot
+				and _game._solo_crew_claim_is_current() and not _ship.is_piloted()
+				and "siege" not in objective.to_lower() and "charge" not in objective.to_lower() and "ammunition" not in objective.to_lower()
+				and (role != &"gunner" or "DEFENSIVE CANNON NOT FITTED" in objective.to_upper()),
+				"ordinary held throttle/turn/FIRE20 ticks has no propulsion/shot/heat/cooldown/damage/profile/claim mutation and honest crew HUD"): return false
+			await _tap(&"interact")
+			for tick in 180:
+				if not _game._transition_busy and not _player.is_seated(): break
+				await _wait_frames(1)
+			await _wait_frames(3)
+			if not _check(not _player.is_seated() and not _player.is_station_seated() and _player.is_on_floor()
+				and _player.is_control_enabled() and _ship.to_local(_player.global_position).distance_to(expected_stand)<0.05
+				and _player.collision_layer == _body_layer and _player.collision_mask == _body_mask
+				and not (_player.get_node("PlayerCollision") as CollisionShape3D).disabled and _crew_body_and_eye_clear()
+				and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and (authority.get_snapshot().assignments as Array).is_empty()
+				and _ship.call("get_crew_role_authority") == null and _game._solo_crew_authority == null
+				and _game._solo_crew_seat == null and _game._solo_crew_ship == null and _game._solo_crew_role == &""
+				and _game._solo_gunner_source == null and _game._solo_gunner_source_stream == -1 and not _game._solo_gunner_fire
+				and not _player.get_cabin_containment_report().get("active",false)
+				and _game.get_combat_authority().get_source_id(_ship) == 0 and _game._get_player_weapon_profiles(_ship).is_empty(),
+				"normal stand restores exact authored supported body and retires all role/claim/metadata/input/containment fields"): return false
+			var forward := -_player.global_basis.z
+			var aisle := _ship.global_basis.x * (1.0 if index == 0 else -1.0)
+			if not _check(forward.slide(_ship.global_basis.y).normalized().dot(aisle)>0.99,"authored stand faces cabin aisle"): return false
+	for point in [Vector3(0,1.2,2.8),Vector3(0,1.2,-2.4)]:
+		if not await _walk_to(_ship.to_global(point),90,true): return false
+	return true
+
+func _crew_body_and_eye_clear() -> bool:
+	var collision := _player.get_node("PlayerCollision") as CollisionShape3D
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = collision.global_transform
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.margin = 0
+	query.exclude = [_player.get_rid()]
+	if not _ship.get_world_3d().direct_space_state.intersect_shape(query,16).is_empty(): return false
+	var eye := SphereShape3D.new()
+	eye.radius = 0.08
+	query.shape = eye
+	query.transform = (_player.get_node("%PlayerCamera") as Camera3D).global_transform
+	return _ship.get_world_3d().direct_space_state.intersect_shape(query,16).is_empty()
 
 func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBerth,dock: Transform3D) -> bool:
 	if not _check(_hull_leg_clear(Vector3.UP*8),"whole production fitout clears exact departure lift"): return false
@@ -479,7 +606,8 @@ func _quit_normally() -> void:
 		_check(false,"normal Quit focus failed")
 		return
 	print("PARADOX_USER_DATA_DIR: ", OS.get_user_data_dir())
-	print("GAME_FLOW_PARADOX_INTEGRATION_TEST_PASS")
+	if _crew_mode: print("GAME_FLOW_PARADOX_CREW_INTEGRATION_TEST_PASS")
+	else: print("GAME_FLOW_PARADOX_INTEGRATION_TEST_PASS")
 	await _key(KEY_ENTER)
 	for frame in 120: await process_frame
 	_check(false,"normal Main Quit did not terminate OS process")
@@ -559,8 +687,8 @@ func _test_physical_alignment(ship: HeroShip, phase: String, turning: bool = fal
 				and not registered.has(mesh), "physical mesh has visible paired collider " + phase + " " + mesh.name):
 				return false
 			paired_meshes += 1
-	if not _check(physical_count==32 and paired_meshes==32 and overlays==2 and registered.size()==2,
-		"unchanged32 physical pairs and only two cosmetic engine overlays " + phase):
+	if not _check(physical_count==36 and paired_meshes==36 and overlays==2 and registered.size()==2,
+		"original32 physical pairs plus four new crew chair pairs and only two cosmetic engine overlays " + phase):
 		return false
 	for label in ["PilotSeat","PilotBack"]:
 		var mesh := ship.get_node(label) as MeshInstance3D
