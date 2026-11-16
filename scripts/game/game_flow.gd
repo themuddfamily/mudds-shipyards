@@ -386,6 +386,7 @@ const PLAYER_SOURCE_IDS := {
 	&"cinder_light_interceptor": 1108,
 	&"cinder_cargo_hauler": 1109,
 	&"titan_provisional": 1110,
+	&"paradox_provisional": 1111,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -8555,6 +8556,8 @@ func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
 		&"projectile_fired",
 		Callable(self, "_on_projectile_fired").bind(candidate)
 	)
+	if candidate.get_ship_id() == &"paradox_provisional":
+		_connect_signal_once(candidate, &"primary_fire_refused", Callable(self,"_on_paradox_primary_refused").bind(candidate))
 	_connect_signal_once(
 		candidate,
 		&"landing_completed",
@@ -15710,6 +15713,25 @@ func _on_engine_state_changed(state: Variant, source_ship: HeroShip = null) -> v
 		pass
 
 
+func _on_paradox_primary_refused(reason: StringName, candidate: HeroShip) -> void:
+	if not is_instance_valid(candidate) or candidate != active_ship:
+		return
+	var text: String = {
+		&"weapon_cooldown": "Primary cycling",
+		&"engine_not_online": "Primary safe // engines offline",
+		&"primary_hull_blocked": "Primary blocked by cruiser hull",
+		&"primary_pilot_required": "Primary requires the current pilot",
+		&"primary_pilot_aim_only": "Primary uses pilot aim only",
+		&"weapon_component_failed": "Primary disabled // service required",
+		&"ship_destroyed": "Primary unavailable // cruiser destroyed",
+	}.get(reason,"Primary unavailable")
+	hud.set_objective(text)
+	if reason != &"weapon_cooldown":
+		var presentation := get_combat_audio_presentation()
+		if is_instance_valid(presentation):
+			presentation.play_dry_fire(candidate.global_position,candidate.get_instance_id())
+
+
 func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: HeroShip = null) -> void:
 	var firing_ship := source_ship if is_instance_valid(source_ship) else active_ship
 	if not is_instance_valid(firing_ship) or firing_ship != active_ship:
@@ -15718,8 +15740,14 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 		_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"unarmed"}
 		return
 	if firing_ship.get_ship_id() == &"paradox_provisional":
-		_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"primary_not_fitted"}
-		return
+		# Only a synchronous emission from this physical pilot may enter combat.
+		# Direct callbacks and crew intent cannot mint another primary shot.
+		if not _piloting or _station_seated or not is_instance_valid(player) \
+				or not player.is_seated_at(firing_ship.get_pilot_seat_anchor()) \
+				or not bool(firing_ship.call("get_primary_pilot_claim_is_current")) \
+				or not bool(firing_ship.call("consume_primary_emission", origin, direction)):
+			_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"primary_pilot_not_current"}
+			return
 	if _network_session_mode == &"client":
 		# A client receives the server's already-resolved pulse presentation below;
 		# it never reaches CombatResolver or damage authority from local weapon input.
@@ -18637,8 +18665,15 @@ func _combat_registration_matches(
 
 
 func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
-	if is_instance_valid(candidate) and candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional"]:
+	if is_instance_valid(candidate) and candidate.get_ship_id() == &"predator_provisional":
 		return {}
+	if is_instance_valid(candidate) and candidate.get_ship_id() == &"paradox_provisional":
+		var definition := candidate.call("get_weapon_definition") as WeaponDefinition
+		var profile := _get_migrated_player_combat_weapon_profile(candidate, definition,
+			JOVIAN_COMBAT_WEAPON_ID, JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS,
+			JOVIAN_COMBAT_PRESENTATION_ID, JOVIAN_COMBAT_FIRE_AUDIO_ID,
+			JOVIAN_COMBAT_IMPACT_AUDIO_ID, JOVIAN_COMBAT_DRY_FIRE_AUDIO_ID)
+		return {JOVIAN_COMBAT_WEAPON_ID: profile} if not profile.is_empty() else {}
 	var profiles := PLAYER_WEAPON_PROFILES.duplicate(true)
 	if not is_instance_valid(candidate):
 		return profiles
@@ -18728,7 +18763,7 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 			return ARROW_COMBAT_WEAPON_ID
 		ZENITH_SHIP_ID:
 			return ZENITH_COMBAT_WEAPON_ID
-		JOVIAN_SHIP_ID, TITAN_SHIP_ID:
+		JOVIAN_SHIP_ID, TITAN_SHIP_ID, &"paradox_provisional":
 			return JOVIAN_COMBAT_WEAPON_ID
 		HALYARD_SHIP_ID:
 			return HALYARD_COMBAT_WEAPON_ID

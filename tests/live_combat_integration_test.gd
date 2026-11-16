@@ -60,12 +60,14 @@ func _run() -> void:
 	await _test_staged_opponent_damageability(game, hero, authority, ^"StandoffPicket", "Picket")
 	_check(
 		bool(roster_audit.get("valid", false))
-		and int(roster_audit.get("expected_player_source_count", 0)) == 10
-		and int(roster_audit.get("expected_source_count", 0)) == 14
-		and int(roster_audit.get("actual_source_count", 0)) == 14
-		and resolver.get_registered_source_count() == 14,
-		"settled production audit owns ten player, one opponent, and three station sources"
+		and int(roster_audit.get("expected_player_source_count", 0)) == 11
+		and int(roster_audit.get("expected_source_count", 0)) == 15
+		and int(roster_audit.get("actual_source_count", 0)) == 15
+		and resolver.get_registered_source_count() == 15,
+		"settled production audit owns eleven player, one opponent, and three station sources"
 	)
+	var paradox := game.get_node("ParadoxCruiser") as HeroShip
+	_check(authority.get_source_id(paradox) == 1111, "Paradox owns unique stable combat identity1111")
 	_check(authority.get_source_id(titan) == 1110, "Titan owns unique stable combat identity1110")
 	_check(authority.get_source_id(hero) == 1101, "Torrent keeps its explicit stable combat identity")
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
@@ -95,11 +97,12 @@ func _run() -> void:
 		authority.get_source_id(cinder_light): true,
 		authority.get_source_id(cinder_cargo): true,
 		authority.get_source_id(titan): true,
+		authority.get_source_id(paradox): true,
 		authority.get_source_id(opponent): true,
 	}
 	_check(
-		production_source_ids.size() == 11,
-		"all ten player craft and the defender retain eleven distinct combat source identities"
+		production_source_ids.size() == 12,
+		"all eleven armed player craft and the defender retain twelve distinct combat source identities"
 	)
 	var combat_specs: Array[Dictionary] = [
 		{"craft": titan, "weapon_id": GameFlow.JOVIAN_COMBAT_WEAPON_ID,
@@ -298,8 +301,8 @@ func _run() -> void:
 		if not (flyable.get_node_or_null("AuthoritativeDamageable") is DamageableScript):
 			undamageable.append(String(flyable.get_ship_id()))
 	_check(
-		game.get_flyable_ships().size() == 10 and undamageable.is_empty(),
-		"all ten flyable craft are valid targets, armed or not (missing: %s)"
+		game.get_flyable_ships().size() == 12 and undamageable.is_empty(),
+		"all twelve flyable craft are valid targets, armed or not (missing: %s)"
 			% ", ".join(undamageable)
 	)
 	var targets := _get_live_range_targets(world)
@@ -873,9 +876,9 @@ func _await_settled_roster(game: GameFlow) -> Dictionary:
 	for _attempt in 120:
 		audit = game.get_live_combat_source_roster_audit()
 		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 10 \
-				and int(audit.get("expected_source_count", 0)) == 14 \
-				and int(audit.get("actual_source_count", 0)) == 14:
+				and int(audit.get("expected_player_source_count", 0)) == 11 \
+				and int(audit.get("expected_source_count", 0)) == 15 \
+				and int(audit.get("actual_source_count", 0)) == 15:
 			return audit
 		await process_frame
 	return audit
