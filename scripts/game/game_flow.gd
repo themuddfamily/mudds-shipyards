@@ -11216,6 +11216,19 @@ func _is_transition_current(
 	return true
 
 
+## Landed pilot prefabs require their actual reachable helm approach. Paradox's
+## existing supported cabin return keeps its current frame/occupant ownership.
+func _has_current_physical_pilot_approach(candidate: HeroShip) -> bool:
+	if candidate.get_ship_id() == &"paradox_provisional" \
+			and phase == Phase.IN_FLIGHT_CABIN and candidate == _cabin_ship:
+		var frame := candidate.get_node_or_null("MovingInteriorFrame") as MovingInteriorFrame
+		return frame != null and frame.is_occupant_registered(player) \
+			and frame.contains_world_position(player.global_position)
+	if candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional"]:
+		return candidate.can_board_from_landed_approach(player)
+	return true
+
+
 func _board_ship(candidate: HeroShip = null) -> void:
 	if _transition_busy or not is_inside_tree() or is_queued_for_deletion() \
 			or not is_instance_valid(candidate) or candidate.is_queued_for_deletion() \
@@ -11225,8 +11238,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 			or not candidate.is_boardable():
 		_present_boarding_confirmation(&"rejected", candidate, &"craft_unavailable")
 		return
-	if candidate.get_ship_id() == &"predator_provisional" \
-			and not candidate.can_board_from_landed_approach(player):
+	if not _has_current_physical_pilot_approach(candidate):
 		_present_boarding_confirmation(&"rejected", candidate, &"physical_helm_approach_required")
 		return
 	var candidate_area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
@@ -11283,7 +11295,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		and interior_frame != null \
 		and (interior_frame.is_occupant_registered(player) or candidate.get_ship_id() == &"titan_provisional") \
 		and interior_frame.contains_world_position(player.global_position)
-	var from_landed_pilot_approach: bool = candidate.get_ship_id() == &"predator_provisional" \
+	var from_landed_pilot_approach: bool = candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional"] \
 		and candidate.can_board_from_landed_approach(player)
 	var from_cabin: bool = returning_to_flight_seat or from_landed_interior or from_landed_pilot_approach
 	if returning_to_flight_seat:
@@ -11478,9 +11490,9 @@ func _is_same_craft_remote_berth_reboarding(candidate: HeroShip) -> bool:
 
 ## The first Predator pilot fitout has a supported landed cabin, never moving
 ## occupancy. Keep the stern sealed until the standing player operates it.
-func _exit_predator_into_landed_cabin() -> void:
+func _exit_physical_pilot_into_landed_cabin() -> void:
 	if _transition_busy or not _piloting or not is_instance_valid(active_ship) \
-			or active_ship.get_ship_id() != &"predator_provisional":
+			or active_ship.get_ship_id() not in [&"predator_provisional", &"paradox_provisional"]:
 		return
 	var craft := active_ship
 	var actor := player
@@ -11572,8 +11584,10 @@ func _try_exit_ship() -> void:
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
 		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
 		return
-	if active_ship.get_ship_id() == &"predator_provisional":
-		_exit_predator_into_landed_cabin()
+	if active_ship.get_ship_id() == &"predator_provisional" \
+			or (active_ship.get_ship_id() == &"paradox_provisional" \
+				and bool(active_ship.get_telemetry().get("landed", false))):
+		_exit_physical_pilot_into_landed_cabin()
 		return
 	if not bool(telemetry.get("landed", false)):
 		# Idled offline away from a berth. Whether the seat may be left at all is the
@@ -15694,6 +15708,9 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 	if firing_ship.get_ship_id() == &"predator_provisional":
 		_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"unarmed"}
 		return
+	if firing_ship.get_ship_id() == &"paradox_provisional":
+		_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"primary_not_fitted"}
+		return
 	if _network_session_mode == &"client":
 		# A client receives the server's already-resolved pulse presentation below;
 		# it never reaches CombatResolver or damage authority from local weapon input.
@@ -18611,7 +18628,7 @@ func _combat_registration_matches(
 
 
 func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
-	if is_instance_valid(candidate) and candidate.get_ship_id() == &"predator_provisional":
+	if is_instance_valid(candidate) and candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional"]:
 		return {}
 	var profiles := PLAYER_WEAPON_PROFILES.duplicate(true)
 	if not is_instance_valid(candidate):
@@ -18905,7 +18922,7 @@ func _find_boarding_candidate() -> HeroShip:
 			and boarding_area.is_available_for(player)
 		):
 			continue
-		if candidate.get_ship_id() == &"predator_provisional" and not candidate.can_board_from_landed_approach(player):
+		if not _has_current_physical_pilot_approach(candidate):
 			continue
 		if candidate.get_ship_id() == &"titan_provisional":
 			var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
@@ -18937,7 +18954,7 @@ func _find_boarding_candidate() -> HeroShip:
 				continue
 		elif not candidate.is_boardable():
 			continue
-		if candidate.get_ship_id() == &"predator_provisional" and not candidate.can_board_from_landed_approach(player):
+		if not _has_current_physical_pilot_approach(candidate):
 			continue
 		if candidate.get_ship_id() == &"titan_provisional":
 			var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame

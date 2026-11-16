@@ -355,7 +355,7 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 		berths_unchanged = berths_unchanged \
 			and berth != null \
 			and world.get_berth_transform(berth_id).is_equal_approx(EXPECTED_BERTH_TRANSFORMS[berth_id] as Transform3D)
-	_check(berth_roster_exact, "the world preserves all eleven accepted physical berths alongside Paradox infrastructure")
+	_check(berth_roster_exact, "the world preserves all twelve accepted physical berths including production Paradox")
 	_check(berths_unchanged, "all nine authoritative berth identities and transforms are untouched by the route registry")
 
 	var modules := report.get("modules", {}) as Dictionary

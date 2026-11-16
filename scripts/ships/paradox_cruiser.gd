@@ -8,6 +8,7 @@ const CABIN_VOID := AABB(Vector3(-2.8, 1.2, -5), Vector3(5.6, 2.8, 19))
 const RAMP_POINTS := [Vector3(-1.2,0,0), Vector3(-1.2,-0.68,2), Vector3(-1.2,-1.2,4),
 	Vector3(1.2,0,0), Vector3(1.2,-0.68,2), Vector3(1.2,-1.2,4)]
 var _access_fraction := 0.0
+var _solid_root: Node3D
 var _ramp_collision: CollisionShape3D
 var _ramp_mesh: MeshInstance3D
 var _interior_frame: MovingInteriorFrame
@@ -40,6 +41,58 @@ class ParadoxInteriorFrame:
 		return bounds.has_point(point)
 
 
+## Only the authored pilot composition supplies this real physical seat area.
+func is_boardable() -> bool:
+	if not super.is_boardable() or not has_node("ShipBoardingArea"):
+		return false
+	# The existing bounded moving cabin can return its OFFLINE walker to the
+	# helm while sealed. GameFlow retains that exact registered-cabin context.
+	if not _landed:
+		return is_instance_valid(_interior_frame)
+	return is_canopy_open() and _access_fraction >= 0.999 and has_supported_exterior_access()
+
+
+func can_board_from_landed_approach(actor: PlayerController) -> bool:
+	if not is_boardable() or not is_instance_valid(actor) or not actor.is_inside_tree() \
+			or actor.is_queued_for_deletion() or not actor.is_control_enabled() \
+			or actor.is_seated() or not actor.is_on_floor() \
+			or actor.collision_layer != PhysicsLayers.PLAYER_BODY_LAYER \
+			or actor.collision_mask != PhysicsLayers.PLAYER_BODY_MASK \
+			or (actor.get_node("PlayerCollision") as CollisionShape3D).disabled:
+		return false
+	var point := to_local(actor.global_position)
+	return Vector2(point.x,point.z+2.4).length() <= 0.45 \
+		and absf(point.y-1.2) <= 0.04 and has_clear_landed_pilot_stand(actor)
+
+
+## Query the actor's actual normal capsule at the supported interior exit.
+## The support surface stays in the query; only the normal contact skin is removed.
+func has_clear_landed_pilot_stand(actor: PlayerController) -> bool:
+	if not has_supported_exterior_access() or not is_instance_valid(actor):
+		return false
+	var collision := actor.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var pose := get_exit_transform() * collision.transform
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = pose
+	query.margin = 0
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [actor.get_rid()]
+	if not get_world_3d().direct_space_state.intersect_shape(query,16).is_empty():
+		return false
+	var up := global_basis.y.normalized()
+	var feet := get_exit_transform().origin
+	var support := PhysicsRayQueryParameters3D.create(feet+up*0.06,feet-up*0.06,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP,[actor.get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(support)
+	return not hit.is_empty() and hit.collider == self and (hit.normal as Vector3).dot(up) > 0.99
+
+
 func _sample_ship_command() -> ShipCommand:
 	var command := super._sample_ship_command()
 	return _neutralized_command_snapshot(command) if _canopy_open or _access_fraction > 0.0001 else command
@@ -62,6 +115,32 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 func _uses_inherited_primary_weapon() -> bool:
 	return false
+
+
+func _uses_weapon_component_fallback_emitters() -> bool:
+	return false
+
+
+func _get_weapon_unavailable_reason(_modifiers: Dictionary = {}) -> StringName:
+	return &"primary_not_fitted"
+
+
+func _get_weapon_fire_status_from_modifiers(_modifiers: Dictionary) -> Dictionary:
+	return {"ready": false, "status": &"primary_not_fitted", "reason": &"primary_not_fitted", "heat": 0.0,
+		"cooldown_remaining": 0.0, "recovery_remaining": 0.0}
+
+
+func _fire_weapon() -> void:
+	pass
+
+
+func _fire_weapon_with_aim(_crew_origin: Vector3 = Vector3.INF, _crew_direction: Vector3 = Vector3.ZERO) -> void:
+	pass
+
+
+func _get_cockpit_system_readout() -> Dictionary:
+	return {"text": "PRIMARY NOT FITTED  //  CRUISER", "color": Color("8de8e4")}
+
 
 
 func set_canopy_open(open: bool, duration: float = 0.35) -> void:
@@ -115,7 +194,7 @@ func _set_canopy_open_fraction(open_fraction: float) -> void:
 		var label := "PortHatchLeaf" if side < 0 else "StarboardHatchLeaf"
 		var offset := Vector3(side * 1.2 * _access_fraction,0,0)
 		get_node(label + "Collision").position = offset
-		_visual_root.get_node(label).position = offset
+		_solid_root.get_node(label).position = offset
 
 
 ## Pure authored carriage geometry; the inherited clock calls this same function
@@ -162,9 +241,15 @@ func _build_ship() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	set_meta("authenticated_historical_silhouette", false)
 	set_meta("geometry_status", &"original_modern_candidate")
+	_solid_root = Node3D.new()
+	_solid_root.name = "ParadoxOriginalShell"
+	add_child(_solid_root)
 	_visual_root = Node3D.new()
-	_visual_root.name = "ParadoxOriginalShell"
+	_visual_root.name = "ParadoxCosmeticBank"
+	_visual_root.set_meta("presentation_only", true)
 	add_child(_visual_root)
+	_visual_root.visibility_changed.connect(_sync_solid_root_visibility)
+	_sync_solid_root_visibility()
 	var armor := _finish(Color("777f8c"), 0.68)
 	var dark := _finish(Color("202a37"), 0.8)
 	var brass := _finish(Color("ce9b54"), 0.55)
@@ -192,8 +277,8 @@ func _build_ship() -> void:
 		_prism(label + "CompactEngine", [Vector2(side*3.3,8), Vector2(side*6,8),
 			Vector2(side*6,13.48), Vector2(side*5.5,13.98), Vector2(side*3.3,13.98)], 1.2,3.9,dark)
 		_rect(label + "EngineCrown", minf(side*3.6,side*5.7),maxf(side*3.6,side*5.7),9,13,3.9,4.1,brass)
-		var core := _rect(label + "Exhaust", minf(side*3.65,side*5.2),maxf(side*3.65,side*5.2),13.98,14,1.7,3.2,_finish(Color("66d7eb"),0.2))
-		_engine_core_glows.append(core)
+		_rect(label + "Exhaust", minf(side*3.65,side*5.2),maxf(side*3.65,side*5.2),13.98,14,1.7,3.2,_finish(Color("66d7eb"),0.2))
+		_build_exhaust_glow(label, side * 4.425)
 	# Raised aft bridge roof: broad brow and a narrower crown establish 6m height.
 	_rect("BridgeRoof", -3.3,3.3,-5.4,11,4,5.6,armor)
 	_rect("BridgeCrown", -2.8,2.8,-3,10,5.6,6,brass)
@@ -210,20 +295,33 @@ func _build_ship() -> void:
 	_rect("WellHeader", -3.3,3.3,11,11.3,4,5.6,armor)
 	_cockpit_root = Node3D.new()
 	_cockpit_root.name = "PilotFixture"
-	_visual_root.add_child(_cockpit_root)
+	_solid_root.add_child(_cockpit_root)
 	_pilot_seat_anchor = Marker3D.new()
 	_pilot_seat_anchor.name = "PilotSeatAnchor"
 	_pilot_seat_anchor.position = PILOT_ORIGIN
+	_pilot_seat_anchor.set_meta("station_id", &"pilot_station")
 	_cockpit_root.add_child(_pilot_seat_anchor)
 	_build_markers_and_camera()
 	_boarding_marker.position = Vector3(0,1.2,10)
 	_exit_marker.position = Vector3(0,0,17)
 	_camera_pivot.position = Vector3(0,4,2)
-	_muzzle_left.position = Vector3(-0.8,2.7,-14)
-	_muzzle_right.position = Vector3(0.8,2.7,-14)
+	_muzzle_left.free()
+	_muzzle_right.free()
+	_muzzle_left = null
+	_muzzle_right = null
+	if has_node("ShipBoardingArea"):
+		_boarding_entry_marker = Marker3D.new()
+		_boarding_entry_marker.name = "BoardingEntry"
+		_boarding_entry_marker.position = Vector3(0,1.2,-2.4)
+		_cockpit_root.add_child(_boarding_entry_marker)
+		_boarding_marker.position = Vector3(0,1.2,-2.4)
+		_exit_marker.position = Vector3(0,1.2,-2.4)
+		_exit_marker.rotation = Vector3.ZERO
+		_install_variant_cockpit_system_readout(_visual_root)
+		_cockpit_readout.position = Vector3(0,3.1,-4.9)
 	_canopy_pivot = Node3D.new()
 	_canopy_pivot.name = "AccessMotionClock"
-	_visual_root.add_child(_canopy_pivot)
+	_solid_root.add_child(_canopy_pivot)
 	_build_access_ramp(brass)
 	_set_canopy_open_fraction(0)
 	_interior_frame = ParadoxInteriorFrame.new()
@@ -250,9 +348,46 @@ func _build_ship() -> void:
 	panel.mesh = panel_mesh
 	panel.position = Vector3(1.9,1.6,13.997)
 	panel.material_override = brass
-	_visual_root.add_child(panel)
-	ShipCabinHatch.install(_visual_root, self, Vector3(1.9,1.6,13.98))
+	_solid_root.add_child(panel)
+	ShipCabinHatch.install(_solid_root, self, Vector3(1.9,1.6,13.98))
+	if has_node("ShipBoardingArea"):
+		var inside_panel := MeshInstance3D.new()
+		inside_panel.name = "InteriorAccessControl"
+		inside_panel.mesh = panel_mesh
+		inside_panel.position = Vector3(1.9,2,10.8)
+		inside_panel.material_override = brass
+		_solid_root.add_child(inside_panel)
+		var inside_hatch := ShipCabinHatch.install(_solid_root,self,inside_panel.position)
+		inside_hatch.name = "InteriorHatchInteraction"
 	_sync_engine_visuals_immediately()
+
+
+## The stable physical shell shares inherited hide/restore lifecycle state.
+func get_variant_visual_root() -> Node3D:
+	return _solid_root if is_instance_valid(_solid_root) else null
+
+
+func _sync_solid_root_visibility() -> void:
+	if is_instance_valid(_solid_root) and is_instance_valid(_visual_root):
+		_solid_root.visible = _visual_root.visible
+
+
+## The exhaust panel remains solid and visible OFFLINE; only light is cosmetic.
+func _build_exhaust_glow(label: String, center_x: float) -> void:
+	var glow := MeshInstance3D.new()
+	glow.name = label + "ExhaustGlow"
+	glow.set_meta("presentation_only", true)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.5, 1.45)
+	glow.mesh = quad
+	glow.position = Vector3(center_x,2.45,14.002)
+	var material := _finish(Color("66d7eb"),0.2)
+	material.emission_enabled = true
+	material.emission = Color("66d7eb")
+	material.emission_energy_multiplier = 2.0
+	glow.material_override = material
+	_solid_root.add_child(glow)
+	_engine_core_glows.append(glow)
 
 
 func _finish(color: Color, roughness: float) -> StandardMaterial3D:
@@ -300,7 +435,7 @@ func _prism(label: String, footprint: Array, bottom: float, top: float, material
 	var mesh := MeshInstance3D.new()
 	mesh.name = label
 	mesh.mesh = surface.commit()
-	_visual_root.add_child(mesh)
+	_solid_root.add_child(mesh)
 	return mesh
 
 
@@ -338,4 +473,4 @@ func _build_access_ramp(material: Material) -> void:
 	_ramp_mesh = MeshInstance3D.new()
 	_ramp_mesh.name = "SternRamp"
 	_ramp_mesh.mesh = surface.commit()
-	_visual_root.add_child(_ramp_mesh)
+	_solid_root.add_child(_ramp_mesh)

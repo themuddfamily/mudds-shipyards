@@ -1,9 +1,7 @@
 extends SceneTree
 
-## External-script capable full production-world berth fixture. The one staged
-## Paradox remains outside Main's registered fleet; the Player is never posed.
+## Full production-world berth fixture; actual Main Paradox and unposed Player.
 const MAIN := preload("res://scenes/main.tscn")
-const PARADOX := preload("res://scenes/ships/paradox_cruiser.tscn")
 const DEFINITION := preload("res://assets/ships/paradox_provisional.tres")
 const WRONG := preload("res://assets/ships/torrent_provisional.tres")
 const OLD_TRANSFORMS := {
@@ -74,8 +72,8 @@ func _run() -> void:
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"paradox_home_berth": matching += 1
 	if not _check(matching == 1 and world.get_berth_ids().size() == 12
-		and _game.get_flyable_ships().size() == 11 and berth.get_occupant() == null
-		and berth.get_reservation_owner() == null, "twelve berths and eleven registered craft; unique new berth initially empty"): return
+		and _game.get_flyable_ships().size() == 12 and berth.get_occupant() == _game.get_node("ParadoxCruiser")
+		and berth.get_reservation_owner() == _game.get_node("ParadoxCruiser"), "twelve berths and twelve registered craft; actual new craft owns unique home"): return
 	var old_leases: Dictionary = {}
 	for berth_id in OLD_TRANSFORMS:
 		var old := world.get_berth_node(berth_id)
@@ -105,14 +103,26 @@ func _run() -> void:
 		and edge.get("hub_node_id") == &"station-hub:hub-paradox-cruiser-berth"
 		and edge.get("module_node_id") == &"paradox-cruiser-berth:approach", "real new 1.5m supported navigation edge"): return
 	if not _test_titan_connector_opening(world): return
-	# Only fixture craft pose write: install once at its own exact dock.
-	_ship = PARADOX.instantiate() as HeroShip
-	_ship.transform = berth.get_dock_transform()
-	root.add_child(_ship)
-	await _frames(5)
-	if not _test_leases(berth): return
-	if not _check(_game.get_flyable_ships().size() == 11 and not _game.get_flyable_ships().has(_ship)
-		and _ship.global_transform.is_equal_approx(dock), "one unregistered candidate geometry fixture at own exact dock"): return
+	_ship = _game.get_node("ParadoxCruiser") as HeroShip
+	var occupied_before := berth.get_audit_report()
+	var live_token := berth.get_reservation_token(_ship)
+	if not _check(berth.try_reserve(_ship,DEFINITION) == live_token and berth.occupy(_ship,live_token)
+		and not berth.can_accept(WRONG,_player) and berth.try_reserve(_player,WRONG).is_empty()
+		and not berth.occupy(_player,live_token) and not berth.release(_player,live_token)
+		and not berth.release(_ship,&"stale") and berth.try_reserve(_player,DEFINITION).is_empty()
+		and berth.get_audit_report() == occupied_before,"actual occupied production lease preserves rightful owner through idempotent/foreign/wrong-tag/stale requests"): return
+	# Empty-ledger lifecycle cases use the exact production fields, no second hull.
+	var ledger := ShipBerth.new()
+	ledger.berth_id = &"paradox_independent_lease_fixture"
+	for field in [&"compatibility_tags",&"dock_transform",&"landing_volume_center",&"landing_half_extents",
+		&"assist_capture_center",&"assist_capture_half_extents",&"assist_capture_maximum_speed",
+		&"assist_maximum_tilt_degrees",&"departure_lift_height"]:
+		ledger.set(field,berth.get(field))
+	root.add_child(ledger)
+	if not _test_leases(ledger): return
+	ledger.free()
+	if not _check(berth.get_audit_report() == occupied_before and _game.get_flyable_ships().has(_ship)
+		and _ship.global_transform.is_equal_approx(dock), "actual registered production geometry and lease remain unchanged by independent empty-ledger cases"): return
 	for open in [false, true]:
 		_ship.set_canopy_open(open, 0.0)
 		await _frames(3)
@@ -147,7 +157,7 @@ func _run() -> void:
 	var discovered := false
 	for area in (_player.get_node("InteractionArea") as Area3D).get_overlapping_areas():
 		if area == _hatch: discovered = true
-	if not _check(discovered, "actual Main Player proximity discovers the available candidate control; no Main craft integration claimed"): return
+	if not _check(discovered, "actual Main Player proximity discovers available production control"): return
 	for index in range(ROUTE.size() - 2, 16, -1):
 		if not await _walk_to(ROUTE[index], 100 + index): return
 	if not _check(_samples > 1000 and _player.global_position.distance_to(Vector3(135, 0.38, 38)) < 0.08,
@@ -162,7 +172,6 @@ func _run() -> void:
 	_release_inputs()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_observer.queue_free()
-	_ship.queue_free()
 	_game.queue_free()
 	await _frames(3)
 	print("PARADOX_CRUISER_BERTH_TEST_OK")

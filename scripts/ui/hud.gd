@@ -2457,6 +2457,7 @@ func _weapon_readiness_text(status: StringName) -> String:
 	return str({
 		&"ready": "READY",
 		&"unarmed": "UNARMED",
+		&"primary_not_fitted": "NOT FITTED",
 		&"cooldown": "CYCLING",
 		&"overheated": "OVERHEAT",
 		&"offline": "SAFE",
