@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://scripts/interaction/ship_service_console.gd" id="14_fabrication_ship_service"]
 
 [ext_resource type="PackedScene" path="res://scenes/world/modules/titan_transport_berth.tscn" id="15_titan_berth"]
+[ext_resource type="PackedScene" path="res://scenes/world/modules/paradox_cruiser_berth.tscn" id="17_paradox_berth"]
 
 [ext_resource type="PackedScene" path="res://scenes/world/modules/predator_detention_transport_berth.tscn" id="16_predator_berth"]
 
@@ -144,6 +145,16 @@ metadata/route_support = &"observation_far_bridge_to_titan_connector"
 
 [node name="TitanTransportBerth" parent="." instance=ExtResource("15_titan_berth")]
 position = Vector3(154, 0.38, 38)
+rotation_degrees = Vector3(0, -90, 0)
+paradox_spur_open = true
+
+[node name="ParadoxConnectorRouteAnchor" type="Marker3D" parent="."]
+position = Vector3(135, 0.38, 48.5)
+metadata/station_hub_route_anchor = true
+metadata/route_support = &"titan_connector_to_paradox_spur"
+
+[node name="ParadoxCruiserBerth" parent="." instance=ExtResource("17_paradox_berth")]
+position = Vector3(154, 0.38, 90)
 rotation_degrees = Vector3(0, -90, 0)
 
 
