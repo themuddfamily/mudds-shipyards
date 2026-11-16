@@ -79,6 +79,9 @@ Five fixed source captures: retain prior4overview/spur/defaultchase/interior exa
 Proof / execution: /srv/mudds-work/paradox-gunner-20261116 source+PCK raw/profiles/views/export/delta/package/review/exactsourcebundle preserved in verified archive at closure. Every Godot --audio-driver Dummy, headless or owned isolated x11, suite_process independent abort/subreaper and input/cursor release; no concurrent engines during Main. No active desktop/audio/hostedCI authorization.
 Budget / stop: 2026-11-16 19:53:38→21:23:38UTC90minutes ALL-IN including mapping/code/checks/build/review/merge/push/archive/cleanup. Fresh owner-reset substantive repair0/1, prior0minutes for this original unstartedcard8; prior accepted card7 cost60.631minutes remains separate prerequisite. First unexpectedfailure stops dependentchecks and retains operands; repair only after measured cause. Routine compiler/caller/incorrectassertion fixes retain all cases/caps/endpoints/deadline. Exhaustion/unresolveddesign/deadline parks originalcompletecard, no renamedsubsetPASS. Close: NOT_RUN. No successor assigned.
 
+
+Pre-runtime integration clarification: landed pilot-prefab is_boardable reports helm/crew availability even while sealed, allowing ordinary area.is_available_for/try_reserve to acquire the real reservation. The solid closed hatch and unchanged actual inside-helm capsule/floor guard still refuse exterior ingress. Grounded local Paradox crew admission explicitly requires the new actual inside/ownedlease/OFFLINE/normalcapsule/2.5m helper even when boardable is true; remote retained-reservation admission remains separate. No manufactured/restored reservation, sticky old claim, positive direct door call, original case removal or numeric relaxation.
+
 ### Paradox pilot primary — card 7 DONE
 
 Accepted source **86c5a9024f58d1564aa83829207f0f03a193f07d**, merged by **dae47aa707e453108d133a86e25443b38e406d23**; paired checkpoint **86c5a90**.
