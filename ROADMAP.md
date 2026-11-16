@@ -78,6 +78,46 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: station panel shader compilation — ART-FINDINGS / FINAL-RECONCILE
+
+Outcome: accepted Main renders all five existing fixed camera views, including
+the close view that stalls GL shader linking, within the original90s cap under
+stock Mesa25/private Xvfb/x11/GLES/Dummy with fresh shader/user/config caches.
+Preserve the exact cameras/eight frames/geometry, world grain, original texture
+paths/mipmap sampling, normalstrength.32/sharpness4, roughness/metal/AO response,
+clearcoat families and animated door UV phase. No feature/light/quality cutback.
+The accepted Main baseline also reproduces the failure independently of gunner.
+
+Bounded production seam: a supported panel shader with the same material math,
+bound to canonical StandardMaterial source values through a world-owned render
+binding. Native Resource.changed does not emit for the required setters, so
+render-frame synchronization and explicit lifecycle ownership are necessary.
+Do not mutate native material RIDs. Unsupported materials retain their original
+renderer; source/actual renderer identities stay explicit. Producer-owned audit
+fingerprints must be recorded after intended binding, or their subtree remains
+outside this change. Original gunner card stays parked and unmerged.
+
+One HIGH implementer owns StationSurfaceKit/new shader/material/binding and its
+focused runtime test; root owns selected world/door producer integration and
+necessary existing material-test consumers. One HIGH independent reviewer
+checks shader equations, mip/filter parity, identity and lifecycle. Worktree
+/srv/mudds-work/station-panel-shader-20261116/worktree, branch
+work/station-panel-shader-1116, baseline10a695150. No recursive agents/engines.
+
+Acceptance: stock accepted-baseline failure retained; targeted runtime material
+and source↔renderer/update/reentry/teardown checks; original station triplanar,
+finish, playability and door checks; complete Titan source300/actual primary;
+five full source cold-render views90 with original frames/cameras and inspected
+PBR response. Clean paired exports/startup3, actual exported Windows-PCK station
+checks/Titan/five cold-render views with source isolation, complete package delta,
+audit9/fresh checkpoint/independent review before merge/push/archive/cleanup.
+Native Windows/GPU/device/human/full-release gates remain NOT_RUN, hosted CI off.
+
+Window2026-11-16 22:36:25→2026-11-17 00:06:25UTC90minutes ALL-IN including mapping;
+substantive corrections0/1. Stop and retain the first unexpected failure; require
+measured cause before correction, no reduced visual/case gate or clock reset.
+Shader-owner mapping and supported API probes are included in this window.
+
 ### Durable save float roundtrip — dependency DONE
 
 Accepted source **213a2d8849ab5972ffcf7d03f60bb6134d8e1e10**, checkpoint
