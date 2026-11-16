@@ -30,6 +30,25 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
+<a id="owner-allowance-reset"></a>
+
+### Owner allowance reset — 2026-11-16
+
+The owner reset correction allowances for **all unfinished tasks**. Each task
+now has **0 used** against its last positive approved limit, or **one** if no
+positive limit was recorded. Completed tasks are excluded. This is one reset
+per unfinished task, not a reset on every retry or new branch. Aurora therefore
+has a renewed **0/2** allowance; its previous **2/2** remains historical fact.
+
+This authorization supersedes older exhausted-allowance permission requirements
+throughout this roadmap, the backlog and linked task records. On selection,
+record a fresh bounded all-in window under the existing budget rules; do not ask
+again solely because the historical allowance or deadline was exhausted.
+Preserve all prior failures, source and cumulative cost. Original acceptance
+checks and per-test/journey caps, causal reopening conditions, dependencies and
+external inputs remain binding. No task becomes PASS or READY merely from this
+reset. Historical records below and in archives remain unchanged.
+
 ### SOLO-AURORA ordinary access/outbound — PARKED, unaccepted
 
 **Latest continuation stop, 2026-11-15: b7371e0dbb9bdbc360882e1ffc98e89f1e29b3dc
@@ -1356,7 +1375,7 @@ Use this small table for the cases, then fill the last column at closure:
 | Product choice or external resource missing | State the exact question/artifact and its owner using the [existing input contracts](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources) | Answer/resource recorded; no inferred approval and no blocked implementation |
 | Runtime or ordinary caller missing, but behavior defined | Select its bounded implementation with a fixed check | Implemented result passes that check, or failure is parked; a caller/component check alone cannot qualify the ordinary journey |
 | Prerequisite unfinished | Name its existing ID and required result | Dependency actually passes before dependent work launches |
-| Earlier attempt parked | Retain its failure, source, cumulative cost and causal reopening condition | Reopen only under that condition; exhausted allowance/deadline also requires later explicit user reprioritization |
+| Earlier attempt parked | Retain its failure, source, cumulative cost and causal reopening condition | Apply the owner allowance reset above where eligible, then satisfy actual causal/dependency conditions and record the renewed allowance and fresh bounded window |
 
 An undefined goal is **BLOCKED definition**; an unavailable choice/resource is
 **BLOCKED input**; an unfinished prerequisite is **GATED**. OPEN and UNSCHEDULED
@@ -1369,6 +1388,8 @@ Estimate implementation, checks, required checkpoint, integration and cleanup
 larger production capabilities before starting. Full journeys and soaks retain
 their original durations; do not shorten them to fit an implementation card.
 Default correction allowance is one; freeze it and the absolute deadline first.
+For unfinished tasks covered by the 2026-11-16 owner reset, use the renewed
+allowance above rather than carrying forward an exhausted historical count.
 
 Stop dependent checks at the first unexpected failure and retain its actual
 operands/output. Every correction needs a demonstrated cause and cumulative-cost
@@ -1379,13 +1400,14 @@ They still require a clean candidate and rerunning the complete affected gates;
 no check, threshold or endpoint may be dropped to obtain a pass.
 
 Frozen correction allowances apply to substantive production/behavior repairs.
-Their exhaustion, an unresolved product requirement or the hard deadline parks
-the task. New names, branches or smaller subsets never reset cumulative cost or
-extend a deadline. Expired or substantively blocked parked attempts retain their
-recorded reopening conditions and explicit priority decisions. This is not a
-blanket retry of old work. No dependent check starts before its prerequisites
-pass; unrelated defects return to their existing owner. Ask the user for real
-product/scope/resource decisions, not approval to repair a mistake in a test.
+Exhausting the renewed allowance, an unresolved product requirement or the new
+window's hard deadline parks the task. New names, branches or smaller subsets
+never reset cumulative cost or extend a deadline. The owner reset supersedes
+historical allowance/deadline permission barriers; actual causal reopening
+conditions and dependencies remain. No dependent check starts before its
+prerequisites pass; unrelated defects return to their existing owner. Ask the
+user for real product/scope/resource decisions, not approval already supplied
+by the reset or approval to repair a mistake in a test.
 
 ### What counts as finished
 
@@ -1462,8 +1484,9 @@ Select one ready delivery or qualification goal from an existing row; fill its
 card before editing or running checks. A broad craft/activity/world container is never one assignment. Follow
 literal prerequisite IDs; independent ready capabilities may run in parallel
 with disjoint ownership. A parked task needs its recorded causal reopening
-condition and cumulative-cost decision before selection; exhausted limits also
-require the explicit user reprioritization described above.
+condition and cumulative-cost decision before selection. Apply the owner reset
+above to historical exhausted allowances and expired windows; it supplies that
+authorization without another permission question.
 
 Close each assignment before moving on: actual result and proof, merge/push
 accepted changes, required playable checkpoint, and owned branch/worktree/process

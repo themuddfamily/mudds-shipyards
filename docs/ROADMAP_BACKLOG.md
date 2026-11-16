@@ -7,6 +7,18 @@ The [working roadmap](../ROADMAP.md#current-work-and-next-selection) selects exe
 [delivery history](history/ROADMAP_DELIVERIES.md) records accepted and failed attempts.
 This backlog preserves remaining scope, not a ready queue or remaining-job count.
 
+**Owner allowance reset, 2026-11-16:** all unfinished tasks receive a renewed
+correction allowance of **0 used** against their last positive approved limit,
+or **one** if none was recorded. Completed tasks are excluded. The reset applies
+once per task and supersedes older exhausted-allowance permission requirements
+in this backlog and linked records. Select resumed work into a fresh bounded
+all-in window under the [working roadmap](../ROADMAP.md#owner-allowance-reset).
+No further approval is needed solely for the historical exhausted count or
+expired deadline. Retain historical counts, failures, source and cumulative
+cost; preserve actual causal/dependency/input conditions, all acceptance checks
+and original test/journey caps. This does not mark tasks passed or ready, or
+authorize blind retries. Record each renewed allowance on its selected card.
+
 | Find | Existing section |
 | --- | --- |
 | Original promises and their named children | [36-parent crosswalk](#coverage-of-the-original-remaining-outcomes) |
@@ -41,12 +53,13 @@ record its accepted 2026-11-05 definition closure. That closure delivers no
 gameplay and does not close the implementation or qualification goals.
 
 Current routine-repair policy: [working roadmap failure boundary](../ROADMAP.md#fixed-budget-and-failure-boundary).
-Compiler/test-fixture mistakes may be repaired within their original absolute
+Compiler/test-fixture mistakes may be repaired within their selected absolute
 budget without owner permission; preserve all checks, costs and original
 requirements. This supersedes mechanical-error-only approval wording while
-leaving expired/substantive parked reopening conditions binding. The station
-startup-test static-call repair resumes under this rule; no silence/approval,
-new deadline or successful ordinary result is inferred.
+leaving actual causal parked reopening conditions binding. The owner allowance
+reset above governs historical exhausted counts and expired windows. The station
+startup-test static-call repair retains its recorded scope; no successful
+ordinary result is inferred.
 
 <a id="owner-design-baselines-20261105"></a>
 ## Eight missing craft — modern design baselines adopted2026-11-05
@@ -231,12 +244,13 @@ next stop. Renamed or split cards retain cumulative cost; review neither
 replenishes the allowance nor authorizes automatic retry.
 
 The selected card fixes its total correction allowance (default one) and absolute
-deadline including closure before editing. Neither replenishes when a new cause
-or branch is found. Validate the final allowed correction; any further failed
-predicate then means FAIL/PARKED and cleanup. Reaching the absolute deadline is
-also terminal. No additional correction or same-run reopening/deadline extension.
-A later explicit user
-reprioritization retains prior cost and names the superseded terminal boundary.
+deadline including closure before editing. Apply the 2026-11-16 owner reset above
+to unfinished tasks instead of reusing their exhausted historical counts or
+expired windows. Once renewed, neither allowance nor deadline replenishes when
+a new cause or branch is found. Validate the final allowed correction; any
+further failed predicate then means FAIL/PARKED and cleanup. Reaching the new
+absolute deadline is also terminal. Further authorization retains prior cost
+and names the superseded terminal boundary.
 Each PASS predicate binds an actual observation and expected value; failed
 compound assertions retain operand values. Dependent commands launch only after
 their prerequisite exit/results pass. Missing observations leave the cause unknown.
