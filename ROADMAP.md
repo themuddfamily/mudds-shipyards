@@ -15,9 +15,11 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **86c5a90** — [Windows ZIP](builds/windows/MuddsShipyards-86c5a90-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-86c5a90-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-86c5a90-linux-x86_64.tar.gz).
+Latest playable checkpoint: **213a2d8** — [Windows ZIP](builds/windows/MuddsShipyards-213a2d8-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-213a2d8-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-213a2d8-linux-x86_64.tar.gz).
+Valid runtime timestamps now save and reload without a self-rejected checksum;
+normal Titan shutdown persists its terminal event in source and packaged checks.
 Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
@@ -76,7 +78,25 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected dependency repair: durable save float roundtrip — FINAL-RECONCILE
+### Durable save float roundtrip — dependency DONE
+
+Accepted source **213a2d8849ab5972ffcf7d03f60bb6134d8e1e10**, checkpoint
+**213a2d8**. Valid timestamps commit/reload and later terminal events persist;
+existing reader/schema/digest verification and exact recovery-stage bytes remain
+intact. Eight focused suites and full Titan source164.036s pass; safe-start
+retains exactly three deliberate fault-fixture warnings with zero unexpected
+warnings. Actual Windows-PCK store and full Titan157.211s pass, including primary
+clean_shutdown/clean/session_ended. Paired exports, strict startups3,1599equal
+payload maps (one intended script change), existing audit9 and seven artifacts
+pass independent review. Native Windows/GPU/hardware/human/full-release gates
+remain NOT_RUN. The original runner warning rejection and original Titan failure
+are preserved; the unobserved original handoff tick is not retrospectively proven.
+
+Verified archive: /srv/mudds-work/save-float-roundtrip-20261116/records.tar.gz,
+14,033,256bytes, SHA256700565989be0d277fe91d4cca4b28fade3a6cec1509fbaac7e85e7400d1743dc,
+208members, all member hashes verified. Substantive repairs0/1. Original task
+card and acceptance contract follow for historical reference.
+
 
 Outcome: valid runtime diagnostic timestamps survive a committed save, reload,
 subsequent events and normal shutdown. Actual Godot JSON decoding can change a
