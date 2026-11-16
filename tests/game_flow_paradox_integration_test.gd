@@ -196,8 +196,9 @@ func _board_from_stern(sortie: int,identity: int,area: ShipBoardingArea) -> bool
 	if not _check(_ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty()
 		and _game.hud._active_ship_name==_ship.get_display_name().to_upper()
 		and _game.hud._active_ship_role=="CRUISER"
-		and hud.readiness=="NOT FITTED" and "NOT FITTED" in hud.label_text
-		and "PRIMARY NOT FITTED" in _ship._cockpit_readout.text,"actual cockpit eye clears full fitout and actual bound identity/readiness show primary not fitted"): return false
+		and hud.readiness!="NOT FITTED" and "NOT FITTED" not in hud.label_text
+		and "PRIMARY" in _ship._cockpit_readout.text and "NOT FITTED" not in _ship._cockpit_readout.text,
+		"actual cockpit eye clears full fitout and bound readiness shows fitted primary"): return false
 	return true
 
 
@@ -274,12 +275,12 @@ func _exercise_local_crew_seats() -> bool:
 			if not _check(_ship.global_transform.is_equal_approx(ship_pose) and _ship.velocity == ship_velocity
 				and _ship.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE and _ship.get_telemetry().hull == hull
 				and _shots == shots and _projectiles == projectiles and _ship._weapon_heat == 0 and _ship._weapon_timer == 0
-				and _game._get_player_weapon_profiles(_ship).is_empty() and _game.get_combat_authority().get_source_id(_ship) == 0
-				and not GameFlow.PLAYER_SOURCE_IDS.has(&"paradox_provisional") and authority.get_snapshot() == snapshot
+				and _game._get_player_weapon_profiles(_ship).size() == 1 and _game.get_combat_authority().get_source_id(_ship) == 1111
+				and GameFlow.PLAYER_SOURCE_IDS.get(&"paradox_provisional") == 1111 and authority.get_snapshot() == snapshot
 				and _game._solo_crew_claim_is_current() and not _ship.is_piloted()
 				and "siege" not in objective.to_lower() and "charge" not in objective.to_lower() and "ammunition" not in objective.to_lower()
 				and (role != &"gunner" or "DEFENSIVE CANNON NOT FITTED" in objective.to_upper()),
-				"ordinary held throttle/turn/FIRE20 ticks has no propulsion/shot/heat/cooldown/damage/profile/claim mutation and honest crew HUD"): return false
+				"ordinary held throttle/turn/FIRE20 ticks has no propulsion/shot/heat/cooldown/damage/claim mutation, retained pilot profile and honest crew HUD"): return false
 			await _tap(&"interact")
 			for tick in 180:
 				if not _game._transition_busy and not _player.is_seated(): break
@@ -294,7 +295,7 @@ func _exercise_local_crew_seats() -> bool:
 				and _game._solo_crew_seat == null and _game._solo_crew_ship == null and _game._solo_crew_role == &""
 				and _game._solo_gunner_source == null and _game._solo_gunner_source_stream == -1 and not _game._solo_gunner_fire
 				and not _player.get_cabin_containment_report().get("active",false)
-				and _game.get_combat_authority().get_source_id(_ship) == 0 and _game._get_player_weapon_profiles(_ship).is_empty(),
+				and _game.get_combat_authority().get_source_id(_ship) == 1111 and _game._get_player_weapon_profiles(_ship).size() == 1,
 				"normal stand restores exact authored supported body and retires all role/claim/metadata/input/containment fields"): return false
 			var forward := -_player.global_basis.z
 			var aisle := _ship.global_basis.x * (1.0 if index == 0 else -1.0)
@@ -390,21 +391,7 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 		"actual ordinary controller flight endpoint="+str(point)+" speed="+str(_ship.velocity.length())): return false
 	if not _check(checked_pitch,"actual pitch-turn alignment observed"): return false
 	if not _test_physical_alignment(_ship,"Main steady flight sortie="+str(sortie)): return false
-	var shots := _shots
-	var projectiles := _projectiles
-	var health: float = float(_ship.get_telemetry().hull)
-	Input.action_press(&"fire")
-	await _wait_frames(20)
-	Input.action_release(&"fire")
-	_ship._fire_weapon()
-	_ship._fire_weapon_with_aim()
-	_game._on_projectile_fired(_ship.global_position,-_ship.global_basis.z,_ship)
-	if not _check(_shots==shots and _projectiles==projectiles and _ship.get_telemetry().hull==health
-		and _ship._weapon_heat==0 and _ship._weapon_timer==0
-		and _game._last_player_shot_result.reason==&"primary_not_fitted"
-		and _game._get_player_weapon_profiles(_ship).is_empty()
-		and _game.get_combat_authority().get_source_id(_ship)==0
-		and not GameFlow.PLAYER_SOURCE_IDS.has(&"paradox_provisional"),"actual held/direct/generic FIRE produces no shot/profile/source/heat/cooldown/damage"): return false
+	if not await _exercise_pilot_primary(sortie): return false
 	var capture := _game._get_active_landing_assist_report()
 	if not _check(bool(capture.get("assist_capture_accepted",false))
 		and StringName(capture.get("selected_berth_id",&""))==&"paradox_home_berth","existing capture accepts exact own home"): return false
@@ -437,6 +424,84 @@ func _sortie_home(sortie: int,identity: int,area: ShipBoardingArea,berth: ShipBe
 		and _ship.to_local(_player.global_position).distance_to(Vector3(0,1.2,-2.4))<0.05
 		and _ship.get_interior_frame().is_occupant_registered(_player),
 		"normal supported inside stand restores body/control/camera/claim with outer hatch still closed")
+
+func _exercise_pilot_primary(sortie: int) -> bool:
+	# Stage targets only; ordinary pilot/ship poses and the full route remain.
+	var camera := _ship.get_camera()
+	var center := camera.get_viewport().get_visible_rect().size * 0.5
+	var direction := camera.project_ray_normal(center).normalized()
+	var point := camera.global_position + direction * 120.0
+	_game.world._create_target(_game.world,9000+sortie,_game.world.to_local(point))
+	var target := _game.world._targets.back() as StaticBody3D
+	_game.get_combat_authority().attach_range_targets(_game.world)
+	var adapter := target.get_node("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	await _wait_frames(3)
+	var health := adapter.get_health()
+	var shots := _shots
+	var emissions := _projectiles
+	Input.action_press(&"fire")
+	await _wait_frames(20)
+	Input.action_release(&"fire")
+	var result := _game.get_last_player_shot_result()
+	var request := result.get("request") as ShotRequest
+	if not _check(_shots==shots+1 and _projectiles==emissions+1 and request!=null
+		and request.source_id==1111 and request.source_entity==_ship
+		and request.weapon_id==GameFlow.JOVIAN_COMBAT_WEAPON_ID
+		and is_equal_approx(health-adapter.get_health(),70.0)
+		and is_equal_approx(request.damage,70.0) and is_equal_approx(request.range,650.0)
+		and _ship._weapon_heat==0 and _ship._weapon_timer>0,
+		"ordinary pilot held FIRE20 yields one 70-damage hit through650m/source1111 sortie="+str(sortie)): return false
+	var before := adapter.get_health()
+	_game._on_projectile_fired(request.origin,request.direction,_ship)
+	if not _check(_game.get_last_player_shot_result().reason==&"primary_pilot_not_current"
+		and adapter.get_health()==before and _shots==shots+1,
+		"manual replay cannot mint or duplicate a primary emission"): return false
+	await _wait_frames(42)
+	adapter.configure(_game.world,GameFlow.PLAYER_FACTION)
+	shots=_shots
+	Input.action_press(&"fire")
+	await _wait_frames(1)
+	Input.action_release(&"fire")
+	await _wait_frames(2)
+	if not _check(_shots==shots+1 and adapter.get_health()==before
+		and _game.get_last_player_shot_result().status==&"friendly_fire_blocked",
+		"ordinary pilot input refuses actual friendly target without damage"): return false
+	await _wait_frames(42)
+	adapter.configure(_game.world,&"range_target")
+	var blocker := StaticBody3D.new()
+	blocker.name="ParadoxPrimaryWorldOcclusionFixture"
+	blocker.collision_layer=PhysicsLayers.WORLD
+	blocker.collision_mask=0
+	var shape := BoxShape3D.new()
+	shape.size=Vector3(12,12,2)
+	var collision := CollisionShape3D.new()
+	collision.shape=shape
+	blocker.add_child(collision)
+	_game.add_child(blocker)
+	blocker.global_transform=Transform3D(Basis.looking_at(direction,Vector3.UP),camera.global_position+direction*60)
+	await _wait_frames(3)
+	shots=_shots
+	Input.action_press(&"fire")
+	await _wait_frames(1)
+	Input.action_release(&"fire")
+	await _wait_frames(2)
+	if not _check(_shots==shots+1 and adapter.get_health()==before
+		and _game.get_last_player_shot_result().status==&"world_blocked",
+		"ordinary pilot input respects actual world occlusion without through-wall damage"): return false
+	blocker.queue_free()
+	_game.world._targets.erase(target)
+	target.queue_free()
+	await _wait_frames(42)
+	shots=_shots
+	Input.action_press(&"fire")
+	await _wait_frames(1)
+	Input.action_release(&"fire")
+	await _wait_frames(2)
+	if not _check(_shots==shots+1 and _game.get_last_player_shot_result().status==&"miss",
+		"ordinary pilot miss resolves without damage"): return false
+	await _wait_frames(42)
+	return true
+
 
 func _walk_out(sortie: int) -> bool:
 	for point in [Vector3(0,1.2,3),Vector3(0,1.2,9.8),Vector3(1.9,1.2,10.3)]:

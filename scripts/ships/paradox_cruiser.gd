@@ -1,8 +1,17 @@
 extends HeroShip
 
 ## Original modern cruiser, not an authenticated historical silhouette.
-## Continuous stern access with physical local crew; weapons remain unfitted.
+## Continuous stern access and local crew; only the pilot primary is fitted.
 ## Editable convex sections use metres, +Y up and -Z forward.
+signal primary_fire_refused(reason: StringName)
+
+var _primary_last_refusal: StringName = &""
+const PRIMARY_DEFINITION := preload("res://assets/weapons/jovian_combat_pulse.tres")
+const PRIMARY_MUZZLES := [Vector3(-0.8,2.7,-14),Vector3(0.8,2.7,-14)]
+@export var primary_weapon_fitted := false
+var _primary_emission_pending := false
+var _primary_emission_origin := Vector3.INF
+var _primary_emission_direction := Vector3.ZERO
 const PILOT_ORIGIN := Vector3(0, 1.65, -3.8)
 const CABIN_VOID := AABB(Vector3(-2.8, 1.2, -5), Vector3(5.6, 2.8, 19))
 const RAMP_POINTS := [Vector3(-1.2,0,0), Vector3(-1.2,-0.68,2), Vector3(-1.2,-1.2,4),
@@ -123,32 +132,130 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 
 func _uses_inherited_primary_weapon() -> bool:
-	return false
+	return primary_weapon_fitted and has_node("ShipBoardingArea")
 
 
 func _uses_weapon_component_fallback_emitters() -> bool:
 	return false
 
 
-func _get_weapon_unavailable_reason(_modifiers: Dictionary = {}) -> StringName:
-	return &"primary_not_fitted"
+func get_weapon_definition() -> WeaponDefinition:
+	return PRIMARY_DEFINITION.duplicate(true) as WeaponDefinition if _uses_inherited_primary_weapon() else null
 
 
-func _get_weapon_fire_status_from_modifiers(_modifiers: Dictionary) -> Dictionary:
+func get_primary_pilot_claim_is_current() -> bool:
+	if not _uses_inherited_primary_weapon() or not is_inside_tree() or is_queued_for_deletion() \
+			or _destroyed or _hull <= 0 or not _piloted or _remote_piloted or _canopy_open or _access_fraction > 0.0001:
+		return false
+	var area := get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var actor := area.get_reservation_token() as PlayerController if area != null else null
+	return is_instance_valid(actor) and actor.is_inside_tree() and not actor.is_queued_for_deletion() \
+		and actor.is_seated_at(get_pilot_seat_anchor()) and not actor.is_station_seated() \
+		and not actor.has_meta(SOLO_CREW_ROLE_OCCUPANT_META)
+
+
+func _get_weapon_unavailable_reason(modifiers: Dictionary = {}) -> StringName:
+	if not _uses_inherited_primary_weapon():
+		return &"primary_not_fitted"
+	if not get_primary_pilot_claim_is_current():
+		return &"primary_pilot_required"
+	return super._get_weapon_unavailable_reason(modifiers)
+
+
+func _get_weapon_fire_status_from_modifiers(modifiers: Dictionary) -> Dictionary:
+	if _uses_inherited_primary_weapon():
+		var status := super._get_weapon_fire_status_from_modifiers(modifiers)
+		status["last_refusal"] = _primary_last_refusal
+		return status
 	return {"ready": false, "status": &"primary_not_fitted", "reason": &"primary_not_fitted", "heat": 0.0,
 		"cooldown_remaining": 0.0, "recovery_remaining": 0.0}
 
 
+func _get_weapon_targeting_distance() -> float:
+	return float(PRIMARY_DEFINITION.range_meters)
+
+
 func _fire_weapon() -> void:
-	pass
+	_fire_weapon_with_aim()
 
 
-func _fire_weapon_with_aim(_crew_origin: Vector3 = Vector3.INF, _crew_direction: Vector3 = Vector3.ZERO) -> void:
-	pass
+## Keep HeroShip's timer, alternating single stream and camera convergence.
+## This exact resource disables heat, so its emitter adds no inherited heat cost.
+func _fire_weapon_with_aim(crew_origin: Vector3 = Vector3.INF, crew_direction: Vector3 = Vector3.ZERO) -> void:
+	if crew_origin != Vector3.INF or crew_direction != Vector3.ZERO:
+		_reject_primary_fire(&"primary_pilot_aim_only")
+		return
+	if _primary_emission_pending:
+		_reject_primary_fire(&"primary_emission_in_progress")
+		return
+	if not get_primary_pilot_claim_is_current():
+		_reject_primary_fire(&"primary_pilot_required")
+		return
+	var readiness := get_weapon_fire_status()
+	if not bool(readiness.get("ready",false)):
+		_reject_primary_fire(StringName(readiness.get("reason",&"primary_unavailable")))
+		return
+	var muzzle := _muzzle_left if _fire_from_left else _muzzle_right
+	if not is_instance_valid(muzzle):
+		_reject_primary_fire(&"primary_muzzle_unavailable")
+		return
+	var camera := get_camera()
+	var center := camera.get_viewport().get_visible_rect().size * 0.5
+	var ray_origin := camera.global_position
+	var camera_direction := camera.project_ray_normal(center).normalized()
+	var convergence := ray_origin + camera_direction * _get_weapon_targeting_distance()
+	var modifiers := get_operational_modifiers()
+	if not bool(modifiers.get("targeting_disabled",false)):
+		var aim := PhysicsRayQueryParameters3D.create(ray_origin,convergence,WEAPON_AIM_MASK,[get_rid()])
+		aim.collide_with_areas = true
+		var hit := get_world_3d().direct_space_state.intersect_ray(aim)
+		if not hit.is_empty(): convergence = hit.position
+	var direction := (convergence-muzzle.global_position).normalized()
+	# Exact authored points are on the nose face. A forward ray starts outside
+	# the face by contact skin; no backward or re-entering hull ray is admitted.
+	var nose := -global_basis.z.normalized()
+	if not direction.is_finite() or direction.dot(nose) <= 0.0:
+		_reject_primary_fire(&"primary_hull_blocked")
+		return
+	var hull_query := PhysicsRayQueryParameters3D.create(muzzle.global_position+nose*0.002,convergence,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP)
+	var hull_hit := get_world_3d().direct_space_state.intersect_ray(hull_query)
+	if not hull_hit.is_empty() and hull_hit.collider == self:
+		_reject_primary_fire(&"primary_hull_blocked")
+		return
+	_primary_last_refusal = &""
+	_weapon_timer = weapon_cooldown / _get_damage_weapon_multiplier()
+	_fire_from_left = not _fire_from_left
+	_primary_emission_origin = muzzle.global_position
+	_primary_emission_direction = direction
+	_primary_emission_pending = true
+	projectile_fired.emit(_primary_emission_origin,_primary_emission_direction)
+	_primary_emission_pending = false
+	_primary_emission_origin = Vector3.INF
+	_primary_emission_direction = Vector3.ZERO
+
+
+func _reject_primary_fire(reason: StringName) -> void:
+	_primary_last_refusal = reason
+	primary_fire_refused.emit(reason)
+
+
+## GameFlow consumes this exact synchronous emission once; manual callbacks
+## cannot impersonate a shot even while the real pilot is correctly seated.
+func consume_primary_emission(origin: Vector3,direction: Vector3) -> bool:
+	if not _primary_emission_pending or not get_primary_pilot_claim_is_current() \
+			or origin != _primary_emission_origin or direction != _primary_emission_direction:
+		return false
+	_primary_emission_pending = false
+	return true
 
 
 func _get_cockpit_system_readout() -> Dictionary:
-	return {"text": "PRIMARY NOT FITTED  //  CRUISER", "color": Color("8de8e4")}
+	if not _uses_inherited_primary_weapon():
+		return {"text":"PRIMARY NOT FITTED  //  CRUISER","color":Color("8de8e4")}
+	var status := get_weapon_fire_status()
+	var text := "PRIMARY READY" if bool(status.ready) else ("PRIMARY CYCLING" if status.status == &"cooldown" else "PRIMARY SAFE")
+	return {"text":text+"  //  CRUISER","color":Color("8de8e4")}
 
 
 
@@ -314,10 +421,14 @@ func _build_ship() -> void:
 	_boarding_marker.position = Vector3(0,1.2,10)
 	_exit_marker.position = Vector3(0,0,17)
 	_camera_pivot.position = Vector3(0,4,2)
-	_muzzle_left.free()
-	_muzzle_right.free()
-	_muzzle_left = null
-	_muzzle_right = null
+	if _uses_inherited_primary_weapon():
+		_muzzle_left.position = PRIMARY_MUZZLES[0]
+		_muzzle_right.position = PRIMARY_MUZZLES[1]
+	else:
+		_muzzle_left.free()
+		_muzzle_right.free()
+		_muzzle_left = null
+		_muzzle_right = null
 	if has_node("ShipBoardingArea"):
 		_boarding_entry_marker = Marker3D.new()
 		_boarding_entry_marker.name = "BoardingEntry"
