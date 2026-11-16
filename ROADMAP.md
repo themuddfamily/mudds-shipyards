@@ -638,7 +638,27 @@ source bundle, raw checks/source-cache guards/views and package records remain
 in verified `/srv/mudds-work/katana-foundation-20261106/records.tar.gz`; adjacent
 closeout records actual publication and owned branch/worktree/process cleanup.
 
-### Paradox own reachable home berth — build card3 PARKED
+### Paradox own reachable home berth — card3 renewal in progress
+
+**Owner-reset renewal2026-11-16 15:09:02→16:39:02UTC,90minutes ALL-IN.**
+Same original card3/9d124 source and measured south-rail blocker; current main
+591a0f846 and all accepted craft/Aurora/foundations retained. Prior33.262minutes
+and every failure remain preserved. Renewed0/1 allowance; the actual south-side
+opening repair uses1/1. HIGH implementer owns the original source/test integration
+plus mechanical current Predator roster expectations; root owns release/docs/
+cleanup, independent HIGH reviewer checks shared docking/spatial/actual results.
+Clean candidatea8c92aac1264718dac5dc3f2eab376c7fe75aa45 preserves accepted
+ShipBerth center behavior and adds only its composed-volume readback accessor.
+Current world has11oldflyable/11oldberths plus newunoccupiedParadox=12berths;
+all11oldposes/centers/leases includingPredator are protected. Paradox is NOT
+Main-registered by this card. North rail remains full/default-safe; only the
+production south gap opens onto supported newspur. Original walking/control/
+return/lease/closed+deployedfit/8mlift/forward/chase cases and all caps remain.
+Original7sourcecases plus whole existingPredatorberth300 regression, unchanged
+fullTitanMain300 ALONE source/PCK, wholePCKberth300,3fixedviews,pairedexports/
+strictstartup3/maps/audit9/eightartifacts/merge/push/archive/ownedcleanup required.
+Fresh card/records: `/srv/mudds-work/paradox-berth-renewal-20261116/`. Historical
+counts/deadlines/failed statuses below describe the earlier attempt only.
 
 Goal / contract: [approved Paradox card3](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md#bounded-implementation-cards--after-owner-approval-only). Foundation/access cards1–2 accepted; Vortex access/Titan remote remain parked. This card adds actual station geometry and docking authority, not Main craft registration.
 Result: normal Main Player walks existing station route through Titan connector to a new supported Paradox spur/deck/sign and future stern-control approach; own valid unoccupied paradox_home_berth supports exact modern candidate geometry and compatible conserved lease. Main flyable fleet remains10/17; no candidate spawn/role/combat integration.
