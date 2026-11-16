@@ -278,7 +278,7 @@ func _exercise_local_crew_seats() -> bool:
 				and not GameFlow.PLAYER_SOURCE_IDS.has(&"paradox_provisional") and authority.get_snapshot() == snapshot
 				and _game._solo_crew_claim_is_current() and not _ship.is_piloted()
 				and "siege" not in objective.to_lower() and "charge" not in objective.to_lower() and "ammunition" not in objective.to_lower()
-				and (role != &"gunner" or "DEFENSIVE CANNON NOT FITTED" in objective),
+				and (role != &"gunner" or "DEFENSIVE CANNON NOT FITTED" in objective.to_upper()),
 				"ordinary held throttle/turn/FIRE20 ticks has no propulsion/shot/heat/cooldown/damage/profile/claim mutation and honest crew HUD"): return false
 			await _tap(&"interact")
 			for tick in 180:
