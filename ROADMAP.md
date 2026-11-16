@@ -49,7 +49,22 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### SOLO-AURORA ordinary access/outbound — PARKED, unaccepted
+### SOLO-AURORA ordinary access/outbound — renewal in progress, unaccepted
+
+**Selected renewal 2026-11-16 13:46:38→15:16:38UTC,90minutes ALL-IN.**
+Same contract and archived b7371e0db lineage; owner reset grants0/2 corrections,
+with all prior131.341minutes/source/failures retained. One bounded implementer
+owns the existing native runner/tests/passive observer; root owns full release
+and integration; one independent HIGH reviewer checks source and final raw.
+The correction binds level departure to actual enabled UpperOperations collision
+bounds as well as the apron and actual aft extent, then the original climb.
+No world/physics/input-provider change or dropped acceptance case is selected.
+Full existing source/privacy, paired exports/startup3/maps, one complete ordinary
+Aurora journey, audit9/checkpoint/merge/push/archive/owned cleanup remain required.
+Original1800climb/900alignment/>500m departure and2700/2760 route/member caps
+are unchanged. First failure stops dependent gates; causal corrections use the
+remaining renewed allowance and same deadline. Full task card and current raw:
+`/srv/mudds-work/aurora-outbound-20261116/`. Earlier stops follow as history.
 
 **Latest continuation stop, 2026-11-15: b7371e0dbb9bdbc360882e1ffc98e89f1e29b3dc
 is unaccepted and unmerged.** The approved additional correction keeps ordinary
