@@ -78,6 +78,52 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Vortex continuous physical access — card2 owner-reset renewal
+
+Outcome: same real Player walks fixture apron→physical stern hatch/ramp→aisle→
+helm approach→outside, seals and reopens twice, without jumps, pose staging or
+collision bypass. Existing sealed/start/moving/unsupported safety remains intact.
+Approved [card2](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md) and full original
+card/cases below remain binding. Main stays12craft; berth/Main/roles are separate.
+
+Baseline accepted Main6aba2b189 plus exact archived unaccepted1416c9ece candidate
+(only five original owned files; no concurrent changes to those files). Preserve
+original34.89minutes, original envelope failure and archived raw. Measured cause:
+rigid ramp toe reachesz12.078866 at fraction.909 and contacts the real apron
+operator. Renewed repair must keep the complete animated ramp inside original
+z≤12.0001 and clear the ordinary actual capsule throughout opening/closing;
+no reach, floor flag, endpoint, tolerance or geometry-baseline inflation.
+
+Owner: HIGH implementer owns only Vortex script, existing Vortex foundation/access
+tests+UID and existing definition evidence-notes wording; approved numeric values
+unchanged. No shared runtime edits. HIGH independent reviewer checks actual rigid
+mesh/collider trajectory and support/engine lifecycle; root owns commands/release/
+integration/cleanup. No nested agents or agent engines. Worktree/branch:
+`/srv/mudds-work/vortex-access-renewal-20261116/worktree`,work/vortex-access-1116.
+One initial production ship/deck/Player pose per process; identity and separately
+translated/yaw35fixture(30,.38,-20), same composed apron. All later movement uses
+real Player controls and discovered/reachable hatch interaction. Preserve entire
+original inbound/return/reuse, closed refusal, capsule/head/support sampling,
+interior registration/retirement and engine safety cases.
+
+Required checks, each exit0/exact success marker/zero unexpected diagnostics:
+Vortex foundation90s; access identity180s; access transformed180s; definition/berth
+120s; moving interior120s; unchanged complete Titan Main300s/actual clean terminal
+primary. Fixed closed/open/helm-eye private Xvfb/x11/GLES views; exact visible and
+collider transforms through intermediate motion. Clean paired exports and strict
+startup3; actual Windows-PCK foundation/both complete access profiles/full Titan
+from blank isolated directories with same limits; full payload delta/audit9,
+fresh EXE/ZIP/notes/preview and paired Linux before review/merge/push/cleanup.
+All engines Dummy; native Windows/GPU/human/full-craft/network gates stay NOT_RUN;
+hosted CI remains disabled. No source-only or fixture-only full craft claim.
+
+Window **2026-11-16 23:46:27.459059→2026-11-17 01:16:27.459059UTC**,90minutes
+ALL-IN including restoration/mapping/checks/package/review/cleanup. Owner-reset
+allowance0/1 until causal production correction is delivered. Stop at first
+unexpected failure; retain actual operands, measure cause before correction;
+exhausted repair or deadline parks this same full card. No dependent card3 starts.
+Raw/closeout root `/srv/mudds-work/vortex-access-renewal-20261116/`.
+
 ### Station panel shader compilation — PARKED, unmerged
 
 Final candidate **afd6048bd8f1f6771de6f687d12537720ae5ea4e** fails the unchanged
