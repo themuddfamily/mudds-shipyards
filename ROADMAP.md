@@ -78,7 +78,42 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: station panel shader compilation — ART-FINDINGS / FINAL-RECONCILE
+### Station panel shader compilation — PARKED, unmerged
+
+Final candidate **afd6048bd8f1f6771de6f687d12537720ae5ea4e** fails the unchanged
+stock-Mesa25 cold five-view capture: exit124 after90.342s, first four images
+saved, fifth mount close-up absent. Exact final import and focused binding suite
+pass (6.583s/2.621s, zero diagnostics); independent review accepts only the source
+correction's identity/lifecycle handling. No production or package acceptance.
+
+The measured late material-assignment gap was corrected with one deferred retry
+and final non-Activity discovery; Activity snapshots retain their captured actual
+renderer identities. This consumes the **1/1 substantive correction** and does
+not resolve the required rendering outcome. The remaining shader owner/cause is
+not established. No more changes or retries were selected after this failure.
+Remaining station regressions, full Titan, paired exports/startups, actual-PCK
+checks/five views, package audit and a new checkpoint are **NOT_RUN**. Candidate
+source is not in Main; latest validated checkpoint remains213a2d8. Gunner card8
+remains independently parked with its original gates and cost.
+
+Verified source/raw archive:
+`/srv/mudds-work/station-panel-shader-20261116/records.tar.gz`,71,819,845bytes,
+SHA25668a18bfde32bb12705dae3b2660f9cee8fbb219a17c02bcea5fd0a6167ce73a2,
+4,715members, every member hash verified. Includes a verified exact candidate
+bundle, binary source diff, baseline/earlier/final failures, partial captures,
+source/cache inventories and focused results. Reconstructible imported caches
+are inventoried rather than copied. Closed2026-11-16 23:44:36.208730UTC,
+**68.187minutes** against original90-minute all-in window; original failures and
+cap retained. Both owned worktrees/processes and the exact local branch are
+cleaned after archive verification; no remote candidate branch was created.
+The separate local/remote gunner backup branch remains an explicit unfinished
+exception. Native/human/full-release gates remain open and hosted CI stays off.
+
+Reopening requires a measured remaining renderer/shader cause and a justified
+production correction within an authorized allowance; do not repeat this failed
+candidate or weaken views, cameras, features, frame counts or the90s limit.
+The original selected task contract follows as historical scope:
+
 
 Outcome: accepted Main renders all five existing fixed camera views, including
 the close view that stalls GL shader linking, within the original90s cap under
