@@ -2750,20 +2750,69 @@ func _station_flash_observation() -> Dictionary:
 
 ## Ordinary Aurora readbacks only. This observer never installs a command source,
 ## changes gravity, requests travel/landing, or advances any gameplay authority.
+func _aurora_upper_operations_edge(forward: Vector3) -> Dictionary:
+	var upper := _game.world.get_node_or_null(^"UpperOperations") as Node3D
+	var result := {"complete": is_instance_valid(upper), "shape_count": 0,
+		"foreedge": Vector3.ZERO, "shape_path": ""}
+	if not is_instance_valid(upper):
+		return result
+	var foremost := -INF
+	# Include the entire enabled structure, conservatively, rather than assuming
+	# that the apron is the last obstruction beneath the departing aft hull.
+	for collision: CollisionShape3D in upper.find_children("*", "CollisionShape3D", true, false):
+		var body := collision.get_parent() as CollisionObject3D
+		if collision.disabled or collision.shape == null or body == null or (body.collision_layer & _ship.collision_mask) == 0:
+			continue
+		var points := PackedVector3Array()
+		if collision.shape is ConvexPolygonShape3D:
+			points = (collision.shape as ConvexPolygonShape3D).points
+		else:
+			var bounds := AABB()
+			if collision.shape is BoxShape3D:
+				var size := (collision.shape as BoxShape3D).size
+				bounds = AABB(-size * 0.5, size)
+			else:
+				var mesh := collision.shape.get_debug_mesh()
+				if mesh != null:
+					bounds = mesh.get_aabb()
+			if bounds.has_volume():
+				for corner in 8:
+					points.append(bounds.get_endpoint(corner))
+		if points.is_empty():
+			result["complete"] = false
+			continue
+		result["shape_count"] += 1
+		for point: Vector3 in points:
+			var world_point := collision.global_transform * point
+			var projection := world_point.dot(forward)
+			if projection > foremost:
+				foremost = projection
+				result["foreedge"] = world_point
+				result["shape_path"] = str(collision.get_path())
+	return result
+
+
 func _aurora_outbound_observation() -> Dictionary:
 	var result := _arrow_observation(true, false, _ship, false)
 	result["mode"] = "aurora-outbound"
 	if not bool(result.get("actors_current", false)):
 		return result
 	# Freeze the authored home exit operands before any origin translation.
-	# The apron nose, rather than the berth acceptance volume, is the deck edge.
+	# Measure both the apron and the complete real UpperOperations collision
+	# structure once at normal spawn, before any common-origin translation.
 	if _aurora_departure_geometry.is_empty():
 		var home := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
 		var bounds: AABB = _ship.get_landing_collision_report().get("local_bounds", AABB())
 		if is_instance_valid(home) and bounds.has_volume():
+			var forward := -home.get_dock_transform().basis.z.normalized()
+			var upper_edge := _aurora_upper_operations_edge(forward)
 			_aurora_departure_geometry = {"home_id": home.get_instance_id(),
-				"forward": _v(-home.get_dock_transform().basis.z.normalized()),
+				"forward": _v(forward),
 				"apron_foreedge": _v(_game.world.to_global(Vector3(37, 4.2, ShipyardWorld.HALYARD_APRON_NOSE_MIN_Z))),
+				"upper_operations_foreedge": _v(upper_edge.foreedge),
+				"upper_operations_shape_count": upper_edge.shape_count,
+				"upper_operations_complete": upper_edge.complete,
+				"upper_operations_edge_shape": upper_edge.shape_path,
 				"local_bounds_position": _v(bounds.position), "local_bounds_size": _v(bounds.size),
 				"aft_extent": bounds.end.z}
 	result["departure_geometry"] = _aurora_departure_geometry

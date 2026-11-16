@@ -5764,11 +5764,14 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
                 self.receipts['neutral'] = self.receipt(s)
                 self.departure = s['position'][:]
                 geometry = s['departure_geometry']
-                require(geometry['home_id'] == s['berth_id'] and geometry['aft_extent'] > 0,
-                        'actual same-home apron and whole aft collision envelope')
+                require(geometry['home_id'] == s['berth_id'] and geometry['aft_extent'] > 0
+                        and geometry['upper_operations_complete']
+                        and geometry['upper_operations_shape_count'] > 0,
+                        'actual same-home apron, complete UpperOperations and whole aft collision envelope')
                 self.departure_forward = unit(geometry['forward'])
-                self.departure_clearance = (dot(sub(geometry['apron_foreedge'], self.departure),
-                                               self.departure_forward)
+                self.departure_clearance = (max(dot(sub(geometry[edge], self.departure),
+                                                   self.departure_forward)
+                                                for edge in ('apron_foreedge', 'upper_operations_foreedge'))
                                             + geometry['aft_extent'] + s['geometry']['hull_margin'])
                 self.departure_cleared = False
                 self.climb_direction = unit([.8*u-.6*b for u,b in zip(s['up'], s['back'])])
@@ -5776,7 +5779,8 @@ class AuroraOutboundPilot(ArrowReturnReusePilot):
         elif self.stage == 'climb':
             require(s['frame']-self.stage_frame <= 1800, 'original Aurora climb 1800 physics ticks')
             # Keep the neutral home attitude through the ordinary automatic lift
-            # and forward exit; pitching early sweeps the aft hull into the apron.
+            # and forward exit; the entire aft hull must pass both the apron and
+            # UpperOperations roof/deck before a steep pitch can sweep it down.
             self.departure_cleared |= (dot(sub(s['position'], self.departure), self.departure_forward)
                                        > self.departure_clearance)
             direction = self.climb_direction if self.departure_cleared else self.departure_forward
