@@ -15,9 +15,11 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **86c5a90** — [Windows ZIP](builds/windows/MuddsShipyards-86c5a90-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-86c5a90-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-86c5a90-linux-x86_64.tar.gz).
+Latest playable checkpoint: **213a2d8** — [Windows ZIP](builds/windows/MuddsShipyards-213a2d8-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-213a2d8-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-213a2d8-linux-x86_64.tar.gz).
+Valid runtime timestamps now save and reload without a self-rejected checksum;
+normal Titan shutdown persists its terminal event in source and packaged checks.
 Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
@@ -49,8 +51,19 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-16
 
+**Latest owner renewal: 2026-11-16 21:02:44 UTC.** Every task still unfinished
+at this renewal receives **0 used** against its last positive approved limit,
+or **one** if none was recorded. This includes tasks that consumed renewed
+allowances earlier today. Apply this renewal once per unfinished task, including
+parked, failed, blocked and gated work; completed tasks are excluded. Earlier
+used counts below are historical and do not reduce this fresh allowance.
+On resumption, record the renewed count and a fresh bounded all-in window;
+retain previous elapsed cost, failures and all original acceptance gates.
+
+Earlier reset history:
+
 The owner reset correction allowances for **all unfinished tasks**. Each task
-now has **0 used** against its last positive approved limit, or **one** if no
+then received **0 used** against its last positive approved limit, or **one** if no
 positive limit was recorded. Completed tasks are excluded. This is one reset
 per unfinished task, not a reset on every retry or new branch. Aurora received
 **0/2** at this reset and used **1/2** for the accepted outbound renewal below;
@@ -64,6 +77,87 @@ Preserve all prior failures, source and cumulative cost. Original acceptance
 checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
+
+### Durable save float roundtrip — dependency DONE
+
+Accepted source **213a2d8849ab5972ffcf7d03f60bb6134d8e1e10**, checkpoint
+**213a2d8**. Valid timestamps commit/reload and later terminal events persist;
+existing reader/schema/digest verification and exact recovery-stage bytes remain
+intact. Eight focused suites and full Titan source164.036s pass; safe-start
+retains exactly three deliberate fault-fixture warnings with zero unexpected
+warnings. Actual Windows-PCK store and full Titan157.211s pass, including primary
+clean_shutdown/clean/session_ended. Paired exports, strict startups3,1599equal
+payload maps (one intended script change), existing audit9 and seven artifacts
+pass independent review. Native Windows/GPU/hardware/human/full-release gates
+remain NOT_RUN. The original runner warning rejection and original Titan failure
+are preserved; the unobserved original handoff tick is not retrospectively proven.
+
+Verified archive: /srv/mudds-work/save-float-roundtrip-20261116/records.tar.gz,
+14,033,256bytes, SHA256700565989be0d277fe91d4cca4b28fade3a6cec1509fbaac7e85e7400d1743dc,
+208members, all member hashes verified. Substantive repairs0/1. Original task
+card and acceptance contract follow for historical reference.
+
+
+Outcome: valid runtime diagnostic timestamps survive a committed save, reload,
+subsequent events and normal shutdown. Actual Godot JSON decoding can change a
+floating-point value by one ULP; the existing writer hashes the pre-encoded value,
+then its own reader rejects the staged file (`temp_verification_failed`). A
+reproducer using the failed Titan primary records tick5996/99.9333333333289s,
+then CLEAN_SHUTDOWN: both commits reject and leave generation59/event count3.
+This is a reproduced persistence defect; the original Titan event tick was not
+captured, so its exact causal attribution remains unproven.
+
+Scope: only production `scripts/persistence/user_data_store.gd` and its existing
+numeric/legacy regression cases in `tests/user_data_store_test.gd`. Preserve the
+schema, old valid saves/readers, full-precision numeric boundary, strict digest
+verification, transaction authority and rotation/recovery behavior. Hash the
+payload as decoded from the actual wire document. No validator/schema family.
+One HIGH implementer, one independent HIGH reviewer; root owns checks, package,
+integration and cleanup. Branch `work/save-float-roundtrip-1116`, worktree and
+raw records `/srv/mudds-work/save-float-roundtrip-20261116`.
+
+Acceptance: deterministic regression fails against unchanged writer and passes
+candidate; original failed primary plus bad-float event and terminal event commit
+and reload; existing store/rotation/crash-point and diagnostic record/lifecycle/
+production/Main integration and safe-start suites pass. Full ordinary Titan
+Main ends with actual clean_shutdown/clean/session_ended. Clean paired checkpoint
+exports, three strict startup checks, actual Windows-PCK store and full Titan
+checks, package delta and independent review before merge/push. Native Windows,
+GPU, hardware and human gates remain NOT_RUN; hosted CI stays disabled.
+
+Budget: 2026-11-16 21:05:00→22:35:00UTC, 90 minutes all-in, renewed substantive
+repair0/1. Stop on first unexpected failure, preserve actual operands and causal
+repair; no weakened checksum or skipped acceptance. Prior gunner cost/failures
+stay with that card. No product completion or accepted gunner build claimed.
+
+### Waiting for save dependency: Paradox physical gunner cannon — BUILD-SPLIT-PARADOX/card8
+
+At21:05UTC the original attempt is unaccepted: source14/16 passed, Titan gameplay
+passed but its actual primary lacked session_ended; Predator source and all PCK,
+views/export/package gates are NOT_RUN. Exact candidate
+`aba013cc76388ba7527ec689e2d41696455954be` and all raw data remain under the task
+root below. Diagnostic replay passed without reproducing the original failure;
+deterministic real-store probe reproduced the float checksum defect separately.
+The original window is not extended. After the dependency is accepted, select
+this same complete card into a fresh bounded window under the latest owner reset,
+retain all prior cost/failures, and rerun its complete gates on the integrated
+candidate. No smaller subset is accepted.
+
+
+Goal / contract: approved docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md gunner actions/Actual weapons/card8. Result: ordinary physical gunner claims, aims and fires the actual defensive pulse cannon, damages a production target once, stands and reseats; no pilot authority. Cards1–7 accepted through86c5a9024/maina449d932363d89965a8d4e191c6efc228399e6f0. No missing design input. Main12/17/12berths, originalpilot primary retained. No network/fullmovingcabin/fullcraft credit.
+Candidate / owners: clean isolated worktree /srv/mudds-work/paradox-gunner-20261116/worktree, branch work/paradox-gunner-1116. One HIGH implementer owns scripts/ships/paradox_cruiser.gd, scenes/ships/paradox_cruiser_pilot.tscn and new tests/paradox_cruiser_gunner_test.gd/UID. Root owns narrow scripts/game/game_flow.gd local input/profile/authority/HUD/interior admission and existing tests/game_flow_paradox_integration_test.gd plus mechanical fitted-gunner expectation in tests/paradox_cruiser_crew_carry_test.gd. Existing livecombat/primary cases retained. Root release/docs/merge/push/archive/cleanup; independent HIGH reviewer. No shared HeroShip/Player/ShipCrewSeat/role-authority/resolver/resource/sibling edits or recursive agents.
+Production: unmodified assets/weapons/bulwark_combat_pulse.tres IDbulwark_sustained_pulse_cannon, hitscan360m/50damage/3.3333333333333335shots/s nominal.30s, inheritedplayerfaction/friendlydeny/cyan/player_pulse_fire/hull_impact_medium/dry_fire_click. No heat/ammo/charge/reload/travelling shot. Existing source1111 now registers exact primary+gunner profiles together; never erase/replace primary registration on gunner attachment. Narrow candidate pulse consumer, never Bulwarkchargedlance/Halyardsharedprimarytimer. Exactfixedmuzzle(0,5.7,-8), world direction from actual normal gunner look (same direction at mount, no camera-contact parallax steering), localyaw±35/elevation0..45. Refuse out-of-arc, nonfinite/zero/forgedorigin, ownhull/worldobstruction/currentrole/stale-owner/sequence/generation/passenger/offline/openaccess/componentblocked requests; feedback for every refusal, no offensive effects/damage for rejected aim/admission. A real authored mount with matching physical mesh/collision stays in original16×28×6envelope at all allowed yaw/elevation; no hull/cabin/anchors/tuning changes.
+Owners / clocks: existing CrewSeatRoleAuthority admits only exact gunner weapon_control; candidate validates expected attached authority object (explicit final argument), vessel/seat/anchor/frame/generation/claim, real seated actor and metadata/frame registration before any owner mutation. Existing LiveCombatAuthority/CombatResolver resolves each shot once, source1111/weaponID distinct from primary and sibling craft. One mount-wide .30 timer persists through release/reseat/authority replacement, independent of existing .62 primary timer; no actor-specific timer or timer writes from tests. Existing component modifiers apply; no readiness bypass. Valid actual seated weapon demand may use HeroShip's existing power tag/timed3.2startup without releasing dock latch or forwarding ship commands; only power this role woke stops at release. Full service/damage/lifecycle qualification remains later cards.
+Local access: for the sealed own-berth room only, root may admit an actual on-foot supported normal Player to a reachable empty authored crew chair using exact current own occupied/reserved berth, OFFLINE/notpiloted, actual cabin bounds/full capsule/layer/masks/floor and existing role contracts. Refuse exterior/foreign/throughwall/unavailable body/reservation. This is an interior chair admission/prompt, not exterior boarding relaxation. Existing external pilot/hatch rules and reach2.5 stay fixed. Ordinary Main walks to real interior hatch control to seal before crew firing, and later physically reopens it before original helm admission; no direct positive door/claim/pose calls. Actual stand still retires its power/metadata/claim and supports ordinary walk/reseat.
+Cases / expected (NOT_RUN until actual): new focused gunner180s actual production prefab+real Player/physical seat/metadata/frame/owner and existing combat authority; once-stage fixture only. Exact resource/profile/source/muzzle/mesh-collider bounds, ordinary valid role aim/fire50 once, held.30cadence, all4arc boundary combinations plus just-outside/negative/nonfinite/refused origin and real hull/world/friendly/650primary-vs360gunner ranges. Stale/duplicate/foreign/retired authority, generation/seat/actor/passenger and offline/openaccess/failedcomponent refuse without damage/body/clock escalation. Two actual Players pilot+gunner fire simultaneously through distinct70/.62 and50/.30 streams with exact counts and no alias/double-hit; no simulated network claim. Both timer values survive same-physics owner retirement/reclaim transitions (physics may naturally reduce them); normal complete stand/reseat and current-owner replacement do not replenish timers. No postsetup Player/ship pose/velocity, time scale, cooldown or resource writes. Clear all inputs/owned bodies/claims/frame/source/targets at cleanup. Fixture is not ordinary Main/multiplayer proof.
+Ordinary full Main default300 +crew-mode300 ALONE: keep exact Boot/BeginShift/normal-spawn22pointstation/Titan/spur/hatch/ramp/bridge/normalEhelm and both complete primary-armed sorties. Crew mode retains2sit/stand/reseat cycles per gunner/passenger plus all atomicnegative/clearance/metadata/aislefacing/bodyrestore checks. Physically seal using real interior control, walk to gunner, normal look aims out-of-arc and FIRE20 rejects with feedback/no start/damage; aim elevated valid production target, hold FIRE through actual3.2startup to one50damage/source1111/mountweapon event. Actual ONLINEgunner throttle/turn/boost cannot move craft/release own lease/grantpilot/fireprimary. Release FIRE, stand normally (only own weapon power stops), walk/reseat and repeat; passenger retains no ship/weapon/system action. Normal openhatch and actualreturnhelm precede original2complete pilot3.2startup/8mlift/ordinaryflight/70damage+replay/friendly/world/miss/strictownhomeL600/95OFFLINE/inside stand/physicalexits/reboard/UIQuit. Original station .035/900/12, cabin .02/400, capsule .005/.01 skins, continuity<.2,reach2.5,flight1800/.6/.35/<=2/.5/exactberth/.05 endpoints, completedtick observer retained. Additional gunner startup edges are counted separately; original pilot edge clocks unchanged.
+Preserved source16 cases serial: newgunner180 first, existingprimary180/livecombat300, definitions120/Paradoxberth300/foundation90/accessI180-T180/Titanberth300/Predatorberth300/routes120/carry180, fullParadoxdefault300/crew300/TitanMain300/PredatorMain300 eachALONE. Only former gunner-NOTFITTED expectations become exact fitted behavior; no original case or cap removed. Carry fixture retains full2bodymovingwalk/reseat; its old unfitted-power check becomes wrong/noncurrent gunner power refusal, with actual fitted power behavior proven separately. Every case exactcleanC/exit0/terminalonce/raw0/source+cache+HEADclean stable. Four Main actualprimary clean_shutdown/clean/session_ended.
+Five fixed source captures: retain prior4overview/spur/defaultchase/interior exactcameras/8frames and add mount-closeup camera craftlocal(0,8,-12) looking(0,5.7,-8),FOV60; actual Main no duplicate/ship pose staging. PrivateXvfb/x11/GLES/Dummy, original90capturecap. Inspect all5 actualimages/visualarc fixturebounds; these do not qualify human/readability/native GPU. Fresh pinned clean Windows/Linux exports/startup3 each0/STARTUP_MENU_READY_OKonce/raw0/exactLinuxarchive. Equal complete maps and actual delta vs86c5a90 baseline, only3ownedruntimepaths+typednode_ids metadata accepted. Actual WindowsPCK under officialLinuxGodot from blanksourceisolatedcwd: previous11completecases plusgunner180=12, originalcaps/endpoints and all4MainALONE/actualprimary clean. Existing packageaudit9/eightpublishedartifacts/actualnotes/mountpreview, independent actual runtimeGO then packageGO before integration. NativeWindows/GPU/device/audio/human/readability/network/capacity/fullcraft/fullrelease remainopen/NOT_RUN, CIheld.
+Proof / execution: /srv/mudds-work/paradox-gunner-20261116 source+PCK raw/profiles/views/export/delta/package/review/exactsourcebundle preserved in verified archive at closure. Every Godot --audio-driver Dummy, headless or owned isolated x11, suite_process independent abort/subreaper and input/cursor release; no concurrent engines during Main. No active desktop/audio/hostedCI authorization.
+Budget / stop: 2026-11-16 19:53:38→21:23:38UTC90minutes ALL-IN including mapping/code/checks/build/review/merge/push/archive/cleanup. Fresh owner-reset substantive repair0/1, prior0minutes for this original unstartedcard8; prior accepted card7 cost60.631minutes remains separate prerequisite. First unexpectedfailure stops dependentchecks and retains operands; repair only after measured cause. Routine compiler/caller/incorrectassertion fixes retain all cases/caps/endpoints/deadline. Exhaustion/unresolveddesign/deadline parks originalcompletecard, no renamedsubsetPASS. Close: NOT_RUN. No successor assigned.
+
+
+Pre-runtime integration clarification: landed pilot-prefab is_boardable reports helm/crew availability even while sealed, allowing ordinary area.is_available_for/try_reserve to acquire the real reservation. The solid closed hatch and unchanged actual inside-helm capsule/floor guard still refuse exterior ingress. Grounded local Paradox crew admission explicitly requires the new actual inside/ownedlease/OFFLINE/normalcapsule/2.5m helper even when boardable is true; remote retained-reservation admission remains separate. No manufactured/restored reservation, sticky old claim, positive direct door call, original case removal or numeric relaxation.
 
 ### Paradox pilot primary — card 7 DONE
 

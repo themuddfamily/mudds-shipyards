@@ -174,7 +174,7 @@ func recover_interrupted_transaction() -> Dictionary:
 		if _filesystem.directory_exists(collision_path):
 			return _commit_result(false, &"transaction_path_is_directory")
 	var primary := _read_document(_path)
-	var temporary := _read_document(_temp_path())
+	var temporary := _read_document(_temp_path(), true)
 	var backup := _read_document(_backup_path())
 	if _has_newer_schema([primary, temporary, backup]):
 		return _commit_result(false, &"newer_schema")
@@ -214,7 +214,9 @@ func recover_interrupted_transaction() -> Dictionary:
 			or int(staged_commit.parent_generation) != int(authority.generation) \
 			or str(staged_commit.parent_id) != str(authority_commit.id):
 			return _commit_result(false, &"unsafe_transaction_parent")
-	var encoded := JSON.stringify(staged, "", true, true).to_utf8_buffer()
+	# Retain the exact verified stage: serializing decoded floats again can
+	# alter their numeric tokens and invalidate the existing checksum.
+	var encoded := (temporary.bytes as PackedByteArray).duplicate()
 	var moved_primary := false
 	if bool(primary.valid):
 		if bool(backup.valid):
@@ -380,7 +382,15 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 			return _commit_result(false, &"stale_temp_cleanup_failed")
 
 	var canonical_payload: Variant = _canonicalize(payload)
-	var payload_json := JSON.stringify(canonical_payload)
+	# JSON's decimal parser can shift a full-precision float by one ULP. Hash
+	# exactly the values readers decode, using the existing checksum format.
+	var payload_wire := JSON.stringify(canonical_payload, "", true, true)
+	if payload_wire.to_utf8_buffer().size() > MAX_DOCUMENT_BYTES:
+		return _commit_result(false, &"document_too_large")
+	var payload_parser := JSON.new()
+	if payload_parser.parse(payload_wire) != OK or not payload_parser.data is Dictionary:
+		return _commit_result(false, &"internal_serialization_failed")
+	var payload_json := JSON.stringify(_canonicalize(payload_parser.data))
 	var next_generation := _generation + 1
 	var envelope := {
 		"schema_version": SCHEMA_VERSION,
@@ -391,12 +401,12 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 			"parent_id": str(_commit_metadata.get("id", "")),
 			"payload_sha256": payload_json.sha256_text(),
 		},
-		"payload": canonical_payload,
 	}
-	# Preserve numeric values on disk, including the JSON-safe integer boundary.
-	# Keep payload_json's existing default-precision checksum representation: old
-	# saves and old readers validate the same digest independently of wire tokens.
-	var encoded := JSON.stringify(envelope, "", true, true).to_utf8_buffer()
+	# Preserve those exact payload tokens: re-encoding the parsed floats could
+	# shift them again. Metadata contains no payload floats, and both fragments
+	# are serialized JSON. Old readers still verify their unchanged digest rule.
+	var metadata_wire := JSON.stringify(envelope, "", true, true)
+	var encoded := (metadata_wire.trim_suffix("}") + ",\"payload\":" + payload_wire + "}").to_utf8_buffer()
 	if encoded.size() > MAX_DOCUMENT_BYTES:
 		return _commit_result(false, &"document_too_large")
 	var intended_parser := JSON.new()
@@ -553,7 +563,7 @@ static func validate_envelope(candidate: Variant) -> PackedStringArray:
 	return errors
 
 
-func _read_document(path: String) -> Dictionary:
+func _read_document(path: String, retain_bytes: bool = false) -> Dictionary:
 	if _filesystem.directory_exists(path):
 		return {"exists": true, "valid": false, "reason": "path_is_directory", "document": {}}
 	if not _filesystem.file_exists(path):
@@ -585,7 +595,10 @@ func _read_document(path: String) -> Dictionary:
 			"errors": errors,
 			"document": {},
 		}
-	return {"exists": true, "valid": true, "reason": "ok", "document": parsed}
+	var verified := {"exists": true, "valid": true, "reason": "ok", "document": parsed}
+	if retain_bytes:
+		verified["bytes"] = bytes
+	return verified
 
 
 func _install_document(document: Dictionary, source: StringName) -> void:

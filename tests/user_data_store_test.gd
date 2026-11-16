@@ -202,6 +202,90 @@ func _test_numeric_precision_and_legacy_checksums() -> void:
 	var retried := interrupted.recover_interrupted_transaction()
 	_check(bool(retried.accepted) and interrupted.get_snapshot() == expected and interrupted.get_generation() == 1, "rewritten recovery stage preserves exact numeric values for a subsequent real retry")
 
+	# Deterministic5996-tick reproduction against the failed Titan primary;
+	# the original handoff tick was not observed. Full-precision decimal parsing
+	# shifts this value enough to change the legacy checksum spelling.
+	var elapsed := 0.0
+	for tick in 5996:
+		elapsed += 1.0 / 60.0
+	var clock_payload := {
+		"elapsed": elapsed,
+		"maximum": float(maximum),
+		"nested": [{"seconds": elapsed}],
+	}
+	var clock_wire := JSON.stringify(clock_payload, "", true, true)
+	var decoded_clock: Dictionary = JSON.parse_string(clock_wire)
+	var reader_checksum := JSON.stringify(decoded_clock).sha256_text()
+	var before_wire_checksum := JSON.stringify(clock_payload).sha256_text()
+	_check(reader_checksum != before_wire_checksum,
+		"deterministic5996-tick clock reproduces checksum change after actual full-precision JSON parse")
+	var old_writer_document := {
+		"schema_version": Store.SCHEMA_VERSION, "generation": 1,
+		"commit": {"id": "clock-old", "parent_generation": 0, "parent_id": "", "payload_sha256": before_wire_checksum},
+		"payload": clock_payload,
+	}
+	var old_writer_decoded: Dictionary = JSON.parse_string(JSON.stringify(old_writer_document, "", true, true))
+	_check(not Store.validate_envelope(old_writer_decoded).is_empty(),
+		"unchanged strict reader rejects the original pre-parse-checksum writer's real float document")
+	var clock_fs := FakeFilesystem.new()
+	var clock_store := Store.new(PATH, clock_fs)
+	clock_store.load()
+	var clock_commit := clock_store.commit(clock_payload, 0, "clock-001")
+	_check(bool(clock_commit.accepted), "real float clock publishes through strict temporary verification: " + str(clock_commit.reason))
+	if not bool(clock_commit.accepted):
+		return
+	var clock_bytes := (clock_fs.files[PATH] as PackedByteArray).duplicate()
+	var clock_document := _decode(clock_fs, PATH)
+	_check(clock_document.schema_version == 1 and str(clock_document.commit.payload_sha256) == reader_checksum
+		and JSON.stringify(clock_document.payload).sha256_text() == str(clock_document.commit.payload_sha256),
+		"new clock save retains schema1 and the exact original reader checksum rule")
+	_check(clock_bytes.get_string_from_utf8().contains(",\"payload\":" + clock_wire + "}")
+		and clock_store.get_snapshot() == decoded_clock and float(clock_store.get_snapshot().maximum) == float(maximum),
+		"write retains original full-precision payload tokens and exposes exactly the decoded values and safe integer edge")
+	var clock_reload := Store.new(PATH, clock_fs)
+	_check(bool(clock_reload.load().accepted) and clock_reload.get_snapshot() == decoded_clock,
+		"fresh reader reloads the real float clock without rewriting bytes")
+	var next_payload := clock_reload.get_snapshot()
+	var end_elapsed := 0.0
+	for tick in 7621:
+		end_elapsed += 1.0 / 60.0
+	next_payload["ended"] = end_elapsed
+	var next_wire := JSON.stringify(next_payload, "", true, true)
+	var next_expected: Dictionary = JSON.parse_string(next_wire)
+	var next_commit := clock_reload.commit(next_payload, 1, "clock-002")
+	_check(bool(next_commit.accepted) and clock_reload.get_snapshot() == next_expected
+		and clock_reload.get_commit_metadata().parent_id == "clock-001" and clock_fs.files.get(PATH + ".bak") == clock_bytes,
+		"later terminal clock commit advances the same chain and preserves the exact previous float save backup")
+	if not bool(next_commit.accepted):
+		return
+	var next_bytes := (clock_fs.files[PATH] as PackedByteArray).duplicate()
+	var float_interrupted_fs := FakeFilesystem.new()
+	float_interrupted_fs.files[PATH] = clock_bytes.duplicate()
+	float_interrupted_fs.files[PATH + ".tmp"] = next_bytes.duplicate()
+	var float_interrupted := Store.new(PATH, float_interrupted_fs)
+	_check(not bool(float_interrupted.load().accepted), "verified float successor remains an explicit interrupted transaction")
+	float_interrupted_fs.corrupt_on_rename_to = PATH
+	var float_recovery_failed := float_interrupted.recover_interrupted_transaction()
+	_check(not bool(float_recovery_failed.accepted) and float_recovery_failed.reason == &"published_verification_failed"
+		and float_interrupted_fs.files.get(PATH) == clock_bytes and float_interrupted_fs.files.get(PATH + ".tmp") == next_bytes,
+		"failed float publication restores exact parent and retains original verified successor bytes without reserialization")
+	var float_recovered := float_interrupted.recover_interrupted_transaction()
+	_check(bool(float_recovered.accepted) and float_interrupted.get_generation() == 2
+		and float_interrupted.get_snapshot() == next_expected and float_interrupted_fs.files.get(PATH) == next_bytes,
+		"subsequent real recovery retry publishes the same verified float successor and checksum")
+	var after_clock := Store.new(PATH, clock_fs)
+	var after_loaded := after_clock.load()
+	_check(bool(after_loaded.accepted) and after_clock.get_generation() == 2 and after_clock.get_snapshot() == next_expected,
+		"fresh reload retains both mode-handoff and later terminal clock values")
+	var continuing := after_clock.get_snapshot()
+	continuing["completed"] = true
+	_check(bool(after_clock.commit(continuing, 2, "clock-003").accepted),
+		"subsequent unrelated commit accepts previously decoded float values without checksum drift failure")
+	var legacy_float := legacy_store.commit(clock_payload, 2, "precision-clock-003")
+	_check(bool(legacy_float.accepted) and legacy_store.get_snapshot() == decoded_clock
+		and legacy_store.get_commit_metadata().parent_id == "precision-002",
+		"the same real float commit advances an originally default-precision legacy save without migration")
+
 
 func _test_primary_then_backup_recovery() -> void:
 	var filesystem := FakeFilesystem.new()
