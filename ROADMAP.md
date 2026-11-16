@@ -94,7 +94,9 @@ are preserved; the unobserved original handoff tick is not retrospectively prove
 
 Verified archive: /srv/mudds-work/save-float-roundtrip-20261116/records.tar.gz,
 14,033,256bytes, SHA256700565989be0d277fe91d4cca4b28fade3a6cec1509fbaac7e85e7400d1743dc,
-208members, all member hashes verified. Substantive repairs0/1. Original task
+208members, all member hashes verified. Closed21:25:18.899495UTC in20.315minutes;
+merged/pushed main460cc941b, completed branch/worktree/process/scratch cleaned.
+Substantive repairs0/1. Original task
 card and acceptance contract follow for historical reference.
 
 
@@ -130,7 +132,21 @@ repair0/1. Stop on first unexpected failure, preserve actual operands and causal
 repair; no weakened checksum or skipped acceptance. Prior gunner cost/failures
 stay with that card. No product completion or accepted gunner build claimed.
 
-### Waiting for save dependency: Paradox physical gunner cannon — BUILD-SPLIT-PARADOX/card8
+### Selected: Paradox physical gunner cannon — BUILD-SPLIT-PARADOX/card8 renewed
+
+Accepted prerequisite213a2d8849ab5972ffcf7d03f60bb6134d8e1e10 is merged/pushed
+and checkpointed. The original complete gunner card resumes at
+2026-11-16 21:25:48→22:55:48UTC (90 minutes ALL-IN), fresh renewed0/1 substantive
+repairs, prior71.367minutes retained. Candidatec743f585d0a70beb0e6100b34a47147d16280e08
+integrates that accepted save fix without further gunner behavior changes.
+Root owns integration/release, independent HIGH reviewer verifies the exact
+candidate. Worktree /srv/mudds-work/paradox-gunner-renewal-20261116/worktree;
+existing branch work/paradox-gunner-1116. All16source/12PCK/fiveviews and original
+caps/endpoints are required fresh; no earlier result is reused. Package delta
+vs86c5a90 includes the three gunner runtime paths plus the independently accepted
+persistence script. Native/human/network/fullcraft gates remain NOT_RUN.
+
+Original attempt history (not acceptance):
 
 At21:05UTC the original attempt is unaccepted: source14/16 passed, Titan gameplay
 passed but its actual primary lacked session_ended; Predator source and all PCK,
