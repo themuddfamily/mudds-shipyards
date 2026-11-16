@@ -15,10 +15,10 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **976824f** — [Windows ZIP](builds/windows/MuddsShipyards-976824f-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-976824f-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-976824f-linux-x86_64.tar.gz).
-Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths.
+Latest playable checkpoint: **b218375** — [Windows ZIP](builds/windows/MuddsShipyards-b218375-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-b218375-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-b218375-linux-x86_64.tar.gz).
+Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-b218375-paradox-crew-preview.png)); both weapons remain unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
@@ -41,7 +41,7 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its primary and crew roles remain unfitted. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; both weapons remain unfitted. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
@@ -65,24 +65,60 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Paradox local physical crew — BUILD-SPLIT-PARADOX/card6
+### Paradox local physical crew — card 6 DONE (local roles)
 
-Goal / contract: approved docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md card6. Cards1–5 accepted through976824fb3/Main2cbbfeab58a0fd384d9a67630f1046c76f748c04; same adopted modern cruiser, no missing design input. Result: real gunner and passenger chairs in the production cruiser support ordinary walk/Interact/claim/sit/stand/reseat, distinct correct role/metadata/frame ownership, supported body carry, duplicate/foreign/stale refusal and no extra pilot or passenger action. Both weapons remain NOT FITTED; no gunner weapon consumer, engineer/cargo/Navigator/network expansion.
-Candidate / setup: clean baseline above, Main12/17/12berths and all11old craft unchanged. Actual normal-spawn Player, full accepted22point station/Titan/spur route and production SternApron crossoverz19, actualhatch/ramp/bridge/helm. No initial Player pose writes or positive direct board/door/claim calls in Main. Original Paradox16numericfields/hull/ramp/berth/camera/physicalshell/eye/OFFLINEexhaust and pilot journey remain exact.
-Owner / files: one HIGH implementer owns scripts/ships/paradox_cruiser.gd, scenes/ships/paradox_cruiser_pilot.tscn, existing tests/game_flow_paradox_integration_test.gd plus new tests/paradox_cruiser_crew_carry_test.gd/UID. Root owns narrow scripts/game/game_flow.gd integration/HUDstrings, release helpers/docs/build/merge/push/archive/cleanup. No shared HeroShip/Player/ShipCrewSeat/CrewSeatRoleAuthority/weapon/othercraft runtime edits. Independent HIGH reviewer for role/lifecycle/physics and actual complete gates; no recursive agents.
-Production seam: existing ShipCrewSeat + CrewSeatRoleAuthority + MovingInteriorFrame/HeroShip generic occupant handoff. Exactone pilot_station plus gunner_station anchor(-1.8,1.65,-.5), passenger_station anchor(1.8,1.65,2.8); authored stand/approach(-.8,1.2,-.5),(.8,1.2,2.8), oriented toward aisle on stand. Stable physical furniture fits original cabin/clear1.4m aisle/capsule/eye; do not move adopted anchors or hull. Sealedexactroster/generation/identity validation, foreign/stale/duplicate refusal atomic. Gunner capability weapon_control only, passenger passenger_access only, neither drives or grants extra pilot; no unfitted ping/system/weapon consumer.
-Main case: extend existing full Main fixture with optional --crew-seats mode, preserving default entire pilot2sortie case. In crew mode, before first pilot claim, sameactual Player physically walks from helm approach to each authored crew chair, uses actual discovered normal Interact, sits/stands/reseats each chair twice; queries actual supported full capsule/head/eye, currentgeneration/claim/metadata/frame/camera and restoredbody on stand. Negative foreign/occupied/stale sequence/generation/role/cross-seat/extra-pilot claims preserve ledger/body/owner. Hold ordinary throttle/turn/FIRE20ticks seated: no propulsion, firing, heat/cooldown/damage, wrongrole action or unwanted engine start. Gunner UI says DEFENSIVE CANNON NOT FITTED, never siege-lance/charge/ammunition; passenger UI promises no action. Stand fully retires exactclaim/metadata/role authority/input stream and own-berth containment, ordinary exterior hatch exit remains usable. Return physically to authored helm approach, then run unchanged full two ordinary pilot sorties/strictL/OFFLINE/inside stand/physicalexit/reboard/old11immutability/UIQuit. Full Main300s both default and crew modes; all existing .035/900/12 station and .02/400 cabin/capsule .005/.01 query skin, normal2.5m reach,3.2startup/8mlift/1800travel/.6/.35/<=2/.5 endpoint/600L/.05 dock/95OFFLINE/180stand originallimits retain. Completedtick observer remains after MovingInteriorFrame occupant priority, same masks/gravity/capsule/<.2m continuity. No jumps/pose/velocity/collision bypass or shortened existing journey.
-Carry case180s: separate production-prefab physics fixture follows accepted tests/titan_medium_transport_test.gd local chair carrier subcase. Once-stage actual craft and2actualPlayers at respective approach only; existing exactauthority+normal Player.begin_boarding/stand transitions compose roles (fixture scope, not Main/multiplayer). Existing valid ShipCommand fixture producer drives real sealed craft with ordinary3.2startup then throttle.18/yaw.12; no craft/body pose or velocity writes after setup. Both distinct seated bodies, then both actual supported stands/walk >1m/return/reseat remain carried through actual >2m translation and changedbasis, with full capsule/head clearance and original masks/gravity. Use existing45move/45stand/50seat/120brake/95neutral ticks and exactauthoredstands; no time_scale/engine-state forcing. Stale/occupied/cross-role/cross-seat/generation refs refuse; no extra pilot, passenger cannot issue ship/weapon/system action, gunner has no fitted weapon consumer. Clear both assignments/metadata/frame/authority through owners at cleanup. This proves fixture carry, not remote clients or full released moving-cabin journey.
-Proof: /srv/mudds-work/paradox-local-crew-20261116/. Clean exactcommit+headlessDummy import then13source cases serial: definition/berth120, wholeParadoxberth300, foundation90, accessI180/T180, Titanberth300, Predatorberth300, stationroutes120, carry180, fullParadoxMain default300 +crew-mode300 ALONE, fullTitanMain300 ALONE, fullPredatorMain300 ALONE. Current production roster unchanged; oldMain/geometry expectations only mechanically include new authored furniture, no case removal. Four fixed production source views: original overview/spur/defaultchase transforms plus interior camera local(0,3.3,7) lookingat(0,1.65,-3.8), FOV60; privateXvfb explicitx11/GLES/Dummy/8frame settling/90capturecap, actualMaincraft no duplicate, normalHUDBeginShift. Fresh pinned safe pairedexports fromcleancommit, strictstartup3 each0/oneSTARTUP_MENU_READY_OK/raw0, equalcompleteWin/Linuxmaps with reviewed delta against actual976824f. ActualWindowsPCK under officialLinuxGodot, blanksourceisolateddirs: nine complete cases newfullMain default300/crew-mode300, carry180, wholeberth300, foundation90, fullaccessI180/T180, completeTitanMain300/PredatorMain300 ALONE. AllMain actualprimary crashclean/safeclean_shutdown/lastsessioneventsession_ended. Existingaudit9/eightpublishedartifacts/notes/preview, independent actualGO, merge/push/verifiedsource+rawarchive/exacttipWT/branch/process/scratchcleanup required. NativeWindows/GPU/device/audio/human/readability/network/capacity/fullcraft/fullrelease remainNOT_RUN/open; CIheld.
-Budget / stop: start2026-11-16 17:40:55UTC, fixeddeadline19:10:55UTC90min ALL-IN includingmapping/code/checks/build/review/integration/push/archive/cleanup. Fresh owner-reset correction0/1 (this original unfinishedcard6 neverstarted); priorcard4 cost76.45minutes remains separate accepted prerequisite. Firstunexpectedfailure stops dependentchecks and retainsactualoperands; repaironlyaftermeasuredcause, productioncorrection<=1; routinecompiler/caller/incorrectassertionfixes retainoriginalcases/caps/endpoints/deadline. Exhaustion/deadline/unresolveddesign parks originalcompletecard, no renamedsubsetPASS. EveryGodot --audio-driver Dummy, headless or isolatedx11; suite_process owner/subreaper independentabort/inputrelease. Close NOT_RUN.
+Accepted source **b2183752e67c951d072f3574cf533ca5c9962bd0**, merged by **26c5a35ac0f91039b74b9c9944b5acc6dfd54871**; paired checkpoint **b218375**.
+Paradox now has its approved physical gunner and passenger chairs. The actual
+normal-spawn Player walks the complete station/Titan/spur/hatch/ramp/bridge route,
+then uses normal Interact to sit, stand at the supported aisle pose and reseat.
+Two cycles per role pass before the same Player completes both original pilot
+sorties, strict home landings, OFFLINE shutdowns, physical exits and reboarding.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Local physical roles | Normalspawn/fullwalk/openrealhatch/actualchairInteract; two sit/stand/reseat cycles each | Authoredgunner/passenger/stand/eye/capsule, exactrole/claim/frame/generation, no foreign/duplicate/stale or extraPilot admission | NOT_RUN |
-| Input and handback | Seatedthrottle/turn/FIRE20ticks, normalstand/physicalwalk tohelm/full2pilot sorties/exit | No crewpropulsion/unfittedfire/heat/damage/ping/system; truthfulHUD, exactauthority/input/body/containment retirement, unchangedpilotroute/old11/cleanQuit | NOT_RUN |
-| Actual body carry | Once-staged2bodies/prodprefab, existingledger/transitions +realcommand driven move/yaw/stand/walk>1m/return/reseat | Actual>2m/changedbasis, bothrealbodies supported/clear/owned correctly; no postsetup poses; fixture scope only | NOT_RUN |
-| Preserved and package | Full13source/9PCK/4views/exports/startup3/maps/audit9/8files | ExactC/0/markers1/raw0/guards, Main12unchangedcount, actualcleanprimary/samepublishedbytes | NOT_RUN |
-| Closure | Independent fullactualreview, merge/push/bundle/rawarchive/exactrefWT/process/scratchcleanup | Namedlocalrole delivery playable, priorfailure/cost preserved, no ownedbranch/worktree/process left | NOT_RUN |
+Existing CrewSeatRoleAuthority and MovingInteriorFrame own the exact seat,
+avatar, generation, metadata and body handoff. Distinct sealed pilot/gunner/
+passenger records reject foreign, occupied, duplicate, mismatched and stale
+requests. Crew input does not drive the ship or grant another pilot. The
+passenger has no fitted action. **Both weapons remain NOT FITTED**; gunner FIRE
+cannot start propulsion or create a shot, damage, heat or cooldown. Its HUD names
+the unfitted defensive cannon instead of an inherited siege lance.
+
+A separate actual two-Player carrier fixture proves both bodies stay seated,
+stand on supported poses, walk more than a metre, return and reseat while a
+valid command producer moves and turns the real sealed craft. There are no
+post-setup body/ship pose or velocity writes. This is fixture carry, not a remote
+client, multiplayer capacity or full released moving-cabin journey qualification.
+All adopted tuning, hull/ramp, berth, camera, pilot-eye and old eleven craft
+contracts remain unchanged; new matching chair geometry stays within the cabin.
+
+Thirteen exact clean-source gates pass, including the full crew-mode Main
+journey (210.816 s), original default pilot, carrier, full Titan/Predator
+Main and all original berth/foundation/access/routes. Nine actual Windows-PCK
+cases under pinned Linux Godot pass, including full crew-mode Main
+(203.417 s), default pilot, carrier and complete preserved cases. Every
+Main path uses normal clean Quit and actual primary clean_shutdown/clean/
+session_ended. Four source views include the actual new interior. Fresh paired
+exports, three strict startups, equal complete payload maps, all nine existing
+package audit checks and eight published artifacts pass independent HIGH review.
+
+**Main remains 12/17 flyable craft in 12 physical berths.** Primary card 7,
+gunner weapon card 8, full moving cabin, damage/service/recovery/save/network,
+full craft and all 36 parent outcomes remain open. Native Windows/GPU/device/
+audio/human/readability/full-release gates stay NOT_RUN; GitHub Actions stays
+disabled. No successor is assigned here.
+
+Original all-in window: 2026-11-16 17:40:55–19:10:55 UTC, including mapping,
+implementation, checks, build, review, merge/push/archive and cleanup. Production
+repairs used: 0/1. Source review corrected a case-sensitive HUD test
+assertion before runtime; its original source/import/review record is retained.
+The first packaged pilot run completed cleanly, but its wrapper refused two ignored
+Python cache files created by the independent review during the manifest window.
+The causal review command, exact added files and failed wrapper remain archived;
+only those generated files were removed before the unchanged full nine-case retry.
+The frozen card, every actual attempt/failure, exact source bundle, raw source/
+PCK logs, profiles, views and package records are preserved in verified
+`/srv/mudds-work/paradox-local-crew-20261116/records.tar.gz`; adjacent closeout
+records actual cost and owned branch/worktree/process cleanup. Prior accepted
+card 4's 76.45 minutes and archives remain separate prerequisite history.
 
 ### Paradox ordinary Main pilot — card 4 DONE, early pilot package delivered
 
@@ -100,9 +136,10 @@ remain unchanged. Physical hull, helm and pilot eye stay aligned through turns;
 solid exhaust remains visible OFFLINE with separate cosmetic glow. The actual
 registry/HUD identifies the Cruiser candidate. **The primary is NOT FITTED**;
 held/direct/generic firing cannot create offensive authority or effects. The
-craft remains damageable. Gunner/passenger roles, both weapons, full moving-cabin
-qualification, damage/service/recovery/save and network journeys remain later
-cards. This is an approved modern candidate, not historical reconstruction.
+craft remains damageable. At that pilot-only handoff, gunner/passenger roles,
+both weapons, full moving-cabin qualification and damage/service/recovery/save/
+network journeys remained later cards; the local roles delivery above supersedes
+that role status. This is an approved modern candidate, not historical reconstruction.
 
 All eleven exact clean-source gates pass, including full new Main
 (189.287 s), the complete existing Titan and Predator Main journeys,
@@ -134,7 +171,7 @@ release records are retained in verified
 `/srv/mudds-work/paradox-main-20261116/records.tar.gz`; adjacent closeout records
 actual elapsed cost and owned branch/worktree/process cleanup. Prior card 3's
 106.75 minutes and archives remain separate accepted prerequisite history.
-No successor is assigned here; local physical roles card 6 remains next.
+At that pilot-only handoff, local roles card 6 remained open; the current delivery above supersedes that state.
 
 ### SOLO-AURORA ordinary access/outbound — PASS, outbound capability only
 
