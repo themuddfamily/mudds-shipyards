@@ -2,8 +2,10 @@
 
 **Playable alpha; the full game is unfinished.** Eleven of the promised17 craft
 now exist in Main, including Titan and Predator pilot checkpoints. This count
-is implementation, not full craft qualification. The six remaining craft have
-owner-approved modern design baselines. All 36 original parent outcomes and ten
+is implementation, not full craft qualification. The six craft still awaiting
+Main integration now have accepted standalone hull/pilot foundations; their
+physical access, berths and Main integration remain open. All 36 original parent
+outcomes and ten
 phase exit gates remain open. There is no evidence-backed completion percentage
 or finish date.
 
@@ -13,9 +15,14 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **455c15c** — [Windows ZIP](builds/windows/MuddsShipyards-455c15c-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-455c15c-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-455c15c-linux-x86_64.tar.gz).
+Latest playable checkpoint: **04a0de1** — [Windows ZIP](builds/windows/MuddsShipyards-04a0de1-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-04a0de1-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-04a0de1-linux-x86_64.tar.gz).
+Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
+controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
+Together with Vortex, Paradox and Katana, all six craft outside Main now have
+standalone foundations; Main remains11/17 until their later integration cards.
+
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
 walking and normal clean Quit. Full survey/reward/save/return qualification
@@ -288,7 +295,40 @@ are retained in verified `/srv/mudds-work/predator-render-alignment-20261106/rec
 adjacent closeout records publication and exact process/ref/worktree cleanup.
 No retry or next assignment is selected.
 
-### Dynamic/Utopia/Salyut foundation batch — renewal in progress
+### Dynamic/Utopia/Salyut foundation batch — cards1 PASS
+
+Accepted source **04a0de13cb607de025d2830ebfe23923d5c69e0a**, merged by
+**37cd5d25f013a51e41a946dcd32116f96b24cbbd**; checkpoint **04a0de1**.
+This closes BUILD-SPLIT-DYNAMIC/card1, BUILD-SPLIT-UTOPIA/card1 and
+BUILD-SPLIT-SALYUT/card1 in their complete original standalone scopes.
+
+All48 adopted resource values, seventeen actual profiles/registered-six policy,
+editable exact collision/render hulls and stable physical helm/eye frames pass.
+Footprints: Dynamic9×10×3.6m/22sections, Utopia9×17×4.8m/13sections,
+Salyut8×14×4.5m/18sections. Actual2.1/3.45/2.9s startup, thrust/turn/brake,
+neutral OFFLINE and a second usable cycle pass; Dynamic/Utopia retain one centre
+pulse origin, Salyut remains unarmed with no shots/heat/cooldown/emitter. Salyut
+solid drive panels now remain visible and collidable OFFLINE without changing
+geometry/materials/profile. These are labelled modern foundations, not historical
+model authentication or combat-damage qualification.
+
+All seven source cases and all three source-isolated Windows-PCK foundations
+pass, along with full ordinary Predator Main source169.297s and PCK162.438s
+(two sorties/normal Exit/actual clean primary/session_ended). Original90/120/
+180/300/600s caps and every fixture case/comparator remain. Exact markers1,
+rawdiagnostics0, source/cache/head/worktree guards pass. Seven staged exterior/
+eye/preview images inspected; paired exports/three strict startups/complete1593
+entry equalmaps/reviewed18newpaths and all9package predicates pass. Eight
+published artifacts match their audited bytes. Independent HIGH review GO.
+
+Renewed repairs used: Dynamic0/1,Utopia0/1,Salyut1/1. Prior33.878minutes and all
+failed source/raw remain retained. Current release/archive/closure cost:
+`/srv/mudds-work/fleet-foundations-renewal-20261116/`.
+**Main remains11/17.** Physical access, own berths, normal Main pilot journeys,
+passengers/cargo/functions, lifecycle/network and complete craft qualification
+remain later cards; nativeWindows/GPU/device/audio/human remainNOT_RUN. No
+automatic successor is selected. Dated selection and previous stop below remain
+history of those earlier candidates, not a reclassification of failed snapshots.
 
 **Owner-reset renewal2026-11-16 14:33:05→16:03:05UTC,90minutes ALL-IN.**
 Same BUILD-SPLIT-DYNAMIC/UTOPIA/SALYUT card1 contracts; archiveda0446136e restored
