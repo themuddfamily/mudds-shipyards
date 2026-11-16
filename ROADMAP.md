@@ -288,7 +288,24 @@ are retained in verified `/srv/mudds-work/predator-render-alignment-20261106/rec
 adjacent closeout records publication and exact process/ref/worktree cleanup.
 No retry or next assignment is selected.
 
-### Dynamic/Utopia/Salyut foundation batch — PARKED, source retained
+### Dynamic/Utopia/Salyut foundation batch — renewal in progress
+
+**Owner-reset renewal2026-11-16 14:33:05→16:03:05UTC,90minutes ALL-IN.**
+Same BUILD-SPLIT-DYNAMIC/UTOPIA/SALYUT card1 contracts; archiveda0446136e restored
+on accepted main75fd90059/Aurora455c15c. All prior33.878minutes/source/failures
+remain preserved. Renewed allowance0/1 per craft; Salyut nowuses1/1 to remove
+solid drive-panel registration from the engine-glow array, keeping exact meshes/
+collision/materials/approvedvalues. Dynamic/Utopia use0/1. One MEDIUM implementer
+owns only that Salyut change; root owns integration/release, one HIGH reviewer
+checks source and actual results. Candidate04a0de13cb607de025d2830ebfe23923d5c69e0a.
+Original complete fixture remains byte-identical: allthree source90s, definitions
+120s,registry180s,switching300s,full ordinary PredatorMain600s ALONE; six inspected
+exterior/eye images+preview; freshpairedexports/startup3/equalmaps/revieweddelta;
+actualWindowsPCK allthree90s andfullPredatorMain600s ALONE; audit9/eightpublished
+artifacts/merge/push/verifiedarchive/ownedcleanup. No old case/limit/tolerance is
+removed. Main remains11/17 until later access/berth/Main cards pass. Fresh
+records/card: `/srv/mudds-work/fleet-foundations-renewal-20261116/`. Older stop
+below describes the historical candidate, not current acceptance.
 
 Combined unmerged candidate **a0446136e** retains the three new original craft
 scenes/controllers and the shared runtime fixture. Dynamic and Utopia each pass
