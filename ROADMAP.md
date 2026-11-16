@@ -13,9 +13,14 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **cc38736** — [Windows ZIP](builds/windows/MuddsShipyards-cc38736-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-cc38736-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-cc38736-linux-x86_64.tar.gz).
+Latest playable checkpoint: **455c15c** — [Windows ZIP](builds/windows/MuddsShipyards-455c15c-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-455c15c-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-455c15c-linux-x86_64.tar.gz).
+The ordinary Aurora outbound release driver now completes fresh Boot, physical
+Halyard access/departure, canonical travel, strict landing, supported surface
+walking and normal clean Quit. Full survey/reward/save/return qualification
+remains open. Earlier accepted game content remains included.
+
 Titan's bay now contains its usable candidate: walk through the physical stern
 hatch/ramp to the helm, start, launch, fly, land at its own berth, shut down and
 walk out. Both physical passenger chairs support local sit/stand/reseat. Four inert parcels
@@ -37,8 +42,9 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 The owner reset correction allowances for **all unfinished tasks**. Each task
 now has **0 used** against its last positive approved limit, or **one** if no
 positive limit was recorded. Completed tasks are excluded. This is one reset
-per unfinished task, not a reset on every retry or new branch. Aurora therefore
-has a renewed **0/2** allowance; its previous **2/2** remains historical fact.
+per unfinished task, not a reset on every retry or new branch. Aurora received
+**0/2** at this reset and used **1/2** for the accepted outbound renewal below;
+its previous **2/2** remains historical fact.
 
 This authorization supersedes older exhausted-allowance permission requirements
 throughout this roadmap, the backlog and linked task records. On selection,
@@ -49,7 +55,35 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### SOLO-AURORA ordinary access/outbound — renewal in progress, unaccepted
+### SOLO-AURORA ordinary access/outbound — PASS, outbound capability only
+
+Accepted source **455c15c9f5c7813ca0c20f574c0fb2bac30aa586**, integrated by
+**8ff44c0939e8d00e810752194689d615fd4caf50**; paired checkpoint **455c15c**.
+The ordinary OS-input route now keeps Halyard level until its aft hull clears
+both the actual dock apron and Upper Operations collision geometry, then uses
+the original climb. No world/physics/default-provider change supplied the route.
+
+Full packaged Boot/access/boarding/destination/cruise/strict Aurora landing/
+OFFLINE/exterior walking/normal HUD Quit passes: **12,011,130.831772m**,1163
+rebases,47462 consecutive observations, maximum ship/Player steps333.331435/
+333.332412m (<335),staging0. Climb706/1800ticks,alignment219/900,outward44444/
+48000,corridor4723/12000,landing32.883333s/60 all retain the original limits.
+Actual same controlled capsule walks20supported ticks/1.293092m after normal
+exterior exit. OS0,rawdiagnostics0; actual primarygen15/backup14 both retain
+crashclean/safeclean_shutdown. Inputs and owned game/Xvfb/helper are reaped.
+Independent HIGH full-raw/source review GO; full323native/9package Python,
+compiler/whole CLI privacy, paired exports/strictstartup3/equal1575maps/reviewed
+payload delta and all9package predicates pass. Seven published artifacts match
+the audited bytes. These are Linux/Xvfb/XTest/Dummy results, not native Windows
+or GPU/device/audio/human qualification.
+
+Renewed allowance **1/2 used**; prior131.341minutes and every earlier failure
+remain retained. Current source/raw/release records and closure cost are at
+`/srv/mudds-work/aurora-outbound-20261116/`; prior Nov6/Nov15 archives remain.
+Main11/17 is unchanged. **Surface survey, reward/save, complete physical return
+and full SOLO-AURORA remain OPEN.** No automatic successor is selected. The
+selected window and dated failed-attempt records below describe their earlier
+state; their failures are not reclassified as passes.
 
 **Selected renewal 2026-11-16 13:46:38→15:16:38UTC,90minutes ALL-IN.**
 Same contract and archived b7371e0db lineage; owner reset grants0/2 corrections,

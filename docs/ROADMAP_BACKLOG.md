@@ -3466,6 +3466,25 @@ within20:05:51,with prior definition/failed-attempt costs retained.
 
 <a id="solo-aurora-rime-ordinary-contracts"></a>
 
+**Accepted Aurora access/outbound capability — 2026-11-16, source455c15c9f5,
+checkpoint455c15c.** The normal packaged OS-input driver now completes fresh
+Boot/station access/full Halyard boarding, destination UI and physical canonical
+12,011,130.831772m/1163-rebase journey through strict Aurora landing/OFFLINE,
+normal exterior exit,20supported walking ticks/1.293092m and normal HUDQuitOS0.
+All47462 observations are consecutive; unchanged actors/default input/clock,
+no staging, original1800/900/48000/12000/2700/2760 and tighter limits pass.
+Actual primary15/backup14 retain both clean markers; rawdiagnostics0/allcleanup
+pass. Independent raw/source GO,323native/9package/fullprivacy/compiler,
+pairedexports/startup3/equal1575maps/revieweddelta and audit9 pass; published
+Windows EXE/ZIP/notes and paired Linux bytes match. Renewed correction1/2 used;
+all priorcost/failures remain archived. See current ROADMAP and
+`/srv/mudds-work/aurora-outbound-20261116/closeout.json` for release/closure.
+**This closes only access/outbound executable capability.** Full survey/reward/
+save/reboard/ascent/home-return/full SOLO-AURORA remain OPEN; nativeWindows/
+GPU/device/audio/human/final gates remain NOT_RUN. Historical stops below remain
+failures of their exact earlier candidates, not acceptance of those snapshots.
+
+
 Later same-window additional correction b7371e0db is also PARKED/unmerged:
 actual aft hull clears apron but contacts UpperOperations/SolidBatch02/Collision01.
 Full native fails original1800-tick climb at1801ticks/38.327007m rather than>500m;
