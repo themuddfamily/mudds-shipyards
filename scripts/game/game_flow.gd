@@ -10950,7 +10950,7 @@ func _submit_paradox_gunner_fire() -> Dictionary:
 	if _solo_crew_role != &"gunner" or not _solo_crew_claim_is_current() \
 			or not player.is_seated_at(_solo_crew_seat.get_seat_anchor()):
 		return {"accepted":false,"status":&"gunner_not_seated"}
-	var direction := player.get_interaction_direction().normalized()
+	var direction: Vector3 = player.get_interaction_direction().normalized()
 	var aim: Dictionary = _solo_crew_ship.call("get_gunner_aim_status",direction)
 	# Refused aim cannot wake power or mutate the role sequence ledger.
 	if not bool(aim.get("accepted",false)):
