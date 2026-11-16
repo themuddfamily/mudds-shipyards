@@ -1,8 +1,8 @@
 # Development roadmap
 
-**Playable alpha; the full game is unfinished.** Eleven of the promised17 craft
-now exist in Main, including Titan and Predator pilot checkpoints. This count
-is implementation, not full craft qualification. The six craft still awaiting
+**Playable alpha; the full game is unfinished.** Twelve of the promised17 craft
+now exist in Main, including Titan, Predator and Paradox pilot checkpoints. This count
+is implementation, not full craft qualification. The five craft still awaiting
 Main integration now have accepted standalone hull/pilot foundations; their
 physical access, berths and Main integration remain open. All 36 original parent
 outcomes and ten
@@ -15,15 +15,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **5e7db65** — [Windows ZIP](builds/windows/MuddsShipyards-5e7db65-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-5e7db65-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-5e7db65-linux-x86_64.tar.gz).
-Paradox now has its own reachable empty home berth ([staged geometry preview](builds/windows/MuddsShipyards-5e7db65-paradox-berth-preview.png)); Main remains 11 flyable craft / 12 physical berths.
+Latest playable checkpoint: **976824f** — [Windows ZIP](builds/windows/MuddsShipyards-976824f-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-976824f-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-976824f-linux-x86_64.tar.gz).
+Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
-Together with Vortex, Paradox and Katana, all six craft outside Main now have
-standalone foundations; Main remains11/17 until their later integration cards.
+Standalone foundations also exist for the five craft still outside Main:
+Vortex, Katana, Dynamic, Utopia and Salyut. Their further access, berth and Main
+integration cards remain open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -40,7 +41,7 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox standalone hull/pilot and continuous physical access are included, with [preview](builds/windows/MuddsShipyards-2898b63-paradox-preview.png); it is not registered in Main. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its primary and crew roles remain unfitted. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
@@ -64,28 +65,57 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Paradox ordinary Main pilot — BUILD-SPLIT-PARADOX/card4
+### Paradox ordinary Main pilot — card 4 DONE, early pilot package delivered
 
-Goal / contract: approved docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md card4 and required early card5 package. Card1 foundation, card2 continuous access and card3 own berth are accepted; actual card3 source5e7db6552 is merged in baseline d9d6b375e3e1610563a86ec614999900bbd6acef. No missing product choice.
-Result: the actual normal Main Player walks the accepted full station/Titan/new-spur route, opens the real Paradox stern hatch, walks the supported ramp/bridge to the authored helm, boards with normal Interact, starts/launches/flies, strictly lands at its own berth, neutral-shuts down OFFLINE, physically exits, reboards and repeats a second complete sortie. Main becomes12/17 flyable craft in12physical berths; all11old craft poses/sources/settings/leases remain unchanged. Paradox weapons and crew roles are not fitted by this card.
-Candidate / initial state: clean baseline above; production Paradox root is its existing exact own dock(154,.38,90),yaw−90. Original adopted definition/all16tuning fields/hull/access/camera/berth bounds stay fixed. Startup Boot, real Begin Shift and ordinary spawn; no initial Player pose writes or craft flight warps.
-Owner / files: one HIGH implementer owns scripts/ships/paradox_cruiser.gd, optional new narrow paradox_cruiser_pilot.gd/UID, scenes/ships/paradox_cruiser_pilot.tscn, new tests/game_flow_paradox_integration_test.gd/UID, and existing tests/paradox_cruiser_berth_test.gd only. Root owns scenes/main.tscn, scripts/game/game_flow.gd, the one primary_not_fitted HUD status label in scripts/ui/hud.gd, and mechanical current-roster changes in existing Titan/Predator berth and Main tests and station route test; no sibling behavior changes. Independent HIGH reviewer checks physical/lifecycle/shared integration and actual final gates. No recursive agents.
-Dependencies: actual accepted foundation/access/berth source retained; new production pilot fitout and narrow physical approach/landed stand integration precede runtime checks. Existing full ShipBerth offset semantics are preserved. No weapon/profile/source-ID, gunner/passenger, cargo, hull tuning, world/layout, networking or lifecycle expansion.
-Ordinary case: copy the accepted Paradox card3 ROUTE exactly through world(139.5,.38,91.9). Existing accepted local access path and stance(0,1.2,-2.4), pilot anchor(0,1.65,-3.8), normal2.5m reach. Reject outside/through-wall/foreign/duplicate/stale helm claims atomically. Every completed controlled walking tick gets adjacent/current completed-motion audit, <.2m step, same gravity/masks/capsule, real support and full capsule/head clearance, following accepted Predator completed-tick observer (priority after Paradox MovingInteriorFrame's occupant priority). No jump, reach increase, collision bypass, support forcing, path removal or direct positive board/hatch/landing calls.
-Flight case: twice use normal Interact/start and input controls; 3.2s startup/engine edges, actual8m departure lift and released own lease; full-hull clear leg to existing authored assist staging center dock*Vector3(0,12,-28), ordinary throttle/pitch/brake,1800tick travel cap, inherited .6m arrival/.35m/s velocity thresholds and <=2m endpoint/.5m/s final bound. Observe real physical hull/helm/eye alignment through actual pitch/turn. Existing L assist must choose own compatible berth;600tick strict landing cap, exact dock origin<=.05m/speed<=.05, yaw/bounds/lease IDs strict. Neutral95ticks gives OFFLINE; normal E then <=180ticks supported interior stand at authored(0,1.2,-2.4), hatch closed; ordinary walk/hatch/ramp/apron exterior and second complete sortie. Active ONLINE airborne E refuses without body/claim/camera mutation under the existing _try_exit_ship OFFLINE gate. Existing supported OFFLINE Paradox cabin release/retake is preserved; this pilot-only case does not invoke airborne OFFLINE E or claim full moving-cabin qualification. Exact current frame/occupant ownership remains required for cabin-return admission.
-Unfitted/preserved case: held/direct/generic FIRE yields no offensive profile, source, projectile, heat/cooldown or damage until later card7; honest not-fitted feedback. Actual craft remains target-damageable, correct provisional identity/registry row/current HUD/camera. All11old poses/leases/sources/settings immutable, no duplicate craft or stale reservation. Normal UI Quit, OS0, actual primary crashclean/safeclean_shutdown/lastsessionevent session_ended.
-Source proof: exact clean commit plus import/compiler, source/cache/head/worktree guards. Full definition/berth120; full Paradox berth300 (adapt to actual production ownership without removing any lease/refusal/geometry/walk/return case or staging an overlapping duplicate); foundation90; access identity180/transformed180; Titan berth300; Predator berth300; station routes120; new complete Paradox Main300; existing complete Titan Main300 ALONE; existing complete Predator Main300 ALONE. Every original case/tolerance/per-test cap remains; mechanical roster changes only in old full Main tests. All runtime suites serial, fail first.
-Package proof: three inspected source views at the accepted overview/spur/defaultchase transforms of the actual production craft; original GLES/x11/Dummy/8frame settling/90s capture cap, use actual HUD Begin Shift and select capture camera before first draw. Fresh pinned safe paired Win/Linux exports from exact clean commit, strict startup3 (Windows payload/direct Linux/extracted Linux) exit0/oneSTARTUP_MENU_READY_OK/raw0. Complete equal maps and reviewed intended delta against actual latest5e7db65. Actual Windows PCK under official Linux Godot from blank source-isolated dirs: complete new Paradox Main300, full Paradox berth300, foundation90, both full access180 each, full TitanMain300 ALONE and full PredatorMain300 ALONE. Existing package audit9 and8published artifacts (Windows EXE/ZIP/notes/preview + Linux4). No hosted CI.
-Budget / stop: mapping started2026-11-16 16:23:36UTC; harddeadline17:53:36UTC,90minutes ALL-IN including code/checks/build/review/merge/push/archive/owned process/worktree/branch/scratch cleanup. Fresh owner-reset allowance0/1, one substantive production/behavior repair; normal compiler/caller/incorrect-assertion repairs do not spend it and retain all requirements/caps/deadline. First unexpected failure preserves operands, stops dependent checks, requires measured cause before repair. Deadline/exhaustion/unresolved actual product choice parks complete card, no smaller renamed PASS. suite_process subreaper independent abort; all Godot --audio-driver Dummy, headless or private Xvfb explicit x11. Native Windows/GPU/device/audio/human/fullcraft/fullrelease stay NOT_RUN/open.
-Close: NOT_RUN. Only all frozen cases plus independent actual GO, all9audit/8publishedfiles, source merged/pushed, verified source/raw archive and exact-tip owned cleanup close this card. Historical card3 cost106.75minutes remains separate accepted prerequisite, not erased or reset by this new original card4.
+Accepted source **976824fb3c62c07dfa536079f61b80f7abd6de18**, merged by **044f85a1788d4f3292d112d3018032c30f2a89f1**; paired checkpoint **976824f**.
+Paradox is now the **twelfth flyable Main craft**, in its own occupied home berth.
+The actual normal-spawn Player walks the complete existing station/Titan/spur
+route, opens the stern hatch, walks the ramp and bridge, takes the physical helm,
+flies, strictly lands at its own berth, waits for neutral OFFLINE shutdown, stands
+inside, opens the interior hatch control and physically walks out. Fresh reboard
+and a second complete sortie pass. All eleven earlier craft retain their poses,
+leases, firing identities and settings.
 
-| Case | Initial state and action | Expected result | Actual result and proof |
-| --- | --- | --- | --- |
-| Production identity and physical helm | Boot/Begin Shift/normal spawn/full frozen station+ramp+bridge walk; normal E and refusals | Actual12craft/12berths, same Player, supported authored pilot chair/current camera, provisional registry/HUD; atomic wrong/foreign/stale claims | NOT_RUN |
-| Two complete ordinary sorties | Start/8m lift/ordinary flight to own authored staging/L strict home/neutral OFFLINE/E stand/physical exterior/reboard, repeat | Exact adopted3.2s startup, original caps/thresholds/whole hull/lease/eye alignment, supported full walk, actual clean Quit | NOT_RUN |
-| Unfitted and old craft safety | Held/direct/generic fire and snapshot comparisons before/after | No unfitted offensive authority/effects; actual damageable craft; all11old poses/sources/settings/leases unchanged | NOT_RUN |
-| Source and actual package | All11source gates,3fixedviews,exports/startup3/maps,all7fullPCK cases,audit9/8files | ExactC/exit0/markers1/raw0/guards, actual primary clean, matching intended payloads; Main12/17 only pilot scope | NOT_RUN |
-| Integration and closure | Independent full review, merge/push/sourcebundle/raw archive, exact-tip cleanup | Published playablecheckpoint; acceptedsource reachable on pushedmain; all owned processes/WT/branch/scratch removed, historical failures/cost preserved | NOT_RUN |
+The adopted 3.2 s startup, 8 m lift, handling, hull/ramp/camera and berth bounds
+remain unchanged. Physical hull, helm and pilot eye stay aligned through turns;
+solid exhaust remains visible OFFLINE with separate cosmetic glow. The actual
+registry/HUD identifies the Cruiser candidate. **The primary is NOT FITTED**;
+held/direct/generic firing cannot create offensive authority or effects. The
+craft remains damageable. Gunner/passenger roles, both weapons, full moving-cabin
+qualification, damage/service/recovery/save and network journeys remain later
+cards. This is an approved modern candidate, not historical reconstruction.
+
+All eleven exact clean-source gates pass, including full new Main
+(189.287 s), the complete existing Titan and Predator Main journeys,
+whole berth, standalone foundation, both full access variants and preserved
+berth/routes. Seven actual Windows-PCK cases under pinned Linux Godot pass,
+including the full new Main (181.819 s), whole berth, foundation, both
+access variants and complete Titan/Predator Main. All three Main journeys use
+normal clean Quit and actual primary clean_shutdown/clean/session_ended.
+Three fixed production views were inspected; fresh paired exports, three strict
+startup checks, equal complete payload maps, all nine existing package audit predicates
+and eight published artifacts pass independent HIGH review.
+
+**Main is 12/17 implemented craft, with 12 physical berths; full craft acceptance
+and all 36 parent outcomes remain open.** Native Windows/GPU/device/audio/human/
+readability/full-release gates remain NOT_RUN. GitHub Actions remains disabled.
+Earlier empty-berth and parked references below describe their dated handoff.
+
+Initial C1 Main testing copied a z20 crossover from the larger standalone floor
+into the production stern rail. A query confirmed the capsule/rail contact and
+the existing safe SternApron marker at z19. The four-point test caller correction
+changes no production code, tolerance or original journey endpoint; every source
+gate was rerun on C2. The failed run and actual diagnostic remain archived.
+
+Original all-in window: 2026-11-16 16:23:36–17:53:36 UTC, including mapping,
+implementation, checks, build, review, merge/push/archive and cleanup. Substantive
+repairs used: 0/1. The original frozen card, every actual
+attempt/failure, exact source bundle, source/PCK raw logs, profiles, views and
+release records are retained in verified
+`/srv/mudds-work/paradox-main-20261116/records.tar.gz`; adjacent closeout records
+actual elapsed cost and owned branch/worktree/process cleanup. Prior card 3's
+106.75 minutes and archives remain separate accepted prerequisite history.
+No successor is assigned here; local physical roles card 6 remains next.
 
 ### SOLO-AURORA ordinary access/outbound — PASS, outbound capability only
 
