@@ -16,8 +16,10 @@ class FixtureCommands:
 	extends ShipCommandSource
 	var throttle := 0.0
 	var brake := false
+	var yaw := 0.0
+	var fire := false
 	func _sample_controls() -> Dictionary:
-		return {"throttle": throttle, "brake": brake}
+		return {"throttle": throttle, "brake": brake, "yaw": yaw, "fire": fire}
 
 func _init() -> void:
 	call_deferred("_run")
@@ -72,6 +74,9 @@ var _pending_restore_ticks := 0
 
 
 func _run() -> void:
+	if "--components" in OS.get_cmdline_user_args():
+		await _run_components()
+		return
 	if "--main" in OS.get_cmdline_user_args():
 		await _run_main()
 		return
@@ -617,6 +622,8 @@ func _run_main() -> void:
 		if request.source_entity == _main_ship:
 			_main_shots += 1
 			_main_bad_shot = _main_bad_shot or request.source_id != 1112 or request.weapon_id != GameFlow.BULWARK_COMBAT_WEAPON_ID or request.range != 360 or request.damage != 50 or _main_ship.to_local(request.origin).distance_to(Vector3(0,0.9,-4.9)) > 0.0001)
+	if "--component-service" in OS.get_cmdline_user_args():
+		_main_ship.component_repair_progressed.connect(func(_progress: Dictionary) -> void: _component_service_repairs += 1)
 	var identity := _main_player.get_instance_id()
 	var world := _main_game.world
 	var berth := world.get_berth_node(&"dynamic_home_berth") as ShipBerth
@@ -759,6 +766,8 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 	await _main_frames(20)
 	Input.action_release(&"fire")
 	if not _main_check(_main_shots > shots and _main_projectiles > projectiles and not _main_bad_shot,"actual held fire uses approved center-muzzle pulse on usable flight "+str(sortie)): return false
+	if "--component-service" in OS.get_cmdline_user_args() and sortie == 0:
+		if not await _main_component_damage(): return false
 	Input.action_press(&"brake")
 	await _main_frames(30)
 	_main_release_inputs()
@@ -784,6 +793,12 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 	_main_release_inputs()
 	await _main_frames(95)
 	if not _main_check(StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE,"landed neutral input shuts propulsion OFFLINE"): return false
+	if "--component-service" in OS.get_cmdline_user_args():
+		if not _main_check(_component_service_repairs > 0 and _main_ship.get_component_damage().get_worst_integrity() == 1.0
+			and float(_main_ship.get_operational_modifiers().fire_multiplier) == 1.0
+			and _main_ship.get_damage_presentation().get_active_component_effect_count() == 0
+			and float(_main_ship.get_telemetry().hull) == _component_service_hull,
+			"normal own-home landing/service restores component fire and localized cues without hull healing"): return false
 	await _main_tap(&"interact")
 	for frame in 180:
 		if not _main_game._transition_busy and not _main_player.is_seated(): break
@@ -929,8 +944,268 @@ func _main_quit_normally() -> void:
 		if root.gui_get_focus_owner() == exit_button: break
 		await _main_key(KEY_TAB)
 	if not _main_check(is_instance_valid(exit_button) and root.gui_get_focus_owner() == exit_button,"normal pause Tab reaches actual Exit to desktop"): return
+	if "--component-service" in OS.get_cmdline_user_args():
+		if not _main_check(float(_main_ship.get_telemetry().hull) == _component_service_hull,"two exits/fresh reboards preserve actual damaged hull"): return
+		print("DYNAMIC_COMPONENT_SERVICE_TEST_OK: checks=",_checks," repairs=",_component_service_repairs)
 	print("DYNAMIC_MAIN_USER_DATA_DIR: ",OS.get_user_data_dir())
 	print("DYNAMIC_GUNSHIP_MAIN_TEST_OK: claims=",_main_claims," releases=",_main_releases," walking_ticks=",_main_ticks," actual_pulse_shots=",_main_shots)
 	await _main_key(KEY_ENTER)
 	for frame in 120: await process_frame
 	_main_check(false,"normal Main Quit did not terminate actual OS process")
+
+## Independent fixtures measure real contacts/controller outputs. Pose/velocity
+## resets below only establish matched fixture initial conditions; Main never
+## changes its craft or Player pose outside ordinary production controls.
+const COMPONENT_ANCHORS := [Vector3(0.85,1.2,-4.3),Vector3(-3.6,1.2,2.8),
+	Vector3(3.6,1.2,2.8),Vector3(0,3,2.06),Vector3(3.15,2.15,4.9)]
+const COMPONENT_RAY_STARTS := [Vector3(0.85,1.2,-7),Vector3(-7,1.2,2.8),
+	Vector3(7,1.2,2.8),Vector3(0,3,4),Vector3(3.15,2.15,7)]
+const COMPONENT_RAY_ENDS := [Vector3(0.85,1.2,-4),Vector3(-3.5,1.2,2.8),
+	Vector3(3.5,1.2,2.8),Vector3(0,3,1.9),Vector3(3.15,2.15,4.8)]
+const COMPONENT_SURFACES := ["StarboardNoseCheekCollision","PortShoulderCollision",
+	"StarboardShoulderCollision","AftPressureWallCollision","StarboardExhaustFaceCollision"]
+var _component_service_hull := -1.0
+var _component_service_repairs := 0
+
+func _run_components() -> void:
+	var crafts: Array[HeroShip] = []
+	var sources: Array[FixtureCommands] = []
+	for index in ShipComponentDamage.COMPONENT_ORDER.size():
+		var craft := DYNAMIC.instantiate() as HeroShip
+		craft.position = Vector3(1000+index*200,100,0)
+		root.add_child(craft)
+		var source := FixtureCommands.new()
+		source.brake = true
+		craft.add_child(source)
+		craft.set_command_source(source)
+		craft.set_piloted(true)
+		craft.request_engine_start()
+		crafts.append(craft)
+		sources.append(source)
+	await _frames(130)
+	for index in crafts.size():
+		var craft := crafts[index]
+		var source := sources[index]
+		var id := ShipComponentDamage.COMPONENT_ORDER[index]
+		var model := craft.get_component_damage()
+		var presentation := craft.get_damage_presentation()
+		print("DYNAMIC_COMPONENT_BASELINE: ",model.get_component_report()," presentation=",presentation)
+		if not _check(presentation != null,"Dynamic installs shared localized damage presentation"): return
+		var report := model.get_component_report()
+		var section := (report.components as Array)[index] as Dictionary
+		var extents := (report.local_bounds as AABB).size*0.5
+		var radius := extents.z*0.55 if index in [0,4] else (extents.x+extents.z)*0.28 if index == 3 else extents.x*0.55
+		if not _check(craft.find_children("*","ShipComponentDamage",true,false).size() == 1
+			and section.local_position == COMPONENT_ANCHORS[index]
+			and is_equal_approx(section.local_radius,radius),str(id)+" retains one ledger/inherited radius at actual solid anchor"): return
+		var healthy := await _component_motion(craft,source)
+		if index in [1,2]:
+			if not await _component_cadence(craft,source,18,19,str(id)+" healthy"): return
+		if index == 3:
+			if not await _component_aim(craft,source,360): return
+		var hit := _component_contact(craft,index)
+		if _failed: return
+		craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
+		await _frames(1)
+		if not _check(model.get_impaired_component_count() == 1
+			and model.get_component_state(id) == ShipComponentDamage.ComponentState.IMPAIRED
+			and presentation.get_component_effect_ids() == [id]
+			and presentation.get_component_effect_state(id) == ShipComponentDamage.ComponentState.IMPAIRED,
+			str(id)+" one real surface contact impairs exactly its own section and localized cue"): return
+		var impaired := await _component_motion(craft,source)
+		if index == 4:
+			print("DYNAMIC_COMPONENT_MOTION: healthy=",healthy," impaired=",impaired)
+			if not _check(impaired.speed < healthy.speed*0.68 and impaired.speed > healthy.speed*0.50
+				and absf(impaired.turn/healthy.turn-0.62)<0.01
+				and absf(impaired.braking/healthy.braking-lerpf(0.35,1,0.62))<0.02,
+				"engine actual matched thrust/turn fall with .62 power and braking keeps existing manual floor"): return
+		if index == 0:
+			if not _check(absf(impaired.speed-healthy.speed)<0.01 and absf(impaired.turn-healthy.turn)<0.001,
+				"forward integrity damage adds no unapproved mobility binding"): return
+		if index in [1,2]:
+			if not await _component_cadence(craft,source,30,31,str(id)+" impaired"): return
+		if index == 3:
+			if not await _component_aim(craft,source,360*lerpf(0.30,1,0.62)): return
+		hit = _component_contact(craft,index)
+		if _failed: return
+		craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
+		await _frames(1)
+		if not _check(model.get_component_state(id) == ShipComponentDamage.ComponentState.FAILED
+			and model.get_failed_component_count() == 1 and model.get_impaired_component_count() == 0
+			and presentation.get_component_effect_ids() == [id]
+			and presentation.get_component_effect_state(id) == ShipComponentDamage.ComponentState.FAILED,
+			str(id)+" second real contact fails only same physical section and cue"): return
+		if index in [0,4]:
+			var failed_motion := await _component_motion(craft,source)
+			if index == 4:
+				if not _check(failed_motion.speed < 0.001 and failed_motion.turn < 0.001
+					and absf(failed_motion.braking/healthy.braking-0.35)<0.02,
+					"failed engine blocks thrust/turn while retaining .35 emergency manual braking"): return
+			elif not _check(absf(failed_motion.speed-healthy.speed)<0.01 and absf(failed_motion.turn-healthy.turn)<0.001,
+				"failed forward integrity still has no invented mobility binding"): return
+		elif index in [1,2]:
+			var refused: Array[int] = []
+			var fired := func(_origin: Vector3,_direction: Vector3) -> void: refused.append(1)
+			craft.projectile_fired.connect(fired)
+			source.fire = true
+			await _frames(60)
+			source.fire = false
+			craft.projectile_fired.disconnect(fired)
+			if not _check(refused.is_empty() and craft.get_weapon_fire_status().reason == &"weapon_component_failed",
+				str(id)+" failed shoulder refuses actual held pilot fire"): return
+		else:
+			if not await _component_aim(craft,source,360*0.30): return
+		var ledger := model.get_ledger_snapshot()
+		var hull := float(craft.get_telemetry().hull)
+		craft.set_piloted(false)
+		craft.set_canopy_open(true)
+		craft.set_piloted(true)
+		await _frames(3)
+		if not _check(model.get_ledger_snapshot() == ledger and is_equal_approx(float(craft.get_telemetry().hull),hull)
+			and not craft.is_canopy_open(),str(id)+" pilot release/reclaim and refused unsupported access never heal damage"): return
+		craft.set_piloted(false)
+		craft.queue_free()
+		await _frames(2)
+	await _component_paired_engines()
+	if _failed: return
+	print("DYNAMIC_COMPONENTS_TEST_OK: checks=",_checks)
+	quit(0)
+
+func _component_contact(craft: HeroShip,index: int) -> Dictionary:
+	var ray := PhysicsRayQueryParameters3D.create(craft.to_global(COMPONENT_RAY_STARTS[index]),
+		craft.to_global(COMPONENT_RAY_ENDS[index]),PhysicsLayers.SHIP)
+	var hit := craft.get_world_3d().direct_space_state.intersect_ray(ray)
+	var shape_name := ""
+	if not hit.is_empty() and hit.collider == craft:
+		shape_name = str(craft.shape_owner_get_owner(craft.shape_find_owner(int(hit.shape))).name)
+	_check(hit.get("collider") == craft and shape_name == COMPONENT_SURFACES[index],
+		"real contact ray strikes authored section "+COMPONENT_SURFACES[index]+" actual="+shape_name)
+	return hit
+
+func _component_motion(craft: HeroShip,source: FixtureCommands) -> Dictionary:
+	source.fire = false
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(30)
+	craft.velocity = Vector3.ZERO
+	craft.global_basis = Basis.IDENTITY
+	source.brake = false
+	source.throttle = 1
+	source.yaw = 0.2
+	await _frames(30)
+	var result := {"speed":craft.velocity.length(),"turn":Quaternion(craft.global_basis).get_angle()}
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	# Flush the ordinary throttle response before matching the braking sample.
+	await _frames(20)
+	craft.velocity = Vector3(0,0,-20)
+	await _frames(10)
+	result["braking"] = 20-craft.velocity.length()
+	return result
+
+func _component_cadence(craft: HeroShip,source: FixtureCommands,minimum: int,maximum: int,label: String) -> bool:
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(90)
+	var ticks: Array[int] = []
+	var fired := func(_origin: Vector3,_direction: Vector3) -> void: ticks.append(Engine.get_physics_frames())
+	craft.projectile_fired.connect(fired)
+	source.fire = true
+	await _frames(70)
+	source.fire = false
+	craft.projectile_fired.disconnect(fired)
+	print("DYNAMIC_COMPONENT_CADENCE: ",label," ticks=",ticks)
+	return _check(ticks.size() >= 2 and ticks[1]-ticks[0] >= minimum and ticks[1]-ticks[0] <= maximum,
+		label+" actual held-fire interval retains original cooldown/power")
+
+func _component_aim(craft: HeroShip,source: FixtureCommands,expected: float) -> bool:
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(40)
+	var shots: Array[Dictionary] = []
+	var fired := func(origin: Vector3,direction: Vector3) -> void: shots.append({"origin":origin,"direction":direction})
+	craft.projectile_fired.connect(fired)
+	source.fire = true
+	await _frames(1)
+	source.fire = false
+	craft.projectile_fired.disconnect(fired)
+	var distance := -1.0
+	if shots.size() == 1:
+		var camera := craft.get_camera()
+		var camera_direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size*0.5).normalized()
+		var direction := shots[0].direction as Vector3
+		var cross := camera_direction.cross(direction)
+		distance = ((shots[0].origin as Vector3)-camera.global_position).cross(direction).dot(cross)/cross.length_squared()
+	print("DYNAMIC_COMPONENT_AIM: expected=",expected," measured=",distance)
+	return _check(absf(distance-expected)<0.5,"core stage changes actual emitted convergence to "+str(expected)+"m")
+
+func _main_component_damage() -> bool:
+	var hit := _component_contact(_main_ship,1)
+	if _failed: return false
+	_main_ship.apply_damage(_main_ship.maximum_hull*0.1,hit.position,hit.normal)
+	await _main_frames(1)
+	var model := _main_ship.get_component_damage()
+	_component_service_hull = float(_main_ship.get_telemetry().hull)
+	var ledger := model.get_ledger_snapshot()
+	if not _main_check(model.get_component_state(&"port_wing") == ShipComponentDamage.ComponentState.IMPAIRED
+		and _main_ship.get_damage_presentation().get_component_effect_ids() == [&"port_wing"],
+		"actual airborne Main shoulder contact impairs authoritative section and localized cue"): return false
+	await _main_tap(&"interact")
+	if not _main_check(_main_game._piloting and model.get_ledger_snapshot() == ledger
+		and float(_main_ship.get_telemetry().hull) == _component_service_hull,
+		"normal refused airborne access preserves real damaged ledger and hull"): return false
+	return true
+
+
+## Real contacts on both pods, including their front, exhaust, outer/inner side
+## and top. Each fresh hull takes one real loss, so attribution cannot hide in
+## an already-impaired section. The transformed fixture checks boundary residue
+## without expanding any collider or accepting an air volume as engine armor.
+func _component_paired_engines() -> void:
+	var starts := [Vector3(3.15,2.15,1.8),Vector3(3.15,2.15,7),
+		Vector3(6,2.15,3.5),Vector3(1.8,2.15,3.5),Vector3(3.15,4,3.5)]
+	var ends := [Vector3(3.15,2.15,2.5),Vector3(3.15,2.15,4.8),
+		Vector3(3.9,2.15,3.5),Vector3(2.4,2.15,3.5),Vector3(3.15,2.5,3.5)]
+	var crafts: Array[HeroShip] = []
+	for side in [-1.0,1.0]:
+		for face in starts.size():
+			var craft := DYNAMIC.instantiate() as HeroShip
+			craft.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(35)),Vector3(23+crafts.size()*20,7,-19))
+			root.add_child(craft)
+			crafts.append(craft)
+	await _frames(2)
+	var index := 0
+	for side in [-1.0,1.0]:
+		for face in starts.size():
+			var craft := crafts[index]
+			var start: Vector3 = starts[face]
+			var end: Vector3 = ends[face]
+			start.x *= side
+			end.x *= side
+			var ray := PhysicsRayQueryParameters3D.create(craft.to_global(start),craft.to_global(end),PhysicsLayers.SHIP)
+			var hit := craft.get_world_3d().direct_space_state.intersect_ray(ray)
+			var shape_name := ""
+			if not hit.is_empty() and hit.collider == craft:
+				shape_name = str(craft.shape_owner_get_owner(craft.shape_find_owner(int(hit.shape))).name)
+			var expected := ("Port" if side < 0 else "Starboard")+("ExhaustFaceCollision" if face == 1 else "EngineBlockCollision")
+			if not _check(hit.get("collider") == craft and shape_name == expected,
+				"paired-engine real transformed face "+str(face)+" strikes "+expected+" actual="+shape_name): return
+			craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
+			var model := craft.get_component_damage()
+			if not _check(model.get_component_state(&"engine_bay") == ShipComponentDamage.ComponentState.IMPAIRED
+				and model.get_impaired_component_count() == 1 and model.get_failed_component_count() == 0
+				and is_equal_approx(float(craft.get_telemetry().hull),craft.maximum_hull*0.9),
+				"actual "+expected+" face "+str(face)+" damages only existing shared engine region once"): return
+			# Supplemental collision path consumes the same real contact and obeys
+			# its existing functional candidate whitelist. It does not apply hull.
+			var collision := model.record_collision_damage(craft.maximum_hull*0.01,craft.to_local(hit.position))
+			var sections := collision.get("components",{}) as Dictionary
+			if not _check(bool(collision.get("accepted",false)) and sections.size() == 1 and sections.has(&"engine_bay"),
+				"actual engine face also selects engine through unchanged collision candidates"): return
+			craft.queue_free()
+			index += 1
+	await _frames(2)
