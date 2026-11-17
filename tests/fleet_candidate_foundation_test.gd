@@ -64,8 +64,8 @@ func _run() -> void:
 	await _frames(3)
 	for key: String in VALUES[_name]:
 		if not _check(is_equal_approx(float(definition.get(key)),float(VALUES[_name][key])) and is_equal_approx(float(_ship.get(key)),float(VALUES[_name][key])),"resource and actual controller adopted value "+key): return
-	if not _check(_ship.get_home_berth_id()==&"" and not _ship.has_node("ShipBoardingArea") and not _ship.has_node("MovingInteriorFrame")
-		and not _ship.has_method("get_passenger_station_role_contract") and not _ship.has_method("get_cargo_manifest"),"standalone foundation adds no Main/berth/passenger/frame/cargo grants"): return
+	if not _check(_ship.get_home_berth_id()==&"" and _ship.has_node("ShipBoardingArea")==(_name=="dynamic") and not _ship.has_node("MovingInteriorFrame")
+		and not _ship.has_method("get_passenger_station_role_contract") and not _ship.has_method("get_cargo_manifest"),"standalone scope keeps only Dynamic physical boarding and no Main/berth/passenger/frame/cargo grants"): return
 	if not _geometry(data): return
 	var command = FixtureCommands.new()
 	_ship.add_child(command)
