@@ -123,8 +123,8 @@ x[-76.8,-74]/z[-17,-10.6]. Matching visible/collision floor tops-.02, physical
 exterior rails with open station mouth and a physically mounted sign;13bodies,
 15matching collision shapes,114meshes,1label/no process loops.
 Exact route after normal spawn: (8,11)→(8,13.5)→(-35.5,13.5)→(-35.5,8.5)→
-(-44,8.5)→(-44,7)→(-44,-12)→(-75.4,-12)→(-75.4,-18)→(-80,-18)→
-(-82.3,-18)→control(-82.3,-21.4), then full reverse; new floorY-.02.
+(-44,8.5)→(-44,7)→(-44,-12)→(-75.4,-12)→(-75.4,-18.4)→(-80,-18.4)→
+(-82.3,-18.4)→control(-82.3,-21.4), then full reverse; new floorY-.02.
 Each completed real Player tick must retain support/capsule/head clearance,
 continuity<.2m and original body/masks/gravity. Query skin only.005radius/.01height;
 no Player pose/velocity/clock forcing or jump/rescue. Approach marker(-44,-.02,5.5)
@@ -161,6 +161,34 @@ failure; retain raw operands/cost. Same-clock compiler/assertion maintenance kee
 all cases/caps; unresolved product failure or hard deadline parks whole card.
 No automatic renewal. Native Windows/GPU/human/full-craft gates stay NOT_RUN/open;
 hosted CI disabled. Frozen/raw records `/srv/mudds-work/salyut-berth-20261117/`.
+First candidate8e1b1d0 stopped35.060s into the new berth fixture, before walking:
+the2m-wide turn box atz=-18 touched SafetyEdge02's exactz=-17 endpoint. Original
+raw/import/status/source remain in `attempt-8e1-route-tangency`. Independent review
+confirmed routine fixture route placement; d1c1cd0 moves only three intermediate
+turn targets toz=-18.4, adding clearance/distance on the same deck. Fixed control,
+full reverse,2m box, all assertions/caps and production bytes remain unchanged.
+Production correction0/1 and hard06:34:38deadline remain binding. All affected
+checks rerun fresh on the new clean commit; no mixed-commit results retained.
+The d1c1cd0 run passed twelve full cases, then registry37.719s failed because its
+manual `_module_nodes` caller still omitted Salyut, supplying11modules to12hub
+endpoints. Complete raw/source/reports remain in `attempt-d1c-registry-caller`.
+Independent review confirms fixture-only maintenance: 4ef17e6 adds the new node
+without changing any old entry, assertion, red/deepcopy case, cap or production
+byte. All fourteen cases and later Main/package gates rerun fresh on4ef17e6;
+production0/1 and original06:34:38deadline remain binding.
+The4ef17e6 fourteen focused cases all passed. Full Titan Main then stopped135.620s
+at the first-shot cannon assertions: ten render-coupled waits covered60physics
+ticks. An exact fixture plus one operand print diagnostic passed165.282s when the
+same waits covered12ticks, recording one70damage shot85→15. Both raw runs remain
+preserved; the diagnostic is not substituted for acceptance. Candidate723561c
+changes only Main's initial FIRE observer to ten completed actual ship physics
+ticks, with exact10assertion and concise operands. All original one-shot/damage/
+replay/38–39tick cadence predicates, other waits and full300s journey remain.
+Independent SOURCE_GO/RETENTION_GO verifies the entire repository byte-identical
+except that Main fixture, including all14 focused fixtures/dependencies. Their
+actual4ef17e6 reports remain labelled4ef with explicit byte-equivalence proof;
+full affected Main source/PCK and every export/view/delta/audit gate run fresh
+on723561c. Production repair0/1 and the same absolute deadline remain unchanged.
 
 ### Salyut continuous physical stern access — card2 DONE
 
