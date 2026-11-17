@@ -9,6 +9,7 @@ const DYNAMIC := preload("res://scenes/ships/dynamic_gunship.tscn")
 const DEFINITION := preload("res://assets/ships/dynamic_provisional.tres")
 const WRONG := preload("res://assets/ships/torrent_provisional.tres")
 const OLD_TRANSFORMS := {
+	&"utopia_home_berth": Transform3D(Basis.IDENTITY,Vector3(144,0.38,-30)),
 	&"bulwark_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(52.0, 7.68, 53.05)),
 	&"dock_04_cargo": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(7.0, 5.81, 84.7)),
 	&"dock_05_bomber": Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-15.0, 5.535, 34.3)),
@@ -23,6 +24,7 @@ const OLD_TRANSFORMS := {
 	&"paradox_home_berth": Transform3D(Basis(Vector3.UP,-PI*0.5),Vector3(154,0.38,90)),
 }
 const OLD_CENTERS := {
+	&"utopia_home_berth": Vector3.ZERO,
 	&"arrow_recon_berth": Vector3(0.0,0.0,0.0),
 	&"bulwark_fleet_dock_berth": Vector3(0.0,0.0,0.0),
 	&"central_berth": Vector3(0.0,0.0,0.0),
@@ -90,7 +92,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"dynamic_home_berth": matching += 1
-	if not _check(matching == 1 and world.get_berth_ids().size() == 14 and _game.get_flyable_ships().size() == 13 and _game.get_node_or_null("DynamicGunship") != null and berth.get_occupant() == _game.get_node("DynamicGunship") and berth.get_reservation_owner() == _game.get_node("DynamicGunship"),"fourteen physical berths and thirteen actual flyables; Dynamic owns its unique occupied home"): return
+	if not _check(matching == 1 and world.get_berth_ids().size() == 14 and _game.get_flyable_ships().size() == 14 and _game.get_node_or_null("DynamicGunship") != null and berth.get_occupant() == _game.get_node("DynamicGunship") and berth.get_reservation_owner() == _game.get_node("DynamicGunship"),"fourteen physical berths and fourteen actual flyables; Dynamic owns its unique occupied home"): return
 	var dock := Transform3D(Basis.IDENTITY,Vector3(108,-0.02,-30))
 	if not _check(berth.get_dock_transform().is_equal_approx(dock) and berth.dock_transform == Transform3D.IDENTITY and berth.compatibility_tags == PackedStringArray(["dynamic_gunship"]) and berth.landing_volume_center == Vector3.ZERO and berth.landing_half_extents == Vector3(6.2,5.8,6) and berth.assist_capture_center == Vector3(0,8,-18) and berth.assist_capture_half_extents == Vector3(18,12,26) and berth.assist_capture_maximum_speed == 27 and berth.assist_maximum_tilt_degrees == 68 and berth.departure_lift_height == 3.5 and DEFINITION.landing_maximum_speed == 16.5,"exact adopted root/strict-center/fit/capture/speed/tilt/departure contract"): return
 	if not _test_module_geometry(module): return
@@ -109,7 +111,7 @@ func _run() -> void:
 	for craft: HeroShip in _game.get_flyable_ships():
 		if craft != _game.get_node("DynamicGunship"):
 			saved_craft[craft] = craft.global_transform
-	if not _check(saved_berths.size() == 12 and saved_craft.size() == 12,"all twelve original berth/craft states retained before independent candidate probes"): return
+	if not _check(saved_berths.size() == 13 and saved_craft.size() == 13,"all thirteen original berth/craft states retained before independent candidate probes"): return
 	_ship = _game.get_node("DynamicGunship") as HeroShip
 	if not _check((_ship.get_node("DockingReceiver") as Marker3D).transform == Transform3D.IDENTITY and _game.get_flyable_ships().has(_ship) and _ship.global_transform.is_equal_approx(dock),"actual registered Main Dynamic has identity receiver and exact own dock pose"): return
 	var occupied_before := berth.audit()
