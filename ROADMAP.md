@@ -112,6 +112,28 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Utopia local physical passenger chairs — card6
+
+Baseline **f7bd79d7bce3f10b9f68fa88092474167491f544**, branch
+`work/utopia-chairs-1117`, worktree `/srv/mudds-work/utopia-chairs-20261117/worktree`.
+Visible outcome: two adopted real passenger chairs support normal Main walking,
+sit/stand/reseat twice each, with duplicate/stale/third guest claims refused;
+full supported exit/station return and normal pause Exit. Cargo/supply, network,
+concurrency/endurance and full travelling-cabin qualification remain later work.
+
+Window **2026-11-17 09:29:13→10:44:13UTC**,75minutes ALL-IN including mapping,
+implementation, focused source/actualPCK tests, isolated captures, pairedclean
+exports/startup3/audit, independentreview, merge/push/archive and ownedcleanup.
+Definition freezes before09:44:13. Production corrections0/1. HIGH implementer
+owns candidate and narrow necessary existing seat/owner integration plus existing
+journey fixture; HIGH independent reviewer; root all engines/release/integration.
+No production edits before exact dependency/geometry/ownership/proof freeze.
+Preserve1.6m full aisle, hatch motion, racks, pilot anchors/tuning/source1113 and
+all fourteen old craft/home state. Only future guest-chair reservations may be
+consumed by exact real fixed-chair fitting with body/stand/eye clearance proof.
+No nestedagents/hostedCI/audible or active-desktop checks. Original test/journey
+caps remain; retain all failures/cost, no automatic renewal. Definition in progress.
+
 ### Utopia ordinary Main pilot journey — card4 DONE; early pilot package card5 DONE
 
 Accepted source **4b1b84475699fcbf57f05540f0dc6da16db6dd26**, merged via
