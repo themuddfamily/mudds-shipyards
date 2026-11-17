@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -19,6 +19,8 @@
 [ext_resource type="PackedScene" path="res://scenes/world/modules/paradox_cruiser_berth.tscn" id="17_paradox_berth"]
 
 [ext_resource type="PackedScene" path="res://scenes/world/modules/predator_detention_transport_berth.tscn" id="16_predator_berth"]
+
+[ext_resource type="PackedScene" path="res://scenes/world/modules/dynamic_gunship_berth.tscn" id="18_dynamic_berth"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -202,3 +204,11 @@ metadata/route_support = &"starboard_node_to_predator_spur"
 
 [node name="PredatorDetentionTransportBerth" parent="." instance=ExtResource("16_predator_berth")]
 position = Vector3(39, -0.02, -30)
+
+[node name="DynamicConnectorRouteAnchor" type="Marker3D" parent="."]
+position = Vector3(43, -0.02, 7)
+metadata/station_hub_route_anchor = true
+metadata/route_support = &"starboard_node_to_dynamic_spur"
+
+[node name="DynamicGunshipBerth" parent="." instance=ExtResource("18_dynamic_berth")]
+position = Vector3(108, -0.02, -30)
