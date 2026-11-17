@@ -12,6 +12,14 @@ var _player: PlayerController
 var _engine_edges: Array[Dictionary] = []
 var _damaged_hull := -1.0
 
+class CompletedShipTick:
+	extends Node
+	signal completed_tick
+	var completed_ticks := 0
+	func _physics_process(_delta: float) -> void:
+		completed_ticks += 1
+		completed_tick.emit()
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -736,7 +744,7 @@ func _test_pilot_cannon() -> void:
 		"Titan1110 owns unchanged650m/70 cannon and real production lifecycle target")
 	var shots: Array[Dictionary] = []
 	# The muzzle contract belongs to the emission frame; normal drift during
-	# the ten-frame observation wait must not transform its recorded origin.
+	# the ten-physics-tick observation wait must not transform its recorded origin.
 	var emitted := func(origin: Vector3, direction: Vector3) -> void:
 		shots.append({"tick": Engine.get_physics_frames(), "origin": origin, "direction": direction,
 			"local_origin_at_emission": _ship.to_local(origin),
@@ -746,9 +754,24 @@ func _test_pilot_cannon() -> void:
 	var damaged := func(current: float, _maximum: float) -> void: damages.append(current)
 	target.health_changed.connect(damaged)
 	var health := target.get_health()
+	# Observe completed ship ticks directly: rendered frame pacing can run
+	# several physics ticks between the process_frame waits used elsewhere.
+	var observer := CompletedShipTick.new()
+	observer.process_physics_priority = _ship.process_physics_priority + 1
+	root.add_child(observer)
+	var fire_start_tick := Engine.get_physics_frames()
 	Input.action_press(&"fire")
-	await _wait_frames(10)
+	for tick in 10:
+		await observer.completed_tick
 	Input.action_release(&"fire")
+	var fire_end_tick := Engine.get_physics_frames()
+	var completed_ship_ticks := observer.completed_ticks
+	observer.queue_free()
+	print("TITAN_CANNON_WINDOW: shots=", shots.size(), " damage_events=", damages.size(),
+		" health=", health, "->", target.get_health(), " ticks=", fire_start_tick, "->", fire_end_tick,
+		" completed_ship_ticks=", completed_ship_ticks)
+	_check(completed_ship_ticks == 10 and fire_end_tick - fire_start_tick == 10,
+		"initial normal FIRE observation covers exactly ten completed actual ship physics ticks")
 	var hit := _game.get_last_player_shot_result()
 	var request := hit.get("request") as ShotRequest
 	var telemetry := _ship.get_telemetry()
