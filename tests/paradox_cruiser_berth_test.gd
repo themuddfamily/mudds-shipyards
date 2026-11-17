@@ -72,7 +72,7 @@ func _run() -> void:
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"paradox_home_berth": matching += 1
 	if not _check(matching == 1 and world.get_berth_ids().size() == 14
-		and _game.get_flyable_ships().size() == 13 and berth.get_occupant() == _game.get_node("ParadoxCruiser")
+		and _game.get_flyable_ships().size() == 14 and berth.get_occupant() == _game.get_node("ParadoxCruiser")
 		and berth.get_reservation_owner() == _game.get_node("ParadoxCruiser"), "thirteen berths and thirteen registered craft; actual new craft owns unique home"): return
 	var old_leases: Dictionary = {}
 	for berth_id in OLD_TRANSFORMS:

@@ -3,7 +3,8 @@ extends HeroShip
 
 ## Original modern Utopia pilot foundation; A3 supplies only the name and role.
 ## Metres, +Y up, -Z forward. Supported landed stern access is physical;
-## cargo, berths and crew reservations remain inert, never capabilities/writers.
+## one ordinary helm is registered in Main; cargo/crew reservations remain inert.
+const WEAPON := preload("res://assets/weapons/jovian_combat_pulse.tres")
 const DEFINITION := preload("res://assets/ships/utopia_provisional.tres")
 const HULL_BOUNDS := AABB(Vector3(-4.5, 0.0, -8.5), Vector3(9.0, 4.8, 17.0))
 const PILOT_FEET := Vector3(0.0, 0.8, -5.8)
@@ -19,6 +20,55 @@ var _access_fraction := 0.0
 func _init() -> void:
 	ship_definition = DEFINITION
 	cockpit_camera_position = PILOT_EYE
+
+
+func can_board_from_landed_approach(actor: PlayerController) -> bool:
+	if not is_boardable() or not is_instance_valid(actor) or not actor.is_inside_tree() \
+			or actor.is_queued_for_deletion() or not actor.is_control_enabled() \
+			or actor.is_seated() or not actor.is_on_floor() \
+			or actor.collision_layer != PhysicsLayers.PLAYER_BODY_LAYER \
+			or actor.collision_mask != PhysicsLayers.PLAYER_BODY_MASK \
+			or (actor.get_node("PlayerCollision") as CollisionShape3D).disabled:
+		return false
+	var point := to_local(actor.global_position)
+	return Vector2(point.x-FUTURE_ENTRY.x,point.z-FUTURE_ENTRY.z).length() <= 0.16 \
+		and absf(point.y-FUTURE_ENTRY.y) <= 0.04 and has_clear_landed_pilot_stand(actor)
+
+
+## Query the actor's actual normal capsule at the supported interior exit.
+## The support surface stays in the query; only the normal contact skin is removed.
+func has_clear_landed_pilot_stand(actor: PlayerController) -> bool:
+	if not is_access_supported() or not is_instance_valid(actor):
+		return false
+	var collision := actor.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var pose := get_exit_transform() * collision.transform
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = pose
+	query.margin = 0
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [actor.get_rid()]
+	if not get_world_3d().direct_space_state.intersect_shape(query,16).is_empty():
+		return false
+	var up := global_basis.y.normalized()
+	var feet := get_exit_transform().origin
+	var support := PhysicsRayQueryParameters3D.create(feet+up*0.06,feet-up*0.06,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP,[actor.get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(support)
+	return not hit.is_empty() and hit.collider == self and (hit.normal as Vector3).dot(up) > 0.99
+
+
+func get_weapon_definition() -> WeaponDefinition:
+	return WEAPON
+
+
+func is_boardable() -> bool:
+	return super.is_boardable() and is_access_supported() and _access_fraction > 0.999 and not is_access_motion_active()
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -90,9 +140,12 @@ func _build_ship() -> void:
 	_add_section_box("StarboardAftLiftHousing", Vector3(3.1, 0, 4), Vector3(4.5, 2.2, 8.5), orange)
 	_build_stern_access(orange)
 	_add_nose_wedge(cream)
+	# Activate the adopted feet-frame helm. Fitted chair solids remain a later
+	# craft gate; this physical stand and the full centre aisle stay unchanged.
 	_pilot_seat_anchor = _reservation_marker("pilot_station", PILOT_FEET, self)
+	_pilot_seat_anchor.set_meta("reservation_only", false)
 	_pilot_seat_anchor.set_meta("station_id", &"pilot_station")
-	_boarding_entry_marker = _reservation_marker("FutureHelmStand", FUTURE_ENTRY, self)
+	_boarding_entry_marker = _reservation_marker("HelmStand", FUTURE_ENTRY, self)
 	_reservation_marker("DockingReceiver", Vector3.ZERO, self)
 	var racks := Node3D.new()
 	racks.name = "FutureRackReservations"
@@ -110,10 +163,18 @@ func _build_ship() -> void:
 	_muzzle_left = _reservation_marker("CenterMuzzle", Vector3(0, 1.5, -8.7), self)
 	_muzzle_left.set_meta("reservation_only", false)
 	_muzzle_right = _muzzle_left
-	_boarding_marker.free()
-	_boarding_marker = null
-	_exit_marker.free()
-	_exit_marker = null
+	_boarding_marker.position = FUTURE_ENTRY
+	_exit_marker.position = FUTURE_ENTRY
+	var boarding := ShipBoardingArea.new()
+	boarding.name = "ShipBoardingArea"
+	boarding.prompt_text = "[ E ]  BOARD UTOPIA CANDIDATE"
+	boarding.position = FUTURE_ENTRY
+	add_child(boarding)
+	var interaction := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.22
+	interaction.shape = sphere
+	boarding.add_child(interaction)
 	_camera_pivot.position = Vector3(0, 5.4, 3.5)
 	_cockpit_camera.reparent(self, false)
 	_cockpit_camera.position = PILOT_EYE
@@ -121,7 +182,7 @@ func _build_ship() -> void:
 	status.position = Vector3(0, 1.7, -6.65)
 	status.font_size = 30
 	status.pixel_size = 0.0012
-	# No MovingInteriorFrame, boarding area, passenger seat or cargo writer.
+	# No MovingInteriorFrame, passenger seat or cargo writer.
 	_canopy_open = false
 
 

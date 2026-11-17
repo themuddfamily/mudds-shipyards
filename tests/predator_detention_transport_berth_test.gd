@@ -57,7 +57,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"predator_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size()==14 and game.get_flyable_ships().size()==13, "fourteen physical berths and thirteen registered flyable craft")
+	_check(matching == 1 and world.get_berth_ids().size()==14 and game.get_flyable_ships().size()==14, "fourteen physical berths and fourteen registered flyable craft")
 	var original_berths := OLD_TRANSFORMS.duplicate()
 	original_berths[&"titan_home_berth"] = TITAN_POSE
 	var old_leases := {}

@@ -388,6 +388,7 @@ const PLAYER_SOURCE_IDS := {
 	&"titan_provisional": 1110,
 	&"paradox_provisional": 1111,
 	&"dynamic_provisional": 1112,
+	&"utopia_provisional": 1113,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -11237,7 +11238,7 @@ func _has_current_physical_pilot_approach(candidate: HeroShip) -> bool:
 		var frame := candidate.get_node_or_null("MovingInteriorFrame") as MovingInteriorFrame
 		return frame != null and frame.is_occupant_registered(player) \
 			and frame.contains_world_position(player.global_position)
-	if candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional"]:
+	if candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional"]:
 		return candidate.can_board_from_landed_approach(player)
 	return true
 
@@ -11308,7 +11309,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		and interior_frame != null \
 		and (interior_frame.is_occupant_registered(player) or candidate.get_ship_id() == &"titan_provisional") \
 		and interior_frame.contains_world_position(player.global_position)
-	var from_landed_pilot_approach: bool = candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional"] \
+	var from_landed_pilot_approach: bool = candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional"] \
 		and candidate.can_board_from_landed_approach(player)
 	var from_cabin: bool = returning_to_flight_seat or from_landed_interior or from_landed_pilot_approach
 	if returning_to_flight_seat:
@@ -11505,7 +11506,7 @@ func _is_same_craft_remote_berth_reboarding(candidate: HeroShip) -> bool:
 ## occupancy. Keep the stern sealed until the standing player operates it.
 func _exit_physical_pilot_into_landed_cabin() -> void:
 	if _transition_busy or not _piloting or not is_instance_valid(active_ship) \
-			or active_ship.get_ship_id() not in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional"]:
+			or active_ship.get_ship_id() not in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional"]:
 		return
 	var craft := active_ship
 	var actor := player
@@ -11533,8 +11534,8 @@ func _exit_physical_pilot_into_landed_cabin() -> void:
 	_transition_busy = true
 	var generation := _begin_transition_generation()
 	phase = Phase.DISEMBARKING
-	if craft.get_ship_id() == &"dynamic_provisional":
-		# Dynamic's one control is outside its compact cockpit. Open the
+	if craft.get_ship_id() in [&"dynamic_provisional", &"utopia_provisional"]:
+		# Dynamic and Utopia have only an exterior hatch control. Open the
 		# supported access while this exact pilot is still safely seated, then
 		# revalidate every owner before restoring the physical standing body.
 		audio.play_canopy(true)
@@ -11626,7 +11627,7 @@ func _try_exit_ship() -> void:
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
 		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
 		return
-	if active_ship.get_ship_id() in [&"predator_provisional", &"dynamic_provisional"] \
+	if active_ship.get_ship_id() in [&"predator_provisional", &"dynamic_provisional", &"utopia_provisional"] \
 			or (active_ship.get_ship_id() == &"paradox_provisional" \
 				and bool(active_ship.get_telemetry().get("landed", false))):
 		_exit_physical_pilot_into_landed_cabin()
@@ -18701,7 +18702,7 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		return {BULWARK_COMBAT_WEAPON_ID:profile} if not profile.is_empty() else {}
 	if is_instance_valid(candidate) and candidate.get_ship_id() == &"predator_provisional":
 		return {}
-	if is_instance_valid(candidate) and candidate.get_ship_id() == &"paradox_provisional":
+	if is_instance_valid(candidate) and candidate.get_ship_id() in [&"paradox_provisional", &"utopia_provisional"]:
 		var definition := candidate.call("get_weapon_definition") as WeaponDefinition
 		var profile := _get_migrated_player_combat_weapon_profile(candidate, definition,
 			JOVIAN_COMBAT_WEAPON_ID, JOVIAN_COMBAT_ORIGIN_TOLERANCE_METERS,
@@ -18797,7 +18798,7 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 			return ARROW_COMBAT_WEAPON_ID
 		ZENITH_SHIP_ID:
 			return ZENITH_COMBAT_WEAPON_ID
-		JOVIAN_SHIP_ID, TITAN_SHIP_ID, &"paradox_provisional":
+		JOVIAN_SHIP_ID, TITAN_SHIP_ID, &"paradox_provisional", &"utopia_provisional":
 			return JOVIAN_COMBAT_WEAPON_ID
 		HALYARD_SHIP_ID:
 			return HALYARD_COMBAT_WEAPON_ID
