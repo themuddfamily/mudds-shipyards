@@ -25,6 +25,13 @@ class DynamicComponentDamage:
 		if layout.is_empty():
 			return layout
 
+		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0.85,1.2,-4.3)
+		layout[COMPONENT_PORT_WING].local_position = Vector3(-3.6,1.2,2.8)
+		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(3.6,1.2,2.8)
+		layout[COMPONENT_CORE_SYSTEMS].local_position = Vector3(0,3,2.06)
+		layout[COMPONENT_ENGINE_BAY].local_position = Vector3(3.15,2.15,4.9)
+		return layout
+
 	## Both physical engine pods feed the one existing engine channel. Keep the
 	## inherited nearest-region rule everywhere else, including its candidate
 	## filter for collision-only contacts. Surface equality admits only normal
@@ -40,12 +47,6 @@ class DynamicComponentDamage:
 	func _within_engine_axis(value: float, minimum: float, maximum: float) -> bool:
 		return (value >= minimum or is_equal_approx(value,minimum)) \
 			and (value <= maximum or is_equal_approx(value,maximum))
-		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0.85,1.2,-4.3)
-		layout[COMPONENT_PORT_WING].local_position = Vector3(-3.6,1.2,2.8)
-		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(3.6,1.2,2.8)
-		layout[COMPONENT_CORE_SYSTEMS].local_position = Vector3(0,3,2.06)
-		layout[COMPONENT_ENGINE_BAY].local_position = Vector3(3.15,2.15,4.9)
-		return layout
 
 
 func can_board_from_landed_approach(actor: PlayerController) -> bool:
