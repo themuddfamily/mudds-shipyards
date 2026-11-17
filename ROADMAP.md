@@ -97,7 +97,7 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-17
 
-**Latest owner renewal: 2026-11-17 16:53:33 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-17 18:58:40 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved correction
 limit, or **one** if none was recorded. This includes active, parked, failed,
 blocked and gated tasks, including tasks that consumed allowances since the
@@ -113,6 +113,11 @@ passed or ready; no further approval is needed solely for an exhausted allowance
 or expired historical window.
 
 Earlier reset history:
+
+The previous renewal was **2026-11-17 16:53:33 UTC**. Counts consumed since
+then, including Dynamic lifecycle card8's **1/1 used**, remain historical.
+That unfinished card now has **0/1 used** under the latest renewal; its lease-loss
+blocker and unmerged status remain unchanged.
 
 The previous renewal was **2026-11-17 05:12:56 UTC**. At that renewal,
 the then-active Salyut card2 received **0/1 substantive corrections used** while
