@@ -180,7 +180,17 @@ checks/build/review/integration/archivecleanup; definitiondeadline07:06:12.
 Productionrepair0/1 under owner17Nov05:12:56 reset. Retain firstunexpectedfailure
 and stop dependentchecks; same-clock compiler/caller/assertion maintenance keeps
 all cases/caps. Unresolved production failure or harddeadline parks the wholecard.
-No automaticreset/successor. Frozen/raw `/srv/mudds-work/utopia-access-20261117/`.
+No automaticreset/successor. Complete frozen/raw/source bundle and scoped passes
+are retained in `/srv/mudds-work/utopia-access-20261117/records.tar.gz`:
+**22,972,785 bytes**, SHA256
+`a09c8f339fd3b01e3df6f258dadf0c9eb787a9a1e37a1accf6c57332bcf194f5`,
+**390 members individually verified**. Eight published artifact hashes remain
+verified; accepted source tip is contained in pushed Main. Exact completed task
+branch, worktree, owned processes and scratch removed; remote task branch absent.
+Only separate unaccepted Paradox gunner backup `work/paradox-gunner-1116` remains
+locally/remotely at c743f585d0a70beb0e6100b34a47147d16280e08. Adjacent
+`closeout.json` records final all-in closure and pushed Main; parked Salyut berth
+and cold Main graphics gates remain unchanged/open.
 
 ### Main cold first-frame blocker — bounded definition stopped
 
