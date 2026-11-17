@@ -124,6 +124,14 @@ Full ordinary Player route, beginning actual unposed Main spawn: (8,0,11),
 (55,0,-12),(55,0,-44),(99.6,0,-44),(99.6,0,-30),(101,0,-30),
 (102.1,0,-32.4), then every endpoint reversed to the same actual spawn.
 
+Independent source review found the first production composition omission in
+99a401d25 before a combined candidate ran: World initial caches now contain10
+berths, but the existing audit initial roster still named9 while final roster
+named13. Sole production correction1/1 appends Dynamic to the exact initial
+roster, preserving both exact initial10/final13 states and all rejection checks.
+Original partial commit remains in source history; this was a review finding,
+not an invented runtime failure. Every full gate remains required.
+
 | Case | Initial state/action | Expected endpoint | Actual |
 | --- | --- | --- | --- |
 | Normal access/return | Main ordinary spawn, whole route above, port-apron/control then full reverse | Supported every adjacent completed Player tick, actual capsule/head clearance, continuity<.2m; masks/gravity unchanged, no actor pose bypass | NOT_RUN |
@@ -143,7 +151,7 @@ comparisons, thresholds, journeys or caps may be removed.
 
 Window2026-11-17 **02:59:27→04:14:27UTC**,75minutes ALL-IN from first mapping,
 including definition, implementation, every release gate, merge/push/archive/
-cleanup. Definition deadline03:14:27. Substantive correction0/1. Firstunexpected
+cleanup. Definition deadline03:14:27. Substantive correction1/1. Firstunexpected
 failure retains actualoperands and stops dependentchecks; same-clock routine
 compiler/caller/assertion maintenance requires full affected gates. Exhaustion/
 unresolvedproductionfailure/deadline parks whole card; no automatic reset or
