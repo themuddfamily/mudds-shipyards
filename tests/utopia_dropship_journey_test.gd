@@ -981,11 +981,13 @@ func _main_crew_journey(identity: int, spawn: Vector3, area: ShipBoardingArea) -
 		for cycle in 2:
 			await _main_aim(seat.global_position)
 			if not _main_check(_main_game.station_interaction_candidate == seat and anchor.position == UtopiaDropship.CREW_POSITIONS[index] and _main_ship.to_local(seat.get_exit_transform().origin).is_equal_approx(stand),"normal look finds exact fixed real passenger chair index="+str(index)+" cycle="+str(cycle)): return
+			_crew_print_handoff_state("before_E",seat)
 			await _main_tap(&"interact")
 			for tick in 180:
 				if _main_game._station_seated and not _main_game._transition_busy: break
 				await _main_frames(1)
 			var owner := _main_ship.call("get_crew_role_authority") as CrewSeatRoleAuthority
+			_crew_print_handoff_state("after_E",seat)
 			if not _main_check(owner != null and _main_game._solo_crew_authority == owner and _main_game._solo_crew_claim_is_current() and _main_player.is_station_seated() and _main_player.is_seated_at(anchor) and not _main_game._piloting and not _main_ship.is_piloted() and frame.is_occupant_registered(_main_player) and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and _crew_seated_geometry(index),"ordinary E seats same actual Player with matching ledger/frame/camera and live suit/cushion/eye proof"): return
 			var assignment := owner.get_assignment(1,GameFlow.SOLO_CREW_AVATAR_ID)
 			var snapshot := owner.get_snapshot()
@@ -1108,3 +1110,46 @@ func _main_fitted_chair_geometry() -> bool:
 			for point in visible_points:
 				if not _main_check(_has_point(points,point),"fitted chair visible geometry belongs to actual solid",false): return false
 	return true
+
+
+func _crew_print_handoff_state(edge: String, seat: ShipCrewSeat) -> void:
+	var frame := _main_ship.call("get_interior_frame") as MovingInteriorFrame
+	var owner := _main_ship.call("get_crew_role_authority") as CrewSeatRoleAuthority
+	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	var contract := seat.get_role_contract()
+	var cabin := _main_ship.get_in_flight_cabin_report()
+	var collision := _main_player.get_node("PlayerCollision") as CollisionShape3D
+	var support := PhysicsRayQueryParameters3D.create(_main_player.global_position+Vector3.UP*0.2,_main_player.global_position-Vector3.UP*0.25,PhysicsLayers.WORLD|PhysicsLayers.SHIP,[_main_player.get_rid()])
+	var hit := _main_player.get_world_3d().direct_space_state.intersect_ray(support)
+	print("UTOPIA_CREW_HANDOFF: ",edge," state=",{
+		"phase":_main_game.phase,"transition_busy":_main_game._transition_busy,
+		"generation":_main_game._transition_generation,"station_seated":_main_game._station_seated,
+		"piloting":_main_game._piloting,"ship_piloted":_main_ship.is_piloted(),
+		"candidate":_main_game.station_interaction_candidate,"seat":seat,
+		"seat_contract":contract,"ship_boardable":_main_ship.is_boardable(),
+		"local_supported":_main_ship.call("is_local_chair_access_supported"),
+		"cabin_report":cabin,"safe_cabin":_main_game._solo_safe_recovery_cabin(_main_ship),
+		"area_available":area.is_available_for(_main_player),"area_reserved":area.is_reserved(),
+		"area_token":area.get_reservation_token(),"game_area":_main_game._boarding_area,
+		"reach":_main_player.get_interaction_origin().distance_to(seat.global_position),
+		"max_reach":GameFlow.STATION_SEAT_MAX_REACH,"on_floor":_main_player.is_on_floor(),
+		"local_feet":_main_ship.to_local(_main_player.global_position),
+		"bounds_contains_feet":(cabin.get("local_bounds",AABB()) as AABB).has_point(_main_ship.to_local(_main_player.global_position)),
+		"foot_support":hit,"player_seated":_main_player.is_seated(),
+		"player_station_seated":_main_player.is_station_seated(),
+		"player_seated_at_anchor":_main_player.is_seated_at(seat.get_seat_anchor()),
+		"player_control":_main_player.is_control_enabled(),"body_disabled":collision.disabled,
+		"body_layer":_main_player.collision_layer,"body_mask":_main_player.collision_mask,
+		"owner":owner,"game_owner":_main_game._solo_crew_authority,
+		"owner_snapshot":owner.get_snapshot() if owner != null else {},
+		"current_claim":_main_game._solo_crew_claim_is_current(),
+		"game_seat":_main_game._solo_crew_seat,"game_seat_id":_main_game._solo_crew_seat_id,
+		"game_role":_main_game._solo_crew_role,"game_seat_generation":_main_game._solo_crew_seat_generation,
+		"game_ship":_main_game._solo_crew_ship,"game_cabin_ship":_main_game._cabin_ship,
+		"frame_registered":frame.is_occupant_registered(_main_player),
+		"frame_owner_meta":_main_player.get_meta(MovingInteriorFrame.OWNER_META,null),
+		"frame_registration_meta":_main_player.get_meta(MovingInteriorFrame.REGISTRATION_META,null),
+		"role_meta":_main_player.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META,{}),
+		"containment":_main_player.get_cabin_containment_report(),
+		"player_camera_current":(_main_player.get_node("%PlayerCamera") as Camera3D).current,
+		"ship_camera_current":_main_ship.get_camera().current})
