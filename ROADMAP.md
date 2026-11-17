@@ -108,6 +108,16 @@ all16 approved fields, exact pilot(0,.50,-.8)/eye(0,2.26,-1.05)/stand(-.9,.55,.4
 and identity receiver retained. Hatch(-4.2,1.6,-2.4) on visible bracket
 x[-4.3,-1.6],z[-2.5,-2.3],y[1.5,1.7]; safe operator(-5.9,0,-2.4).
 
+**Measured first failure and sole production repair:** b494f8960 passes all
+three foundation cases, but access trajectory fails5.571s atfraction.01:
+PortSealedAccess sweeps its.85m lower edge into PortShoulder (z1.2..2/top1.5).
+First raw attempts are retained unchanged. Independent repair GO raises the side
+panel.7m vertically during0..60%, then hinges90degrees about(-1.6,4.1,0) during
+60..100%; hinge minimumy1.54804 clears shoulder1.5. This revises intermediate
+motion/open-side height only; fixed closed/deployed bounds, ramp/aperture,
+operator/stand/pilot/eye, every case/cap and03:40:47deadline remain unchanged.
+One production correction1/1; complete fresh source/PCK matrix still required.
+
 | Case | Initial state and action | Expected | Actual |
 | --- | --- | --- | --- |
 | Physical identity | Real Player initially(-7,0,0), closed crossing attempt and walk back; operator→open Interact→(-5.9,0,0)→fixed stand; normal claim/seal/start/OFFLINE/release; reverse route/seal, twice | Exclusive existing reservation/seating APIs, adjacent completed walking-tick support/capsule/head audit, continuity<.2m, restored masks/gravity; no pose/clock bypass | NOT_RUN |
@@ -125,7 +135,7 @@ CI disabled, native/hardware/human/fullcraft gates remain NOT_RUN.
 
 Budget02:25:47→03:40:47UTC2026-11-17,75minutes ALL-IN, including definition,
 checks/build/review/merge/push/archive/cleanup. Definition deadline02:35:47.
-Substantive correction0/1; first unexpected failure retains operands and stops
+Substantive correction1/1; first unexpected failure retains operands and stops
 dependent checks. Routine caller/assertion/compiler repairs retain same clock
 and all full gates. Unresolved production failure/exhaustion/deadline parks whole
 card; no silent successor/reset. Proof/raw/task-start in
