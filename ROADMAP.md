@@ -117,8 +117,10 @@ clean source/cache/HEAD guards. Dummy audio always; CI disabled; native/human/
 fullcraft gates NOT_RUN. No source-only or subset acceptance.
 
 Window2026-11-17 **00:03:55.922432→01:33:55.922432UTC**,90minutes ALL-IN including
-mapping/restoration/checks/checkpoint/review/cleanup. Fresh owner-reset allowance
-0/1, recorded separately from historical1/1. Stop at first unexpected failure,
+mapping/restoration/checks/checkpoint/review/cleanup. Causal correctionb93f10015
+is delivered; renewed allowance**1/1 used**. Import14.469s/raw0 and exactsource
+review pass; complete runtime/render/package gates pending. Renewed counts are
+recorded separately from historical1/1. Stop at first unexpected failure,
 retain actual operands, require measured cause before repair; exhausted repair/
 deadline parks this fullcard. Raw root `/srv/mudds-work/katana-access-renewal-20261117/`.
 
