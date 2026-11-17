@@ -17,7 +17,9 @@ const CREW_FRAME_ID := &"utopia_local_chair_frame"
 const CREW_IDS := [&"passenger_port_00", &"passenger_starboard_00"]
 const CREW_POSITIONS := [Vector3(-2,0.8,-3.6), Vector3(2,0.8,-3.6)]
 const CREW_STANDS := [Vector3(-0.7,0.8,-3.6), Vector3(0.7,0.8,-3.6)]
-const LOCAL_CABIN := AABB(Vector3(-2.9,0.8,-6.8),Vector3(5.8,3.8,14.3))
+# The actual floor ray can round supported soles 6e-8m below y=.8.
+# Admit only a 1e-5m sole contact skin; keep the physical roof and X/Z walls.
+const LOCAL_CABIN := AABB(Vector3(-2.9,0.8-0.00001,-6.8),Vector3(5.8,3.8+0.00001,14.3))
 var _crew_anchors: Array[Marker3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
 var _interior_frame: MovingInteriorFrame
