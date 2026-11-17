@@ -783,8 +783,22 @@ owned `frozen-card.md` preserve the previous full contract. Before production,
 existing geometry census (21+6 shapes,13+6 meshes,19+6 submissions) and its two
 real test consumers, retaining the original roster plus six named additions.
 No native-performance or stock budget is relaxed. No airborne waiver,
-route shortcut or partial geometry delivery. The following stop is historical;
-no new implementation is credited yet.
+route shortcut or partial geometry delivery.
+
+Current unaccepted source70723ae completed the terminal refusal, reverse stairs,
+reboard, second pulse, strict home landing and physical exit in272.510s, with all
+original walking predicates passing. Its final summary failed because six smooth
+nosings eliminated large-motion step/down-snap exceptions, leaving both exception
+counters0. Independent review approved a fixture-only summary correction: measure
+actual grounded ascent/descent on each of the six named stairs separately; retain
+and honestly report original exception counters/validators without requiring an
+exception to occur. This explicitly replaces the summary's nonzero-exception
+assertion; full route, per-tick support/body/continuity, claims/identity and300s
+remain binding. The preceding home approach refusal was an84degree actual tilt
+against the existing70degree home limit; normal hover/brake input now prepares
+that same endpoint without changing admission limits. Full station return/Quit,
+all final source checks and package gates remain unproven. No runtime is merged.
+The following stop is historical; no new implementation is credited yet.
 
 ### Utopia physical Cinder supply destination — card7 PARKED, unmerged
 
