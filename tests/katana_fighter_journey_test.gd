@@ -667,6 +667,16 @@ func _audit_animated_geometry() -> bool:
 		if not _check((leaf.mesh.global_transform as Transform3D).is_equal_approx(leaf.collision.global_transform),"actual moving visual/collider global poses agree " + leaf.mesh.name):
 			return false
 		for point in expected:
+			if not (_has_point(points,point) and _has_point(faces,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001):
+				print("KATANA_ANIMATED_GEOMETRY_OPERANDS: ", {
+					"leaf": leaf.mesh.name, "access_fraction": _access_ship.get("_access_fraction"),
+					"motion_active": _access_ship.call("is_access_motion_active"), "expected_point": point,
+					"has_collisionpoint": _has_point(points,point), "has_facepoint": _has_point(faces,point),
+					"expected_points": expected, "collision_points": points, "mesh_faces": faces,
+					"collision_node_id": leaf.collision.get_instance_id(), "shape_id": leaf.collision.shape.get_instance_id(),
+					"collision_transform": leaf.collision.transform, "collision_global_transform": leaf.collision.global_transform,
+					"mesh_node_id": leaf.mesh.get_instance_id(), "mesh_id": leaf.mesh.mesh.get_instance_id(),
+					"mesh_transform": leaf.mesh.transform, "mesh_global_transform": leaf.mesh.global_transform})
 			if not _check(_has_point(points,point) and _has_point(faces,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001,"actual animated visible/collider leaf matches bounded trajectory " + leaf.mesh.name):
 				return false
 		for point in faces:
