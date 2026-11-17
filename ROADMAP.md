@@ -5,8 +5,8 @@ craft now exist in Main, including Titan, Predator, Paradox, Dynamic and Utopia
 pilot checkpoints. This is implementation, not full craft qualification.
 Vortex, Katana and Salyut still await Main integration. All three have accepted
 standalone foundations; Katana has validated physical access/pilot claims and
-Salyut has validated stern walking access. Their three remaining berths, Main
-integration and remaining access work stay open. All36 original parent outcomes
+Salyut has validated stern walking access. Katana has a delivered reachable empty home berth. Vortex/Salyut berths, all three
+Main integrations and remaining access work stay open. All36 original parent outcomes
 and ten phase exit gates remain open. There is no evidence-backed completion
 percentage or finish date.
 
@@ -16,18 +16,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **45ae175** — [Windows ZIP](builds/windows/MuddsShipyards-45ae175-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-45ae175-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-45ae175-linux-x86_64.tar.gz).
-Utopia now has two real local passenger chairs ([preview](builds/windows/MuddsShipyards-45ae175-utopia-chairs-preview.png)).
-Walk the station/ramp/aisle, sit/stand/reseat at each chair, then walk fully home.
-Both chairs pass two ordinary visits in source and actual Windows PCK, including
-real animated body/cushion/head/camera fit and complete ownership restoration.
-Seating is supported only at the exact home berth, OFFLINE and fully open;
-occupied access cannot close/start, and an obstructed standing space refuses.
-Main remains **14 usable pilot craft / 14 occupied physical berths**. Utopia's
-complete pilot sorties remain included. Travelling passengers, remote capacity,
-cargo/supply/pressure, fitted pilot-chair model and full craft qualification stay open.
+Latest playable checkpoint: **7a8f012** — [Windows ZIP](builds/windows/MuddsShipyards-7a8f012-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-7a8f012-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-7a8f012-linux-x86_64.tar.gz).
+Katana now has its own signed, connected empty home berth east of Predator
+([preview](builds/windows/MuddsShipyards-7a8f012-katana-berth-preview.png)). Walk the
+normal station route and dogleg spur to the supported port-control apron and back.
+Main remains **14 usable pilot craft / 14 occupied homes / 15 physical berths**.
+Katana is still outside Main; its pilot integration is the next adopted card.
+Existing Utopia home-only chairs and pilot sorties remain included; travelling
+passengers, cargo/supply/pressure and full craft qualification stay open.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
 ([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
@@ -42,7 +40,7 @@ Its approved pilot pulse is bound to unique source 1112; full combat-target,
 comparative-handling, service, recovery and multiplayer qualification stay open.
 Katana now has validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
-it remains outside Main pending its berth and production integration.
+its reachable home berth is now delivered; production Main integration remains open.
 Valid runtime timestamps now save and reload without a self-rejected checksum;
 normal Titan shutdown persists its terminal event in source and packaged checks.
 Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main now has 14 flyable craft / 14 occupied physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
@@ -51,7 +49,7 @@ Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the three craft still outside Main:
 Vortex, Katana and Salyut. Katana, Salyut and Utopia standalone access is qualified;
-remaining access work, three berth cards and three Main-integration cards stay open.
+remaining access work, two berth cards and three Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -68,7 +66,7 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; the pilot cannon now fires; the gunner cannon remains unfitted. Katana standalone physical port access and pilot claim/release/reuse are included, with [preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png); its berth/Main integration remains open. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; the pilot cannon now fires; the gunner cannon remains unfitted. Katana standalone physical port access and pilot claim/release/reuse are included, with [preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png); its berth is delivered; Main integration remains open. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
@@ -111,54 +109,47 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: finish retained Katana reachable home berth — card3
+<a id="katana-home-berth-delivered"></a>
 
-Owner05:12:56 unfinished-task reset supplies fresh **0/1** for the earlier
-02:22:39 deadline stop; original92.3885483minutes, all failed callers and source
-archives remain historical. This is a selected fresh window under that existing
-authorization, not a replay of the stopped Utopia card or an automatic renewal.
-Baseline **5c5574acd3f5971231aa6fbd0296422dc292705d**, branch
-`work/katana-berth-renewal-1117`, worktree
-`/srv/mudds-work/katana-berth-renewal-20261117/worktree`.
-Window **2026-11-17 11:42:40→13:12:40UTC**,90minutes ALL-IN from first mapping,
-including implementation/source/PCK/export/startup/capture/audit/review/merge/
-push/archive/owned cleanup. Definition frozen before11:57:40. HIGH semantic
-integrator owns14boundedpaths, HIGH independent reviewer; root engines/release/
-docs/integration. No nested agents or new validators; CI remains disabled.
+### Katana reachable empty home berth — card3 DONE
 
-Same adopted entire card3: signed18m deck and2.8m connected dogleg spur to exact
-empty Katana home **(72,-.02,-30)**; original receiver/strict bounds/assist/lift,
-module body caps, every physical route endpoint plus existing Habitat detour and
-full reverse retained. Katana is not spawned/selected in Main. Preserve all
-**14 current occupied homes/craft**; result **15physical homes/14Maincraft**,
-graph13modules/slots/hubends and69route markers. Original candidate7e8c177 is
-ported semantically so newer Dynamic/Utopia entries remain, not overwritten.
+Accepted source **7a8f01284f2f1d00becf7ed4ae16364e08c30711**, merged via **8b22418c745c5be5bc9c066bd9e985f3bc9a09e5**, checkpoint **7a8f012**.
+Same retained adopted module now integrates with all newer Dynamic/Utopia work.
+Signed18m deck at(72,-.02,-30),2.8m connected dogleg spur, supported port apron
+and reachable physical control endpoint are present in actual Main. The normal
+Main-spawn Player walks the entire unchanged station/spur/Habitat-detour route
+and fully reverses it without body/pose/mask/gravity/clock forcing. Katana remains
+standalone/not spawned or selectable in Main; Mainpilot is card4, not credited.
+All14occupiedhomes/craft/poses/owners/tokens and routes remain. Result15physical
+homes/14occupied/14Maincraft; graph13modules/slots/hubends and69route markers.
 
-Current actual baseline import/site probe exit0/raw0/source/cache/HEAD clean:
-14homes/14craft,73spur collider rows. Independent placementGO finds no positive
-XZ slab/rail overlap except intended oldnodeboundary; Gardennearest.59000435m.
-Broad deck region now includes2Dynamic floor/rail hits outside the actual new
-deck, and broad assist region6Dynamic hits, highesty1.22000003; actual4mlift
-lane bottom3.98 retains≥2.75999997m clearance. Historical zero-collider claims
-are not reused. Unchanged full actual hull/camera sweep queries remain required.
+Fullnewberth source97.747s/240 and actualWindowsPCK91.153s/240 prove the complete
+ordinary route plus independent actual Katana closed/deployed receiver fit,
+exclusive leases/strict-miss/wrongtag/foreign/stale refusal, unchanged complete
+4mlift/18mforward/assist hull/camera/neighbour sweeps and actual support. Added
+Dynamic floor/rails remain below that exact tested lane; no historical empty
+queryvolume is claimed. Full source13 andPCK5 pass same committed fixtures,
+original cases/caps and clean source/cache/HEAD guards, raw0/exactonemarker/exit0.
+FullTitanMain alone source164.836s/300 and actualPCK158.223s/300 both persist actual
+clean_shutdown/clean/session_ended. Source includes every existing modern-home
+case, definitions, full route registry/authority mutation and feedback-world;
+PCK includes fullnewberth/foundation/bothfullaccess/Titan. No subset acceptance.
 
-Frozen source13: fullnewberth240 FIRSTalone; foundation90, accessidentity180,
-accesstransformed180, definitions120, registry180, feedback-world180, Titan/
-Predator/Paradox/Dynamic/Utopia berth240 each in independentpairs; then entire
-TitanMain300 alone with actualprimaryclean_shutdown/clean/session_ended.
-PCK5 exactcommittedfixtures+sourceisolation: newberth240 firstalone, foundation90/
-accessidentity180/accesstransformed180 independentpairs, fullTitanMain300 alone.
-Original complete endpoints/caps/actor/body/support/clearance/refusal checks and
-source/cache/HEAD guards remain. No fixture staging substitutes for ordinary walk.
+Cleanpairedexports/strictstartup3, exactLinux6members/modes/extractedELFidentity,
+complete equalWindows/Linux maps and current45ae175 baseline reviewed delta,
+original three cold fixed960x540/eightframe Main views(78.501s/90 total), package
+audit9/eightpublished artifacts independently accepted. Geometry-staged Katana
+preview is separate from ordinary Player proof. NativeWindows/GPU/device/audio/
+human/fullcraft remain NOT_RUN/open; CI stays disabled. All36parents/10phasegates
+remain open. Existing Salyut shader and unaccepted Paradoxgunner gates stay open.
 
-Release: samecommitted clean paired exports, strictstartup3, exactLinux6members/
-modes/extractedELFidentity, complete equal pair maps + reviewed current45ae175
-baseline delta, audit9/eightartifacts, independentFINAL_GO/PACKAGE_GO. Original
-three cold fixed960x540/eightframe Main views/privateXvfb/x11/GLES/Dummy/90sTOTAL:
-closed(54,10,-15)→(72,2,-30), open(56,7,-28)→(69,1,-30), FOV52; third exact
-actual candidate cockpit eye/FOV/near/far. Only count maintenance and camera
-ownership perframe; no view/quality/cap workaround. NativeWindows/GPU/device/
-human/fullcraft remain NOT_RUN/open. No automatic successor if unresolved.
+Owner05:12:56 reset supplied fresh0/1 for the earlier02:22:39deadline stop.
+Original92.3885483minutes, every caller/capture failure and source archive remain
+historical; this delivery uses the fresh11:42:40→13:12:40UTC90minute ALL-IN card.
+No production correction was needed. A pre-engine runner setup error and the initial UI-obscured captures are retained.
+Existing tutorial-dismiss/help-close actions clear only those overlays for the
+same cold cameras/FOV/eightframe/90s view contract; baseHUD/objective/radar remain.
+Final exact archive/cumulative cost/branch/process cleanup is recorded below.
 
 ### Parked: Utopia physical Cinder supply destination — card7
 
@@ -1160,7 +1151,7 @@ card; no silent successor/reset. Proof/raw/task-start in
 `/srv/mudds-work/dynamic-access-20261117/`. Close with actual source/package
 commits, measured cumulative cost and exact-tip cleanup.
 
-### Parked: Katana own reachable home berth — card3
+### Historical stop: earlier Katana home-berth attempt (2026-11-17)
 
 **2026-11-17 deadline stop; not integrated or published.** The fixed
 00:52:39→02:22:39UTC all-in window expired before final review, package audit9,
