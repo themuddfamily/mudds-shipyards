@@ -1,13 +1,14 @@
 # Development roadmap
 
-**Playable alpha; the full game is unfinished.** Thirteen of the promised 17
-craft now exist in Main, including Titan, Predator, Paradox and Dynamic pilot
-checkpoints. This count is implementation, not full craft qualification. The
-four craft still awaiting Main integration have accepted standalone hull/pilot
-foundations; Katana has validated standalone physical access and pilot
-claims, and Salyut and Utopia have validated standalone stern walking access. Their Main integration, three remaining berths and the remaining access
-work stay open. All 36 original parent outcomes and ten phase exit gates remain
-open. There is no evidence-backed completion percentage or finish date.
+**Playable alpha; the full game is unfinished.** Fourteen of the promised17
+craft now exist in Main, including Titan, Predator, Paradox, Dynamic and Utopia
+pilot checkpoints. This is implementation, not full craft qualification.
+Vortex, Katana and Salyut still await Main integration. All three have accepted
+standalone foundations; Katana has validated physical access/pilot claims and
+Salyut has validated stern walking access. Their three remaining berths, Main
+integration and remaining access work stay open. All36 original parent outcomes
+and ten phase exit gates remain open. There is no evidence-backed completion
+percentage or finish date.
 
 **A roadmap heading is not a work assignment.** Select only a bounded child
 with a filled [task card](#task-card-required-before-starting). Its result must
@@ -15,16 +16,19 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **b69e91f** — [Windows ZIP](builds/windows/MuddsShipyards-b69e91f-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-b69e91f-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-b69e91f-linux-x86_64.tar.gz).
-Utopia now has a signed physical home deck and supported station approach through
-Titan's north portal ([preview](builds/windows/MuddsShipyards-b69e91f-utopia-berth-preview.png)).
-Main has **13 usable craft / 14 physical berths (13 occupied)**. The new Utopia
-berth is empty; its full normal walking route/control/return and hull/camera
-clearances pass. Utopia's accepted standalone stern access remains included.
-Utopia stays outside Main pending card4 pilot integration; cargo, chairs and
-supply capability remain open.
+Latest playable checkpoint: **4b1b844** — [Windows ZIP](builds/windows/MuddsShipyards-4b1b844-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-4b1b844-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-4b1b844-linux-x86_64.tar.gz).
+Utopia now joins Main as the fourteenth usable pilot craft at its own occupied
+home ([preview](builds/windows/MuddsShipyards-4b1b844-utopia-main-preview.png)).
+Walk the Titan north spur, operate the stern control, walk the ramp/aisle to the
+helm and take pilot control. Two complete flight/home/OFFLINE/physical-exit
+sorties, fresh reboard/release and full station return pass in source and actual
+Windows PCK. Main has **14 usable craft / 14 occupied physical berths**.
+The existing helm/display is activated without adding a pilot-chair model or
+reducing the1.6m aisle. Cargo/supply/pressure, passenger chairs, moving cabin and
+full-craft qualification remain open. The source1113 defensive pulse preserves
+its original650m/70damage/.62s profile.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
 ([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
@@ -42,13 +46,13 @@ claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-acce
 it remains outside Main pending its berth and production integration.
 Valid runtime timestamps now save and reload without a self-rejected checksum;
 normal Titan shutdown persists its terminal event in source and packaged checks.
-Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main now has 13 flyable craft / 14 physical berths (13 occupied). Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
+Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main now has 14 flyable craft / 14 occupied physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
-Standalone foundations also exist for the four craft still outside Main:
-Vortex, Katana, Utopia and Salyut. Katana, Salyut and Utopia standalone access is qualified;
-remaining access work, three berth cards and four Main-integration cards stay open.
+Standalone foundations also exist for the three craft still outside Main:
+Vortex, Katana and Salyut. Katana, Salyut and Utopia standalone access is qualified;
+remaining access work, three berth cards and three Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -108,7 +112,32 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Utopia ordinary Main pilot journey — card4
+### Utopia ordinary Main pilot journey — card4 DONE; early pilot package card5 DONE
+
+Accepted source **4b1b84475699fcbf57f05540f0dc6da16db6dd26**, merged via
+**a30fd9979b121f04d99a75a3557a6c18c7b8cc00**, checkpoint **4b1b844**.
+The same early pilot package fulfills card5 once; no duplicate release task.
+Actual normal Utopia journey passes source276.756s/300 and WindowsPCK265.574s/300:
+two full sorties, three claims/releases, full station return and normal pause
+Exit. Actual primary records clean_shutdown/clean/session_ended; source10390 and
+PCK10355 completed supported/capsule-clear walking ticks. All13 old craft/home
+state sets remain exact. Titan full journeys165.037source/158.302PCK and Dynamic
+source156.748 pass alone at original300s, with actual clean saved shutdowns.
+All14 focused source cases pass unchanged limits. ActualPCK Utopia berth139.525,
+foundation23.846, accessidentity68.810/transformed68.549 pass their original caps
+with exact committed adapters/source isolation. All17 source and6 PCK gameplay
+cases, strictstartup3, Linux exact6member/mode/ELF proof, cold three fixed Main
+views87.334s/90 at960×540, equal complete1607entrymaps and existing audit9 pass.
+Delta: zero added/removed payloads, exactly4 owned production payload changes,
+80 unrelated typed node_ids-only scenes, no UID/class mapping changes.
+Independent SOURCE_GO/FINAL_GO/PACKAGE_GO and8 artifact sizes/hashes are verified.
+Production corrections0/1; no failed runtime retry. Before execution, the inherited
+one-off package-delta helper's obsolete metadata-wrapper lookup was corrected
+against the independently rehashed accepted baseline; full-map equality retained.
+Normal HUD/tutorial overlays remain visible in captures; scoped geometry/camera
+review only. No new pilot-chair model, cargo/crew/supply or native/human grant.
+Source bundle/archive and exact owned cleanup closeout follow. Frozen scope below
+is retained; no next card selected here.
 
 Baseline **d20dfcd5cc953e8e5dc5d53a6ec922a3167f22fb**, branch
 `work/utopia-main-1117`, worktree `/srv/mudds-work/utopia-main-20261117/worktree`.
