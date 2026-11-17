@@ -111,7 +111,7 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-17
 
-**Latest owner renewal: 2026-11-17 21:35:22 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-17 23:37:41 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved correction
 limit, or **one** if none was recorded. This includes active, parked, failed,
 blocked and gated tasks, including tasks that consumed allowances since the
@@ -126,14 +126,22 @@ external inputs remain binding. This reset starts no tests and marks no task
 passed or ready; no further approval is needed solely for an exhausted allowance
 or expired historical window.
 
-The renewed counts superseded historical used counts for tasks unfinished at
-this renewal, including Utopia card7, Cinder Light role-choice and Dynamic cold
-recovery card9 (0/1 each). Utopia remains unfinished. Dynamic card9 and Light's
-choice member were subsequently delivered with1/1 used each; their completed
-status does not grant another reset. Dynamic lifecycle card8 was already done
-and excluded. Historical failures and all causal reopening conditions remain.
+This renewal applies globally to all unfinished tasks, including parked, failed,
+blocked and gated tasks. Their effective current count is **0 used**, regardless
+of older task-card counts; their last positive approved limit is retained, or
+one if none was recorded. Completed Dynamic lifecycle card8, Dynamic cold
+recovery card9 and Cinder Light role-choice are excluded.
+
+Selected Utopia card7 receives **0/1 used** under this renewal. Its consumed
+**1/1** under the 21:35:22 renewal remains historical. Its current all-in deadline,
+original acceptance checks and test caps remain unchanged; this reset alone
+starts no new work and grants no acceptance credit.
 
 Earlier reset history:
+
+The previous renewal was **2026-11-17 21:35:22 UTC**. Utopia card7 consumed
+**1/1** before this reset. Dynamic cold recovery card9 and Light role-choice
+were subsequently delivered with **1/1** each and remain completed.
 
 The previous renewal was **2026-11-17 18:58:40 UTC**. Utopia card7 and
 Cinder Light role-choice subsequently consumed **1/1** each; those counts remain
@@ -752,7 +760,8 @@ No next task branch has been opened.
 ### Selected — Utopia physical terminal return
 
 **2026-11-17 23:10:00 → 2026-11-18 00:40:00 UTC, 90 minutes all-in**;
-definition by23:25. Same unfinished card7, latest owner21:35:22 renewal0/1,
+definition by23:25. Same unfinished card7, owner23:37:41 renewal **0/1 used**
+(previous21:35:22 renewal consumed1/1, retained as history),
 prior127.4669150167minutes and all failures retained. Baseline5784fe0b5,
 latest accepted build6e15126. Root/worktree
 `/srv/mudds-work/utopia-supply-return-20261117`, branch
