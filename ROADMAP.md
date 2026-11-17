@@ -112,6 +112,65 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: clear descending capsule support and Vortex access — WALK-FLEET/card2
+
+Baseline **5ab9a8622**, branch `work/vortex-access-1117`, worktree
+`/srv/mudds-work/vortex-access-20261117/worktree`. Window **2026-11-17
+13:47:48→15:17:48UTC**,90minutes ALL-IN including restoration/mapping/diagnostics,
+implementation/source/PCK/exports/startup/views/audit/review/merge/push/archive/
+owned cleanup. Definition frozen14:00:35 before14:02:48. Owner05:12:56 reset
+supplies fresh **0/1** for the unfinished earlier Vortex attempt; prior cumulative
+**49.296159minutes**, original envelope failure and every failed route stay
+historical. One HIGH implementer, HIGH independent reviewer, root engines/release/
+integration/docs; no nested agents or automatic successor. CI stays disabled.
+
+Actual restored49217b6 candidate + read-only diagnostics reproduce fullcapsule
+penetration atlocal(0,.518733,9.970517), SternRampFirstCollision depth.000387543m.
+Scene/server agree, interior remapidentity, tangentpoint awayfromleafedge; geometry
+or tolerance waiver is unsupported. Exact e4c41da trace frame686: prevelocity
+(0,0,5.8), previous/currentfloortrue, slide0, descent.0259765, helperentered then
+EARLY_ACCEPT becausecorrectionlength.00193043/depth.000387543 arebelow safe_margin
+.002, returning unchanged penetrating pose. All raw and temporarytrace source are
+retained. The current definition therefore extends the old candidate-only file
+ownership to the measured WALK-FLEET shared support primitive, before production
+repair; this is a causal runtime fix, not a rewritten clearance requirement.
+
+Owned7paths: original Vortexscript/resource evidence wording/foundation/accessTest+
+UID, plus PlayerController and existingplayer_step_up_assist_test. One correction
+must require actual unchanged PlayerCollision.shape at recovered pose, margin0/
+actualcollisionmask/self exclusion (actualexceptionsifpresent), to be empty before
+success/commit. While overlap remains, apply the existing positive-up projected
+recovery even below safe_margin. Preserve4attempts/descent+margin/tangent/normal/
+headroom/no-progressfailure and existing wrapper/remote scope. No body/shape/skin/
+gravity/mask/reach/tolerance/geometry/envelope/cap change. Remove temporaryPlayer
+trace before production commit. Extend existing convex1:4 descent/fullcapsule case
+atidentity/translatedyaw35 without removing shallow/jump/headroom/remote cases.
+
+Full original Vortex route remains mandatory twice in identity and separately
+(30,.38,-20),yaw35: supported actual Player apron/sidecontrol/sternramp/vestibule/
+aisle/helm/fullreturn/seal/reopen/reuse; every capsule/head/support, registration/
+retirement and engine/sealed/unsupported refusal case retained. Existing toe,
+closed/deployed/intermediate vertices/collision/render agreement andz≤12.0001
+remain unchanged. Vortex stays outside Main; berth/chairs/travel/network later.
+
+Frozen source9: repairedidentity180 firstalone, transformed180alone, complete
+existingPlayerStep300, foundation90/definitions120/movingInterior120 in isolated
+pairs, then complete TitanMain300/KatanaMain300/UtopiaMain300 aloneeach with
+actual persisted clean_shutdown/clean/session_ended. PCK6: identity180 firstalone,
+transformed180alone, foundation90/PlayerStep300 pair, fullTitan300/KatanaMain300
+alone; exact committed fixture + source isolation/excludedliteral data only.
+Original full caps/cases preserved; exit0/one marker/raw0/source-cache-HEAD guards.
+
+Release: samecommitted cleanpairedexports/strictstartup3/Linuxexact6members/modes/
+ELFidentity/completeequalpackage maps/current1a8c084 baseline reviewed delta,
+audit9/eightartifacts/independentFINAL_GO/PACKAGE_GO. Original three cold fixed
+960x640/eightframe views/privateXvfb/x11/GLES/Dummy/90sTOTAL: closed/openaft
+(-19,12,25)→(0,2.4,0),52FOV; thirdactualCockpitCamera globaltransform atsame52FOV.
+Originalship/floor/environment retained; explicitviewport/camera ownership only,
+no view/quality/cap workaround. Stop first unexpectedfailure; measure before any
+remaining repair. NativeWindows/GPU/device/audio/human/UI/fullcraft/network/
+travelling occupants and all36parents/10phasegates remain open/NOT_RUN.
+
 <a id="katana-main-pilot-delivered"></a>
 
 ### Katana fifteenth Main pilot craft — cards4/5 DONE
