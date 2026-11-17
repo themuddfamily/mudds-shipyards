@@ -1,8 +1,7 @@
 extends SceneTree
 
-## Full production-world berth fixture; unposed Main Player and once-staged standalone Katana.
+## Full production-world berth fixture; unposed Main Player and actual registered Katana.
 const MAIN := preload("res://scenes/main.tscn")
-const KATANA := preload("res://scenes/ships/katana_fighter.tscn")
 const DOCK := Transform3D(Basis.IDENTITY, Vector3(72,-0.02,-30))
 const DEFINITION := preload("res://assets/ships/katana_provisional.tres")
 const WRONG := preload("res://assets/ships/torrent_provisional.tres")
@@ -81,11 +80,12 @@ func _run() -> void:
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"katana_home_berth": matching += 1
 	if not _check(matching == 1 and world.get_berth_ids().size() == 15
-		and _game.get_flyable_ships().size() == 14 and berth.get_occupant() == null
-		and berth.get_reservation_owner() == null, "fifteen berths, fourteen flyable craft; new Katana berth initially empty"): return
+		and _game.get_flyable_ships().size() == 15 and berth.get_occupant() == _game.get_node("KatanaFighter")
+		and berth.get_reservation_owner() == _game.get_node("KatanaFighter"), "fifteen berths and fifteen flyable craft; actual Katana owns its home"): return
 	var old_leases: Dictionary = {}
 	var old_craft := {}
-	for craft in _game.get_flyable_ships(): old_craft[craft] = craft.global_transform
+	for craft in _game.get_flyable_ships():
+		if craft != _game.get_node("KatanaFighter"): old_craft[craft] = craft.global_transform
 	for berth_id in OLD_TRANSFORMS:
 		var old := world.get_berth_node(berth_id)
 		var old_center := Vector3(0, 2.5, 1.5) if berth_id == &"predator_home_berth" else Vector3.ZERO
@@ -116,16 +116,28 @@ func _run() -> void:
 		and edge.get("hub_node_id") == &"station-hub:hub-katana-fighter-berth"
 		and edge.get("module_node_id") == &"katana-fighter-berth:approach", "real new 1.5m supported navigation edge"): return
 	if not _test_module_geometry(module): return
-	# One initial fixture pose only; this candidate never joins Main's roster.
-	_ship = KATANA.instantiate() as HeroShip
-	_ship.name = "KatanaBerthFixture"
-	_ship.transform = DOCK
-	root.add_child(_ship)
-	await _frames(3)
+	_ship = _game.get_node("KatanaFighter") as HeroShip
 	if not _check((_ship.get_node("DockingReceiver") as Node3D).transform == Transform3D.IDENTITY
-		and _ship.global_transform.is_equal_approx(DOCK) and not _game.get_flyable_ships().has(_ship),
-		"actual standalone candidate initially staged at exact dock; identity receiver and no Main registration"): return
-	if not _test_leases(berth): return
+		and _ship.global_transform.is_equal_approx(DOCK) and _game.get_flyable_ships().has(_ship),
+		"actual registered Main candidate owns exact dock with identity receiver"): return
+	var occupied_before := berth.get_audit_report()
+	var live_token := berth.get_reservation_token(_ship)
+	if not _check(berth.try_reserve(_ship,DEFINITION) == live_token and berth.occupy(_ship,live_token)
+		and not berth.can_accept(WRONG,_player) and berth.try_reserve(_player,WRONG).is_empty()
+		and not berth.occupy(_player,live_token) and not berth.release(_player,live_token)
+		and not berth.release(_ship,&"stale") and berth.try_reserve(_player,DEFINITION).is_empty()
+		and berth.get_audit_report() == occupied_before,"actual occupied Main lease preserves owner/token through idempotent/wrong-tag/foreign/stale requests"): return
+	# Keep all delivered empty/fresh/stale lease cases on the same production
+	# component and exact fields, without moving or releasing the live owner.
+	var ledger := ShipBerth.new()
+	ledger.berth_id = &"katana_independent_lease_fixture"
+	for field in [&"compatibility_tags",&"dock_transform",&"landing_volume_center",&"landing_half_extents",&"assist_capture_center",&"assist_capture_half_extents",&"assist_capture_maximum_speed",&"assist_maximum_tilt_degrees",&"departure_lift_height"]:
+		ledger.set(field,berth.get(field))
+	root.add_child(ledger)
+	if not _test_leases(ledger): return
+	ledger.free()
+	if not _check(berth.get_audit_report() == occupied_before and berth.get_occupant() == _ship
+		and berth.get_reservation_token(_ship) == live_token,"independent ledger leaves actual occupied Main lease unchanged"): return
 	for open in [false, true]:
 		_ship.set_canopy_open(open, 0.0)
 		await _frames(3)
@@ -177,13 +189,13 @@ func _run() -> void:
 	for craft in old_craft:
 		if not _check(is_instance_valid(craft) and craft.global_transform.is_equal_approx(old_craft[craft]),
 			"all fourteen old occupied craft retain exact poses"): return
-	if not _check(berth.get_occupant() == null and berth.get_reservation_owner() == null
-		and _game.get_flyable_ships().size() == 14, "fixture leaves new berth empty and Main roster unchanged"): return
+	if not _check(berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship
+		and berth.get_reservation_token(_ship) == live_token and berth.get_audit_report() == occupied_before
+		and _game.get_flyable_ships().size() == 15, "fixture preserves actual occupied Katana berth and complete Main roster"): return
 	_observing = false
 	_release_inputs()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_observer.queue_free()
-	_ship.queue_free()
 	_game.queue_free()
 	await _frames(3)
 	print("KATANA_FIGHTER_BERTH_TEST_PASS")

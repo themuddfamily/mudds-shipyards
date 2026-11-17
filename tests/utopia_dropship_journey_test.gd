@@ -595,7 +595,7 @@ func _run_main() -> void:
 	var world := _main_game.world
 	var berth := world.get_berth_node(&"utopia_home_berth") as ShipBerth
 	var dock := berth.get_dock_transform()
-	if not _main_check(_main_game.phase == GameFlow.Phase.APPROACH_SHIP and _main_player.is_control_enabled() and _main_player.global_position.distance_to(world.get_player_spawn().origin) < 0.25 and _main_game.get_flyable_ships().size() == 14 and world.get_berth_ids().size() == 14 and berth.get_occupant() == _main_ship and berth.get_reservation_owner() == _main_ship and _main_ship.global_transform.is_equal_approx(dock),"actual normal Main spawn, fourteen flyables and exact occupied Utopia home"): return
+	if not _main_check(_main_game.phase == GameFlow.Phase.APPROACH_SHIP and _main_player.is_control_enabled() and _main_player.global_position.distance_to(world.get_player_spawn().origin) < 0.25 and _main_game.get_flyable_ships().size() == 15 and world.get_berth_ids().size() == 15 and berth.get_occupant() == _main_ship and berth.get_reservation_owner() == _main_ship and _main_ship.global_transform.is_equal_approx(dock),"actual normal Main spawn, fifteen flyables and exact occupied Utopia home"): return
 	var old_poses := {}
 	var old_sources := {}
 	var old_settings := {}
@@ -615,14 +615,14 @@ func _run_main() -> void:
 		old_sources[craft] = source
 		old_settings[craft] = [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees]
 		var home := world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
-		if not _main_check(home != null and home.get_occupant() == craft and home.get_reservation_owner() == craft,"all thirteen existing craft retain occupied own homes"): return
+		if not _main_check(home != null and home.get_occupant() == craft and home.get_reservation_owner() == craft,"all fourteen existing craft retain occupied own homes"): return
 		old_leases[home] = {"audit":home.audit(),"owner":home.get_reservation_owner(),"occupant":home.get_occupant(),"token":home.get_reservation_token(craft),"pose":home.get_dock_transform()}
 		old_centers[home] = home.landing_volume_center
 	var profiles := _main_game._get_player_weapon_profiles(_main_ship)
 	var profile := _main_game.get_combat_authority().get_weapon_profile(_main_ship,GameFlow.JOVIAN_COMBAT_WEAPON_ID)
 	if not _main_check(profiles.size() == 1 and profiles.has(GameFlow.JOVIAN_COMBAT_WEAPON_ID) and profile == profiles[GameFlow.JOVIAN_COMBAT_WEAPON_ID] and profile.get("range") == 650 and profile.get("damage") == 70 and is_equal_approx(_main_ship.weapon_cooldown,0.62) and _main_game.get_combat_authority().get_source_id(_main_ship) == 1113 and (_main_ship.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter).get_target_entity() == _main_ship and _main_ship.has_node("MovingInteriorFrame") and not _main_ship.supports_in_flight_cabin_access() and not _main_ship.has_method("get_passenger_station_role_contract"),"actual unique Utopia source1113 binds only unchanged70/650/.62 pilot pulse and closed local-only chair frame; no travelling cabin grant"): return
 	var roster := _main_game._build_fleet_registry_snapshot()
-	if not _main_check(roster.rows.size() == 14 and old_poses.size() == 13 and old_leases.size() == 13,"actual registry and preserved original thirteen state set"): return
+	if not _main_check(roster.rows.size() == 15 and old_poses.size() == 14 and old_leases.size() == 14,"actual registry and preserved original fourteen state set"): return
 	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
 	var generation := _main_game._transition_generation
 	_main_game._board_ship(_main_ship)
@@ -662,10 +662,10 @@ func _run_main() -> void:
 	if not await _main_walk_to(spawn,199): return
 	if not _main_check(_main_player.get_instance_id() == identity and _main_player.global_position.distance_to(spawn) < 0.12 and _main_player.is_on_floor() and not _main_player.is_seated(),"same ordinary Player completes full reverse station walk to original spawn"): return
 	for craft: HeroShip in old_poses:
-		if not _main_check(craft.global_transform.is_equal_approx(old_poses[craft]) and _main_game.get_combat_authority().get_source_id(craft) == old_sources[craft] and [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees] == old_settings[craft],"all thirteen old craft poses/source IDs/settings preserved "+String(craft.name)): return
+		if not _main_check(craft.global_transform.is_equal_approx(old_poses[craft]) and _main_game.get_combat_authority().get_source_id(craft) == old_sources[craft] and [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees] == old_settings[craft],"all fourteen old craft poses/source IDs/settings preserved "+String(craft.name)): return
 	for home: ShipBerth in old_leases:
 		var saved: Dictionary = old_leases[home]
-		if not _main_check(home.audit() == saved.audit and home.get_reservation_owner() == saved.owner and home.get_occupant() == saved.occupant and home.get_reservation_token(saved.owner) == saved.token and home.get_dock_transform().is_equal_approx(saved.pose) and home.landing_volume_center == old_centers[home],"all thirteen old berth poses/centers/owners/occupants/tokens preserved "+str(home.get_berth_id())): return
+		if not _main_check(home.audit() == saved.audit and home.get_reservation_owner() == saved.owner and home.get_occupant() == saved.occupant and home.get_reservation_token(saved.owner) == saved.token and home.get_dock_transform().is_equal_approx(saved.pose) and home.landing_volume_center == old_centers[home],"all fourteen old berth poses/centers/owners/occupants/tokens preserved "+str(home.get_berth_id())): return
 	if not _main_check(not _main_bad_shot and _main_shots >= 2 and _main_projectiles == _main_shots,"both usable flights emit only real center-muzzle approved pulse with unique source"): return
 	await _main_quit_normally()
 

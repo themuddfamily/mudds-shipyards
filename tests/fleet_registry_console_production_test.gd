@@ -87,6 +87,23 @@ func _run() -> void:
 			and not _contains_object(live_snapshot),
 		"one shared interaction paints every retained craft as detached available/occupied/destroyed/regenerating data"
 	)
+	# Inspect the actual glyph geometry after the complete live roster is drawn.
+	# Keep the existing font, pixel size and screen until measured otherwise.
+	await process_frame
+	var label := console.get_node("FleetRegistryLiveRows") as Label3D
+	var screen := console.get_node("FleetRegistryLiveScreen") as MeshInstance3D
+	var glyph_bounds := label.get_aabb()
+	var screen_bounds := screen.get_aabb()
+	var label_to_screen := screen.global_transform.affine_inverse()*label.global_transform
+	var text_bounds := label_to_screen*glyph_bounds
+	print("FLEET_REGISTRY_ACTUAL_SCREEN_BOUNDS: ", {"rows":rows.size(),"lines":label.text.split("\n").size(),"glyph":glyph_bounds,"in_screen":text_bounds,"screen":screen_bounds,"font_size":label.font_size,"pixel_size":label.pixel_size})
+	_check(rows.size() == 15 and label.text.split("\n").size() == 16
+		and label.font_size == 40 and is_equal_approx(label.pixel_size,0.0016)
+		and text_bounds.position.x >= screen_bounds.position.x
+		and text_bounds.end.x <= screen_bounds.end.x
+		and text_bounds.position.y >= screen_bounds.position.y
+		and text_bounds.end.y <= screen_bounds.end.y,
+		"all fifteen actual production rows plus header fit the unchanged physical screen")
 	_check(
 		_berth_snapshot(game.world) == berths_before
 			and _regeneration_snapshot(game) == regeneration_before,

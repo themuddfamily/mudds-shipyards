@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## Default: standalone foundation. --access: physical Player port access.
-## No Main integration, combat or comparative handling qualification.
+## --main: real Boot/Begin Shift, two sorties, third claim and full reverse route.
+## --main: ordinary production pilot route only; no comparative handling/damage qualification.
 ## One initial ship/source/player setup; real commands thereafter.
 ## No pose, velocity, startup-clock or engine-state mutation.
 const KATANA := preload("res://scenes/ships/katana_fighter.tscn")
@@ -44,6 +45,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--main" in OS.get_cmdline_user_args():
+		await _run_main()
+		return
 	if "--access" in OS.get_cmdline_user_args():
 		await _run_access()
 		return
@@ -302,6 +306,7 @@ func _check(condition: bool, label: String) -> bool:
 		_failed = true
 		push_error("KATANA_FAIL: " + label)
 		_release_inputs()
+		if _main_active: _main_release_inputs()
 		Input.action_release("interact")
 		Input.action_release("jump")
 		Input.action_release("sprint_boost")
@@ -703,8 +708,416 @@ func _audit_animated_geometry() -> bool:
 		var eye := SphereShape3D.new()
 		eye.radius = 0.1
 		query.shape = eye
-		query.transform = (_access_ship.get_node("KatanaOriginalShell/PilotFixture/CockpitCamera") as Camera3D).global_transform
-		query.collision_mask = PhysicsLayers.SHIP
-		if not _check(_access_ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(),"actual seated eye remains clear through canopy motion"):
+		var camera := _access_ship.get_node("KatanaOriginalShell/PilotFixture/CockpitCamera") as Camera3D
+		# Direct-space queries read the published physics snapshot. Compose the
+		# unchanged actual local eye into that same root snapshot, including
+		# flight/access motion; this never writes actor, hull or camera state.
+		var server_root: Transform3D = PhysicsServer3D.body_get_state(_access_ship.get_rid(),PhysicsServer3D.BODY_STATE_TRANSFORM)
+		var eye_local: Transform3D = _access_ship.global_transform.affine_inverse()*camera.global_transform
+		query.transform = server_root*eye_local
+		query.collision_mask = (PhysicsLayers.WORLD | PhysicsLayers.SHIP) if _main_active else PhysicsLayers.SHIP
+		query.margin = 0
+		if not _check(eye_local.origin.is_equal_approx(Vector3(0,2.31,-1.25)) and _access_ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(),"actual seated eye remains clear through canopy motion and flight"):
 			return false
 	return true
+
+
+## Ordinary Main integration profile; all original standalone profiles remain.
+var _main_started_ms := 0
+const BOOT := preload("res://scenes/boot.tscn")
+const MAIN_STATION_ROUTE := [
+	Vector3(8,0,11), Vector3(8,0,13.5), Vector3(35,0,13.5),
+	Vector3(35,0,15.5), Vector3(39,0,15.5), Vector3(47,0,15.5),
+	# Return through the accepted Predator aisle around the Habitat connector
+	# side rail; preserve the frozen node endpoints without crossing that rail.
+	Vector3(39,0,15.5), Vector3(39,0,8.5),
+	Vector3(47,0,8.5), Vector3(47,0,7), Vector3(47,0,-8),
+	Vector3(64,0,-8), Vector3(64,0,-22), Vector3(64,0,-30), Vector3(65.4,0,-28.4),
+]
+var _main_game: GameFlow
+var _main_ship: HeroShip
+var _main_player: PlayerController
+var _main_observer: MainCompletedPlayerTick
+var _main_active := false
+var _main_ticks := 0
+var _main_last_frame := -1
+var _main_last_point := Vector3.INF
+var _main_layer := 0
+var _main_mask := 0
+var _main_gravity := 0.0
+var _main_capsule_size := Vector2.ZERO
+var _main_capsule_pose := Transform3D.IDENTITY
+var _main_engine_edges: Array[Dictionary] = []
+var _main_shots := 0
+var _main_projectiles := 0
+var _main_bad_shot := false
+var _main_claims := 0
+var _main_releases := 0
+
+class MainCompletedPlayerTick:
+	extends Node
+	signal completed_tick
+	var suite: SceneTree
+	func _physics_process(_delta: float) -> void:
+		suite.call("_main_audit_completed_tick")
+		completed_tick.emit()
+
+
+func _run_main() -> void:
+	_main_started_ms = Time.get_ticks_msec()
+	var watchdog := create_timer(300.0)
+	watchdog.timeout.connect(func(): _main_check(false,"fixed300s complete Main profile cap"))
+	var boot := BOOT.instantiate() as StartupLoader
+	root.add_child(boot)
+	_main_game = await boot.startup_completed as GameFlow
+	await _main_frames(3)
+	if not _main_check(StartupLoader.is_title_menu_ready(_main_game),"ordinary Boot reaches actual Begin Shift"): return
+	for pressed in [true,false]:
+		var event := InputEventJoypadButton.new()
+		event.button_index = JOY_BUTTON_X
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await _main_frames(2)
+	await _main_frames(45)
+	_main_player = _main_game.player
+	_main_ship = _main_game.get_node("KatanaFighter") as HeroShip
+	# Reuse the access fixture's actual animated render/collider audit only;
+	# no standalone access coordinator is installed in this mode.
+	_access_ship = _main_ship
+	_access_player = _main_player
+	_main_ship.engine_state_changed.connect(func(state: StringName): _main_engine_edges.append({"state":state,"tick":Engine.get_physics_frames(),"remaining":_main_ship.get("_engine_timer")}))
+	_main_ship.projectile_fired.connect(func(_origin: Vector3,_direction: Vector3): _main_projectiles += 1)
+	_main_game.get_combat_authority().authoritative_shot_submitted.connect(func(request: Variant,result: Dictionary):
+		if request.source_entity == _main_ship:
+			_main_shots += 1
+			_main_bad_shot = _main_bad_shot or not bool(result.get("accepted",false)) or request.source_id != 1114 or request.weapon_id != GameFlow.ARROW_COMBAT_WEAPON_ID or request.range != 480 or request.damage != 24 or _main_ship.to_local(request.origin).distance_to(Vector3(0,1,-6.2)) > 0.0001)
+	var identity := _main_player.get_instance_id()
+	var spawn := _main_player.global_position
+	var world := _main_game.world
+	var berth := world.get_berth_node(&"katana_home_berth") as ShipBerth
+	var dock := berth.get_dock_transform()
+	if not _main_check(_main_game.phase == GameFlow.Phase.APPROACH_SHIP and _main_player.is_control_enabled() and _main_player.global_position.distance_to(world.get_player_spawn().origin) < 0.25 and _main_game.get_flyable_ships().size() == 15 and world.get_berth_ids().size() == 15 and berth.get_occupant() == _main_ship and berth.get_reservation_owner() == _main_ship and _main_ship.global_transform.is_equal_approx(dock),"actual normal Main spawn, fifteen flyables and exact occupied Katana home"): return
+	var old_poses := {}
+	var old_sources := {}
+	var old_settings := {}
+	var old_leases := {}
+	var old_centers := {}
+	var unique := {}
+	var source_owners := {}
+	for craft: HeroShip in _main_game.get_flyable_ships():
+		if not _main_check(not unique.has(craft.get_ship_id()),"unique production craft identity "+str(craft.get_ship_id())): return
+		unique[craft.get_ship_id()] = true
+		var source := _main_game.get_combat_authority().get_source_id(craft)
+		if source > 0:
+			if not _main_check(not source_owners.has(source),"unique authoritative firing source "+str(source)): return
+			source_owners[source] = craft
+		if craft == _main_ship: continue
+		old_poses[craft] = craft.global_transform
+		old_sources[craft] = source
+		old_settings[craft] = [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees]
+		var home := world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		if not _main_check(home != null and home.get_occupant() == craft and home.get_reservation_owner() == craft,"all fourteen existing craft retain occupied own homes"): return
+		old_leases[home] = {"audit":home.audit(),"owner":home.get_reservation_owner(),"occupant":home.get_occupant(),"token":home.get_reservation_token(craft),"pose":home.get_dock_transform()}
+		old_centers[home] = home.landing_volume_center
+	var profiles := _main_game._get_player_weapon_profiles(_main_ship)
+	var profile := _main_game.get_combat_authority().get_weapon_profile(_main_ship,GameFlow.ARROW_COMBAT_WEAPON_ID)
+	if not _main_check(profiles.size() == 1 and profiles.has(GameFlow.ARROW_COMBAT_WEAPON_ID) and profile == profiles[GameFlow.ARROW_COMBAT_WEAPON_ID] and profile.get("range") == 480 and profile.get("damage") == 24 and is_equal_approx(_main_ship.weapon_cooldown,0.38) and _main_game.get_combat_authority().get_source_id(_main_ship) == 1114 and (_main_ship.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter).get_target_entity() == _main_ship and not _main_ship.has_node("MovingInteriorFrame") and not _main_ship.supports_in_flight_cabin_access() and not _main_ship.has_method("get_passenger_station_role_contract"),"actual unique Katana source1114 binds only unchanged24/480/.38 pilot pulse and no cabin frame; no travelling cabin grant"): return
+	var roster := _main_game._build_fleet_registry_snapshot()
+	if not _main_check(roster.rows.size() == 15 and old_poses.size() == 14 and old_leases.size() == 14,"actual registry and preserved original fourteen state set"): return
+	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	var generation := _main_game._transition_generation
+	_main_game._board_ship(_main_ship)
+	if not _main_check(not area.is_reserved() and not _main_game._transition_busy and _main_game._transition_generation == generation,"outside direct boarding refuses before reservation or generation"): return
+	var collision := _main_player.get_node("PlayerCollision") as CollisionShape3D
+	var capsule := collision.shape as CapsuleShape3D
+	_main_layer = _main_player.collision_layer
+	_main_mask = _main_player.collision_mask
+	_main_gravity = _main_player.gravity_multiplier
+	_main_capsule_size = Vector2(capsule.radius,capsule.height)
+	_main_capsule_pose = collision.transform
+	_main_observer = MainCompletedPlayerTick.new()
+	_main_observer.suite = self
+	_main_observer.process_physics_priority = 1000000
+	root.add_child(_main_observer)
+	_main_active = true
+	if not _trajectory_contract(): return
+	for index in MAIN_STATION_ROUTE.size():
+		if not await _main_walk_to(MAIN_STATION_ROUTE[index],index): return
+	for sortie in 2:
+		if not await _main_board_from_port(sortie,identity,area): return
+		if not await _main_sortie_home(sortie,identity,area,berth,dock): return
+		if not await _main_walk_out(sortie): return
+	# A fresh physical third claim proves that the second exit did not strand
+	# the body, reservation, camera, input bank or the generic reboard fence.
+	if not await _main_board_from_port(2,identity,area): return
+	if not _main_check(_main_claims == 3 and _main_releases == 2 and _main_ticks > 1000 and _main_player.get_instance_id() == identity and _main_game.active_ship == _main_ship and _main_game._piloting and _main_player.is_seated_at(_main_ship.get_pilot_seat_anchor()),"two complete ordinary sorties/exits and fresh third physical claim retain same Player"): return
+	if not await _main_release_at_home(identity,area): return
+	if not await _main_walk_out(2): return
+	if not _main_check(_main_claims == 3 and _main_releases == 3,"fresh third home-only reboard releases normal claims once"): return
+	for index in range(MAIN_STATION_ROUTE.size()-2,-1,-1):
+		if not await _main_walk_to(MAIN_STATION_ROUTE[index],100+index): return
+	if not await _main_walk_to(spawn,199): return
+	if not _main_check(_main_player.get_instance_id() == identity and _main_player.global_position.distance_to(spawn) < 0.12 and _main_player.is_on_floor() and not _main_player.is_seated(),"same ordinary Player completes full reverse station walk to original spawn"): return
+	for craft: HeroShip in old_poses:
+		if not _main_check(craft.global_transform.is_equal_approx(old_poses[craft]) and _main_game.get_combat_authority().get_source_id(craft) == old_sources[craft] and [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees] == old_settings[craft],"all fourteen old craft poses/source IDs/settings preserved "+String(craft.name)): return
+	for home: ShipBerth in old_leases:
+		var saved: Dictionary = old_leases[home]
+		if not _main_check(home.audit() == saved.audit and home.get_reservation_owner() == saved.owner and home.get_occupant() == saved.occupant and home.get_reservation_token(saved.owner) == saved.token and home.get_dock_transform().is_equal_approx(saved.pose) and home.landing_volume_center == old_centers[home],"all fourteen old berth poses/centers/owners/occupants/tokens preserved "+str(home.get_berth_id())): return
+	if not _main_check(not _main_bad_shot and _main_shots >= 2 and _main_projectiles == _main_shots,"both usable flights emit only real center-muzzle approved pulse with unique source"): return
+	await _main_quit_normally()
+
+
+func _main_board_from_port(sortie: int, identity: int, area: ShipBoardingArea) -> bool:
+	var hatch := _main_ship.get_node("CabinHatchInteraction") as ShipCabinHatch
+	await _main_aim(hatch.global_position)
+	if not _main_check(_main_game.station_interaction_candidate == hatch,"normal look discovers reachable physical port control"): return false
+	await _main_tap(&"interact")
+	_main_ship.request_engine_start() # Negative moving/open startup probe only.
+	if not _main_check(StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE,"moving access refuses engine start"): return false
+	await _main_frames(80)
+	_main_ship.request_engine_start()
+	if not _main_check(_main_ship.is_canopy_open() and not _main_ship.call("is_access_motion_active") and StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE,"full open access refuses startup"): return false
+	var generation := _main_game._transition_generation
+	_main_game._board_ship(_main_ship)
+	if not _main_check(not area.is_reserved() and _main_game._transition_generation == generation,"open access outside actual helm still refuses direct boarding"): return false
+	for point in [Vector3(-6.6,0,0),Vector3(-0.9,0.6,0)]:
+		if not await _main_walk_to(_main_ship.to_global(point),30+sortie,true): return false
+	if not _main_check(_main_ship.can_board_from_landed_approach(_main_player),"same full actual Player walks continuously up ramp to fixed supported stand"): return false
+	if not _main_check(area.try_reserve(_main_game) and area.try_reserve(_main_game) and not area.try_reserve(_main_player) and not area.release_reservation(_main_player) and area.get_reservation_token() == _main_game,"foreign/duplicate seat requests preserve current temporary claimant"): return false
+	await _main_tap(&"interact")
+	if not _main_check(not _main_game._piloting and area.get_reservation_token() == _main_game,"foreign-held helm refuses ordinary Interact"): return false
+	if not _main_check(area.release_reservation(_main_game) and not area.release_reservation(_main_game),"temporary foreign claim retires once and stale release refuses"): return false
+	await _main_aim(_main_ship.get_pilot_seat_anchor().global_position)
+	await _main_tap(&"interact")
+	for frame in 240:
+		if _main_game._piloting and not _main_game._transition_busy: break
+		await _main_frames(1)
+	if not _main_check(_main_game.active_ship == _main_ship and _main_game._piloting and not _main_game._transition_busy and _main_player.is_seated_at(_main_ship.get_pilot_seat_anchor()) and area.get_reservation_token() == _main_player and _main_player.get_instance_id() == identity and not _main_ship.is_canopy_open() and _main_ship.get_camera().current,"actual ordinary E claims seat/camera/input and fully seals Katana sortie="+str(sortie)): return false
+	_main_claims += 1
+	generation = _main_game._transition_generation
+	_main_game._board_ship(_main_ship)
+	if not _main_check(_main_game._transition_generation == generation and area.get_reservation_token() == _main_player,"duplicate seated direct boarding cannot replace current transaction"): return false
+	var eye := _main_ship.get_node("KatanaOriginalShell/PilotFixture/CockpitCamera") as Camera3D
+	if not _main_check(eye.position == Vector3(0,2.31,-1.25) and _main_ship.get_pilot_seat_anchor().position == Vector3(0,0.55,-1) and _main_game.hud._active_ship_name == "KATANA-CLASS FIGHTER CANDIDATE" and _main_game.hud._active_ship_role == "FIGHTER","actual adopted pilot/eye poses and bound candidate HUD identity"): return false
+	return true
+
+
+func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth: ShipBerth, dock: Transform3D) -> bool:
+	_main_engine_edges.clear()
+	Input.action_press(&"move_forward")
+	for frame in 500:
+		if not bool(_main_ship.get_telemetry().landed) and not _main_ship.get("_departure_lift_active"): break
+		await _main_frames(1)
+	_main_release_inputs()
+	if not _main_check(_main_engine_edges.size() == 2 and _main_engine_edges[0].state == HeroShip.ENGINE_STARTING and _main_engine_edges[1].state == HeroShip.ENGINE_ONLINE and is_equal_approx(float(_main_engine_edges[0].remaining),2.3) and int(_main_engine_edges[1].tick)-int(_main_engine_edges[0].tick) >= 137 and int(_main_engine_edges[1].tick)-int(_main_engine_edges[0].tick) <= 139 and StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE,"actual inherited2.3s startup edges/ticks="+str(_main_engine_edges)): return false
+	if not _main_check((_main_ship.global_position-dock.origin).dot(dock.basis.y) >= 3.99 and berth.get_occupant() == null and berth.get_reservation_owner() == null,"actual4m departure lift releases exact own occupied lease"): return false
+	await _main_tap(&"interact")
+	if not _main_check(_main_game._piloting and _main_player.is_seated_at(_main_ship.get_pilot_seat_anchor()) and area.get_reservation_token() == _main_player and not _main_game._transition_busy,"active airborne pilot exit refuses"): return false
+	var target := dock*Vector3(0,8,-18)
+	var arrived := false
+	var turned := false
+	for frame in 1800:
+		var offset := target-_main_ship.global_position
+		var distance := offset.length()
+		_main_release_inputs()
+		if distance < 0.6 and _main_ship.velocity.length() <= 0.35:
+			arrived = true
+			break
+		var local_direction := _main_ship.global_basis.inverse()*offset.normalized()
+		var pitch_error := atan2(local_direction.y,-local_direction.z)
+		if absf(pitch_error) > 0.003:
+			Input.action_press(&"pitch_up" if pitch_error > 0 else &"pitch_down",clampf(absf(pitch_error)*3,0.08,1))
+		var desired_speed := minf(6.0,distance*0.9)
+		if _main_ship.velocity.length() > desired_speed+0.1: Input.action_press(&"brake")
+		elif distance > 0.45: Input.action_press(&"move_forward",clampf((desired_speed-_main_ship.velocity.length())*0.3+0.13,0.12,0.8))
+		await _main_frames(1)
+		turned = turned or _main_ship.global_basis.get_rotation_quaternion().angle_to(dock.basis.get_rotation_quaternion()) > 0.01
+		if frame%180 == 0: print("KATANA_MAIN_FLIGHT: sortie=",sortie," frame=",frame," local=",dock.affine_inverse()*_main_ship.global_position," speed=",_main_ship.velocity.length())
+	_main_release_inputs()
+	if not _main_check(arrived and turned and _main_game.phase == GameFlow.Phase.FREE_FLIGHT and (dock.affine_inverse()*_main_ship.global_position).distance_to(Vector3(0,8,-18)) <= 0.6 and _main_ship.velocity.length() <= 0.5 and not berth.contains_oriented_bounds(_main_ship.global_transform,_main_ship.get_landing_collision_report().local_bounds),"actual ordinary pitch/throttle/brake flight reaches finite own-home acquisition endpoint"): return false
+	var shots := _main_shots
+	var projectiles := _main_projectiles
+	Input.action_press(&"fire")
+	await _main_frames(20)
+	Input.action_release(&"fire")
+	if not _main_check(_main_shots > shots and _main_projectiles > projectiles and not _main_bad_shot,"actual held fire uses approved center-muzzle pulse on usable flight "+str(sortie)): return false
+	Input.action_press(&"brake")
+	await _main_frames(30)
+	_main_release_inputs()
+	await _main_frames(95)
+	if not _main_check(StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE and not bool(_main_ship.get_telemetry().landed),"real neutral input establishes airborne OFFLINE"): return false
+	var generation := _main_game._transition_generation
+	await _main_tap(&"interact")
+	await _main_tap(&"interact")
+	if not _main_check(_main_game._piloting and _main_ship.is_piloted() and _main_player.is_seated_at(_main_ship.get_pilot_seat_anchor()) and area.get_reservation_token() == _main_player and _main_game._transition_generation == generation and not _main_game._transition_busy and not _main_ship.is_canopy_open() and not _main_ship.supports_in_flight_cabin_access(),"duplicate airborne OFFLINE exit refuses without claim/body/camera/generation mutation"): return false
+	Input.action_press(&"brake")
+	for frame in 300:
+		if StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_ONLINE: break
+		await _main_frames(1)
+	_main_release_inputs()
+	var capture := _main_game._get_active_landing_assist_report()
+	if not _main_check(bool(capture.get("assist_capture_accepted",false)) and StringName(capture.get("selected_berth_id",&"")) == &"katana_home_berth","normal capture selects exact own compatible home"): return false
+	await _main_tap(&"landing_assist")
+	for frame in 600:
+		if _main_game.phase == GameFlow.Phase.SHUT_DOWN: break
+		await _main_frames(1)
+	var landing := _main_ship.get_landing_contract_report()
+	if not _main_check(_main_game.phase == GameFlow.Phase.SHUT_DOWN and berth.get_occupant() == _main_ship and berth.get_reservation_owner() == _main_ship and _main_ship.global_position.distance_to(dock.origin) <= 0.05 and _main_ship.velocity.length() <= 0.05 and _main_ship.global_basis.is_equal_approx(dock.basis) and landing.strict_dock_acceptance and landing.contract_accepted and _main_game._ship_owns_exact_occupied_berth(_main_ship,&"katana_home_berth") and berth.contains_oriented_bounds(_main_ship.global_transform,_main_ship.get_landing_collision_report().local_bounds),"normal L restores complete strict hull at exact own dock and current occupied lease"): return false
+	_main_release_inputs()
+	await _main_frames(95)
+	if not _main_check(StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE,"landed neutral input shuts propulsion OFFLINE"): return false
+	return await _main_release_at_home(identity,area)
+
+
+func _main_release_at_home(identity: int, area: ShipBoardingArea) -> bool:
+	await _main_tap(&"interact")
+	for frame in 180:
+		if not _main_game._transition_busy and not _main_player.is_seated(): break
+		await _main_frames(1)
+	await _main_frames(3)
+	if not _main_check(not _main_game._piloting and not _main_ship.is_piloted() and not _main_player.is_seated() and _main_player.get_instance_id() == identity and _main_player.is_control_enabled() and _main_player.is_on_floor() and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and _main_player.collision_layer == _main_layer and _main_player.collision_mask == _main_mask and not (_main_player.get_node("PlayerCollision") as CollisionShape3D).disabled and not area.is_reserved() and _main_game._boarding_area == null and _main_ship.is_canopy_open() and not _main_ship.call("is_access_motion_active") and _main_ship.to_local(_main_player.global_position).distance_to(Vector3(-0.9,0.6,0)) < 0.05 and not bool(_main_player.get_cabin_containment_report().get("active",false)),"normal supported seated-open/inside release restores exact stand, walking body/control/camera and retires claim"): return false
+	_main_releases += 1
+	return _main_check(not area.release_reservation(_main_player),"stale released pilot claim cannot act")
+
+
+func _main_walk_out(sortie: int) -> bool:
+	for point in [Vector3(-6.6,0,0),Vector3(-8,0,0),Vector3(-8,0,1.6),Vector3(-6.6,0,1.6)]:
+		if not await _main_walk_to(_main_ship.to_global(point),70+sortie,true): return false
+	if not _main_check(_main_game._reboard_blocked_ship == null,"physical corridor walk naturally clears unchanged7m reboard fence"): return false
+	var hatch := _main_ship.get_node("CabinHatchInteraction") as ShipCabinHatch
+	await _main_aim(hatch.global_position)
+	if not _main_check(_main_game.station_interaction_candidate == hatch,"standing Player rediscovers actual outside port control"): return false
+	await _main_tap(&"interact")
+	await _main_frames(80)
+	return _main_check(not _main_ship.is_canopy_open() and _main_player.is_on_floor(),"same Player physically walks out port ramp, reaches apron and seals outside full sweep")
+
+
+func _main_audit_completed_tick() -> void:
+	if not _main_active or _failed: return
+	if not _audit_animated_geometry(): return
+	if _main_game._transition_busy or _main_player.is_seated() or not _main_player.is_control_enabled() or bool(_main_player.get("_disembarking_completion_pending")):
+		_main_last_frame = -1
+		_main_last_point = Vector3.INF
+		return
+	var frame := Engine.get_physics_frames()
+	var completed: Dictionary = _main_player.get_step_up_assist_audit().get("completed_motion",{})
+	var point := _main_player.global_position
+	var collision := _main_player.get_node("PlayerCollision") as CollisionShape3D
+	var original := collision.shape as CapsuleShape3D
+	if not _main_check(_main_observer.process_physics_priority > _main_player.process_physics_priority and int(completed.get("frame",-1)) == frame and (_main_last_frame < 0 or frame == _main_last_frame+1) and (not _main_last_point.is_finite() or point.distance_to(_main_last_point) < 0.2) and _main_player.collision_layer == _main_layer and _main_player.collision_mask == _main_mask and is_equal_approx(_main_player.gravity_multiplier,_main_gravity) and Vector2(original.radius,original.height) == _main_capsule_size and collision.transform == _main_capsule_pose and not collision.disabled,"completed actual walking tick stays current/adjacent/continuous with unchanged capsule/masks/gravity",false): return
+	var capsule := original.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = collision.global_transform
+	query.margin = 0
+	query.collision_mask = _main_mask
+	query.exclude = [_main_player.get_rid()]
+	var state := _main_player.get_world_3d().direct_space_state
+	var hits := state.intersect_shape(query,16)
+	var support := PhysicsRayQueryParameters3D.create(point+Vector3.UP*0.12,point-Vector3.UP*0.18,_main_mask)
+	support.exclude = [_main_player.get_rid()]
+	var hit := state.intersect_ray(support)
+	if not _main_check(_main_player.is_on_floor() and hits.is_empty() and not hit.is_empty() and (hit.normal as Vector3).dot(Vector3.UP) >= cos(_main_player.floor_max_angle),"every completed walking tick has actual capsule/head clearance and physical support position="+str(point)+" overlaps="+str(hits)+" support="+str(hit),false): return
+	_main_last_frame = frame
+	_main_last_point = point
+	_main_ticks += 1
+
+
+func _main_walk_to(target: Vector3, leg: int, cabin: bool = false) -> bool:
+	var reached := false
+	for frame in (400 if cabin else 900):
+		if _failed: return false
+		var offset := target-_main_player.global_position
+		offset.y = 0
+		if absf(offset.x) < (0.005 if cabin else 0.02): offset.x = 0
+		if absf(offset.z) < (0.005 if cabin else 0.02): offset.z = 0
+		if offset.length() <= (0.01 if cabin else 0.035):
+			reached = true
+			break
+		var direction := (_main_player.get_node("%CameraYaw") as Node3D).global_basis.inverse()*offset.normalized()
+		_main_release_inputs()
+		var strength := ((0.23 if offset.length() < 0.12 else (0.35 if offset.length() < 0.7 else 1.0)) if cabin else (0.4 if offset.length() < 0.8 else 1.0))
+		Input.action_press(&"move_right" if direction.x > 0 else &"move_left",absf(direction.x)*strength)
+		Input.action_press(&"move_back" if direction.z > 0 else &"move_forward",absf(direction.z)*strength)
+		await _main_observer.completed_tick
+	_main_release_inputs()
+	for frame in 12: await _main_observer.completed_tick
+	print("KATANA_MAIN_ROUTE_LEG: ",leg," target=",target," actual=",_main_player.global_position," reached=",reached)
+	return _main_check(reached and (not cabin or Vector2(target.x-_main_player.global_position.x,target.z-_main_player.global_position.z).length() < 0.02),"ordinary station .035/900/12 or ramp .02/400 endpoint "+str(leg))
+
+
+func _main_aim(target: Vector3) -> void:
+	for frame in 180:
+		var direction := (target-_main_player.get_interaction_origin()).slide(Vector3.UP).normalized()
+		var forward := _main_player.get_interaction_direction().slide(Vector3.UP).normalized()
+		var angle := forward.signed_angle_to(direction,Vector3.UP)
+		if absf(angle) < 0.03: break
+		var motion := InputEventJoypadMotion.new()
+		motion.axis = JOY_AXIS_RIGHT_X
+		motion.axis_value = -signf(angle)*(0.4 if absf(angle) < 0.25 else 1.0)
+		Input.parse_input_event(motion)
+		Input.flush_buffered_events()
+		await _main_frames(1)
+	var release := InputEventJoypadMotion.new()
+	release.axis = JOY_AXIS_RIGHT_X
+	Input.parse_input_event(release)
+	Input.flush_buffered_events()
+	await _main_frames(2)
+
+
+func _main_tap(action: StringName) -> void:
+	if action == &"interact" or action == &"landing_assist":
+		await _main_key(KEY_E if action == &"interact" else KEY_L)
+		return
+	Input.action_press(action)
+	await _main_frames(2)
+	Input.action_release(action)
+	await _main_frames(2)
+
+func _main_key(key: Key) -> void:
+	for pressed in [true,false]:
+		var event := InputEventKey.new()
+		event.keycode = key
+		event.physical_keycode = key
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await physics_frame
+		await process_frame
+
+func _main_release_inputs() -> void:
+	for action in [&"move_forward",&"move_back",&"move_left",&"move_right",&"pitch_up",&"pitch_down",&"brake",&"sprint_boost",&"interact",&"landing_assist",&"fire"]:
+		Input.action_release(action)
+
+func _main_frames(count: int) -> void:
+	for frame in count:
+		await physics_frame
+		await process_frame
+
+func _main_check(condition: bool, message: String, verbose: bool = true) -> bool:
+	if _failed: return false
+	if not condition:
+		_failed = true
+		_main_release_inputs()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		push_error("KATANA_MAIN_FAIL: "+message)
+		quit(1)
+	elif verbose: print("PASS: ",message)
+	return condition
+
+func _main_quit_normally() -> void:
+	_main_release_inputs()
+	await _main_key(KEY_ESCAPE)
+	var exit_button := _main_game.hud.find_child("ExitButton",true,false) as Control
+	for frame in 160:
+		if root.gui_get_focus_owner() == exit_button: break
+		await _main_key(KEY_TAB)
+	if not _main_check(is_instance_valid(exit_button) and root.gui_get_focus_owner() == exit_button,"normal pause Tab reaches actual Exit to desktop"): return
+	print("KATANA_MAIN_USER_DATA_DIR: ",OS.get_user_data_dir())
+	print("KATANA_FIGHTER_MAIN_TEST_OK",": claims=",_main_claims," releases=",_main_releases," walking_ticks=",_main_ticks," actual_pulse_shots=",_main_shots," elapsed_ms=",Time.get_ticks_msec()-_main_started_ms)
+	await _main_key(KEY_ENTER)
+	for frame in 120: await process_frame
+	_main_check(false,"normal Main Quit did not terminate actual OS process")

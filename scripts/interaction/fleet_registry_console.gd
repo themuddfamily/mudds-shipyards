@@ -18,7 +18,7 @@ const TEXT_POSITION := Vector3(0.0, 0.38, -1.105)
 const VALID_STATES: Array[StringName] = [
 	&"available", &"occupied", &"destroyed", &"regenerating",
 ]
-const MAX_ROWS := 14
+const MAX_ROWS := 15
 
 var _built := false
 var _presentation_sequence := 0
@@ -169,7 +169,7 @@ func _build_screen() -> void:
 	_status_label.position = TEXT_POSITION
 	_status_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	_status_label.font_size = 40
-	# Fifteen production lines (header plus fourteen retained craft) fit the
+	# Sixteen production lines (header plus fifteen retained craft) fit the
 	# terminal's 1.46 m screen with a readable top/bottom margin.
 	_status_label.pixel_size = 0.0016
 	_status_label.modulate = Color("071217")

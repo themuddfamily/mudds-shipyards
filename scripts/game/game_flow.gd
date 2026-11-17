@@ -389,6 +389,7 @@ const PLAYER_SOURCE_IDS := {
 	&"paradox_provisional": 1111,
 	&"dynamic_provisional": 1112,
 	&"utopia_provisional": 1113,
+	&"katana_provisional": 1114,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -11240,7 +11241,7 @@ func _has_current_physical_pilot_approach(candidate: HeroShip) -> bool:
 		var frame := candidate.get_node_or_null("MovingInteriorFrame") as MovingInteriorFrame
 		return frame != null and frame.is_occupant_registered(player) \
 			and frame.contains_world_position(player.global_position)
-	if candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional"]:
+	if candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional", &"katana_provisional"]:
 		return candidate.can_board_from_landed_approach(player)
 	return true
 
@@ -11311,7 +11312,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		and interior_frame != null \
 		and (interior_frame.is_occupant_registered(player) or candidate.get_ship_id() == &"titan_provisional") \
 		and interior_frame.contains_world_position(player.global_position)
-	var from_landed_pilot_approach: bool = candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional"] \
+	var from_landed_pilot_approach: bool = candidate.get_ship_id() in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional", &"katana_provisional"] \
 		and candidate.can_board_from_landed_approach(player)
 	var from_cabin: bool = returning_to_flight_seat or from_landed_interior or from_landed_pilot_approach
 	if returning_to_flight_seat:
@@ -11508,7 +11509,7 @@ func _is_same_craft_remote_berth_reboarding(candidate: HeroShip) -> bool:
 ## occupancy. Keep the stern sealed until the standing player operates it.
 func _exit_physical_pilot_into_landed_cabin() -> void:
 	if _transition_busy or not _piloting or not is_instance_valid(active_ship) \
-			or active_ship.get_ship_id() not in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional"]:
+			or active_ship.get_ship_id() not in [&"predator_provisional", &"paradox_provisional", &"dynamic_provisional", &"utopia_provisional", &"katana_provisional"]:
 		return
 	var craft := active_ship
 	var actor := player
@@ -11536,8 +11537,8 @@ func _exit_physical_pilot_into_landed_cabin() -> void:
 	_transition_busy = true
 	var generation := _begin_transition_generation()
 	phase = Phase.DISEMBARKING
-	if craft.get_ship_id() in [&"dynamic_provisional", &"utopia_provisional"]:
-		# Dynamic and Utopia have only an exterior hatch control. Open the
+	if craft.get_ship_id() in [&"dynamic_provisional", &"utopia_provisional", &"katana_provisional"]:
+		# Dynamic, Utopia and Katana have only an exterior hatch control. Open the
 		# supported access while this exact pilot is still safely seated, then
 		# revalidate every owner before restoring the physical standing body.
 		audio.play_canopy(true)
@@ -11579,7 +11580,7 @@ func _exit_physical_pilot_into_landed_cabin() -> void:
 	phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
 	hud.set_mode("on-foot")
 	hud.clear_hero_component_ship()
-	hud.set_objective("Walk down the port ramp and return to the shipyard" if craft.get_ship_id() == &"dynamic_provisional" else "Walk to the stern hatch and return to the shipyard")
+	hud.set_objective("Walk down the port ramp and return to the shipyard" if craft.get_ship_id() in [&"dynamic_provisional", &"katana_provisional"] else "Walk to the stern hatch and return to the shipyard")
 	_present_boarding_confirmation(&"approach",craft)
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
@@ -11629,7 +11630,7 @@ func _try_exit_ship() -> void:
 	if str(telemetry.get("engine_state", "ONLINE")).to_upper() != "OFFLINE":
 		hud.toast("Exit waiting", "Release flight controls; propulsion shuts down automatically")
 		return
-	if active_ship.get_ship_id() in [&"predator_provisional", &"dynamic_provisional", &"utopia_provisional"] \
+	if active_ship.get_ship_id() in [&"predator_provisional", &"dynamic_provisional", &"utopia_provisional", &"katana_provisional"] \
 			or (active_ship.get_ship_id() == &"paradox_provisional" \
 				and bool(active_ship.get_telemetry().get("landed", false))):
 		_exit_physical_pilot_into_landed_cabin()
@@ -18698,6 +18699,11 @@ func _combat_registration_matches(
 
 
 func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
+	if is_instance_valid(candidate) and candidate.get_ship_id() == &"katana_provisional":
+		if not bool(candidate.get("pilot_weapon_fitted")):
+			return {}
+		var profile := _get_arrow_combat_weapon_profile(candidate)
+		return {ARROW_COMBAT_WEAPON_ID:profile} if not profile.is_empty() else {}
 	if is_instance_valid(candidate) and candidate.get_ship_id() == &"dynamic_provisional":
 		# One adopted pilot pulse only. No generic Torrent or Bulwark crew fitout.
 		var profile := _get_bulwark_combat_weapon_profile(candidate)
@@ -18796,7 +18802,7 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 	match candidate.get_ship_id():
 		TORRENT_SHIP_ID:
 			return TORRENT_COMBAT_WEAPON_ID
-		ARROW_SHIP_ID:
+		ARROW_SHIP_ID, &"katana_provisional":
 			return ARROW_COMBAT_WEAPON_ID
 		ZENITH_SHIP_ID:
 			return ZENITH_COMBAT_WEAPON_ID

@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Complete normal Main Player round trip to the occupied physical Utopia home.
 ## The real Main Utopia proves strict fit, actual convex/camera clearance and
-## supported control access; all thirteen older craft and leases stay intact.
+## supported control access; all fourteen other craft and leases stay intact.
 ## Preloads reference production only, so the same fixture uses the real PCK.
 const MAIN := preload("res://scenes/main.tscn")
 const UTOPIA := preload("res://scenes/ships/utopia_dropship.tscn")
@@ -96,7 +96,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"utopia_home_berth": matching += 1
-	if not _check(matching == 1 and world.get_berth_ids().size() == 15 and _game.get_flyable_ships().size() == 14 and _game.get_node_or_null("UtopiaDropship") != null and berth.get_occupant() == _game.get_node("UtopiaDropship") and berth.get_reservation_owner() == _game.get_node("UtopiaDropship"),"fifteen physical berths and fourteen actual flyables; Utopia owns its unique occupied home"): return
+	if not _check(matching == 1 and world.get_berth_ids().size() == 15 and _game.get_flyable_ships().size() == 15 and _game.get_node_or_null("UtopiaDropship") != null and berth.get_occupant() == _game.get_node("UtopiaDropship") and berth.get_reservation_owner() == _game.get_node("UtopiaDropship"),"fifteen physical berths and fifteen actual flyables; Utopia owns its unique occupied home"): return
 	var dock := Transform3D(Basis.IDENTITY,Vector3(144,0.38,-30))
 	if not _check(berth.get_dock_transform().is_equal_approx(dock) and berth.dock_transform == Transform3D.IDENTITY and berth.compatibility_tags == PackedStringArray(["utopia_supply"]) and berth.landing_volume_center == Vector3.ZERO and berth.landing_half_extents == Vector3(5.5,6,14) and berth.assist_capture_center == Vector3(0,8,-20) and berth.assist_capture_half_extents == Vector3(18,14,32) and berth.assist_capture_maximum_speed == 28 and berth.assist_maximum_tilt_degrees == 70 and berth.departure_lift_height == 4 and DEFINITION.landing_maximum_speed == 10.5,"exact adopted root/strict-center/fit/capture/speed/tilt/departure contract"): return
 	var registry := world.get_station_route_registry_report()
@@ -114,7 +114,7 @@ func _run() -> void:
 	for craft: HeroShip in _game.get_flyable_ships():
 		if craft != _game.get_node("UtopiaDropship"):
 			saved_craft[craft] = craft.global_transform
-	if not _check(saved_berths.size() == 13 and saved_craft.size() == 13,"all thirteen original berth/craft states retained before candidate probes"): return
+	if not _check(saved_berths.size() == 13 and saved_craft.size() == 14,"all thirteen original berth and fourteen other craft states retained before candidate probes"): return
 	_ship = _game.get_node("UtopiaDropship") as HeroShip
 	if not _check((_ship.get_node("DockingReceiver") as Marker3D).transform == Transform3D.IDENTITY and _game.get_flyable_ships().has(_ship) and _ship.global_transform.is_equal_approx(dock),"actual registered Main Utopia has identity receiver and exact own dock pose"): return
 	if not _test_module_geometry(module): return
@@ -180,7 +180,7 @@ func _run() -> void:
 		var saved: Dictionary = saved_berths[id]
 		if not _check(world.get_berth_transform(id).is_equal_approx(OLD_TRANSFORMS[id]) and old.landing_volume_center.is_equal_approx(OLD_CENTERS[id]) and old.get_reservation_owner() == saved.owner and old.get_occupant() == saved.occupant and old.get_reservation_token(saved.owner) == saved.token and old.get_reserved_ship_id() == saved.ship_id and old.audit() == saved.audit,"all thirteen old complete berth states preserved " + str(id)): return
 	for craft: HeroShip in saved_craft:
-		if not _check(craft.global_transform.is_equal_approx(saved_craft[craft]),"all thirteen old craft poses preserved " + String(craft.name)): return
+		if not _check(craft.global_transform.is_equal_approx(saved_craft[craft]),"all fourteen old craft poses preserved " + String(craft.name)): return
 	if not _check(berth.audit() == occupied_before and berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and berth.get_reservation_token(_ship) == live_token and _game.get_flyable_ships().has(_ship),"actual Utopia occupied home and exact live lease remain unchanged after complete probes and route"): return
 	print("UTOPIA_BERTH_MODULE_BUDGET: ",module.get_performance_contract())
 	_release_inputs()
