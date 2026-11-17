@@ -108,6 +108,65 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Utopia physical home berth — card3
+
+Visible result: signed13×30m deck at identity **(144,.38,-30)**,2.5m stern apron
+and guarded2.8m station approach through a new supported Titan north portal.
+One normal Main Player walks the entire existing Titan station prefix, reaches
+and operates the Utopia control, then reverses fully to actual spawn. Infrastructure
+only:14berths/13flyables; Utopia stays outside Main until card4.
+
+Baseline70a456530; branch `work/utopia-berth-1117`, worktree
+`/srv/mudds-work/utopia-berth-20261117/worktree`. HIGH implementer owns new Utopia
+module/scene/fixture/UID, narrow ShipyardWorld integration and six necessary old
+fixture census/seam consumers; HIGH independent reviewer. Root owns tests/release/
+docs/integration/cleanup. Sole existing-geometry adaptation: Titan default-false
+`utopia_spur_open`, productiontrue, splits ConnectorSidePort into two1.6m segments
+at localz16.8/21.2, opening exactworldx133.6..136.4. Preserve default north guard,
+existing Paradox south opening and all13old home poses/leases/audits/craft. Budget
+9+flags bodies/shapes and75+2newflag mesh ceiling (actual74). No Main/GameFlow/
+ship/definition/authority change. Katana72,-30 and Salyut-80,-30 sites preserved.
+
+Original directeast proposal intersected the rotated Habitat; a2m alternative was
+rejected against adopted2.4m minimum before accepted production edits. Frozen
+three disjoint floors: deckx137.5..150.5/z-45..-15; northspinex133.6..136.4/
+z-17.8..36.6; linkx136.4..137.5/z-17.8..-15, topY.38. Exterior outline
+(133.6,36.6),(133.6,-17.8),(137.5,-17.8),(137.5,-45),(150.5,-45),
+(150.5,-15),(136.4,-15),(136.4,36.6), openstationmouth. Exact10bodies/12shapes/
+110meshes/1physicallymounted sign onSafetyEdge05. Hub(135,.38,37.6), approach
+(135,.38,36.1) give actual1.5m connected edge;12modules/66markers/12slots.
+
+Route is the entire unchanged Titan fixture prefix through(135,.38,38), then
+(135,.38,-16.4)→(140.6,.38,-16.4)→controloperator(140.6,.38,-19.9), fullreverse.
+Every completed Player tick requires support/capsule/head clearance and continuity
+<.2m with original body/masks/gravity; queryskinonly.005radius/.01height. No pose/
+velocity/clock forcing. Actualnew2.4m standingclearance boxes protect the approach.
+Exact adopted strictcenter0/half(5.5,6,14),utopia_supply,capture(0,8,-20)/half
+(18,14,32),speed28/tilt70/lift4/landing10.5. Actualclosed/deployedfullconvex and
+chasecamera casts cover lift4/forward20/staging8/alignment/descent andallreverse
+legs; strictrootinsideoverhang and independent speed refusals remain. Real empty/
+reserve/occupy/wrongtag/foreign/stale/reuse leases preserve every old home state.
+
+Required fresh source14: new+four existing berth fixtures240each, threefoundations
+90each, bothUtopiaaccess180each, definitions/boarding120each, registry/feedback180.
+Full ordinary Titan Main300source andactualWindowsPCK300ALONE require normalQuit/
+actual clean_shutdown/clean/session_ended. Exactcommitted actualPCK berth240,
+Utopiafoundation90 andbothaccess180 retain all cases/source isolation. Pairedclean
+exports/strictstartup3(exactoneSTARTUP_MENU_READY_OK/exit0/raw0), Linuxexact6members/
+modes/ELFequality, completeequalWinLinuxmaps/delta/audit9/eightartifacts,
+independentFINAL_GO/PACKAGE_GO, merge/push/archive/exactownedcleanup beforePASS.
+Cold3Mainviews90total/fixed960×540/eightframes: camera(126,11,-15)look(144,2,-30),
+open(153,7,-11)look(144,1.5,-22.5),FOV52;actualUtopiaeye/FOV/near/far. PrivateXvfb
+960×540/x11/GLES/Dummy, explicitintendedWindow/contentdimensions before/afterfirst
+processframe; no material/light/feature cutback. Separate west-camera graphics
+and Salyut berth gates stay parked; native/human/fullrelease gates open, CI off.
+
+Window **2026-11-17 07:28:55→08:43:55UTC**,75minutes ALL-IN; definition frozen
+07:42:16 before07:43:55limit. Productionrepair0/1. Stopdependentchecksatfirst
+failure/retainactualoperands; same-clockcompiler/caller/assertionmaintenance
+retainsallcases/caps. Harddeadline/unresolvedproductfailure parkswholecard;
+no automaticrenewal. Raw/frozen `/srv/mudds-work/utopia-berth-20261117/`.
+
 ### Utopia continuous physical stern access — card2 DONE
 
 Accepted source **f17268bf12354233ebaac05092856264551669c7**, merged via
