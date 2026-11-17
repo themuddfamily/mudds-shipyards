@@ -89,6 +89,7 @@ home_berth_id = &"dynamic_home_berth"
 
 [node name="UtopiaDropship" parent="." instance=ExtResource("96_utopia")]
 home_berth_id = &"utopia_home_berth"
+local_passenger_chairs_fitted = true
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 release_visuals_while_dormant = true

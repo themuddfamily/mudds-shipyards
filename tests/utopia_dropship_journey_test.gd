@@ -48,7 +48,7 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	if "--main" in OS.get_cmdline_user_args():
+	if "--main" in OS.get_cmdline_user_args() or "--crew" in OS.get_cmdline_user_args():
 		await _run_main()
 		return
 	_profile_started_ms = Time.get_ticks_msec()
@@ -356,7 +356,7 @@ func _prime_static_sections() -> void:
 		for index in 4:
 			var center := Vector3(side*2,1.4,-1.2+index*2)
 			_reservations.append(_reservation_volume(center,Vector3(1.2,1.2,1.2),"future rack"))
-		_reservations.append(_reservation_volume(Vector3(side*2,1.4,-3.6),Vector3(1.2,1.2,1.2),"future chair"))
+		_reservations.append(_reservation_volume(Vector3(side*2,1.4,-3.6),Vector3(1.2,1.2,1.2),"future port chair" if side < 0 else "future starboard chair"))
 	_reservations.append(_reservation_volume(Vector3(0,2.1,0.35),Vector3(1.6,2.6,14.3),"fixed1.6m centre aisle"))
 
 
@@ -372,6 +372,7 @@ func _reservations_clear(sections: Array[Dictionary], fraction: float) -> bool:
 	for section in sections:
 		for reserved in _reservations:
 			if _overlaps(section,reserved):
+				if _fitted_chair_consumes_reservation(section,reserved): continue
 				return _check(false,"solid invades "+reserved.name+" / "+section.name+" fraction="+str(fraction))
 	return true
 
@@ -619,7 +620,7 @@ func _run_main() -> void:
 		old_centers[home] = home.landing_volume_center
 	var profiles := _main_game._get_player_weapon_profiles(_main_ship)
 	var profile := _main_game.get_combat_authority().get_weapon_profile(_main_ship,GameFlow.JOVIAN_COMBAT_WEAPON_ID)
-	if not _main_check(profiles.size() == 1 and profiles.has(GameFlow.JOVIAN_COMBAT_WEAPON_ID) and profile == profiles[GameFlow.JOVIAN_COMBAT_WEAPON_ID] and profile.get("range") == 650 and profile.get("damage") == 70 and is_equal_approx(_main_ship.weapon_cooldown,0.62) and _main_game.get_combat_authority().get_source_id(_main_ship) == 1113 and (_main_ship.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter).get_target_entity() == _main_ship and not _main_ship.has_node("MovingInteriorFrame") and not _main_ship.has_method("get_passenger_station_role_contract"),"actual unique Utopia source1113 binds only unchanged70/650/.62 pilot pulse, no crew/guest/cabin grant"): return
+	if not _main_check(profiles.size() == 1 and profiles.has(GameFlow.JOVIAN_COMBAT_WEAPON_ID) and profile == profiles[GameFlow.JOVIAN_COMBAT_WEAPON_ID] and profile.get("range") == 650 and profile.get("damage") == 70 and is_equal_approx(_main_ship.weapon_cooldown,0.62) and _main_game.get_combat_authority().get_source_id(_main_ship) == 1113 and (_main_ship.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter).get_target_entity() == _main_ship and _main_ship.has_node("MovingInteriorFrame") and not _main_ship.supports_in_flight_cabin_access() and not _main_ship.has_method("get_passenger_station_role_contract"),"actual unique Utopia source1113 binds only unchanged70/650/.62 pilot pulse and closed local-only chair frame; no travelling cabin grant"): return
 	var roster := _main_game._build_fleet_registry_snapshot()
 	if not _main_check(roster.rows.size() == 14 and old_poses.size() == 13 and old_leases.size() == 13,"actual registry and preserved original thirteen state set"): return
 	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
@@ -639,8 +640,12 @@ func _run_main() -> void:
 	root.add_child(_main_observer)
 	_main_active = true
 	if not _trajectory_contract(): return
+	if not _main_fitted_chair_geometry(): return
 	for index in MAIN_STATION_ROUTE.size():
 		if not await _main_walk_to(MAIN_STATION_ROUTE[index],index): return
+	if "--crew" in OS.get_cmdline_user_args():
+		await _main_crew_journey(identity,spawn,area)
+		return
 	for sortie in 2:
 		if not await _main_board_from_stern(sortie,identity,area): return
 		if not await _main_sortie_home(sortie,identity,area,berth,dock): return
@@ -914,7 +919,192 @@ func _main_quit_normally() -> void:
 		await _main_key(KEY_TAB)
 	if not _main_check(is_instance_valid(exit_button) and root.gui_get_focus_owner() == exit_button,"normal pause Tab reaches actual Exit to desktop"): return
 	print("UTOPIA_MAIN_USER_DATA_DIR: ",OS.get_user_data_dir())
-	print("UTOPIA_DROPSHIP_MAIN_TEST_OK: claims=",_main_claims," releases=",_main_releases," walking_ticks=",_main_ticks," actual_pulse_shots=",_main_shots," elapsed_ms=",Time.get_ticks_msec()-_profile_started_ms)
+	print("UTOPIA_DROPSHIP_CREW_NORMAL_EXIT_READY" if "--crew" in OS.get_cmdline_user_args() else "UTOPIA_DROPSHIP_MAIN_TEST_OK",": claims=",_main_claims," releases=",_main_releases," walking_ticks=",_main_ticks," actual_pulse_shots=",_main_shots," elapsed_ms=",Time.get_ticks_msec()-_profile_started_ms)
 	await _main_key(KEY_ENTER)
 	for frame in 120: await process_frame
 	_main_check(false,"normal Main Quit did not terminate actual OS process")
+
+
+## Only the three exact fitted sections consume their own adopted chair space.
+## All rack, aisle, other-chair and moving-leaf reservations remain strict SAT.
+func _fitted_chair_consumes_reservation(section: Dictionary, reserved: Dictionary) -> bool:
+	if not bool(_access_ship.get("local_passenger_chairs_fitted")): return false
+	for index in 2:
+		var label := "PortPassenger" if index == 0 else "StarboardPassenger"
+		if reserved.name != ("future port chair" if index == 0 else "future starboard chair"): continue
+		for part: String in ["Pedestal","Cushion","Back"]:
+			if section.name != label+part: continue
+			var bounds := _chair_part_bounds(index,part)
+			return (section.bounds as AABB).is_equal_approx(bounds) and bounds.position.x >= (1.54 if index == 1 else -2.46) \
+				and bounds.end.x <= (2.46 if index == 1 else -1.54)
+	return false
+
+
+func _chair_part_bounds(index: int, part: String) -> AABB:
+	var point: Vector3 = UtopiaDropship.CREW_POSITIONS[index]
+	var low := Vector3(-0.28,0,-0.20)
+	var high := Vector3(0.28,0.54,0.26)
+	if part == "Cushion":
+		low = Vector3(-0.46,0.54,-0.25)
+		high = Vector3(0.46,0.68,0.42)
+	elif part == "Back":
+		low = Vector3(-0.46,0.68,0.42)
+		high = Vector3(0.46,1.62,0.58)
+	return AABB(point+low,high-low)
+
+
+func _main_crew_journey(identity: int, spawn: Vector3, area: ShipBoardingArea) -> void:
+	var frame := _main_ship.call("get_interior_frame") as MovingInteriorFrame
+	var ship_pose := _main_ship.global_transform
+	var seat := _main_ship.get_node("passenger_port_00/SoloPassengerSeatInteraction") as ShipCrewSeat
+	var generation := _main_game._transition_generation
+	_main_game._sit_in_solo_crew_seat(seat)
+	if not _main_check(not _main_player.is_seated() and not area.is_reserved() and _main_game._transition_generation == generation and not _main_ship.supports_in_flight_cabin_access(),"closed/unreachable actual Main chair refuses before claim, frame, body or transition"): return
+	var hatch := _main_ship.get_node("CabinHatchInteraction") as ShipCabinHatch
+	await _main_aim(hatch.global_position)
+	if not _main_check(_main_game.station_interaction_candidate == hatch,"crew journey discovers actual reachable stern control"): return
+	await _main_tap(&"interact")
+	await _main_frames(80)
+	if not _main_check(_main_ship.call("is_local_chair_access_supported") and not frame.auto_register_from_volume and frame.get_occupant_volume() == null and frame.get_interior_bounds() == UtopiaDropship.LOCAL_CABIN and not frame.is_occupant_registered(_main_player),"exact occupied home opens local-only manual chair frame with no sensor/travel grant"): return
+	# Open but still on the apron: no direct path or reachable chair exists.
+	_main_game._sit_in_solo_crew_seat(seat)
+	if not _main_check(not _main_player.is_seated() and not area.is_reserved() and _main_game._transition_generation == generation,"open unreachable chair still refuses without authority theft"): return
+	for point in [Vector3(-3.4,0,13.3),Vector3(0,0,13.3),Vector3(0,0.8,8),Vector3(0,0.8,7.5),Vector3(0,0.8,0),Vector3(0,0.8,-3.6)]:
+		if not await _main_walk_to(_main_ship.to_global(point),210,true): return
+	if not _crew_authority_refusals(): return
+	for index in 2:
+		seat = _main_ship.get_node(String(UtopiaDropship.CREW_IDS[index])+"/SoloPassengerSeatInteraction") as ShipCrewSeat
+		var anchor := seat.get_seat_anchor()
+		var stand: Vector3 = UtopiaDropship.CREW_STANDS[index]
+		for point in [Vector3(0,0.8,-3.6),stand]:
+			if not await _main_walk_to(_main_ship.to_global(point),220+index,true): return
+		for cycle in 2:
+			await _main_aim(seat.global_position)
+			if not _main_check(_main_game.station_interaction_candidate == seat and anchor.position == UtopiaDropship.CREW_POSITIONS[index] and _main_ship.to_local(seat.get_exit_transform().origin).is_equal_approx(stand),"normal look finds exact fixed real passenger chair index="+str(index)+" cycle="+str(cycle)): return
+			await _main_tap(&"interact")
+			for tick in 180:
+				if _main_game._station_seated and not _main_game._transition_busy: break
+				await _main_frames(1)
+			var owner := _main_ship.call("get_crew_role_authority") as CrewSeatRoleAuthority
+			if not _main_check(owner != null and _main_game._solo_crew_authority == owner and _main_game._solo_crew_claim_is_current() and _main_player.is_station_seated() and _main_player.is_seated_at(anchor) and not _main_game._piloting and not _main_ship.is_piloted() and frame.is_occupant_registered(_main_player) and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and _crew_seated_geometry(index),"ordinary E seats same actual Player with matching ledger/frame/camera and live suit/cushion/eye proof"): return
+			var assignment := owner.get_assignment(1,GameFlow.SOLO_CREW_AVATAR_ID)
+			var snapshot := owner.get_snapshot()
+			var pose := _main_player.global_transform
+			if not _main_check(assignment.seat_id == UtopiaDropship.CREW_IDS[index] and assignment.role == &"passenger" and assignment.anchor_id == assignment.seat_id and assignment.frame_id == UtopiaDropship.CREW_FRAME_ID and assignment.seat_generation == 1 and owner.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_PASSENGER_ACCESS).accepted and not owner.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_SHIP_COMMAND).accepted and not owner.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_WEAPON_CONTROL).accepted and not owner.authorize_action(1,GameFlow.SOLO_CREW_AVATAR_ID,CrewSeatRoleAuthority.CAPABILITY_SYSTEMS_CONTROL).accepted,"two passenger capability identities; no helm/fire/repair grant"): return
+			_main_ship.set_canopy_open(false)
+			_main_ship.request_engine_start()
+			Input.action_press(&"move_forward")
+			Input.action_press(&"fire")
+			await _main_frames(20)
+			_main_release_inputs()
+			if not _main_check(_main_ship.is_canopy_open() and not _main_ship.call("is_access_motion_active") and _main_ship.global_transform.is_equal_approx(ship_pose) and _main_ship.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE and _main_shots == 0 and owner.get_snapshot() == snapshot and _main_player.global_transform.is_equal_approx(pose) and _main_game._solo_crew_claim_is_current(),"occupied local chair refuses hatch closure/start and passenger drive/fire without claim/body drift"): return
+			if index == 0 and cycle == 0:
+				var blocker := StaticBody3D.new()
+				blocker.collision_layer = PhysicsLayers.SHIP
+				var collision := CollisionShape3D.new()
+				var box := BoxShape3D.new()
+				box.size = Vector3(0.5,1,0.5)
+				collision.shape = box
+				blocker.add_child(collision)
+				_main_game.add_child(blocker)
+				blocker.global_position = seat.get_exit_transform().origin+Vector3.UP
+				await _main_frames(2)
+				await _main_tap(&"interact")
+				if not _main_check(_main_game._station_seated and not _main_game._transition_busy and _main_game._solo_crew_claim_is_current() and _main_player.global_transform.is_equal_approx(pose) and owner.get_snapshot() == snapshot and frame.is_occupant_registered(_main_player),"blocked actual stand refuses atomically with seated body/claim/containment retained"): return
+				blocker.queue_free()
+				await _main_frames(2)
+			await _main_tap(&"interact")
+			for tick in 180:
+				if not _main_player.is_seated() and not _main_game._transition_busy: break
+				await _main_frames(1)
+			await _main_frames(3)
+			if not _main_check(_main_player.get_instance_id() == identity and _main_player.is_on_floor() and not _main_player.is_seated() and _main_player.is_control_enabled() and _main_ship.to_local(_main_player.global_position).distance_to(stand) < 0.05 and _main_game._cabin_ship == null and _main_game._boarding_area == null and _main_game._solo_crew_authority == null and _main_ship.call("get_crew_role_authority") == null and not area.is_reserved() and not frame.is_occupant_registered(_main_player) and not bool(_main_player.get_cabin_containment_report().get("active",false)) and _main_player.collision_layer == _main_layer and _main_player.collision_mask == _main_mask and not (_main_player.get_node("PlayerCollision") as CollisionShape3D).disabled and not _main_player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META),"ordinary E restores exact supported stand/body/masks/control and retires local claim/reservation/frame/containment"): return
+			print("UTOPIA_CREW_CYCLE_OK: chair=",index," cycle=",cycle)
+	if not await _main_walk_out(9): return
+	for index in range(MAIN_STATION_ROUTE.size()-2,-1,-1):
+		if not await _main_walk_to(MAIN_STATION_ROUTE[index],300+index): return
+	if not await _main_walk_to(spawn,399): return
+	if not _main_check(_main_player.get_instance_id() == identity and _main_player.is_on_floor() and _main_player.global_position.distance_to(spawn) < 0.12 and _main_ship.global_transform.is_equal_approx(ship_pose) and not _main_ship.supports_in_flight_cabin_access() and _main_ticks > 1000,"same actual Player full reverse station route returns to original spawn; local chair fitout grants no travel"): return
+	print("UTOPIA_DROPSHIP_CREW_TEST_OK: chairs=2 cycles_each=2 walking_ticks=",_main_ticks," elapsed_ms=",Time.get_ticks_msec()-_profile_started_ms)
+	await _main_quit_normally()
+
+
+## Isolated ledger negatives are explicitly supplementary, never ordinary
+## journey evidence. The actual Player acquires every claim through normal E.
+func _crew_authority_refusals() -> bool:
+	var owner := CrewSeatRoleAuthority.new(1)
+	if not _main_check((_main_ship.call("register_crew_seat_roster",owner) as Dictionary).accepted,"existing authority seals exact three-row Utopia roster"): return false
+	if not _main_check(owner.claim(1,2,&"fixture_port",UtopiaDropship.CREW_IDS[0],&"passenger",1).accepted and owner.claim(1,3,&"fixture_starboard",UtopiaDropship.CREW_IDS[1],&"passenger",1).accepted,"supplementary existing ledger holds two distinct underlying passenger claims"): return false
+	var snapshot := owner.get_snapshot()
+	return _main_check(not owner.claim(1,4,&"fixture_third",UtopiaDropship.CREW_IDS[0],&"passenger",1).accepted and not owner.claim(1,2,&"fixture_port",UtopiaDropship.CREW_IDS[1],&"passenger",2).accepted and not owner.claim(1,4,&"fixture_third",&"passenger_third",&"passenger",2).accepted and not owner.release(1,2,&"fixture_port",UtopiaDropship.CREW_IDS[0],1,1).accepted and not owner.release(1,2,&"fixture_port",UtopiaDropship.CREW_IDS[0],2,2).accepted and not owner.claim(2,4,&"fixture_foreign",&"pilot_station",&"pilot",1).accepted and owner.get_snapshot() == snapshot,"third/duplicate/unknown/stale-generation/stale-sequence/foreign claims refuse without ledger mutation")
+
+
+func _crew_seated_geometry(index: int) -> bool:
+	var presentation := _main_player.get_node("%PilotSkinnedPresentation") as PilotSkinnedPresentation
+	var skeleton := presentation.get_skeleton()
+	var cushion := _chair_part_bounds(index,"Cushion")
+	var support_gap := INF
+	var vertices_checked := 0
+	for mesh: MeshInstance3D in presentation.find_children("*","MeshInstance3D",true,false):
+		for surface in mesh.mesh.get_surface_count():
+			var arrays := mesh.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+			for vertex_index in vertices.size():
+				var world := mesh.global_transform*vertices[vertex_index]
+				if mesh.skin != null and not weights.is_empty():
+					var skinned := Vector3.ZERO
+					for influence in 4:
+						var offset := vertex_index*4+influence
+						if weights[offset] <= 0: continue
+						var bind := bones[offset]
+						var bone := skeleton.find_bone(mesh.skin.get_bind_name(bind))
+						if bone < 0: bone = mesh.skin.get_bind_bone(bind)
+						skinned += (skeleton.get_bone_global_pose(bone)*mesh.skin.get_bind_pose(bind)*vertices[vertex_index])*weights[offset]
+					world = skeleton.global_transform*skinned
+				var point := _main_ship.to_local(world)
+				vertices_checked += 1
+				for chair in 2:
+					for part: String in ["Pedestal","Cushion","Back"]:
+						if _chair_part_bounds(chair,part).grow(-0.002).has_point(point):
+						return _main_check(false,"actual animated suit/backpack vertex penetrates fitted "+part+" point="+str(point))
+				if point.x >= cushion.position.x and point.x <= cushion.end.x and point.z >= cushion.position.z and point.z <= cushion.end.z:
+					support_gap = minf(support_gap,point.y-cushion.end.y)
+	var query := PhysicsShapeQueryParameters3D.new()
+	var eye := SphereShape3D.new()
+	eye.radius = 0.08
+	query.shape = eye
+	query.transform = (_main_player.get_node("%PlayerCamera") as Camera3D).global_transform
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [_main_player.get_rid()]
+	var camera_clear := _main_ship.get_world_3d().direct_space_state.intersect_shape(query,16).is_empty()
+	var head := skeleton.find_bone("head")
+	query.transform.origin = skeleton.global_transform*skeleton.get_bone_global_pose(head).origin
+	var head_clear := _main_ship.get_world_3d().direct_space_state.intersect_shape(query,16).is_empty()
+	print("UTOPIA_CREW_BODY: chair=",index," live_vertices=",vertices_checked," cushion_gap=",support_gap," camera_clear=",camera_clear," head_clear=",head_clear)
+	return vertices_checked > 500 and support_gap >= -0.002 and support_gap <= 0.04 and camera_clear and head_clear
+
+
+func _main_fitted_chair_geometry() -> bool:
+	for index in 2:
+		var label := "PortPassenger" if index == 0 else "StarboardPassenger"
+		for part: String in ["Pedestal","Cushion","Back"]:
+			var collision := _main_ship.get_node(label+part+"Collision") as CollisionShape3D
+			var mesh := _main_ship.get_node("UtopiaOriginalShell/"+label+part) as MeshInstance3D
+			var expected := _chair_part_bounds(index,part)
+			var points := PackedVector3Array()
+			for point: Vector3 in (collision.shape as ConvexPolygonShape3D).points:
+				points.append(collision.transform*point)
+			var bounds := AABB(points[0],Vector3.ZERO)
+			for point in points: bounds = bounds.expand(point)
+			if not _main_check(not collision.disabled and mesh.visible and bounds.is_equal_approx(expected) and points.size() == 8 and collision.global_transform.is_equal_approx(mesh.global_transform),"exact fitted convex and visible "+label+part+" preserve adopted chair/aisle footprint"): return false
+			var visible_points := PackedVector3Array()
+			for surface in mesh.mesh.get_surface_count():
+				var arrays := mesh.mesh.surface_get_arrays(surface)
+				for point: Vector3 in arrays[Mesh.ARRAY_VERTEX]: visible_points.append(mesh.transform*point)
+			for point in points:
+				if not _main_check(_has_point(visible_points,point),"fitted chair collider corner belongs to actual visible mesh",false): return false
+			for point in visible_points:
+				if not _main_check(_has_point(points,point),"fitted chair visible geometry belongs to actual solid",false): return false
+	return true
