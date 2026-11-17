@@ -2,7 +2,7 @@
 
 ## Owner-authorized unfinished-task allowance reset — 2026-11-17
 
-- Latest owner renewal: **2026-11-17 18:58:40 UTC**. Reset every task still
+- Latest owner renewal: **2026-11-17 21:35:22 UTC**. Reset every task still
   unfinished at this renewal to **0 used**, including allowances consumed since
   earlier resets. This supersedes earlier current-used counts, not
   their historical records. Apply this renewal once per unfinished task.
@@ -22,8 +22,13 @@
   hardware inputs and acceptance gates remain binding. The reset does not make
   every unfinished task ready or authorize blind retries.
 
+- Earlier renewal: **2026-11-17 18:58:40 UTC**. Counts consumed under that
+  renewal remain historical. Unfinished Utopia card7 and Cinder Light role-choice
+  now receive **0/1 used**; completed Dynamic lifecycle card8 is excluded.
+
 - Earlier renewal: **2026-11-17 16:53:33 UTC**. Its consumed counts remain
-  historical; the latest renewal includes the parked Dynamic lifecycle card8.
+  historical; the subsequent 18:58:40 renewal included then-parked Dynamic
+  lifecycle card8.
 
 - Earlier renewal: **2026-11-17 05:12:56 UTC**. Its consumed counts remain
   historical; the latest renewal also covers tasks unfinished after that reset.

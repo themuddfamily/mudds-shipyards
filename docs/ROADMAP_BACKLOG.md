@@ -11,18 +11,21 @@ Utopia card7 physical Cinder destination candidate **127cc2b26** is PARKED/unmer
 
 Cinder Light role-choice candidate **1ef02d4** is PARKED/unmerged after the owner-renewed title-packing attempt: exacttitle369px exceeds365–366px and approachbody73px exceeds63px in all six size/scale cells. Sole renewed correction1/1 used; no source/runtime subset, screenshot or checkpoint accepted. [Current stop and retained source](../ROADMAP.md#cinder-light-choice-current).
 
-**Owner allowance reset, 2026-11-17 18:58:40 UTC:** all unfinished tasks receive a renewed
+**Owner allowance reset, 2026-11-17 21:35:22 UTC:** all unfinished tasks receive a renewed
 correction allowance of **0 used** against their last positive approved limit,
 or **one** if none was recorded. Completed tasks are excluded. The reset applies
 once per currently unfinished task, including counts consumed since the previous
-2026-11-17 16:53:33 UTC renewal, and supersedes older exhausted-allowance permission requirements
+2026-11-17 18:58:40 UTC renewal, and supersedes older exhausted-allowance permission requirements
 in this backlog and linked records. Select resumed work into a fresh bounded
 all-in window under the [working roadmap](../ROADMAP.md#owner-allowance-reset).
 No further approval is needed solely for the historical exhausted count or
 expired deadline. Retain historical counts, failures, source and cumulative
 cost; preserve actual causal/dependency/input conditions, all acceptance checks
 and original test/journey caps. This does not mark tasks passed or ready, or
-authorize blind retries. Record each renewed allowance on its selected card.
+authorize blind retries. Record each renewed allowance on its selected card. Historical used counts above and
+in retained task records do not override this reset: unfinished Utopia card7
+and Cinder Light role-choice now each have **0/1 used**, with their causal
+blockers unchanged. Completed Dynamic lifecycle card8 is excluded.
 
 | Find | Existing section |
 | --- | --- |

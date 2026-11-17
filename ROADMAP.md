@@ -99,7 +99,7 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-17
 
-**Latest owner renewal: 2026-11-17 18:58:40 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-17 21:35:22 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved correction
 limit, or **one** if none was recorded. This includes active, parked, failed,
 blocked and gated tasks, including tasks that consumed allowances since the
@@ -114,12 +114,24 @@ external inputs remain binding. This reset starts no tests and marks no task
 passed or ready; no further approval is needed solely for an exhausted allowance
 or expired historical window.
 
+Current renewed counts supersede the historical used counts in task rows and
+closeouts below. In particular, unfinished Utopia card7 and Cinder Light
+role-choice each receive **0/1 used**. Their failed results and causal reopening
+conditions remain unchanged. Completed Dynamic lifecycle card8 is excluded.
+The unfinished Dynamic cold-recovery card9 remains **0/1 used**; this reset
+alone starts no implementation or tests.
+
 Earlier reset history:
+
+The previous renewal was **2026-11-17 18:58:40 UTC**. Utopia card7 and
+Cinder Light role-choice subsequently consumed **1/1** each; those counts remain
+historical. Dynamic lifecycle card8 was completed under that renewal and stays
+completed.
 
 The previous renewal was **2026-11-17 16:53:33 UTC**. Counts consumed since
 then, including Dynamic lifecycle card8's **1/1 used**, remain historical.
-That unfinished card now has **0/1 used** under the latest renewal; its lease-loss
-blocker and unmerged status remain unchanged.
+At the 18:58:40 renewal, that then-unfinished card received **0/1 used**;
+its lease-loss blocker and unmerged status were retained until its later delivery.
 
 The previous renewal was **2026-11-17 05:12:56 UTC**. At that renewal,
 the then-active Salyut card2 received **0/1 substantive corrections used** while
