@@ -139,6 +139,17 @@ review only. No new pilot-chair model, cargo/crew/supply or native/human grant.
 Source bundle/archive and exact owned cleanup closeout follow. Frozen scope below
 is retained; no next card selected here.
 
+Closeout: source bundle and all retained records are archived in
+`/srv/mudds-work/utopia-main-20261117/records.tar.gz`:42,645,249bytes,
+SHA256 `e4dd483f9ba6951a57c5dc2056552423581c80e2ecad3cbc706bb9aa360737f0`,
+916 members re-read and individually verified. Accepted source is contained in
+pushed Main; exact-tip local branch deleted, remote task branch confirmed absent,
+worktree removed and owned processes reaped. Scratch reduced to archive plus
+closeout.json at09:27:56UTC, before09:49deadline. Retained branch exception:
+unaccepted Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08,
+local/remote, no worktree. No next card selected; remaining Utopia role/crew/cargo
+cards and all36 original parent outcomes/ten phase gates remain open.
+
 Baseline **d20dfcd5cc953e8e5dc5d53a6ec922a3167f22fb**, branch
 `work/utopia-main-1117`, worktree `/srv/mudds-work/utopia-main-20261117/worktree`.
 Visible outcome: Utopia becomes the fourteenth usable Main pilot craft at its
