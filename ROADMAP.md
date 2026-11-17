@@ -121,70 +121,58 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Vortex reachable home berth — card3
+<a id="vortex-home-berth-parked"></a>
 
-Baseline **027f3182e81b3524fcc15e171614a05456cf0d86**, branch
-`work/vortex-berth-1117`, worktree
-`/srv/mudds-work/vortex-berth-20261117/worktree`. Window **2026-11-17
-14:38:06→16:08:06 UTC**, 90 minutes all-in, including mapping, implementation,
-validation, build, review, merge/push, archive and owned cleanup. Definition
-frozen **14:44:46 UTC**, before **14:53:06 UTC**. New card, prior cost zero;
-one substantive correction available, **0/1 used**. One HIGH implementation
-agent and one HIGH independent reviewer; root owns engines, release and integration.
-No nested agents. CI remains disabled.
+### Vortex home berth — card3 PARKED, unmerged
 
-Deliver an actual reachable compatible home berth at **(180, .38, -30)**,
-identity orientation. Deck **14×28 m**, world x173..187/z-44..-16, top y.38;
-2.8 m dogleg links the existing Utopia spine at z-10 to the stern apron. Open
-only Utopia's east rail at z[-11.4,-8.6], behind a default-false module option
-set true in production. Preserve its old deck, route, berth, pose and lease.
-Vortex tight landing center **(0,2.5,1)**, half-extents **(6,4,13)**;
-capture center **(0,8,-24)**, half-extents **(20,14,36)**, speed28/tilt70/lift4.
-Deck leaves 2 m beyond the deployed ramp tip. Preserve all fifteen current
-homes, craft, transforms, center semantics, audits, owners and lease tokens.
-The new sixteenth berth starts empty; Main still has fifteen flyable craft.
-Vortex remains outside Main. No pilot-seat, weapon, passenger or network claim.
+The candidate is **not accepted**. Production candidate
+**40c57f89208c69e7c1c2a4a14950888ac86997ba** and read-only diagnostic successor
+**e6b51e070391a86120dea0bc531b95bbe6983dc6** retain the proposed empty home at
+(180,.38,-30), signed14×28m deck,2.8m dogleg and conditional Utopia rail portal.
+New module/registry fields, exact old15 home snapshots, leases, closed whole-hull
+fit and complete departure/approach/chase-camera prechecks passed. The required
+full station walk failed before reaching the new geometry, so none of this
+candidate or its source-only prechecks is merged or counted as a delivered berth.
+Main remains **15 usable pilot craft / 15 occupied physical homes**, with current
+accepted checkpoint1816be5. Vortex still awaits its home and Main integration.
 
-One normal Main Player must walk from the unchanged spawn through the full
-station and new spur, discover/use the physical side control, walk the actual
-ramp/vestibule/aisle to the helm approach, then return all the way to spawn.
-Audit each completed walking tick with the unchanged full capsule, head,
-support, masks, gravity and continuity. Once-stage standalone Vortex only for
-the berth-fit fixture. No further actor/ship pose, speed, clock or collision
-forcing. Check actual closed/deployed/intermediate hull and ramp fit,
-mesh/collision agreement, tight-corner refusal, full approach/departure sweeps,
-neighbor routes and ordinary lease refusal/idempotency behavior.
+Actual failure: on the unchanged Operations Pod threshold at
+**(42.98533,-.016553,21.79902)**, the actual radius.38/height1.94 Player capsule,
+queried with margin0/current mask7/self exclusion, intersects the threshold by
+**.0001095626576m**. Its scene/server/shape transforms agree. Completed frame860
+rises.001776m from the previous foot position at unchanged5.8m/s, on-floor,
+step_up empty; separate head query is clear and flat support below remains.
+The Player server pose is from the preceding frame, but substituting it would
+hide the current completed capsule contact against synchronized static geometry.
+One unchanged full-case diagnostic replay reproduced the exact contact and
+independent review confirmed **PARK_REQUIRED**. Original failed raw data remains.
 
-Frozen **source16**: new berth180 first/alone; Vortex foundation90 and both
-complete access180 profiles; definitions120/registry180/feedback180; complete
-Titan/Predator/Paradox/Dynamic/Utopia/Katana berth240 cases; then complete
-Titan/Utopia/Dynamic Main300 journeys, each alone with actual persisted
-clean_shutdown/clean/session_ended. Independent focused cases may run in pairs.
-Frozen **PCK5**: new berth180 first/alone; foundation90 plus full identity
-access180 pair; full transformed access180 alone; complete Titan Main300 alone.
-Exact committed fixtures plus source-isolation/excluded literal data only;
-all original cases, routes, limits, exit0/one marker/raw0 and source/cache/HEAD
-checks remain. Existing test edits only account for the new roster/count and
-exact conditional Utopia rail geometry. No unrelated stale-test reconciliation.
+Existing Utopia tests use a query-only .005radius/.01height contact skin while
+preserving the actual body. This card explicitly froze an unchanged full-shape
+query, so adopting that skin, moving the observer, changing the route or raising
+an epsilon after failure would waive its requirement. A shared ascending-floor
+contact repair or alteration of the old threshold is outside the frozen ownership;
+Player and old station geometry changes are excluded. The one substantive
+production correction remains **0/1 unused**, not a permission to expand scope.
+No automatic renewal, renamed successor, subset acceptance or blind replay.
 
-Release requires clean paired exports, strict startup3, exact Linux six-member
-archive/types/modes/ELF identity, complete equal Windows/Linux maps and actual
-accepted1816be5 baseline delta, all nine package predicates and eight reviewed
-artifacts. Independent FINAL_GO then PACKAGE_GO. Three cold actual Main-world
-geometry views, once-staged Vortex: 960×540/FOV52/eight frames/90 s total;
-closed overview (160,32,26)→(160,1.88,-25), open stern
-(166,9,-8)→(180,2,-20), then actual cockpit-eye transform at FOV52. Retain full
-world and base HUD; use existing tutorial/help dismissal and only the public
-boarding presentation clear. Restore capture camera immediately after Begin
-Shift before any UI wait. Private Xvfb/x11/GLES/Dummy, no active desktop.
+Two earlier fixture-only errors are retained: explicit bool typing and a copied
+Katana-only receiver lookup. Their minimal corrections changed no production,
+route, body, fit, sweep or time-limit requirement. The full new-berth case reran
+from each clean successor and stopped at the first unexpected failure. No
+remaining source matrix, PCK, export, startup or rendered package gate was run;
+no new checkpoint was published. Definition was frozen14:44:46 before14:53:06;
+original window **2026-11-17 14:38:06→16:08:06UTC**,90minutes all-in, remains the
+accounting boundary. Root archives exact unique source/raw/caller controls and
+cleans owned refs/worktree/processes; final verified archive and elapsed cost
+follow below. All prior accepted runtime remains unchanged.
 
-Full frozen ownership/geometry/cases are in
-`/srv/mudds-work/vortex-berth-20261117/frozen-card.md` and will be archived.
-Stop at the first unexpected failure; retain actual operands before the one
-allowed correction. Unresolved failure or deadline parks the whole card, with
-no automatic renewal, renamed successor or subset acceptance. Native Windows,
-GPU/device/audio/human/readability/full-craft/network/travelling-occupant gates
-remain NOT_RUN/open. All36 parent outcomes and ten phase exit gates remain open.
+Reopening requires the actual shared ascending-contact gap to be resolved in an
+authorized bounded runtime task, then the entire original berth contract with
+its full routes, full-shape oracle and original caps. All36 parent outcomes,
+ten phase gates, native/GPU/device/audio/human/readability/full-craft/network
+and travelling-occupant gates remain open/NOT_RUN; CI stays disabled.
+No next task is selected.
 
 <a id="vortex-access-delivered"></a>
 
