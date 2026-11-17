@@ -28192,7 +28192,7 @@ func _grounded_local_crew_stand_is_supported(craft: HeroShip) -> bool:
 		return false
 	var telemetry := craft.get_telemetry()
 	var home: StringName = &"utopia_home_berth" if craft is UtopiaDropship else (&"paradox_home_berth" if craft.get_ship_id() == &"paradox_provisional" else &"titan_home_berth")
-	var utopia_home := craft is UtopiaDropship and craft.is_local_chair_access_supported()
+	var utopia_home: bool = craft is UtopiaDropship and craft.is_local_chair_access_supported()
 	var berth := world.get_berth_node(home) as ShipBerth
 	if berth == null or (craft.get_ship_id() == &"paradox_provisional" and craft.is_piloted()) or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
 			or not bool(telemetry.get("landed", false)) \
