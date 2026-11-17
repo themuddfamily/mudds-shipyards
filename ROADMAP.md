@@ -16,19 +16,21 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **8b91aae** — [Windows ZIP](builds/windows/MuddsShipyards-8b91aae-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-8b91aae-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-8b91aae-linux-x86_64.tar.gz).
-Dynamic now has localized five-component damage on its actual hull sections,
-including both physical engine pods. Damaged shoulders impair firing, sensor
-loss shortens aim convergence and engine damage weakens movement/braking.
-Normal own-home service restores components and clears their cues without
-healing hull damage ([staged damage preview](builds/windows/MuddsShipyards-8b91aae-dynamic-damage-preview.png)).
-Full ordinary damage/home-service and existing flight/access journeys pass in
-source and actual Windows PCK. Main retains 15 usable craft and 15 occupied homes.
-Dynamic target-damage/
-comparative-handling, lifecycle/save/network/full-craft gates remain open.
-Main cold rendering and native/human qualification remain unresolved/NOT_RUN.
+Latest playable checkpoint: **ec8cfda** — [Windows ZIP](builds/windows/MuddsShipyards-ec8cfda-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-ec8cfda-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-ec8cfda-linux-x86_64.tar.gz).
+Dynamic now retires its actual solid hull after destruction and returns as the
+same usable ship through normal timed home regeneration. Occupied/unsafe resets
+refuse atomically. Healthy return reset preserves its exact occupied berth token
+through public callbacks; the next real departure releases it and landing owns
+a fresh lease. The complete destruction/recall/regeneration/flight/home/reset/
+next-flight/exit/clean-Quit journey passes in source and the actual Windows PCK
+([regenerated preview](builds/windows/MuddsShipyards-ec8cfda-dynamic-lifecycle-preview.png)).
+Previously accepted five-component damage and home service remain included;
+service restores components without healing hull damage. Main retains15 usable
+craft and15 occupied homes. Dynamic target-damage/comparative-handling,
+durable recovery/save/network/full-craft gates remain open. Main cold rendering
+and native/human qualification remain unresolved/NOT_RUN.
 Earlier accepted content remains included:
 Vortex now has continuous standalone stern access: operate the side hatch control,
 walk the deployed ramp/vestibule/aisle to the helm approach, then walk fully back
@@ -147,17 +149,56 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="dynamic-lifecycle-current"></a>
 
-### Dynamic destruction and reuse — card8 RESUMED, unmerged
+### Dynamic destruction and reuse — card8 DONE, ec8cfda
 
-Resumed under the owner18:58:40UTC allowance reset: **0/1 used**. Fresh all-in
-window **18:59:18→20:14:18UTC2026-11-17 (75minutes)** includes restoration,
-atomic healthy-home lease correction, full unchanged source11/PCK7 matrix,
-fixed cold capture, paired checkpoint/startup3/payload maps/audit9, independent
-review, merge/push and owned cleanup. Same card and full acceptance endpoints;
-previous source/failures/cost remain preserved. Worktree/contract:
-`/srv/mudds-work/dynamic-lifecycle-renewal-20261117/`. No new runtime accepted yet.
+Accepted source **ec8cfdaf2e315ba89df1ceabab47c5a021517209**, merged as
+**da778c5c6d36660490abb96fae71b80fc7f6d1c1** and pushed. The actual solid shell
+retires under the shared destruction serial and returns on accepted reuse.
+Main permits healthy reuse only empty, supported, safely clear and OFFLINE at
+its exact occupied home, and dead reuse only through the matured existing
+regeneration transaction. Pending terminal collision retirement refuses before
+mutation. Healthy reset preserves the exact occupied home token before public
+signals; ordinary next departure releases it and landing acquires a fresh lease.
+No shared HeroShip changes, geometry/numeric-definition/weapon changes,
+duplicate craft, ledger or lease framework were introduced.
 
-Previous parked attempt:
+Full source11 and actual source-isolated Windows-PCK7 pass unchanged cases/caps,
+exact markers, raw diagnostics0 and source/cache/HEAD/clean-worktree guards.
+Dynamic full Main lifecycle passes**295.544/360s source,265.443/360s PCK**:
+actual registered-opponent destruction, same-Player supported recall, competing
+lease delay, normal timed same-instance regeneration, recovered flight/home/
+exit, atomic healthy reset, third complete physical flight/home/exit and normal
+UI Quit. Exact occupied token stays valid during both callbacks with no berth
+release/reacquire events; nested reset refuses unchanged. All14other craft and
+home leases remain intact. Source/PCK service and Titan lifecycle regressions
+pass; every full Main primary persists clean_shutdown/clean/session_ended.
+
+Cold fixed nominal/dead/regenerated captures pass**12.980/90s**, full960×540,
+same camera/eight frames/privateXvfb+x11+Dummy. Fresh paired clean exports,
+strict menu startup3, exact Linux6-member archive/modes/extracted ELF identity,
+all1611 equal Windows/Linux payload entries, reviewed baseline delta and all9
+existing package predicates pass. Eight actual artifacts are published in
+repository builds/windows and builds/linux, including EXE/ZIP/notes/preview.
+Independent source/runtime/capture and final artifact reviews grant FINAL_GO
+and PACKAGE_GO. Windows PCK checks here use pinned Linux Godot; native Windows,
+GPU, audio, human readability and Main cold-render gates stay NOT_RUN/unresolved.
+This closes card8 only; durable fresh-process recovery/card9, save, multiplayer,
+full craft qualification and the original36parents/10phase gates remain open.
+
+Owner18:58:40 renewal**1/1 used** for the measured atomic healthy-home lease
+correction. Fresh all-in window**18:59:18→20:14:18UTC2026-11-17 (75minutes)**
+retained. Prior55.36456625minutes, failures, source and historical allowance remain
+preserved. Build-note wording maintenance correctly distinguishes source runs
+from source-isolated PCK runs; no runtime/check/threshold waiver.
+Verified archive `/srv/mudds-work/dynamic-lifecycle-renewal-20261117/records.tar.gz`:
+**34,953,965bytes**, SHA256 `5dcd19e83eb90f9a67e171f37761f20af8664b10d33f23fe034138c9f6a742d8`,
+**396members individually reread/verified**, including source bundle and
+all original parked source/raw records. Adjacent closeout records actual all-in
+and cumulative time, pushed Main and exact owned branch/worktree/process/scratch
+cleanup. Separate unaccepted work/paradox-gunner-1116 remains retained.
+
+Previous parked attempt (historical; superseded by accepted delivery above):
+
 
 
 Candidate **5ff419f615cc3b03199a4cec50123b55ef6ed80d** remains unaccepted.
