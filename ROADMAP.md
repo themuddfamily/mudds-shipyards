@@ -101,9 +101,36 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Salyut physical home berth — card3
+### Salyut physical home berth — card3 PARKED (cold render gate)
 
-Visible result: a signed, collision-backed12×26m home deck at identity
+**Unmerged candidate723561c54b0e6e1fc855f4649eeb1f5c4266bc56 is PARKED.**
+All14 focused source cases pass under their actual4ef17e6 IDs with reviewed
+byte-equivalence; full current source Titan165.266s and PCK Titan158.201s pass
+normal Quit/actual clean_shutdown/clean/session_ended. ActualPCK berth91.177s,
+foundation21.865s and access50.426/50.485s, pairedexports and strictstartup3 pass.
+These are retained results, not delivery: all three cold Main captures exceeded
+original90s before producing an image (90.254/90.288/90.255s). Milestones isolate
+FIRST_FRAMES before HUD start. Moving complete960×540 setup before Main load did
+not resolve it. The first-frame stall's cause is unresolved; do not retry without
+new measured causal evidence. Cold views, payload delta, final audit9, publication
+and integration are not passed. Independent FINAL_GO/PACKAGE_GO were withheld.
+**Main stays13usablecraft/13occupiedberths; latest accepted checkpoint1637b51.**
+Candidate source, four exported candidate artifacts, every failed attempt and
+actual scoped passes are preserved in the verified archive recorded below.
+Salyut card4 remains gated on an accepted berth. No new task or retry is selected.
+Archive `/srv/mudds-work/salyut-berth-20261117/records.tar.gz` is
+**388,461,934 bytes**, SHA256
+`2111f741a64ad371e2aa77562ce8b1ef62580ab466e2c01d22cb710c58740643`;
+**2,675 members individually verified**, including exact source/history bundle,
+four candidate exports and every failed attempt/current scoped result. Unique
+unmerged changes are accounted for in that verified archive. Candidate branch
+and worktree, owned processes and scratch are removed; remote task branch absent.
+No candidate artifact was published or code merged. Only separate unfinished
+Paradox gunner backup `work/paradox-gunner-1116` remains locally/remotely at
+c743f585d0a70beb0e6100b34a47147d16280e08. Adjacent `closeout.json` records final
+all-in cost and pushed documentation; all prior costs/caps/failures remain.
+
+Frozen intended result (not delivered): a signed, collision-backed12×26m home deck at identity
 **(-80,-.02,-30)**, connected to the real PortBerthNode by a supported2.8m spur.
 The same normal Main Player walks from spawn to the stern control/apron and the
 entire reverse route. This adds infrastructure only: **14berths/13flyables**;
