@@ -140,6 +140,37 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="dynamic-lifecycle-current"></a>
+
+### Dynamic destruction and reuse — card8 IN PROGRESS
+
+Baseline0eaa0f22a reproduces two real gaps: reset preflight accepts an actively
+reserved/piloted Dynamic, and the separate physical shell stays visible after
+destruction although its rig/collisions retire. Candidate9c5022788 adds guarded
+Dynamic shell hide/restore and occupied/transition refusal, with a Main-owned
+exact-home/reset-footprint and current regeneration guard. Shared HeroShip,
+geometry, handling/weapon values and the existing recall/receipt/timer/lease
+transaction remain unchanged. No acceptance or checkpoint credit yet.
+
+Required proof retains all existing component/access/Main/service cases and adds
+focused lifecycle/receipt/race checks plus a complete normal-spawn destruction,
+supported same-Player recall, occupied-berth delay, normal timed same-craft
+regeneration, physical reboard/start/fire/home/exit and healthy home reset/reuse.
+Source11, isolated actual-PCK7, paired checkpoint/strictstartup3/maps/audit9 and
+fixed nominal/dead/regenerated snapshots require independent review before merge.
+Main cold-render, native/human/full-craft gates stay open; CI remains disabled.
+
+Original18:00:29→19:15:29UTC2026-11-17 all-in75minute window includes definition,
+checks/package/review/push/archive/cleanup; definitiondeadline18:15:29. Owner
+16:53:33 renewal0/1 substantive corrections used. Initial focused failure is a
+missing outside-Player camera in the isolated fixture, confirmed by individual
+operands; test-only setup correction retains every assertion. Full new Main
+lifecycle is prioritized before unchanged regressions, with every original case
+and cap preserved. Frozen contract/raw:
+`/srv/mudds-work/dynamic-lifecycle-20261117/frozen-card.md`.
+First unexpected production failure stops dependent checks for measured cause;
+no automatic reset, renamed successor or reduced journey acceptance.
+
 <a id="dynamic-components-current"></a>
 
 ### Dynamic five-component damage and service — card7 DONE
