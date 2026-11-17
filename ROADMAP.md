@@ -582,19 +582,72 @@ retains only archive+closeout.json. Only retained branch exception is unaccepted
 Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08 (no worktree).
 No next task branch has been opened.
 
-### Utopia physical Cinder supply destination — card7 RESUMED, unmerged
+### Utopia physical Cinder supply destination — card7 PARKED, unmerged
 
-Resumed under owner18:58:40UTC renewal**0/1 used**. Fresh all-in window
-**19:49:18→21:19:18UTC2026-11-17 (90minutes)** includes restoration, causal
-stair-contact proof, complete original route/source8/PCK3 and required release,
-independent review, integration/push/archive/owned cleanup. Definition ends
-20:04:18UTC. The exact unchanged full capsule must demonstrate actual walkable
-support at the recorded third stair before any support-oracle correction.
-No source/runtime accepted yet; latest playable checkpoint staysec8cfda.
-Frozen original cases/caps and owner mapping are in
-`/srv/mudds-work/utopia-supply-renewal-20261117/frozen-card.md`.
+Latest candidate **127cc2b26a97b6496159d03f939e04331cf78778** is unaccepted.
+Main runtime and playable checkpoint **ec8cfda** remain unchanged. The original
+complete route stops on reverse terminal stairs after a real forward visit;
+FINAL_GO/PACKAGE_GO are withheld. No subset is merged or checkpoint published.
+
+Actual source MainSupply127 exits1 in**186.876/300s**, exact source/cache/HEAD/
+clean-worktree guards pass. It reaches every original forward waypoint,
+including previously blocked408 and exact terminal409; the same supported Player
+uses real terminal E and receives absent-Utopia-custody refusal with original
+stock/payment unchanged. On the reverse walk at
+**(58.92194,-65.55945,-684.1812)** the original per-tick grounded condition fails.
+Capsule/head clearance is valid and the unchanged centre ray finds actual
+TerminalApproachStep2 with UP normal atY-65.7, about**0.14055m below** the feet;
+`is_on_floor()` is false. Full reverse/reboard/second flight/home/station return/
+normal Quit remain unproven. This does not establish missing floor or a usable
+return. Existing canonical Cinder may tolerate brief stair air time, but no
+support/airborne condition is waived or marked passed here.
+
+The one renewed production correction**1/1 used** repairs a measured collider
+blocker: the old square terminal platform obscured the third tread, creating
+**0.3481m rise** above the unchanged0.30m step limit. Same-pose actual collider
+queries identify TerminalApproachPlatform. The approach-aligned platform now
+retains its exact centre/top4.65 and width2.4 with depth1.2; render/collision
+geometry match. Same-pose raised path clears, actual full-capsule footprint and
+all original route support points remain supported, and the real forward walk
+now reaches the terminal. The staged native step result at the old slide-derived
+pose remains{} honestly; it grants no ordinary journey credit.
+
+Earlier predicate failures are preserved: actual fullcapsule Step3contact proves
+an empty centre ray was a tread-edge sampling mismatch. The minimal final oracle
+keeps original valid rays and uses current live-Cinder fullbody zero-motion
+walkable contact only when the ray is empty. Unnecessary global zero-overlap/
+recovery-norm guards were removed after measured counterexamples; the original
+body/head/continuity/route/caps remain. A separate staged actual-muzzle rigidpose
+has forwardworld error0 but inverse-local error0.000122698>.0001; final source
+uses physically equivalent world-forward comparison at the SAME.0001 plus exact
+muzzle fitting/authority/profile checks. This proves the inverse criterion can
+fail; it does **not** classify the earlier232 aggregate whose request operands
+were absent. No Player/HeroShip, body shape/mask/gravity, pulse tuning, cargo
+custody, stock or payment authority change is accepted.
+
+All remaining7source profiles, PCK3, fixed cold views, exports/startup3/maps/
+audit9/eightartifacts and integration are **NOT_RUN**. The conditional pipeline
+stopped at its first required Main failure. Existing native/human/fullcraft/
+cargo/save/network gates stay open; CI remains disabled.
+Original renewed all-in window**19:49:18→21:19:18UTC2026-11-17 (90minutes)**,
+original acceptance cases/caps, prior58.742748minutes and historical failures
+remain retained. Owner18:58:40 renewal is used once for this unfinished card;
+no automatic successor/reset/retry is selected. Reopening requires actual
+reverse-stair contact/settlement proof and causal reconciliation of the original
+supported-walk condition without body/route/clearance/cap shortcuts, then every
+original gate. The exhausted renewed production allowance is not replenished.
+
+Verified archive `/srv/mudds-work/utopia-supply-renewal-20261117/records.tar.gz`:
+**20,170,013bytes**, SHA256 `fd02797483c34e5a2f006981b5cea280b7185f9e7927467a0df3074603b51a2c`,
+**322members individually read/hash-verified**, including exact verified source
+bundle, prior archived source/raw, all current failed/diagnostic operands,
+frozen contract and independent final-stop review. Adjacent closeout records
+actual/cumulative cost, pushed docs and owned branch/worktree/process/scratch
+cleanup. Only unrelated unaccepted Paradox gunner backup remains retained.
+Main stays15 usable pilot craft/15 occupied homes; all36parents/10phase gates open.
 
 Previous parked attempt (historical):
+
 
 
 Baseline **d74eb350aa6b88f3a398773d87dac271254e2fac**, branch
