@@ -85,6 +85,70 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Dynamic own reachable home berth — card3
+
+Result: one signed14×14m physical Dynamic deck and supported≥2.8m spur reached
+by the normal Main-spawn Player, with compatible `dynamic_home_berth`. Card2
+f3cb99a accepted. Main stays12flyables while physical berths become13; no Dynamic
+spawn/selection/pilot journey until card4. Preserve all12 olddock poses/centres,
+leases/owners/tokens/occupants,12craftposes and existing routes. Do not consume
+existing berths or the parked Katana deck/spur reservation.
+
+Baseline08c57d894; branchwork/dynamic-berth-1117; WT
+`/srv/mudds-work/dynamic-berth-20261117/worktree`. One HIGH implementer owns only
+new Dynamic berth script/UID, module scene and one focused berth test/UID. HIGH
+reviewer independently checks site/geometry/fit/route/authority and final scope.
+Root owns ShipyardWorld script/scene, exact old roster consumers and full release/
+integration/cleanup. No shared HeroShip/Player/GameFlow or candidate edits.
+
+Actual baseline inventory:1404live WORLD|SHIP shapes, all12occupiedberths;
+headless Dummy, exit0/raw0/source-cache-HEAD-clean. Independent inventory filtering
+finds no existing above-feet obstructions in the proposed support/flight regions.
+Definition frozen before production edits: identity dock(108,-.02,-30), deckworld
+x101..115,z-37..-23/top-.02/thickness.4. Five disjoint spur tiles, all2.8mwide:
+Entryx41.6..44.4,z-13.4..7; Turnx44.4..56.4,z-13.4..-10.6;
+Southx53.6..56.4,z-45.4..-13.4; Eastx56.4..101,z-45.4..-42.6;
+Northx98.2..101,z-42.6..-28.6. Floors meet boundaries only. Fifteen outer-edge
+rails trace the exact union outline (recorded in task-start.json), leaving old
+mouthz7 open and no transverse turn/deck-join rails. Rails.16thick/1.24high,
+centres.12outside floor; endposts inset.06. Module caps21bodies/shapes,320meshes,
+1label,0lights/loops. Old NodeFloorx37..49,z7..24/top-.01999998 butts newEntry atz7.
+Hub(43,-.02,7) to approach(43,-.02,5.5) is a supported1.5m graph edge.
+
+Exact receiverZEROidentity; strictcentreZERO/half(6.2,5.8,6), assistcentre(0,8,-18)
+/half(18,12,26), speed27/tilt68/lift3.5; landing16.5 unchanged. Full deployed
+Dynamicx[-5.2,4.5],z±5,y0..5.3 and fixed pilot/eye/stand/operator remain unchanged.
+Routeslocalapproach(-65,0,35.5), port-apron(-7,0,0), hatch-control(-5.9,0,-2.4).
+Full ordinary Player route, beginning actual unposed Main spawn: (8,0,11),
+(8,0,13.5),(35,0,13.5),(35,0,15.5),(43,0,15.5),(43,0,7),(43,0,-12),
+(55,0,-12),(55,0,-44),(99.6,0,-44),(99.6,0,-30),(101,0,-30),
+(102.1,0,-32.4), then every endpoint reversed to the same actual spawn.
+
+| Case | Initial state/action | Expected endpoint | Actual |
+| --- | --- | --- | --- |
+| Normal access/return | Main ordinary spawn, whole route above, port-apron/control then full reverse | Supported every adjacent completed Player tick, actual capsule/head clearance, continuity<.2m; masks/gravity unchanged, no actor pose bypass | NOT_RUN |
+| Own fit/authority | Stage actual standalone candidate only at exact dock, closed/deployed fit, strict miss/wrongtag/foreign/occupied/stale lease attempts | Compatible full-envelope fit; refusals atomic; all12old dock/craft/lease state conserved | NOT_RUN |
+| Departure/camera | Every actual hull/access shape through full3.5m lift/18mforward/staging/approach/descent and inherited SpringArm+camera queries | No station/neighbour/rail intersections; no marker-only substitute | NOT_RUN |
+| Existing world/source | Full newberth240, Dynamicfoundation90, bothaccess180each, definitions120, registry180, feedback180, oldTitan/Predator/Paradoxhome240each | All old cases retained; graph11modules/11slots/11hubends/63markers,13berths/12craft; existing sixfeedback/twelvematerials unchanged | NOT_RUN |
+| Ordinary Main | Complete unchanged Titan source300 and actualWindowsPCK300 ALONE, normal Quit | Actual primary clean_shutdown/clean/session_ended, no concurrent engine | NOT_RUN |
+| Package/views | ActualWindowsPCK same complete newberth240/foundation90/bothaccess180; pairedexports/startup3/maps/delta/audit9/eightartifacts; original3views | Source isolation/full same cases, menu-ready exit0/marker1/raw0; fixed real960×540 captures inspected | NOT_RUN |
+
+Fixed views: closedoverview(90,10,-17)look(108,2,-30), openport(92,7,-28)
+look(105,1,-30), bothFOV52; actual cockpit-eye transform/FOV/near/far. All3 at
+actual960×540/eightframes each/cold privateXvfb/x11/GLES/Dummy90s total. Every
+Godot invocation Dummy/headless or isolated; CI disabled; native/human/fullcraft
+NOT_RUN. Query-only capsule skin.005radius/.01height never changes the actor.
+Existing stale roster literals are updated exactly for this13/12world; no cases,
+comparisons, thresholds, journeys or caps may be removed.
+
+Window2026-11-17 **02:59:27→04:14:27UTC**,75minutes ALL-IN from first mapping,
+including definition, implementation, every release gate, merge/push/archive/
+cleanup. Definition deadline03:14:27. Substantive correction0/1. Firstunexpected
+failure retains actualoperands and stops dependentchecks; same-clock routine
+compiler/caller/assertion maintenance requires full affected gates. Exhaustion/
+unresolvedproductionfailure/deadline parks whole card; no automatic reset or
+successor. Raw/frozen contract `/srv/mudds-work/dynamic-berth-20261117/`.
+
 <a id="dynamic-access-delivered"></a>
 
 ### Dynamic physical port access and pilot claim — card2 DONE, standalone
