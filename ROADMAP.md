@@ -183,7 +183,17 @@ and stop dependentchecks; same-clock compiler/caller/assertion repairs retain fu
 original cases/thresholds/caps. Exhaustion/unresolvedproductionfailure/deadline
 parks whole card. Actual build/review/merge/push/archive/exact branch/worktree/
 process/scratch cleanup are required before PASS. No automatic successor/reset.
-Raw/frozen contract `/srv/mudds-work/salyut-access-20261117/`.
+Raw/frozen contract, failed parser attempt, complete current reports and verified
+source bundle are retained in `/srv/mudds-work/salyut-access-20261117/records.tar.gz`:
+**31,333,985 bytes**, SHA256
+`b88a62840da1492c302d9d6153dbd356d8054a59643ad23e0538caa82e783b9b`,
+**441 members individually verified**. Accepted source is contained in pushed Main.
+Completed task branch, worktree, owned processes and scratch are removed; the
+remote task branch was absent. Eight published artifact hashes remain verified.
+Separate unaccepted Paradox gunner backup `work/paradox-gunner-1116` is retained
+locally/remotely at c743f585d0a70beb0e6100b34a47147d16280e08; no other task worktree
+remains. Final all-in completion and pushed Main are recorded in adjacent
+`closeout.json`; native/human/full-craft gates remain open.
 
 <a id="dynamic-main-delivered"></a>
 
