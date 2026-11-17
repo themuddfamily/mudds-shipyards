@@ -16,19 +16,18 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **4b1b844** — [Windows ZIP](builds/windows/MuddsShipyards-4b1b844-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-4b1b844-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-4b1b844-linux-x86_64.tar.gz).
-Utopia now joins Main as the fourteenth usable pilot craft at its own occupied
-home ([preview](builds/windows/MuddsShipyards-4b1b844-utopia-main-preview.png)).
-Walk the Titan north spur, operate the stern control, walk the ramp/aisle to the
-helm and take pilot control. Two complete flight/home/OFFLINE/physical-exit
-sorties, fresh reboard/release and full station return pass in source and actual
-Windows PCK. Main has **14 usable craft / 14 occupied physical berths**.
-The existing helm/display is activated without adding a pilot-chair model or
-reducing the1.6m aisle. Cargo/supply/pressure, passenger chairs, moving cabin and
-full-craft qualification remain open. The source1113 defensive pulse preserves
-its original650m/70damage/.62s profile.
+Latest playable checkpoint: **45ae175** — [Windows ZIP](builds/windows/MuddsShipyards-45ae175-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-45ae175-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-45ae175-linux-x86_64.tar.gz).
+Utopia now has two real local passenger chairs ([preview](builds/windows/MuddsShipyards-45ae175-utopia-chairs-preview.png)).
+Walk the station/ramp/aisle, sit/stand/reseat at each chair, then walk fully home.
+Both chairs pass two ordinary visits in source and actual Windows PCK, including
+real animated body/cushion/head/camera fit and complete ownership restoration.
+Seating is supported only at the exact home berth, OFFLINE and fully open;
+occupied access cannot close/start, and an obstructed standing space refuses.
+Main remains **14 usable pilot craft / 14 occupied physical berths**. Utopia's
+complete pilot sorties remain included. Travelling passengers, remote capacity,
+cargo/supply/pressure, fitted pilot-chair model and full craft qualification stay open.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
 ([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
@@ -112,7 +111,32 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Utopia local physical passenger chairs — card6
+### Utopia local physical passenger chairs — card6 DONE
+
+Accepted source **45ae17504f4fa8ee8351886f3fbf41236393c4c2**, merged via **cdea89ae805ff89cd4840e25f72c18b712253e34**,
+checkpoint **45ae175**. Two fixed real passenger chairs are fitted only in Main;
+default standalone foundation/access remain unchanged. Ordinary full crew journey
+passes source182.965s/300 and actualWindowsPCK176.443s/300:
+each chair twice, full station/ramp/aisle traversal, actual animated suit/backpack
+29332vertices/cycle, cushion gap~.01029m, head/camera clearance, blocked stand and
+closure/start/drive/fire refusals, exact body/claim/frame/containment restoration,
+full return and normalpauseExit. Actual primary clean_shutdown/clean/session_ended.
+Utopia pilot journeys282.234source/274.422PCK and
+Titan165.402source/159.146PCK pass alone/original300s.
+All13 relevant focused source cases and4 actualPCK focused cases pass, for16source/
+7PCK gameplay gates. Strictstartup3/Linux6member+modes+ELFequality, completeequal
+1607-entry Win/Linuxmaps, 3 intended production payloads,
+80 unrelated typednode_ids-only scenes and audit9 pass. No new UID/class mapping.
+Cold fixed3views74.131s/90 at960×540/eightframes independently inspected;
+normal fullMain firstframe retained, then existing UI actions reveal chair geometry.
+Anchor eye probes are scoped geometry; actual seated body/camera proof is ordinary.
+SOURCE_GO/FINAL_GO/PACKAGE_GO and8published artifact hashes independently verified.
+All earlier failed compiler/assertion/handoff/diagnostic attempts remain retained.
+Soleproductionrepair1/1 is the measured1e-5 logical floor-contact margin; physical
+geometry, roof/XZ, capsule, aisle/rack/hatch requirements remain unchanged. No second
+production repair or test cap change. Local ledger negatives grant no concurrency;
+travelling/remote/cargo/supply/pressure/save/fullcraft/native/human gates remain open.
+Source archive and exact owned cleanup closeout follow; no next card selected.
 
 Baseline **f7bd79d7bce3f10b9f68fa88092474167491f544**, branch
 `work/utopia-chairs-1117`, worktree `/srv/mudds-work/utopia-chairs-20261117/worktree`.
