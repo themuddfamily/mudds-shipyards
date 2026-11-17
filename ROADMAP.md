@@ -1,12 +1,12 @@
 # Development roadmap
 
-**Playable alpha; the full game is unfinished.** Fourteen of the promised17
-craft now exist in Main, including Titan, Predator, Paradox, Dynamic and Utopia
+**Playable alpha; the full game is unfinished.** Fifteen of the promised17
+craft now exist in Main, including Titan, Predator, Paradox, Dynamic, Utopia and Katana
 pilot checkpoints. This is implementation, not full craft qualification.
-Vortex, Katana and Salyut still await Main integration. All three have accepted
-standalone foundations; Katana has validated physical access/pilot claims and
-Salyut has validated stern walking access. Katana has a delivered reachable
-empty home berth. Vortex/Salyut berths, all three Main integrations and remaining access work stay open. All36 original parent outcomes
+Vortex and Salyut still await their berths and Main integration. Both have
+accepted standalone foundations; Salyut has validated stern walking access.
+Katana now has its delivered home and Main pilot checkpoint. Remaining access
+work and two berth/Main integrations stay open. All36 original parent outcomes
 and ten phase exit gates remain open. There is no evidence-backed completion
 percentage or finish date.
 
@@ -16,16 +16,19 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **7a8f012** — [Windows ZIP](builds/windows/MuddsShipyards-7a8f012-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-7a8f012-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-7a8f012-linux-x86_64.tar.gz).
-Katana now has its own signed, connected empty home berth east of Predator
-([preview](builds/windows/MuddsShipyards-7a8f012-katana-berth-preview.png)). Walk the
-normal station route and dogleg spur to the supported port-control apron and back.
-Main remains **14 usable pilot craft / 14 occupied homes / 15 physical berths**.
-Katana is still outside Main; its pilot integration is the next adopted card.
-Existing Utopia home-only chairs and pilot sorties remain included; travelling
-passengers, cargo/supply/pressure and full craft qualification stay open.
+Latest playable checkpoint: **1a8c084** — [Windows ZIP](builds/windows/MuddsShipyards-1a8c084-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-1a8c084-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-1a8c084-linux-x86_64.tar.gz).
+Katana now joins Main as the fifteenth usable pilot craft at its own connected
+home ([preview](builds/windows/MuddsShipyards-1a8c084-katana-main-preview.png)). Walk
+the station and port ramp to the helm, start/fly/fire, return with Landing Assist,
+let propulsion shut OFFLINE, open/release inside and walk fully down the ramp.
+Two usable sorties and a third physical reboard/release pass in source and actual
+Windows PCK, followed by the full station walk home and normal UI Quit.
+Main has **15 usable pilot craft / 15 occupied physical homes**; all14oldercraft
+and current leases remain intact. Katana comparative handling, target damage,
+service/recovery/save/network and full craft qualification remain open.
+Existing Utopia home-only chairs and other accepted pilot content remain included.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
 ([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
@@ -38,18 +41,18 @@ reboarding pass in source and actual Windows PCK
 ([Main preview](builds/windows/MuddsShipyards-aae5aa8-dynamic-main-preview.png)).
 Its approved pilot pulse is bound to unique source 1112; full combat-target,
 comparative-handling, service, recovery and multiplayer qualification stay open.
-Katana now has validated standalone physical port access and exclusive pilot
+Katana retains validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
-its reachable home berth is now delivered; production Main integration remains open.
+its home and ordinary Main pilot route are now delivered; full craft qualification remains open.
 Valid runtime timestamps now save and reload without a self-rejected checksum;
 normal Titan shutdown persists its terminal event in source and packaged checks.
-Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main now has 14 flyable craft / 14 occupied physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
+Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main now has 15 flyable craft / 15 occupied physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
-Standalone foundations also exist for the three craft still outside Main:
-Vortex, Katana and Salyut. Katana, Salyut and Utopia standalone access is qualified;
-remaining access work, two berth cards and three Main-integration cards stay open.
+Standalone foundations also exist for the two craft still outside Main:
+Vortex and Salyut. Katana, Salyut and Utopia standalone access is qualified;
+remaining access work, two berth cards and two Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -66,7 +69,7 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; the pilot cannon now fires; the gunner cannon remains unfitted. Katana standalone physical port access and pilot claim/release/reuse are included, with [preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png); its berth is delivered; Main integration remains open. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; the pilot cannon now fires; the gunner cannon remains unfitted. Katana standalone physical port access and pilot claim/release/reuse are included, with [preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png); its home and Main pilot checkpoint are delivered; full craft qualification remains open. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
@@ -109,63 +112,51 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Katana Main pilot integration — cards4/5
+<a id="katana-main-pilot-delivered"></a>
 
-Baseline **146b4c9563ab71ffd09003b82e8ee4daf8a2c373**, branch
-`work/katana-main-1117`, worktree `/srv/mudds-work/katana-main-20261117/worktree`.
-Window **2026-11-17 12:46:24→14:16:24UTC**,90minutes ALL-IN from first mapping
-through code/source/PCK/exports/startup/views/audit/review/merge/push/archive and
-owned cleanup. Definition frozen12:58:28 before13:01:24. One HIGH implementer
-owns15 bounded paths; HIGH independent reviewer; root engines/release/docs/
-integration. Production correction **0/1**; no automatic successor. CI disabled.
+### Katana fifteenth Main pilot craft — cards4/5 DONE
 
-Actual Main Katana fills its delivered exact home(72,-.02,-30): result15craft/
-15occupiedhomes, all14oldcraft/sourceIDs/settings/poses/currenthomeleases retained.
-Normal Boot/Begin Shift/same Player/full station route/port canopy/ramp/helm,
-2.3s startup, two real usable flights and approved pilot pulses, strict own L/
-home/OFFLINE/inside physical release/full port walk each, third claim/release/
-exit and complete original station reverse/spawn/normal UI Quit. Claims3/releases3,
-unchanged300s complete profile. Full7m reboard fence remains; supported deckx=-8
-provides clearance. No body/pose/velocity/mask/gravity/clock forcing qualifies play.
+Accepted source **1a8c08427e2c7e501f23f567a235e71ed655d1eb**, merged via **477b744b4743b7d42d4109af98fc36ee3be2b18e**, checkpoint **1a8c084**.
+Actual Main Katana owns its delivered exact home(72,-.02,-30), giving15craft and
+15occupiedhomes. The same ordinary Player completes Boot/Begin Shift/fullstation/
+portcanopy/ramp/helm, two usable flight/approved pulse/strict home/OFFLINE/inside
+release/full port walks, third normalclaim/release/exit and the full original
+station reverse to spawn/normalUIQuit. Source190.61s/300 and actualWindowsPCK183.438s/300,
+claims3/releases3; every Main run persists clean_shutdown/clean/session_ended.
+No body/pose/velocity/mask/gravity/clock forcing substitutes for ordinary play.
+All14oldcraft/sourceIDs/settings/poses/currenthomeowners/tokens remain intact.
 
-Main-only pilot_weapon_fitted=true/defaultfalse retains delivered standalone
-unarmed foundation. Approved unchanged Arrow emitter480m/24damage/.38s with
-unique source1114/one centre muzzle(0,1,-6.2). This proves usable firing, not target
-damage or comparative handling. Rigid original shell preserves every authored
-vertex/material/path; separate cosmetic bank root keeps actual solids aligned
-with collision through turns. All16trial fields remain unchanged. Exact current
-home/lease/actor/seat/body/support/OFFLINE checks revalidate before and after
-opening for physical entry/exit. No travelling cabin/crew/cargo/network grant.
-Seated-eye query uses authoritative physics body snapshot times actual root-local
-eye transform, same.1m sphere/no exclusions; standaloneSHIP mask retained, new
-Main WORLD|SHIP. No body/camera writes. Console permits15rows at unchangedfont40/
-pixel.0016 and existing screen; actual glyph AABB fit is required before any fix.
+Main-only pilot_weapon_fitted enables unchanged approved Arrow hitscan480m/24/
+.38s, unique1114, onecentre muzzle(0,1,-6.2); original standalone default stays
+unarmed. Actual approved firing is usable, not target-damage/combat qualification.
+Rigid authored shell stays aligned with physical collision through turns; separate
+cosmetic presentation ownership retains all original vertices/materials/paths and
+16trial fields. Physical approach/exit requires exact current home/lease/actor/
+area/seat/body/support/OFFLINE and pre/postopening revalidation. No travelling
+cabin, crew fittings or cargo authority is added; network qualification stays open. Eye query uses the same authoritative physics snapshot as collision,
+unchanged.1m sphere/no exclusions, MainWORLD|SHIP/standaloneSHIP; no pose writes.
+Console actual15rows+header glyphbounds1.0912×1.408m fit3.76×1.46m screen at the
+unchangedfont40/pixel.0016, without shrinking text or changing authority.
 
-Frozen source18: newMain300 FIRSTalone; focused14 in independentpairs:
-foundation90/accessidentity180/accesstransformed180/actualoccupiedKatanaBerth240/
-definitions120/boardingarea120/stationregistry180/feedbackworld180/console300/
-Titan/Predator/Paradox/Dynamic/Utopia home240 each; then complete oldUtopiaMain300,
-oldDynamicMain300 and TitanMain300 ALONEeach. Known oldMain count callers change
-only to15craft/15homes/14others; every original full route/cap remains. Own berth
-uses REAL Main occupied Katana, with identical independent empty component ledger
-only supplementary. PCK6: same committednewMain300 firstalone, foundation90/
-accessidentity180/accesstransformed180/berth240 in independentpairs, fullTitan300
-alone; source isolation and exact excluded data inlining only. Every case requires
-exit0/one marker/raw0/source-cache-HEAD guards; all Main cases actual persisted
-clean_shutdown/clean/session_ended. Stop first unexpected failure, retain operands.
+All source18/PCK6 frozen cases pass exact committed fixtures, original caps,
+exit0/one marker/raw0/source-cache-HEAD guards. Source includes original foundation/
+both full access/actual occupied Katana berth, definitions/boarding/complete station
+registry/feedback/console/allfiveoldermodernhomes and complete Katana/Utopia/Dynamic/
+Titan Main profiles alone. PCK repeats full Katana Main/foundation/access2/berth/
+Titan; adapters add only raw-source guards and exact excluded data inlining.
+Clean paired exports/strictstartup3, exactLinux6members/modes/extractedELFidentity,
+complete equal package maps and accepted7a8f012 reviewed delta, original three
+cold fixed960x540/eightframe actual Main views(78.956s/90 total), audit9/eight
+published artifacts pass independentFINAL_GO/PACKAGE_GO. Captures retain the same
+camera poses/FOV and actual Main ship; only unrelated presentation cards cleared,
+baseHUD/objective/radar retained. Images do not qualify ordinary play/UI readability.
 
-Fresh clean paired checkpoint exports, strictstartup3, exactLinux6members/modes/
-extractedELFidentity, complete equal package maps/current7a8f012 baseline delta,
-audit9/eight artifacts and independentFINAL_GO/PACKAGE_GO required. Actual Main
-Katana, no staged duplicate, original3cold960x540/eightframe views/privateXvfb/x11/
-GLES/Dummy/90sTOTAL: closed(54,10,-15)→(72,2,-30), open(56,7,-28)→(69,1,-30),
-FOV52, actualcockpiteye/FOV/near/far. Restore frozen capture camera immediately
-afterBeginShift before UI waits. Existing tutorial/help and keyed unrelated
-boarding presentation clear only in geometry fixture; baseHUD/objective/radar
-retained. No view/quality/cap workaround or ordinary-play credit from images.
-Comparative handling/actual target damage/service/destruction/recovery/save/
-network/fullcraft/nativeWindows/GPU/device/audio/human/UIreadability/fullMain
-shader gates remain open/NOT_RUN; all36parents/10phasegates still open.
+Selected12:46:24→14:16:24UTC90minutes ALL-IN from first mapping through final
+owned cleanup; definition12:58:28 before13:01:24. Production correction0/1.
+Comparative handling/actual target damage/service/destruction/save/recovery/network/
+fullcraft/nativeWindows/GPU/device/audio/human/UIreadability/fullMainshader gates
+remain open/NOT_RUN. All36parents/10phasegates stay open; CI remains disabled.
+Final archive, actual all-in cost and branch/process cleanup are recorded below.
 
 <a id="katana-home-berth-delivered"></a>
 
