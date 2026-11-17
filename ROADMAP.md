@@ -163,9 +163,19 @@ from each clean successor and stopped at the first unexpected failure. No
 remaining source matrix, PCK, export, startup or rendered package gate was run;
 no new checkpoint was published. Definition was frozen14:44:46 before14:53:06;
 original window **2026-11-17 14:38:06→16:08:06UTC**,90minutes all-in, remains the
-accounting boundary. Root archives exact unique source/raw/caller controls and
-cleans owned refs/worktree/processes; final verified archive and elapsed cost
-follow below. All prior accepted runtime remains unchanged.
+accounting boundary. All prior accepted runtime remains unchanged.
+
+Closure: exact unique production/diagnostic source and all failed raw/caller
+controls are preserved in `/srv/mudds-work/vortex-berth-20261117/records.tar.gz`:
+**17741467 bytes / 119 independently reread/hash-verified members**,
+SHA256 **4acd6bafc35aabe8eb56c6ded822c41267c003201fda4bc90f38cd24cf79c03d**.
+The source bundle was independently verified before deleting the unmerged owned
+branch by its exact expected tip. Task worktree/processes/loose files are removed;
+the folder contains only this archive and `closeout.json`. Fresh remote tips
+and worktree ownership were checked before and after cleanup. Main is the only
+worktree; only the explicitly retained unaccepted Paradox gunner local/remote
+branch remains. Final push/time/cleanup proof is retained in `closeout.json`;
+no new playable artifact or roadmap completion credit is claimed.
 
 Reopening requires the actual shared ascending-contact gap to be resolved in an
 authorized bounded runtime task, then the entire original berth contract with
