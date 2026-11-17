@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Actual standalone production ship/controller. No Main, test dependencies,
-## pose/velocity/time mutation after setup, or physical-access qualification.
+## pose/velocity/time mutation after setup, or Main/seat qualification.
 const VORTEX := preload("res://scenes/ships/vortex_troop_transport.tscn")
 const DEFINITION := preload("res://assets/ships/vortex_provisional.tres")
 const Registry := preload("res://scripts/ships/fleet_role_registry.gd")
@@ -87,7 +87,8 @@ func _run() -> void:
 			return
 	if not _check(ship.home_berth_id == &"" and not ship.has_node("ShipBoardingArea")
 		and not ship.has_method("get_cargo_manifest") and not ship.has_method("get_passenger_station_role_contract")
-		and not ship.call("_uses_inherited_primary_weapon"), "standalone scope has no Main/access/cargo/passenger/combat grants"):
+		and ship.has_node("MovingInteriorFrame") and ship.get_node("VortexOriginalShell/CabinHatchInteraction") is ShipCabinHatch
+		and not ship.call("_uses_inherited_primary_weapon"), "standalone physical access has no Main/cargo/passenger/combat grants"):
 		return
 	if not _test_geometry(ship):
 		return
@@ -168,6 +169,7 @@ func _test_geometry(ship: HeroShip) -> bool:
 	var shapes: Array[CollisionShape3D] = []
 	var polygons: Array[PackedVector2Array] = []
 	var section_bounds: Array[AABB] = []
+	var section_faces: Array[PackedVector3Array] = []
 	for child in ship.get_children():
 		if not child is CollisionShape3D:
 			continue
@@ -175,16 +177,25 @@ func _test_geometry(ship: HeroShip) -> bool:
 		if not _check(collision.shape is ConvexPolygonShape3D and not collision.disabled, "finite enabled convex section " + collision.name):
 			return false
 		var shape := collision.shape as ConvexPolygonShape3D
-		var mesh := ship.get_node("VortexOriginalShell/" + String(collision.name).trim_suffix("Collision")) as MeshInstance3D
+		var label := String(collision.name).trim_suffix("Collision")
+		var matches := ship.get_node("VortexOriginalShell").find_children(label, "MeshInstance3D", true, false)
+		var mesh := matches[0] as MeshInstance3D
 		var points := shape.points
 		var faces := mesh.mesh.get_faces()
+		var actual_faces := PackedVector3Array()
+		for point in faces:
+			actual_faces.append(collision.transform * point)
+		section_faces.append(actual_faces)
+		if not _check((ship.global_transform.affine_inverse() * mesh.global_transform).is_equal_approx(collision.transform), "actual visible and collision rigid poses agree " + label):
+			return false
 		var center := Vector3.ZERO
 		var polygon := PackedVector2Array()
-		var section_bound := AABB(points[0], Vector3.ZERO)
+		var section_bound := AABB(collision.transform * points[0], Vector3.ZERO)
 		for point in points:
 			center += point / points.size()
-			section_bound = section_bound.expand(point)
-			polygon.append(Vector2(point.x, point.z))
+			var actual_point := collision.transform * point
+			section_bound = section_bound.expand(actual_point)
+			polygon.append(Vector2(actual_point.x, actual_point.z))
 		shapes.append(collision)
 		polygons.append(Geometry2D.convex_hull(polygon))
 		section_bounds.append(section_bound)
@@ -211,6 +222,13 @@ func _test_geometry(ship: HeroShip) -> bool:
 		return false
 	for i in shapes.size():
 		for j in range(i + 1, shapes.size()):
+			# The original shell sections remain vertical prisms. Folding ramp
+			# leaves require full3D separation, not overlapping XZ projections.
+			if "Ramp" in String(shapes[i].name) or "Ramp" in String(shapes[j].name):
+				if not _check(not _convex_interiors_overlap(section_faces[i], section_faces[j]),
+					"stowed ramp and shell have separated actual convex interiors " + shapes[i].name + "/" + shapes[j].name):
+					return false
+				continue
 			if minf(section_bounds[i].end.y, section_bounds[j].end.y) - maxf(section_bounds[i].position.y, section_bounds[j].position.y) <= 0.0001:
 				continue
 			for polygon in Geometry2D.intersect_polygons(polygons[i], polygons[j]):
@@ -243,6 +261,38 @@ func _test_geometry(ship: HeroShip) -> bool:
 		and eye.global_transform.is_finite() and ship.get_world_3d().direct_space_state.intersect_shape(query).is_empty(), "exact pilot anchor and clear finite cockpit camera"):
 		return false
 	print("VORTEX_GEOMETRY: sections=", sections, " bounds=", envelope)
+	return true
+
+
+func _convex_interiors_overlap(a: PackedVector3Array, b: PackedVector3Array) -> bool:
+	var axes: Array[Vector3] = []
+	var a_edges: Array[Vector3] = []
+	var b_edges: Array[Vector3] = []
+	for faces in [a, b]:
+		for index in range(0, faces.size(), 3):
+			axes.append((faces[index + 1] - faces[index]).cross(faces[index + 2] - faces[index]))
+			for edge in 3:
+				var direction: Vector3 = faces[index + (edge + 1) % 3] - faces[index + edge]
+				if faces == a: a_edges.append(direction)
+				else: b_edges.append(direction)
+	for a_edge in a_edges:
+		for b_edge in b_edges:
+			axes.append(a_edge.cross(b_edge))
+	for axis in axes:
+		if axis.length_squared() < 0.000001: continue
+		axis = axis.normalized()
+		var a_min := INF
+		var a_max := -INF
+		var b_min := INF
+		var b_max := -INF
+		for point in a:
+			a_min = minf(a_min, point.dot(axis))
+			a_max = maxf(a_max, point.dot(axis))
+		for point in b:
+			b_min = minf(b_min, point.dot(axis))
+			b_max = maxf(b_max, point.dot(axis))
+		if minf(a_max, b_max) - maxf(a_min, b_min) <= 0.0001:
+			return false
 	return true
 
 
