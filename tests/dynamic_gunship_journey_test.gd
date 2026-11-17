@@ -728,7 +728,7 @@ func _cold_initialize_parcel_inventory(store: UserDataStore) -> bool:
 	fixture.add_child(custody)
 	var initialized := custody.initialize(authority,store,titan,locker,Callable())
 	var inventory := custody.snapshot()
-	var accepted := bool(initialized.get("accepted",false)) and bool(inventory.get("available",false)) \
+	var accepted: bool = bool(initialized.get("accepted",false)) and bool(inventory.get("available",false)) \
 		and int(inventory.get("locker",-1)) == 4 and int(inventory.get("titan",-1)) == 0 \
 		and store.get_snapshot().get(TitanCargoCustody.MARKER) == true \
 		and store.get_snapshot().get(TitanCargoCustody.SLOT) == {"locker":4,"titan":0}
