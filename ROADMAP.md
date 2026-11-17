@@ -156,7 +156,10 @@ Habitat rail atworldz12.87/x45..48.8. Routine caller263a63b inserts(39,0,15.5),
 (39,0,8.5) after the retained(47,0,15.5), before retained(47,0,8.5), and includes
 the same detour in reverse. Every frozen endpoint/order, full240s cap and every
 actor/support/clearance predicate stay intact; no old geometry is altered. First
-failure/raw operands remain preserved; production corrections remain0/1. Keep safe rail openings at both L turns and
+failure/raw operands remain preserved; production corrections remain0/1. Registry2cf1922 also completes the
+existing probe helper and both exact authority dictionaries for the frozen11
+modules/4 berth owners; all original deepcopy/red-mutation/reentry predicates
+remain. Its earlier failed run is retained; no production repair is consumed. Keep safe rail openings at both L turns and
 deck entry; actorcapsule .38 must remain supported/clear. One independent
 candidate initial fixture at exact dock proves actual receiver/deployed fit,
 strict miss/wrongtag/foreign/occupied/stale lease refusal and query sweeps;
