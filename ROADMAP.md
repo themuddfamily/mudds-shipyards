@@ -78,6 +78,50 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Katana physical port access and pilot claim — card2 renewal
+
+Goal/result: approved Katana card2, same real Player walks apron→portcontrol→
+ramp/recess→helm, Interact reserves/seats one pilot, sealed2.3s startup/neutral
+OFFLINE, safe normal release, supported walkout/seal; repeat twice, separately
+identity and elevated35degree fixture. Full original Katana card below supplies
+all unchanged cases, coordinates, guards and thresholds. Main stays12/17;
+Katana berth/Main/remote/free-cabin remain separate and gated.
+
+Current baseline35a4b5696 plus restored unacceptedbf5834b22 only in unchanged
+Katana script/journey test. Prior37.844minutes and both failures stay attached.
+Measured cause: closed PortSill/PortRamp0 overlap area.21999645233154m², witness
+(-1.55,.78,0). Fix actual stowed/moving geometry; do not relax non-overlap or
+change approved resource values, hull/aperture/ramp/recess/eye/anchor/reach.
+
+HIGH implementer owns only Katana script/scene and existing journey test/UID;
+HIGH independent reviewer checks actual moving geometry and claim/exit lifecycle.
+Root owns existing focused/fullMain/package commands, release/integration/docs/
+cleanup. No sharedruntime edits, nestedagents or agentengines. WT/branch:
+`/srv/mudds-work/katana-access-renewal-20261117/worktree`,work/katana-access-1117.
+One initial actor/ship/apron setup per process, original(-8,0,0) and safecontrol
+(-6.6,0,1.6); all later movement/Interact/boarding/release use existing APIs.
+Closed11×12×3.8; deployedx-6..5.5,z±6,y0..5.8; ramp2.2wide x-6..-1.5/y0..0.6;
+original opening/recess/helm/docking transforms and all16 fields remain fixed.
+
+Required: defaultjourney90s; --access180s; --access --transformed180s; definitions/
+berth120s; boardingarea120s; unchanged complete Titan Main300s ALONE/actual
+clean terminal primary. Every on-foot tick retains completed-Player audit,
+continuity<.2m, support, fullcapsule/headclearance; only original query skin
+.005radius/.01height allowed, actor unchanged. All original negative reservations,
+unsafe start/open/airborneexit and secondusableclaim cases remain. Fixed closed/
+open/piloteye private Xvfb/x11/GLES images. Clean pairedexports/startup3; actual
+WindowsPCK foundation/bothfullaccessprofiles/fullTitan with identical caps from
+blank isolated directories; complete maps/audit9, eight checkpointartifacts,
+independent review, merge/push/archive/cleanup. Each check exit0/one marker/raw0,
+clean source/cache/HEAD guards. Dummy audio always; CI disabled; native/human/
+fullcraft gates NOT_RUN. No source-only or subset acceptance.
+
+Window2026-11-17 **00:03:55.922432→01:33:55.922432UTC**,90minutes ALL-IN including
+mapping/restoration/checks/checkpoint/review/cleanup. Fresh owner-reset allowance
+0/1, recorded separately from historical1/1. Stop at first unexpected failure,
+retain actual operands, require measured cause before repair; exhausted repair/
+deadline parks this fullcard. Raw root `/srv/mudds-work/katana-access-renewal-20261117/`.
+
 ### Vortex continuous physical access — renewed card2 PARKED, unmerged
 
 Final candidate **49217b6fa2d33c76e57c5362d58036f74c5efb0c** imports cleanly
