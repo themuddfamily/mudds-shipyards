@@ -10354,7 +10354,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var contract := seat.get_role_contract()
 	var retained_host_cabin := _can_reseat_host_remote_crew_seat(seat)
 	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_host_cabin) \
-			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional"] \
+			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional", &"utopia_provisional"] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
 			or player.get_interaction_origin().distance_to(seat.global_position) > STATION_SEAT_MAX_REACH \
@@ -10392,7 +10392,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 			roster = _solo_crew_authority.register_jovian_roster()
 		elif craft is CinderCargoHauler:
 			roster = _solo_crew_authority.register_cinder_roster()
-		elif craft.get_ship_id() in [&"titan_provisional", &"paradox_provisional"]:
+		elif craft.get_ship_id() in [&"titan_provisional", &"paradox_provisional", &"utopia_provisional"]:
 			roster = craft.call(&"register_crew_seat_roster", _solo_crew_authority)
 		else:
 			roster = _solo_crew_authority.register_bulwark_roster()
@@ -10480,6 +10480,8 @@ func _stand_from_solo_crew_seat() -> void:
 	var seat := _solo_crew_seat
 	var craft := _solo_crew_ship
 	var owner := _solo_crew_authority
+	if craft is UtopiaDropship and not craft.has_clear_local_chair_stand(player,seat):
+		return
 	_reset_solo_gunner_input()
 	_transition_busy = true
 	var generation := _begin_transition_generation()
@@ -28181,7 +28183,7 @@ func _authorize_titan_cargo_actor(actor: Node, panel: Node3D, loading: bool) -> 
 func _grounded_local_crew_stand_is_supported(craft: HeroShip) -> bool:
 	if not is_inside_tree() or is_queued_for_deletion() or _network_session_is_live() \
 			or not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
-			or craft.get_ship_id() not in [&"titan_provisional", &"paradox_provisional"] or craft != _cabin_ship or craft != active_ship \
+			or craft.get_ship_id() not in [&"titan_provisional", &"paradox_provisional", &"utopia_provisional"] or craft != _cabin_ship or craft != active_ship \
 			or craft not in ships or craft.is_destroyed() or (not craft.is_boardable() and craft.get_ship_id() != &"paradox_provisional") or _piloting \
 			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
 			or not is_ancestor_of(player) or player.is_seated() or player.is_sleeping() \
@@ -28189,12 +28191,13 @@ func _grounded_local_crew_stand_is_supported(craft: HeroShip) -> bool:
 			or _boarding_area.get_reservation_token() != player:
 		return false
 	var telemetry := craft.get_telemetry()
-	var home: StringName = &"paradox_home_berth" if craft.get_ship_id() == &"paradox_provisional" else &"titan_home_berth"
+	var home: StringName = &"utopia_home_berth" if craft is UtopiaDropship else (&"paradox_home_berth" if craft.get_ship_id() == &"paradox_provisional" else &"titan_home_berth")
+	var utopia_home: bool = craft is UtopiaDropship and craft.is_local_chair_access_supported()
 	var berth := world.get_berth_node(home) as ShipBerth
 	if berth == null or (craft.get_ship_id() == &"paradox_provisional" and craft.is_piloted()) or berth.get_occupant() != craft or berth.get_reservation_owner() != craft \
 			or not bool(telemetry.get("landed", false)) \
 			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE \
-			or not craft.has_method(&"has_supported_exterior_access") or not craft.call(&"has_supported_exterior_access"):
+			or (not utopia_home and (not craft.has_method(&"has_supported_exterior_access") or not craft.call(&"has_supported_exterior_access"))):
 		return false
 	var up := craft.global_basis.y.normalized()
 	var query := PhysicsRayQueryParameters3D.create(player.global_position + up * 0.2,

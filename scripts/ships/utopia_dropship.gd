@@ -3,7 +3,7 @@ extends HeroShip
 
 ## Original modern Utopia pilot foundation; A3 supplies only the name and role.
 ## Metres, +Y up, -Z forward. Supported landed stern access is physical;
-## one ordinary helm is registered in Main; cargo/crew reservations remain inert.
+## one ordinary helm and two local passenger chairs are fitted in Main only.
 const WEAPON := preload("res://assets/weapons/jovian_combat_pulse.tres")
 const DEFINITION := preload("res://assets/ships/utopia_provisional.tres")
 const HULL_BOUNDS := AABB(Vector3(-4.5, 0.0, -8.5), Vector3(9.0, 4.8, 17.0))
@@ -12,6 +12,17 @@ const PILOT_EYE := Vector3(0.0, 2.56, -6.05)
 const FUTURE_ENTRY := Vector3(0.8, 0.8, -5.8)
 const RAMP_STOW_ANGLE := -PI / 2.0 - atan(0.8 / 4.5)
 const ACCESS_MOTION_SECONDS := 1.2
+@export var local_passenger_chairs_fitted := false
+const CREW_FRAME_ID := &"utopia_local_chair_frame"
+const CREW_IDS := [&"passenger_port_00", &"passenger_starboard_00"]
+const CREW_POSITIONS := [Vector3(-2,0.8,-3.6), Vector3(2,0.8,-3.6)]
+const CREW_STANDS := [Vector3(-0.7,0.8,-3.6), Vector3(0.7,0.8,-3.6)]
+# The actual floor ray can round supported soles 6e-8m below y=.8.
+# Admit only a 1e-5m sole contact skin; keep the physical roof and X/Z walls.
+const LOCAL_CABIN := AABB(Vector3(-2.9,0.8-0.00001,-6.8),Vector3(5.8,3.8+0.00001,14.3))
+var _crew_anchors: Array[Marker3D] = []
+var _crew_role_authority: CrewSeatRoleAuthority
+var _interior_frame: MovingInteriorFrame
 var _original_shell: Node3D
 var _access_leaves: Array[Dictionary] = []
 var _access_fraction := 0.0
@@ -182,7 +193,9 @@ func _build_ship() -> void:
 	status.position = Vector3(0, 1.7, -6.65)
 	status.font_size = 30
 	status.pixel_size = 0.0012
-	# No MovingInteriorFrame, passenger seat or cargo writer.
+	if local_passenger_chairs_fitted:
+		_build_local_passenger_chairs(cream, orange)
+	# Cargo reservations remain inert; no travelling cabin is granted.
 	_canopy_open = false
 
 
@@ -287,6 +300,8 @@ func is_access_supported() -> bool:
 
 func set_canopy_open(open: bool, duration: float = ACCESS_MOTION_SECONDS) -> void:
 	if is_access_motion_active() or (open and not is_access_supported()): return
+	# Local-only chairs must retain their supported exit until the guest stands.
+	if not open and _crew_role_authority != null and not (_crew_role_authority.get_snapshot().get("assignments",[]) as Array).is_empty(): return
 	# The common physical control requests .35s; the complete five-piece
 	# mechanism needs its authored minimum, including when operated by Player.
 	super.set_canopy_open(open, maxf(duration, ACCESS_MOTION_SECONDS))
@@ -423,3 +438,151 @@ func _build_stern_access(orange: Material) -> void:
 			opened, orange, {"ramp_index":index})
 	_add_section_box("SternPortControlBracket", Vector3(-3.55, 2.2, 8), Vector3(-3.25, 2.4, 8.3), orange)
 	ShipCabinHatch.install(self, self, Vector3(-3.4, 2.4, 8.3))
+
+
+## The existing seat transition requires a frame owner. This manual frame has
+## no occupancy sensor; its report opens only at this exact supported home.
+func _build_local_passenger_chairs(structure: Material, cushion: Material) -> void:
+	for index in 2:
+		var point: Vector3 = CREW_POSITIONS[index]
+		var label := "PortPassenger" if index == 0 else "StarboardPassenger"
+		_add_section_box(label + "Pedestal", point+Vector3(-0.28,0,-0.20),point+Vector3(0.28,0.54,0.26),structure)
+		_add_section_box(label + "Cushion", point+Vector3(-0.46,0.54,-0.25),point+Vector3(0.46,0.68,0.42),cushion)
+		_add_section_box(label + "Back", point+Vector3(-0.46,0.68,0.42),point+Vector3(0.46,1.62,0.58),structure)
+		var anchor := _reservation_marker(String(CREW_IDS[index]),point,self)
+		anchor.set_meta("reservation_only",false)
+		anchor.set_meta("station_id",CREW_IDS[index])
+		anchor.set_meta("crew_role",&"passenger")
+		anchor.set_meta("seat_type",&"physical")
+		_crew_anchors.append(anchor)
+	_interior_frame = MovingInteriorFrame.new()
+	_interior_frame.name = "MovingInteriorFrame"
+	_interior_frame.auto_register_from_volume = false
+	add_child(_interior_frame)
+	_interior_frame.configure(self,LOCAL_CABIN)
+
+
+func is_local_chair_access_supported() -> bool:
+	if not local_passenger_chairs_fitted or not is_instance_valid(_interior_frame) \
+			or not is_access_supported() or _access_fraction < 0.999 or is_access_motion_active():
+		return false
+	var game := get_parent() as GameFlow
+	if game == null or not is_instance_valid(game.world) or get_home_berth_id() != &"utopia_home_berth":
+		return false
+	var berth := game.world.get_berth_node(&"utopia_home_berth") as ShipBerth
+	return berth != null and berth.get_occupant() == self and berth.get_reservation_owner() == self \
+		and global_transform.is_equal_approx(berth.get_dock_transform())
+
+
+func get_interior_frame() -> MovingInteriorFrame:
+	return _interior_frame
+
+
+func get_in_flight_cabin_report() -> Dictionary:
+	return {"supported": is_local_chair_access_supported(), "status": &"local_home_chairs_only",
+		"frame": _interior_frame, "local_bounds": LOCAL_CABIN,
+		"stand_transform": global_transform*Transform3D(Basis.IDENTITY,FUTURE_ENTRY)}
+
+
+func get_crew_seat_role_contract(anchor: Marker3D) -> Dictionary:
+	var index := _crew_anchors.find(anchor)
+	if _destroyed or not local_passenger_chairs_fitted or index < 0 or not is_instance_valid(anchor) \
+			or anchor.get_parent() != self or anchor.name != CREW_IDS[index]:
+		return {}
+	var stand := global_transform*Transform3D(Basis(Vector3.UP,-PI*0.5 if index == 0 else PI*0.5),CREW_STANDS[index])
+	return {"role": &"passenger", "vessel_id": get_ship_id(), "seat_id": CREW_IDS[index],
+		"seat": anchor, "entry_transform": stand, "exit_transform": stand,
+		"frame": _interior_frame, "seat_type": &"physical", "role_label": "Passenger"}
+
+
+func _install_solo_crew_seat() -> void:
+	if not is_inside_tree(): return
+	for anchor in _crew_anchors:
+		if anchor.get_node_or_null("SoloPassengerSeatInteraction") == null:
+			ShipCrewSeat.install(anchor,self)
+
+
+func _crew_seat_records() -> Array[Dictionary]:
+	return [{"seat_id": &"pilot_station", "role": &"pilot", "anchor_id": &"pilot_station"},
+		{"seat_id": CREW_IDS[0], "role": &"passenger", "anchor_id": CREW_IDS[0]},
+		{"seat_id": CREW_IDS[1], "role": &"passenger", "anchor_id": CREW_IDS[1]}]
+
+
+func register_crew_seat_roster(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if not is_local_chair_access_supported() or authority == null or _crew_anchors.size() != 2:
+		return {"accepted": false, "status": &"local_chairs_unavailable"}
+	var snapshot := authority.get_snapshot()
+	if bool(snapshot.get("roster_sealed",false)) or not (snapshot.get("seats",[]) as Array).is_empty():
+		return {"accepted": false, "status": &"utopia_roster_mismatch"}
+	for record in _crew_seat_records():
+		var result := authority.register_seat(record.seat_id,get_ship_id(),record.role,CREW_FRAME_ID,1,record.anchor_id)
+		if not bool(result.get("accepted",false)): return result
+	return authority.seal_roster([&"pilot",&"passenger"])
+
+
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if not is_local_chair_access_supported() or authority == null \
+			or (_crew_role_authority != null and _crew_role_authority != authority):
+		return {"accepted": false, "status": &"authority_unavailable"}
+	var snapshot := authority.get_snapshot()
+	var seats: Array = snapshot.get("seats",[])
+	if not bool(snapshot.get("roster_sealed",false)) or seats.size() != 3:
+		return {"accepted": false, "status": &"utopia_roster_mismatch"}
+	for expected in _crew_seat_records():
+		var matched := false
+		for record: Dictionary in seats:
+			if record.get("seat_id") == expected.seat_id and record.get("role") == expected.role \
+					and record.get("anchor_id") == expected.anchor_id and record.get("vessel_id") == get_ship_id() \
+					and record.get("frame_id") == CREW_FRAME_ID and int(record.get("seat_generation",0)) == 1:
+				matched = true
+		if not matched: return {"accepted": false, "status": &"utopia_roster_mismatch"}
+	_crew_role_authority = authority
+	return {"accepted": true, "status": &"authority_attached"}
+
+
+func detach_crew_role_authority(authority: CrewSeatRoleAuthority) -> bool:
+	if authority == null or authority != _crew_role_authority \
+			or not (authority.get_snapshot().get("assignments",[]) as Array).is_empty(): return false
+	_crew_role_authority = null
+	return true
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+func attach_solo_crew_role_occupant(avatar_id: StringName, seat: ShipCrewSeat, occupant: Node3D) -> Dictionary:
+	if not is_local_chair_access_supported() or _reset_for_reuse_mutation_blocked() \
+			or _crew_role_authority == null or not is_instance_valid(seat) or seat.get_ship() != self:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	var assignment := _crew_role_authority.get_assignment(1,avatar_id)
+	var contract := seat.get_role_contract()
+	if contract.is_empty() or assignment.get("vessel_id") != get_ship_id() \
+			or assignment.get("seat_id") != contract.get("seat_id") or assignment.get("role") != &"passenger" \
+			or assignment.get("frame_id") != CREW_FRAME_ID or assignment.get("anchor_id") != contract.get("seat_id") \
+			or int(assignment.get("seat_generation",0)) != 1:
+		return {"accepted": false, "status": &"occupancy_identity_mismatch"}
+	return super.attach_solo_crew_role_occupant(avatar_id,seat,occupant)
+
+
+func has_clear_local_chair_stand(actor: PlayerController, seat: ShipCrewSeat) -> bool:
+	if not is_local_chair_access_supported() or not is_instance_valid(actor) \
+			or not is_instance_valid(seat) or seat.get_ship() != self or seat.get_role_contract().is_empty(): return false
+	var collision := actor.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D: return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = seat.get_exit_transform()*collision.transform
+	query.margin = 0
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [actor.get_rid()]
+	var state := get_world_3d().direct_space_state
+	if not state.intersect_shape(query,16).is_empty(): return false
+	var feet := seat.get_exit_transform().origin
+	var up := global_basis.y.normalized()
+	var ray := PhysicsRayQueryParameters3D.create(feet+up*0.06,feet-up*0.06,query.collision_mask,[actor.get_rid()])
+	var hit := state.intersect_ray(ray)
+	return not hit.is_empty() and hit.collider == self and (hit.normal as Vector3).dot(up) > 0.99
