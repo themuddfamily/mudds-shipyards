@@ -121,76 +121,61 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: grounded slope contact — WALK-FLEET
+<a id="grounded-floor-contact-parked"></a>
 
-**Result:** the unchanged Player walks the existing Operations Pod threshold
-forward and back with its full capsule clear on every completed walking tick.
-This implements the existing [WALK-FLEET clearance member](docs/ROADMAP_BACKLOG.md#fleet-cabin-reverse-clear-reboard),
-not a renewal or restoration of the parked Vortex berth. That card retains its
-original scope, deadline, source and30.1438699-minute cost; none of its new
-station geometry is included here. Main remains15craft/15occupiedhomes.
+### Grounded slope contact — PARKED, unmerged
 
-**Start:** baselineaafdf8dab5ba01c7bb286e008dd4db84f764c353, branch
-`work/ascending-floor-support-1117`, worktree
-`/srv/mudds-work/ascending-floor-support-20261117/worktree`.
-**Budget:** 2026-11-17 **15:09:03→16:39:03UTC**,90minutes ALL-IN through final
-push/build/archive/cleanup. Definition frozen15:15:18 before15:24:03.
-One substantive correction, **1/1 used**. One HIGH implementer and HIGH
-independent reviewer; root engines/release/docs/integration. No nested agents.
-Sole charged correction: new ascent probes observe50–60 real automatic ticks,
-retaining all first50 and additional full-clearance checks plus physicalZ>4m/
-rise>1.3m and original fullsuite300. Actual50tick traces were clear but advanced
-3.946875–3.947021m; this fixes an invented observation-window deadline without
-changing runtime, speed, geometry, physical endpoints or original suite cap.
-Current clean candidate79c4d82211b6c342c1e9ada71ea327b8ffd3300c awaits the entire
-original source/package matrix. All earlier failed raw/source remain retained.
+Candidate **79c4d82211b6c342c1e9ada71ea327b8ffd3300c** is not accepted. Source10, PCK6,
+three strict startups and the existing nine-predicate package audit passed;
+all five complete Main journeys persisted clean_shutdown/clean/session_ended.
+The proposed shared Player runtime change is still unmerged and no new build
+was published. Current playable checkpoint1816be5 and Main15craft/15occupiedhomes
+remain unchanged; the separate Vortex berth stays parked.
 
-**Cause:** the exact existing OperationsPodThreshold contact is positive
-.0001095626576m at completed frame860, Player(42.98533,-.016553,21.79902),
-with synchronized static target geometry, full radius.38/height1.94 capsule,
-margin0 and unchanged5.8m/s input. Foot rises.001776m; current recovery excludes
-ascending slide contact. The old actor server pose and query-only contact skin
-cannot replace the current completed-body clearance requirement.
+Two unresolved acceptance limits prevent publication:
 
-**Owned files:** PlayerController; existing PlayerStep suite; new
-`tests/player_operations_threshold_test.gd` and its UID. No world/ship geometry,
-Main/GameFlow, body shape, gravity, speed, snap distance, mask, input ownership,
-seat, weapon or network changes. Preserve the old remote/large-descent recovery
-wrapper and its descent+safe_margin bound. Reuse its existing four-attempt
-positive-up/full-shape-clear solver for already-grounded walkable contact,
-strictly nonpositive pre-up velocity, maximum residual lift exactlysafe_margin.
-Retain all normal/tangent/headroom/no-progress guards and no tangent writes.
-This does not enlarge step-up, airborne, jump or wall authority.
+- The frozen unchanged Main threshold preview failed its cold90s limit. A
+  read-only diagnostic measured a deferred display override; the narrow caller
+  correction then enforced actual960×540/content960×540, exact camera
+  (43,3,18)→(43,1,24.8),FOV52 before drawing. That correct-view run also timed
+  out without an image. Actual software-renderer failure remains unresolved;
+  no camera, material, quality or time-limit workaround was accepted.
+- Exact new Main-route and full PlayerStep controls also PASS the old accepted
+  1816be5 executable. Therefore these cases do not deterministically exercise
+  the recorded ascending-contact failure, and their green results cannot prove
+  that this candidate removes it. Both positive old controls are preserved.
+  A deterministic old-fail/new-pass compound threshold transition is required
+  before the change can be called a qualified fix. Existing recorded contact
+  operands remain valid evidence of the earlier failure, not proof of repair.
 
-**Actions and proof:** add real auto-physics convex/rotated-box1:3 ascent probes
-at identity and translated/yaw35 to the full existing suite. Actual normal Main
-Player follows (8,0,11)→(8,0,13.5)→(35,0,13.5)→(35,0,15.5)→(43,0,15.5)→
-(43,0,24.8), then every leg reversed to original spawn. Real engine processing
-and input only; no manual tick, processing disable, pose/speed/clock/body forcing
-or route shortcut. Each adjacent completed tick retains full capsule, head,
-floor/support, masks, gravity and<.2m continuity.
+A seven-artifact physics-only review draft was independently checked, with
+preview failure explicit, but its scope question was withdrawn when the
+old-package controls exposed the additional regression-sensitivity gap. No
+owner preview waiver can replace proof of the runtime repair. FINAL_GO and
+PACKAGE_GO remain withheld. The draft and its binaries are archived, not
+published. No source, runtime or renderer goal receives completion credit.
 
-**Source10:** full Main threshold180 first/alone; full PlayerStep300 alone;
-Vortex foundation90/definitions120/movingInterior120 in isolated pairs; both
-complete Vortex access180 profiles alone; complete Titan/Katana/Utopia Main300
-alone each. **PCK6:** exact threshold180 first/alone, full PlayerStep300, both
-full access180, complete Titan300 and Katana300, all alone. Original cases,
-limits, fixtures, exit0/one marker/raw0/source-cache-HEAD guards remain. Complete
-Main journeys require actual primary clean_shutdown/clean/session_ended.
+The original window was **2026-11-17 15:09:03→16:39:03UTC**,90minutes ALL-IN.
+Definition15:15:18 preceded15:24:03. Fixture compiler/gravity-baseline failures
+and all corrections remain retained. The sole charged correction1/1 changed
+only the new observation window to50–60 real ticks while preserving physical
+4m/1.3m endpoints and the original fullsuite300; runtime/tuning stayed unchanged.
+The task exceeded its deadline during archive/closure. Owned cleanup completed
+at16:43:37UTC, already94.57minutes; final push and full elapsed/overrun are
+recorded in `closeout.json`. Prior related berth cost30.1438699minutes remains
+attached, not reset away. No automatic renewal, renamed successor or blind retry.
 
-**Release/close:** same clean candidate paired exports, strictstartup3, exact
-Linux6members/types/modes/extractedELFidentity, complete equal payload maps and
-actual1816be5 baseline delta, audit9/eight independently reviewed artifacts.
-One cold fixed unchanged Main threshold geometry preview960×540/FOV52/eight
-frames/90s total, camera(43,3,18)→(43,1,24.8), fullworld/baseHUD retained;
-privateXvfb/x11/GLES/Dummy. This image does not prove contact or UI/native quality.
-FINAL_GO then PACKAGE_GO, repository builds, merge/push and verified source/raw
-archive plus exact owned ref/worktree/process cleanup. The full frozen contract
-is in `/srv/mudds-work/ascending-floor-support-20261117/frozen-card.md` for later
-archive. Stop dependent checks on first unexpected failure; unresolved failure,
-exhausted repair or deadline parks this original card without renamed successor
-or reduced acceptance. Native/GPU/device/audio/human/readability/fullcraft/network
-and all36parents/ten phase gates remain open/NOT_RUN; CI remains disabled.
+Verified source bundle, all raw/caller controls and candidate binaries:
+`/srv/mudds-work/ascending-floor-support-20261117/records.tar.gz`,
+**493467248bytes / 3046 independently reread/hash-verified members**,
+SHA256 **eb868791752ed7df5a4788ef9cad7001e14e5b8c6ba1d3dc78e07b315017088a**.
+Source was preserved before exact-tip deletion of its unmerged branch. Task
+worktree/processes/loose files are removed; the folder contains only the archive
+and `closeout.json`. Main is the only worktree. The unaccepted Paradox gunner
+local/remote branch atc743f585d0a70beb0e6100b34a47147d16280e08 remains explicitly
+retained. All36parent/ten phase gates and native/GPU/device/audio/human/readability/
+fullcraft/network/travelling-occupant gates remain open/NOT_RUN; CI stays disabled.
+No next task is selected.
 
 <a id="vortex-home-berth-parked"></a>
 
