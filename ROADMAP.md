@@ -101,6 +101,64 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Salyut physical home berth — card3
+
+Visible result: a signed, collision-backed12×26m home deck at identity
+**(-80,-.02,-30)**, connected to the real PortBerthNode by a supported2.8m spur.
+The same normal Main Player walks from spawn to the stern control/apron and the
+entire reverse route. This adds infrastructure only: **14berths/13flyables**;
+Salyut stays outside Main until card4. Existing13home leases/craft/geometry and
+the reserved parked Katana positive-x site remain unchanged.
+
+Baselineb2cb888ff; branch `work/salyut-berth-1117`, worktree
+`/srv/mudds-work/salyut-berth-20261117/worktree`. One HIGH implementer owns only
+new Salyut module/script/scene/UID and focused berth fixture, narrow ShipyardWorld
+berth/route/census wiring and necessary census-only existing assertions. One HIGH
+independent reviewer; root owns tests/release/docs/integration/cleanup. No Main,
+GameFlow, ship geometry/controller or shared berth authority changes.
+
+Frozen four disjoint floor rectangles: deckx[-86,-74]/z[-43,-17]; entry
+x[-45.4,-42.6]/z[-13.4,7]; westx[-74,-45.4]/z[-13.4,-10.6]; northjoin
+x[-76.8,-74]/z[-17,-10.6]. Matching visible/collision floor tops-.02, physical
+exterior rails with open station mouth, one sign,13bodies/shapes/no process loops.
+Exact route after normal spawn: (8,11)→(8,13.5)→(-35.5,13.5)→(-35.5,8.5)→
+(-44,8.5)→(-44,7)→(-44,-12)→(-75.4,-12)→(-75.4,-18)→(-80,-18)→
+(-82.3,-18)→control(-82.3,-21.4), then full reverse; new floorY-.02.
+Each completed real Player tick must retain support/capsule/head clearance,
+continuity<.2m and original body/masks/gravity. Query skin only.005radius/.01height;
+no Player pose/velocity/clock forcing or jump/rescue. Approach marker(-44,-.02,5.5)
+meets hub(-44,-.02,7) with actual1.5m edge; registry12modules/66markers/12slots.
+
+Exact adopted strictcenter0/half(5,5,11), salyut_transport tag, capturecenter
+(0,7,-16)/half(17,12,26), speed26/tilt65/lift4/landing12.5. One independent actual
+Salyut at exact dock proves full closed/deployed strictfit and root-inside-overhang
+refusal; every hull convex and actual chase camera casts complete4m lift/16m
+forward/7m staging/arrival/descent and all reverse legs against real neighbours.
+Actual empty/reserve/occupy/wrong-tag/foreign/stale/release/reuse leases preserve
+all13old complete tokens/occupants/audits and craft poses.
+
+Required: complete new berth240s and unchanged Dynamic berth240s; Salyut/Dynamic/
+Utopia foundations90each; both full Salyut access profiles180each; definitions and
+boarding120each. Full ordinary Titan source300ALONE and actualWindowsPCK300ALONE
+must end normal Quit/actual clean_shutdown/clean/session_ended. ActualWindowsPCK
+new berth240, Salyut foundation90 and both full access180 use exact committed
+fixtures with source isolation. Paired clean exports/strictstartup3(exit0,one
+STARTUP_MENU_READY_OK,raw0), exact Linux six-member archive/modes/ELFequality,
+complete equal Windows/Linux maps and reviewed delta; existing audit9/eight
+artifacts, independent FINAL_GO/PACKAGE_GO, merge/push/verified archive/exact cleanup.
+Cold three fixed960×540/eight-frame Main views90s total under privateXvfb/x11/Dummy:
+closedoverview camera(-98,10,-17)look(-80,2,-30); openstern camera(-87,6,-15)
+look(-80,1.6,-25); actual Salyut cockpit eye. Main13flyables/14berths with temporary
+standalone capture/probe hull only; no production Salyut spawn/seat claim.
+
+All-in window **2026-11-17 05:19:38→06:34:38UTC**,75minutes including definition,
+release/review/integration/cleanup; definition deadline05:34:38. Production repair
+**0/1** under owner reset17Nov05:12:56. Stop dependent checks at first unexpected
+failure; retain raw operands/cost. Same-clock compiler/assertion maintenance keeps
+all cases/caps; unresolved product failure or hard deadline parks whole card.
+No automatic renewal. Native Windows/GPU/human/full-craft gates stay NOT_RUN/open;
+hosted CI disabled. Frozen/raw records `/srv/mudds-work/salyut-berth-20261117/`.
+
 ### Salyut continuous physical stern access — card2 DONE
 
 Accepted source **1637b51cb974069f5f7546663bdc96f3a915c3b9**, merged via

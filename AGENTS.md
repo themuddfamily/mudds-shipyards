@@ -1,10 +1,10 @@
 # Agent collaboration policy
 
-## Owner-authorized unfinished-task allowance reset — 2026-11-16
+## Owner-authorized unfinished-task allowance reset — 2026-11-17
 
-- Latest owner renewal: **2026-11-16 21:02:44 UTC**. Reset every task still
+- Latest owner renewal: **2026-11-17 05:12:56 UTC**. Reset every task still
   unfinished at this renewal to **0 used**, including allowances consumed since
-  the earlier reset today. This supersedes earlier current-used counts, not
+  earlier resets. This supersedes earlier current-used counts, not
   their historical records. Apply this renewal once per unfinished task.
 - The owner reset correction allowances for every unfinished task, including
   parked, failed, blocked and gated tasks. Each receives a fresh used count of
