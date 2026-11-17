@@ -163,6 +163,19 @@ then dismiss tutorial/help through their existing UI actions for chair inspectio
 without material/light/shader/feature reduction. Scopedgeometry only, no posed
 ordinaryclaim or native/human/readability qualification. Allin10:44:13 unchanged.
 
+Current candidate **45ae17504f4fa8ee8351886f3fbf41236393c4c2**, production repair
+**1/1 used**. Initialaba testindentation,27cb dynamicbool compilation and438 exact
+F32 chair-side assertion failures are retained separately. f002 ordinarywalk reaches
+actualchair but its handoff refuses;09ff actualoperands show safe_cabin empty before
+any claim. A separate35.363s diagnostic (not ordinaryproof) measures ownfloor ray
+localY0.799999952316 below cabinmin0.800000011921 by5.9605e-8. Soleproductionrepair
+adds1e-5 logical solecontact margin while retaining roof4.6/XZ and all realgeometry/
+bodychecks; missing-meta diagnosticreads are guarded. All failedsource/raw/status
+records remain under the task root. Freshfullsource/PCK matrix required; no PASS
+or Mainintegration inferred. Independent focused checks may run inpairs with own
+profiles; all ordinaryMain cases and coldcapture run alone. Same10:44:13 deadline;
+no second productionrepair or automatic successor.
+
 ### Utopia ordinary Main pilot journey — card4 DONE; early pilot package card5 DONE
 
 Accepted source **4b1b84475699fcbf57f05540f0dc6da16db6dd26**, merged via
