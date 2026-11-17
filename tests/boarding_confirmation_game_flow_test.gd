@@ -90,6 +90,9 @@ func _run() -> void:
 	_check(not area.try_reserve(contender) and area.get_reservation_token() == player,
 		"a contender cannot replace the restored pilot reservation")
 
+	_check_light_choice_bridge(game)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Input.action_release(&"interact")
 	game.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -122,3 +125,91 @@ func _check(condition: bool, message: String) -> void:
 		print("PASS: ", message)
 	else:
 		_failures.append("FAIL: " + message)
+
+
+func _check_light_choice_bridge(game: GameFlow) -> void:
+	var light := game.call(&"_find_flyable_ship_by_id", &"cinder_light_interceptor") as HeroShip
+	_check(light != null, "Main supplies the actual registered Light instance for the choice bridge")
+	if light == null:
+		return
+	var light_area := light.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	_check(light_area != null, "registered Light retains its real boarding area")
+	if light_area == null:
+		return
+	var before := _choice_authority_snapshot(game, light)
+	for state in [&"approach", &"available"]:
+		game.call(&"_present_boarding_confirmation", state, light)
+		var view := _choice_view(game)
+		var expected_title := "[>] MOVE TO CINDER LIGHT INTERCEPTOR" if state == &"approach" else "[+] CINDER LIGHT INTERCEPTOR"
+		var expected_instruction := "LOOK FOR THE BOARDING PROMPT" if state == &"approach" else "PRESS INTERACT TO BOARD"
+		_check(view.state == state and view.title == expected_title
+			and view.message == "FAST RESPONSE // HIGH DRAG WHEN COASTING\nLIGHT INTERCEPTOR | 102 M/S BASE | MAX HULL 110\n" + expected_instruction
+			and view.get("light_choice_ship_id") == &"cinder_light_interceptor",
+			"Main's actual Light %s producer carries registry trade-off and rated facts" % state)
+		_check(not bool(view.reservation_authority) and not bool(view.transition_authority), "Light choice remains presentation-only")
+		if state == &"available":
+			_check(str(view.message).contains("PRESS INTERACT TO BOARD"), "Light keeps the ordinary Interact instruction")
+	_check(_choice_authority_snapshot(game, light) == before, "Light choice reads preserve full resource, component, weapon, seat, reservation and save snapshots")
+	# Existing successful boarding above supplies a genuinely seated player.
+	# Set only the observed busy fixture for the bridge's transition states;
+	# this is a producer regression, not an ordinary Light access journey.
+	_check(light_area.try_reserve(game.player), "transition fixture holds a real Light reservation")
+	game.call(&"_remember_boarding_confirmation_reservation", light_area, game.player, game.get("_transition_generation"))
+	var was_busy: bool = game.get("_transition_busy")
+	for state in [&"reserved", &"boarding", &"seated", &"disembarking", &"rejected"]:
+		game.set("_transition_busy", state in [&"boarding", &"disembarking"])
+		var state_before := _choice_authority_snapshot(game, light)
+		game.call(&"_present_boarding_confirmation", state, light, &"seat_occupied" if state == &"rejected" else &"")
+		var view := _choice_view(game)
+		_check(view.state == state and not (str(view.title) + str(view.message)).contains("FAST RESPONSE")
+			and not str(view.message).contains("MAX HULL"), "Light %s preserves the exclusive transition/refusal reading" % state)
+		_check(_choice_authority_snapshot(game, light) == state_before, "Light %s presentation cannot mutate gameplay or saved state" % state)
+	game.set("_transition_busy", was_busy)
+	light_area.release_reservation(game.player)
+	game.call(&"_clear_boarding_confirmation_reservation")
+	for craft in game.ships:
+		if craft == light:
+			continue
+		var craft_before := _choice_authority_snapshot(game, craft)
+		for state in [&"approach", &"available"]:
+			game.call(&"_present_boarding_confirmation", state, craft)
+			var view := _choice_view(game)
+			_check(view.state == state and not (str(view.title) + str(view.message)).contains("FAST RESPONSE")
+				and str(view.message).contains("MAX HULL"), "%s %s has only its existing rated facts" % [craft.get_ship_id(), state])
+		_check(_choice_authority_snapshot(game, craft) == craft_before, "unrelated craft choice preserves all gameplay and save facts")
+
+
+func _choice_view(game: GameFlow) -> Dictionary:
+	return (game.get_boarding_confirmation_presentation_report().adapter as Dictionary).view as Dictionary
+
+
+func _choice_authority_snapshot(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var definition_properties := {}
+	var definition := craft.get_ship_definition()
+	for property in definition.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_STORAGE:
+			definition_properties[property.name] = definition.get(property.name)
+	var store := game.get("_runtime_settings_user_data_store") as UserDataStore
+	var areas: Array = []
+	for candidate in game.ships:
+		var area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+		areas.append({"id": candidate.get_instance_id(), "piloted": candidate.is_piloted(),
+			"reserved": area.is_reserved() if area != null else false,
+			"token": area.get_reservation_token() if area != null else null})
+	var component := craft.get_component_damage()
+	return {
+		"definition_id": definition.get_instance_id(), "definition": definition_properties,
+		"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile(),
+		"components": component.get_ledger_snapshot() if component != null else {},
+		"component_revision": component.get_revision() if component != null else -1,
+		"weapon": craft.get_weapon_fire_status(), "weapon_profiles": game.call(&"_get_player_weapon_profiles", craft),
+		"hull": craft.get("_hull"), "engine": craft.get("_engine_state"),
+		"velocity": craft.velocity, "transform": craft.global_transform,
+		"areas": areas, "player_seated": game.player.is_seated(),
+		"player_transform": game.player.global_transform, "player_parent": game.player.get_parent(),
+		"phase": game.phase, "active_ship": game.active_ship,
+		"generation": game.get("_transition_generation"), "busy": game.get("_transition_busy"),
+		"save": store.get_snapshot() if store != null else {},
+		"save_generation": store.get_generation() if store != null else -1,
+		"save_commit": store.get_commit_metadata() if store != null else {},
+	}.duplicate(true)
