@@ -24,6 +24,8 @@ var _failed := false
 var _monitor_walk_samples := false
 var _exterior_control_walk := false
 var _control_walk_z := 0.0
+var _diagnostic_motion_history: Array[Dictionary] = []
+var _diagnostic_last_frame := -1
 
 
 class FixtureCommands:
@@ -222,6 +224,17 @@ func _walk_control_side(target_x: float) -> bool:
 
 func _sample(label: String) -> bool:
 	_samples += 1
+	var completed: Dictionary = _player.get_step_up_assist_audit().get("completed_motion", {})
+	if int(completed.get("frame", -1)) != _diagnostic_last_frame:
+		_diagnostic_last_frame = int(completed.get("frame", -1))
+		_diagnostic_motion_history.append({"completed_motion": completed, "local": _local(),
+			"velocity": _player.velocity, "real_velocity": _player.get_real_velocity(),
+			"last_motion": _player.get_last_motion(), "position_delta": _player.get_position_delta(),
+			"on_floor": _player.is_on_floor(), "floor_normal": _player.get_floor_normal(),
+			"slide_count": _player.get_slide_collision_count(),
+			"registered": _frame.is_occupant_registered(_player)})
+		if _diagnostic_motion_history.size() > 6:
+			_diagnostic_motion_history.pop_front()
 	if not _check(_player.get_instance_id() == _actor_id and _player.collision_mask == _mask
 		and _player.collision_layer == _layer and is_equal_approx(float(_player.get("gravity_multiplier")), _gravity)
 		and not Input.is_action_pressed("jump") and not _player.is_seated(), label + ": actor/masks/gravity/standing unchanged"): return false
@@ -262,10 +275,27 @@ func _capture_capsule_failure(label: String, query: PhysicsShapeQueryParameters3
 		var collider := hit.get("collider") as CollisionObject3D
 		if is_instance_valid(collider):
 			record["collider_path"] = collider.get_path()
+			record["collider_scene_transform"] = collider.global_transform
+			record["collider_server_transform"] = PhysicsServer3D.body_get_state(collider.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM)
+			var shape_index := int(hit.get("shape", -1))
+			record["server_shape_transform"] = PhysicsServer3D.body_get_shape_transform(collider.get_rid(), shape_index)
+			record["server_shape_data"] = PhysicsServer3D.shape_get_data(PhysicsServer3D.body_get_shape(collider.get_rid(), shape_index))
 			var owner_id := collider.shape_find_owner(int(hit.get("shape", -1)))
 			var owner := collider.shape_owner_get_owner(owner_id) as Node
-			if is_instance_valid(owner): record["shape_owner_path"] = owner.get_path()
+			record["shape_owner_transform"] = collider.shape_owner_get_transform(owner_id)
+			if is_instance_valid(owner):
+				record["shape_owner_path"] = owner.get_path()
+				if owner is CollisionShape3D:
+					var collision_shape := owner as CollisionShape3D
+					record["shape_scene_transform"] = collision_shape.global_transform
+					if collision_shape.shape is ConvexPolygonShape3D:
+						record["shape_vertices"] = (collision_shape.shape as ConvexPolygonShape3D).points
 		hit_records.append(record)
+	var slides: Array[Dictionary] = []
+	for index in _player.get_slide_collision_count():
+		var slide := _player.get_slide_collision(index)
+		slides.append({"normal": slide.get_normal(), "position": slide.get_position(),
+			"travel": slide.get_travel(), "remainder": slide.get_remainder(), "depth": slide.get_depth()})
 	var collision := KinematicCollision3D.new()
 	var overlapping := _player.test_move(_player.global_transform, Vector3.ZERO,
 		collision, _player.safe_margin, true, 4)
@@ -278,6 +308,11 @@ func _capture_capsule_failure(label: String, query: PhysicsShapeQueryParameters3
 	print("VORTEX_CAPSULE_DIAGNOSTIC: ", {"label": label, "local": _local(),
 		"hits": hit_records, "rest_info": _player.get_world_3d().direct_space_state.get_rest_info(query),
 		"capsule_radius": shape.radius, "capsule_height": shape.height, "capsule_transform": query.transform,
+		"query_margin": query.margin, "query_mask": query.collision_mask, "query_exclude": query.exclude,
+		"contact_pairs": _player.get_world_3d().direct_space_state.collide_shape(query, 8),
+		"motion_history": _diagnostic_motion_history, "slide_contacts": slides,
+		"floor_snap_length": _player.floor_snap_length, "floor_max_angle": _player.floor_max_angle,
+		"interior_collision_transform": _player.call("_get_interior_collision_transform"),
 		"player_transform": _player.global_transform, "player_velocity": _player.velocity,
 		"on_floor": _player.is_on_floor(), "floor_normal": _player.get_floor_normal(), "safe_margin": _player.safe_margin,
 		"ship_transform": _ship.global_transform, "ship_velocity": _ship.velocity,
