@@ -128,6 +128,18 @@ fresh on b69e91f. Production corrections remain0/1. No acceptance or cap weakene
 Frozen contract follows. Archive and exact cleanup recorded below at closure.
 Card4 Main pilot integration remains open; no next assignment selected here.
 
+Closeout: source bundle and every raw/failed-attempt member are preserved in
+`/srv/mudds-work/utopia-berth-20261117/records.tar.gz`:44,500,708bytes,
+SHA256 `5563434df1bb87dad4328de9437cf3280c42266e6663e30378e9a2d8d52baca7`,
+900 members independently re-read and verified. Accepted source is contained in
+pushed Main; exact-tip local branch deleted, remote task branch confirmed absent,
+worktree removed and owned processes reaped. Scratch reduced to archive plus
+closeout.json at08:33:00UTC, before08:43:55deadline. Only retained branch exception
+is unaccepted Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08,
+local/remote with no worktree. No next card is selected. Card4 Main pilot
+integration remains open; all36 parent outcomes/ten phase gates remain open.
+The following frozen contract is retained as delivered scope.
+
 Visible result: signed13×30m deck at identity **(144,.38,-30)**,2.5m stern apron
 and guarded2.8m station approach through a new supported Titan north portal.
 One normal Main Player walks the entire existing Titan station prefix, reaches
