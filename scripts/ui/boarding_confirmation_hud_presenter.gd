@@ -34,10 +34,12 @@ func present(snapshot: Dictionary) -> Dictionary:
 	# Detached rated definition facts help choose a craft before boarding. They
 	# never describe this instance's current velocity, damage or seat authority.
 	if state in [&"approach", &"available"]:
-		var facts := snapshot.get("definition_facts", {}) as Dictionary
-		var role := str(facts.get("role", "")).strip_edges().to_upper()
-		var speed := float(facts.get("maximum_speed", 0.0))
-		var hull := float(facts.get("maximum_hull", 0.0))
+		var raw_facts: Variant = snapshot.get("definition_facts", {})
+		var facts: Dictionary = raw_facts if raw_facts is Dictionary else {}
+		var raw_role: Variant = facts.get("role", "")
+		var role := str(raw_role).strip_edges().to_upper() if raw_role is String or raw_role is StringName else ""
+		var speed := _positive_number(facts.get("maximum_speed"))
+		var hull := _positive_number(facts.get("maximum_hull"))
 		if not role.is_empty() and is_finite(speed) and speed > 0.0 \
 				and is_finite(hull) and hull > 0.0:
 			# The facts line already carries the exact role. Compact repeated class
@@ -50,8 +52,18 @@ func present(snapshot: Dictionary) -> Dictionary:
 				if " — " in craft:
 					choice_name += " // " + craft.get_slice(" — ", 1).replace("-OBSERVED", "")
 			reading = _reading_for(state, choice_name, reason)
-			reading.message += "\n%s | %.0f M/S BASE | MAX HULL %.0f" % [role, speed, hull]
-	return {
+			var tradeoff := _choice_reading(facts, role, speed)
+			var rated_facts := "%s | %.0f M/S BASE | MAX HULL %.0f" % [role, speed, hull]
+			if not tradeoff.is_empty():
+				# Distribute the complete instruction across the existing heading
+				# and body. Only this validated Light choice uses an inline state.
+				reading.title = "[>] MOVE TO %s" % choice_name if state == &"approach" else "[+] %s" % choice_name
+				var instruction := "LOOK FOR THE BOARDING PROMPT" if state == &"approach" else "PRESS INTERACT TO BOARD"
+				reading.message = "%s\n%s\n%s" % [tradeoff, rated_facts, instruction]
+				reading.light_choice_ship_id = &"cinder_light_interceptor"
+			else:
+				reading.message += "\n" + rated_facts
+	var view := {
 		"accepted": true,
 		"state": state,
 		"title": reading.title,
@@ -61,7 +73,10 @@ func present(snapshot: Dictionary) -> Dictionary:
 		"presentation_only": true,
 		"reservation_authority": false,
 		"transition_authority": false,
-	}.duplicate(true)
+	}
+	if reading.has("light_choice_ship_id"):
+		view.light_choice_ship_id = reading.light_choice_ship_id
+	return view.duplicate(true)
 
 
 func _reading_for(state: StringName, craft: String, reason: String) -> Dictionary:
@@ -81,3 +96,33 @@ func _reading_for(state: StringName, craft: String, reason: String) -> Dictionar
 		&"rejected":
 			return {"shape": "[!]", "title": "[!] BOARDING UNAVAILABLE", "message": "%s%s" % [craft, " // " + reason if not reason.is_empty() else " // CHECK SEAT STATUS"]}
 	return {"shape": "[?]", "title": "[?] BOARDING STATUS", "message": craft}
+
+
+func _positive_number(value: Variant) -> float:
+	if not (value is float or value is int):
+		return 0.0
+	var number := float(value)
+	return number if is_finite(number) and number > 0.0 else 0.0
+
+
+func _choice_reading(facts: Dictionary, role: String, speed: float) -> String:
+	var choice: Variant = facts.get("role_choice")
+	if not choice is Dictionary or role != "LIGHT INTERCEPTOR":
+		return ""
+	if choice.get("ship_id") != &"cinder_light_interceptor" \
+			or choice.get("role_id") != &"cinder_light_interceptor":
+		return ""
+	var axes: Variant = choice.get("source_axes")
+	if not axes is Dictionary or axes.get("advantage") != &"maximum_speed" \
+			or axes.get("weakness") != &"passive_drag":
+		return ""
+	if not is_equal_approx(_positive_number(choice.get("maximum_speed")), speed) \
+			or _positive_number(choice.get("passive_drag")) <= 0.0:
+		return ""
+	var advantage: Variant = choice.get("advantage")
+	var weakness: Variant = choice.get("weakness")
+	for text: Variant in [advantage, weakness]:
+		if not text is String or text.strip_edges().is_empty() \
+				or text.length() > 48 or "\n" in text or "\r" in text:
+			return ""
+	return "%s // %s" % [advantage, weakness]

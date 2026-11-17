@@ -20,8 +20,9 @@ const HIGHER_IS_BETTER := [
 const LOWER_IS_BETTER := ["passive_drag", "engine_start_time", "weapon_cooldown"]
 
 ## Every entry is keyed by a stable ShipDefinition ID, not a display string.
-## The signature directions are checked against the complete live roster, so a
-## tuning pass cannot silently turn a role into a strict upgrade.
+## Signature comparisons default to the complete live roster. An explicit
+## same_scale_band scope narrows only that signature, never separation or
+## non-dominance checks.
 const ROLE_CONTRACTS := {
 	&"torrent_provisional": {
 		"role_id": &"torrent_interceptor",
@@ -116,11 +117,44 @@ const ROLE_CONTRACTS := {
 			"maximum_hull": &"maximum",
 		},
 	},
+	&"cinder_light_interceptor": {
+		"role_id": &"cinder_light_interceptor",
+		"role_name": "Light interceptor",
+		"required_tags": [&"small_craft", &"interceptor", &"rapid_response"],
+		"scale_band": &"small",
+		"interior_expected": false,
+		"crew_story": "A fast-response interceptor with the small band's highest rated base speed.",
+		"advantage": "FAST RESPONSE",
+		"weakness": "HIGH DRAG WHEN COASTING",
+		"choice_source_axes": {"advantage": &"maximum_speed", "weakness": &"passive_drag"},
+		"signature_axes": {"maximum_speed": &"maximum"},
+		"signature_scope": &"same_scale_band",
+	},
 }
 
 
 static func get_role_contract(ship_id: StringName) -> Dictionary:
 	return (ROLE_CONTRACTS.get(ship_id, {}) as Dictionary).duplicate(true)
+
+
+## Rated choice facts only; no instance, seat, weapon, or save authority.
+## Other Cinder contracts and the full normalized role budget remain open.
+static func get_boarding_choice_facts(definition: ShipDefinition) -> Dictionary:
+	if definition == null:
+		return {}
+	var contract := get_role_contract(definition.get_ship_id())
+	if not contract.has("choice_source_axes"):
+		return {}
+	var profile := definition.get_flight_profile()
+	return {
+		"ship_id": definition.get_ship_id(),
+		"role_id": contract.role_id,
+		"advantage": contract.advantage,
+		"weakness": contract.weakness,
+		"source_axes": contract.choice_source_axes,
+		"maximum_speed": profile.get("maximum_speed", 0.0),
+		"passive_drag": profile.get("passive_drag", 0.0),
+	}.duplicate(true)
 
 
 ## Detached discoverability contract for optional multicrew capabilities. This
@@ -271,14 +305,16 @@ static func _validate_non_dominance(profiles: Dictionary, errors: PackedStringAr
 			if first == second:
 				continue
 			if _count_advantages(profiles[first], profiles[second]) == 0:
-				errors.append("%s is a strict upgrade over %s" % [second, first])
+				errors.append("%s is a strict upgrade over %s" % [first, second])
 
 
 static func _validate_signatures(profiles: Dictionary, errors: PackedStringArray) -> void:
 	for ship_id: StringName in ROLE_CONTRACTS:
 		if not profiles.has(ship_id):
 			continue
-		var signatures: Dictionary = ROLE_CONTRACTS[ship_id].signature_axes
+		var contract: Dictionary = ROLE_CONTRACTS[ship_id]
+		var scope: StringName = contract.get("signature_scope", &"global")
+		var signatures: Dictionary = contract.signature_axes
 		for axis: String in signatures:
 			if not profiles[ship_id].has(axis):
 				errors.append("%s signature axis '%s' is not a ShipDefinition axis" % [ship_id, axis])
@@ -287,6 +323,11 @@ static func _validate_signatures(profiles: Dictionary, errors: PackedStringArray
 			var subject := float(profiles[ship_id][axis])
 			for other: StringName in profiles:
 				if other == ship_id:
+					continue
+				if scope == &"same_scale_band" and (
+						not ROLE_CONTRACTS.has(other)
+						or ROLE_CONTRACTS[other].scale_band != contract.scale_band
+				):
 					continue
 				var value := float(profiles[other].get(axis, subject))
 				if want_maximum and value >= subject:

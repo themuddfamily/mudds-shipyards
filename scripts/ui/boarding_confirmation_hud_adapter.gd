@@ -45,6 +45,16 @@ func apply_view(view: Dictionary) -> Dictionary:
 		"state": str(view.get("shape", "[?]")) + " " + str(view.get("state", "unknown")).to_upper(),
 		"presentation_only": true,
 	}
+	# The validated Light choice keeps the exact observed state beside its
+	# instruction so all content fits the unchanged retained card. Other
+	# craft and transitions retain the HUD's ordinary separate state line.
+	var state := StringName(view.get("state", &""))
+	var expected_shape := "[>]" if state == &"approach" else "[+]"
+	if view.get("light_choice_ship_id") == &"cinder_light_interceptor" \
+			and state in [&"approach", &"available"] \
+			and str(view.get("shape", "")) == expected_shape:
+		card.message = str(card.message) + " | STATE // " + str(card.state)
+		card.erase("state")
 	if not bool(_hud.call(&"set_runtime_status_card", CARD_SOURCE, card, true)):
 		return {"accepted": false, "reason": &"hud_rejected_card", "presentation_only": true}
 	_last_view = view.duplicate(true)

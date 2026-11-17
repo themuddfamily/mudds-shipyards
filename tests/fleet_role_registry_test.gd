@@ -12,6 +12,7 @@ const DEFINITIONS := [
 	preload("res://assets/ships/zenith_b7_observed.tres"),
 	preload("res://assets/ships/halyard_new_design.tres"),
 	preload("res://assets/ships/bulwark_new_design.tres"),
+	preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
 ]
 
 var _failures := 0
@@ -19,10 +20,11 @@ var _checks := 0
 
 
 func _initialize() -> void:
+	var original_resources := _definition_snapshots()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
-	_check(bool(report.get("valid", false)), "the six production definitions satisfy the role registry")
-	_check(int(report.get("craft_count", 0)) == 6, "the role registry audits all six current craft")
-	_check(int(report.get("role_count", 0)) == 6, "each current craft owns a distinct stable role ID")
+	_check(bool(report.get("valid", false)), "the seven production definitions satisfy the role registry")
+	_check(int(report.get("craft_count", 0)) == 7, "the role registry audits all seven supported craft")
+	_check(int(report.get("role_count", 0)) == 7, "each current craft owns a distinct stable role ID")
 	_check(int(report.get("schema_version", 0)) == Registry.SCHEMA_VERSION, "role audit exposes its schema version")
 	var jovian_engineer := Registry.get_crew_role_contract(&"jovian_provisional", &"engineer")
 	_check(not jovian_engineer.is_empty(), "Jovian engineer capability is discoverable without constructing the ship")
@@ -69,6 +71,7 @@ func _initialize() -> void:
 		&"zenith_b7_observed": "high-response interceptor",
 		&"halyard_new_design": "walkable flight deck and cabin",
 		&"bulwark_heavy_gunship": "durable sustained fire",
+		&"cinder_light_interceptor": "fast-response interceptor",
 	}
 	for definition in DEFINITIONS:
 		var contract: Dictionary = Registry.get_role_contract(definition.get_ship_id())
@@ -82,6 +85,8 @@ func _initialize() -> void:
 			"%s role contract declares at least one signature axis" % definition.get_ship_id()
 		)
 
+	_check_light_contract()
+	_check(_definition_snapshots() == original_resources, "all stored definition properties survive registry reads and detached policy mutation")
 	print("FLEET_ROLE_REGISTRY: %d checks, %d failures" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -93,3 +98,82 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures += 1
 		push_error("FAIL: %s" % message)
+
+
+func _check_light_contract() -> void:
+	var light := DEFINITIONS[6] as ShipDefinition
+	var contract := Registry.get_role_contract(light.get_ship_id())
+	_check(Registry.get_supported_ship_ids().size() == 7, "seven supported contracts leave Hauler and Bomber outside this bounded delivery")
+	_check(Registry.get_role_contract(&"cinder_cargo_hauler").is_empty()
+		and Registry.get_role_contract(&"cinder_long_range_bomber").is_empty(), "the remaining two Cinder contracts stay open")
+	_check(contract.role_id == &"cinder_light_interceptor" and contract.role_name == "Light interceptor"
+		and contract.scale_band == &"small" and not contract.interior_expected,
+		"Light preserves stable identity, role and small-craft band")
+	_check(contract.required_tags == [&"small_craft", &"interceptor", &"rapid_response"], "Light contract requires its exact live role tags")
+	_check(contract.signature_scope == &"same_scale_band"
+		and contract.signature_axes == {"maximum_speed": &"maximum"}, "only Light's base-speed signature explicitly compares its own scale band")
+	var old_signatures := [
+		{"boost_multiplier": &"maximum", "weapon_cooldown": &"minimum", "landing_maximum_speed": &"maximum"},
+		{"boost_speed": &"maximum"}, {"maximum_speed": &"minimum"},
+		{"yaw_speed_degrees": &"maximum", "roll_speed_degrees": &"maximum", "maximum_hull": &"minimum"},
+		{"maximum_speed": &"maximum", "thrust_acceleration": &"minimum", "brake_acceleration": &"minimum", "boost_multiplier": &"minimum", "landing_maximum_speed": &"minimum", "engine_start_time": &"maximum", "weapon_cooldown": &"maximum"},
+		{"maximum_hull": &"maximum"},
+	]
+	for index in 6:
+		var old := Registry.get_role_contract(DEFINITIONS[index].get_ship_id())
+		_check(old.get("signature_scope", &"global") == &"global" and old.signature_axes == old_signatures[index], "original %s global signature remains exact" % DEFINITIONS[index].get_ship_id())
+	_check(Registry.MINIMUM_DIFFERING_HANDLING_AXES == 14, "the original 14-of-16 separation floor is unchanged")
+	var facts := Registry.get_boarding_choice_facts(light)
+	_check(facts.advantage == "FAST RESPONSE" and facts.weakness == "HIGH DRAG WHEN COASTING"
+		and facts.maximum_speed == 102.0 and facts.passive_drag == 3.0
+		and facts.source_axes == {"advantage": &"maximum_speed", "weakness": &"passive_drag"},
+		"Light choice text carries actual 102 base-speed / 3 passive-drag sources")
+	_check(not contract.has("crew_role_capabilities") and facts.size() == 7,
+		"choice facts advertise no invented cargo, crew, weapon or authority budget")
+	facts.source_axes.advantage = &"maximum_hull"
+	facts.advantage = "TAMPERED"
+	contract.required_tags.clear()
+	contract.signature_axes.maximum_speed = &"minimum"
+	_check(Registry.get_boarding_choice_facts(light).advantage == "FAST RESPONSE"
+		and Registry.get_role_contract(light.get_ship_id()).required_tags.size() == 3
+		and Registry.get_role_contract(light.get_ship_id()).signature_axes.maximum_speed == &"maximum"
+		and Registry.get_boarding_choice_facts(light).source_axes.advantage == &"maximum_speed",
+		"nested public contract and choice mutations cannot alter retained policy")
+	_check(Registry.get_boarding_choice_facts(null).is_empty(), "null definition yields no choice facts")
+	for index in 6:
+		_check(Registry.get_boarding_choice_facts(DEFINITIONS[index]).is_empty(), "other craft have no Light choice claim")
+	var tied_arrow := DEFINITIONS[1].duplicate(true) as ShipDefinition
+	tied_arrow.maximum_speed = 102.0
+	var tied: Array = DEFINITIONS.duplicate()
+	tied[1] = tied_arrow
+	_check(str(Registry.audit_definitions(tied).errors).contains("cinder_light_interceptor no longer owns the contracted maximum of maximum_speed"), "same-band base-speed tie rejects Light's signature")
+	var fast_medium := DEFINITIONS[4] as ShipDefinition
+	_check(fast_medium.maximum_speed > light.maximum_speed and bool(Registry.audit_definitions(DEFINITIONS).valid), "a faster medium hull retains its global signature without invalidating Light's small-band signature")
+	var dominating_light := light.duplicate(true) as ShipDefinition
+	for axis in Registry.HIGHER_IS_BETTER:
+		dominating_light.set(axis, float(DEFINITIONS[1].get(axis)) + 1.0)
+	for axis in Registry.LOWER_IS_BETTER:
+		dominating_light.set(axis, float(DEFINITIONS[1].get(axis)) * 0.5)
+	var dominated: Array = DEFINITIONS.duplicate()
+	dominated[6] = dominating_light
+	_check(str(Registry.audit_definitions(dominated).errors).contains("cinder_light_interceptor is a strict upgrade over arrow_provisional"), "non-dominance failure names the actual dominating craft before its victim")
+	var duplicate_profile := light.duplicate(true) as ShipDefinition
+	for key in DEFINITIONS[1].get_flight_profile():
+		duplicate_profile.set(key, DEFINITIONS[1].get_flight_profile()[key])
+	for key in DEFINITIONS[1].get_systems_profile():
+		duplicate_profile.set(key, DEFINITIONS[1].get_systems_profile()[key])
+	var collapsed: Array = DEFINITIONS.duplicate()
+	collapsed[6] = duplicate_profile
+	var collapsed_errors := str(Registry.audit_definitions(collapsed).errors)
+	_check(collapsed_errors.contains("differ on only 0 handling axes") and collapsed_errors.contains("strict upgrade"), "new same-band scope never weakens global separation or non-dominance")
+
+
+func _definition_snapshots() -> Array:
+	var snapshots: Array = []
+	for definition in DEFINITIONS:
+		var properties := {}
+		for property in definition.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_STORAGE:
+				properties[property.name] = definition.get(property.name)
+		snapshots.append(properties.duplicate(true))
+	return snapshots

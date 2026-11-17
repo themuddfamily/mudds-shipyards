@@ -331,7 +331,16 @@ const HEAD_HULL_CLEARANCE_MINIMUM := 0.45
 const SEAT_TO_COCKPIT_CAMERA_RISE := 1.76
 
 const FLEET_SIZE := 5
-const PRODUCTION_FLEET_SIZE := 9
+# Main now retains the original nine craft plus six accepted expansion craft.
+# Keep all original audits and extend handling/signature coverage to this exact roster.
+const PRODUCTION_FLEET_IDS := [
+	&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
+	&"zenith_b7_observed", &"halyard_new_design", &"cinder_long_range_bomber",
+	&"bulwark_heavy_gunship", &"cinder_light_interceptor", &"cinder_cargo_hauler",
+	&"titan_provisional", &"predator_provisional", &"paradox_provisional",
+	&"dynamic_provisional", &"utopia_provisional", &"katana_provisional",
+]
+const PRODUCTION_FLEET_SIZE := 15
 const FIGHTER_IDS := [&"torrent_provisional", &"arrow_provisional", &"zenith_b7_observed"]
 ## Craft that publish a connected walkable interior, with the per-craft floors
 ## their own hulls have to keep. The suite used to assert that exactly one craft
@@ -458,6 +467,8 @@ func _run() -> void:
 		"the %d flyables carry %d distinct stable ship identities" % [PRODUCTION_FLEET_SIZE, PRODUCTION_FLEET_SIZE]
 	)
 
+	for expected_id: StringName in PRODUCTION_FLEET_IDS:
+		_check(by_id.has(expected_id), "Main retains the exact accepted craft " + str(expected_id))
 	_test_role_differentiation(by_id)
 	var original_fleet := {}
 	for original_id: StringName in [
