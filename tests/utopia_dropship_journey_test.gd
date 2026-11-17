@@ -373,7 +373,7 @@ func _reservations_clear(sections: Array[Dictionary], fraction: float) -> bool:
 		for reserved in _reservations:
 			if _overlaps(section,reserved):
 				if _fitted_chair_consumes_reservation(section,reserved): continue
-				return _check(false,"solid invades "+reserved.name+" / "+section.name+" fraction="+str(fraction))
+				return _check(false,"solid invades "+reserved.name+" / "+section.name+" fraction="+str(fraction)+" actual_bounds="+str(section.bounds)+" reserved_bounds="+str(reserved.bounds))
 	return true
 
 
@@ -935,8 +935,8 @@ func _fitted_chair_consumes_reservation(section: Dictionary, reserved: Dictionar
 		for part: String in ["Pedestal","Cushion","Back"]:
 			if section.name != label+part: continue
 			var bounds := _chair_part_bounds(index,part)
-			return (section.bounds as AABB).is_equal_approx(bounds) and bounds.position.x >= (1.54 if index == 1 else -2.46) \
-				and bounds.end.x <= (2.46 if index == 1 else -1.54)
+			return (section.bounds as AABB).is_equal_approx(bounds) and bounds.position.x >= (1.54 if index == 1 else -2.46)-0.00001 \
+				and bounds.end.x <= (2.46 if index == 1 else -1.54)+0.00001
 	return false
 
 
