@@ -147,6 +147,25 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="cinder-light-choice-current"></a>
+
+### Cinder Light role-choice card — RESUMED, unmerged
+
+Same unfinished CRAFT-ACCEPT-CINDER-LIGHT role/choice member, restored from
+50134b4 under owner18:58:40UTC renewal. Known73px/63px body overflow is addressed
+by packing the exact trade-off in the existing title for Light approach/available
+only; full ordinary instruction/facts/observed state remain in the retained body.
+No font/card geometry, body1px tolerance, viewport/scale case or othercraft/state
+change is allowed. One renewed correction**1/1 used** on this known fit cause.
+Fresh all-in window**20:58:50→21:43:50UTC2026-11-17 (45minutes)** includes all
+source4, six-case title/body fit, two actual-resolution images, actualPCK4,
+paired checkpoint/startup3/maps/audit9/eightartifacts, independent root review,
+merge/push/archive/owned cleanup. Original300s suite/capture caps retained.
+`/srv/mudds-work/cinder-light-choice-renewal-20261117/frozen-card.md` preserves
+literal original obligations/failures/cost. Latest accepted build staysec8cfda;
+no current role/card delivery is credited until all gates pass. Native/human,
+whole Main graphics, craft/role budgets and full-game gates remain open; CI off.
+
 <a id="dynamic-lifecycle-current"></a>
 
 ### Dynamic destruction and reuse — card8 DONE, ec8cfda
