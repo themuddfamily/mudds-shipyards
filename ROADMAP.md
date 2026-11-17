@@ -159,6 +159,35 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected — Dynamic card9: cold recovery
+
+Frozen **2026-11-17 21:28:48 → 22:43:48 UTC**, 75 minutes all-in,
+including prior mapping, source/package checks and cleanup. Definition closes
+by21:43:48. Owner21:35:22 renewed allowance **0/1 used**. Source baseline
+01a74ac99; owned branch `work/dynamic-cold-recovery-1117` and worktree/records
+`/srv/mudds-work/dynamic-cold-recovery-20261117`.
+
+Deliver the adopted station-walking restart policy: Dynamic saves no helm
+claim and fresh Main retains its authored supported station spawn. Preserve
+other craft behavior and the existing four-field save format. Prove real
+committed fresh-process recovery, actual temporary-directory write refusal and
+retry, and an owned process killed during a flushed partial temporary write
+followed by real cold recovery/retry. A complete valid staged successor retains
+the existing shared store's promotion policy. Preserve unrelated saved data,
+15 unique craft/home leases and normal physical reboarding. Accept old valid
+Dynamic pilot/on-foot records without restoring pilot authority.
+
+Run existing store/crash/safe-start regressions, full ordinary Dynamic Main300s
+and lifecycle360s; keep all original checks/caps. A clean-commit paired checkpoint
+must repeat actual recovery cases and full Main/lifecycle against the exported
+PCK, pass three strict startup checks, full paired maps and existing package
+inventory, and publish eight actual artifacts with honest notes. Exact frozen
+case list is in `frozen-card.json` at the owned records root. No shared-store,
+physics, schema or unrelated craft changes. Native hardware/human/network/full
+craft gates remain open. Stop at an unresolved original acceptance failure,
+exhausted correction or deadline; retain failed source/results and clean owned
+processes/worktree/branch. No implementation or check is credited yet.
+
 <a id="cinder-light-choice-current"></a>
 
 ### Cinder Light role-choice card — PARKED, unmerged
