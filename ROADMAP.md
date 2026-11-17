@@ -151,7 +151,12 @@ slabs/railmargins, nearest Garden separation.590m. Do not change any oldmodule.
 Frozen ordinary route from unchanged Main spawn(-8.5,.18,11): (8,0,11),
 (8,0,13.5),(35,0,13.5),(35,0,15.5),(39,0,15.5),(47,0,15.5),(47,0,8.5),
 (47,0,7),(47,0,-8),(64,0,-8),(64,0,-22),(64,0,-30)apron,(65.4,0,-28.4)control,
-then same supported reverse return. Keep safe rail openings at both L turns and
+then same supported reverse return. The first actual caller hit the legacy
+Habitat rail atworldz12.87/x45..48.8. Routine caller263a63b inserts(39,0,15.5),
+(39,0,8.5) after the retained(47,0,15.5), before retained(47,0,8.5), and includes
+the same detour in reverse. Every frozen endpoint/order, full240s cap and every
+actor/support/clearance predicate stay intact; no old geometry is altered. First
+failure/raw operands remain preserved; production corrections remain0/1. Keep safe rail openings at both L turns and
 deck entry; actorcapsule .38 must remain supported/clear. One independent
 candidate initial fixture at exact dock proves actual receiver/deployed fit,
 strict miss/wrongtag/foreign/occupied/stale lease refusal and query sweeps;
