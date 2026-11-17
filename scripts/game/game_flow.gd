@@ -3874,7 +3874,7 @@ func _solo_safe_recovery_craft() -> HeroShip:
 		return null
 	var craft := _find_flyable_ship_by_id(StringName(context.craft_id))
 	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
-			or craft not in ships or not craft.is_boardable() \
+			or craft not in ships \
 			or String(craft.get_ship_id()) != context.craft_id \
 			or String(craft.get_home_berth_id()) != context.berth_id:
 		return null
@@ -3883,7 +3883,21 @@ func _solo_safe_recovery_craft() -> HeroShip:
 			or berth.get_reservation_owner() != craft:
 		return null
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	if area == null or not area.is_available_for(player):
+	if craft.get_ship_id() == &"dynamic_provisional":
+		# A sealed Dynamic at its supported home is a recovery preference,
+		# not boarding permission. Actual entry still requires open access.
+		if context.mode not in ["pilot", "on_foot"] or not is_ancestor_of(craft) \
+				or craft.is_destroyed() or craft.is_piloted() \
+				or not craft.has_method(&"is_access_supported") \
+				or not bool(craft.call(&"is_access_supported")) \
+				or bool(craft.call(&"is_access_motion_active")) \
+				or not HeroShip._landing_transforms_match(craft.global_transform, berth.get_dock_transform()) \
+				or not _ship_owns_exact_occupied_berth(craft, craft.get_home_berth_id()) \
+				or area == null or not area.is_inside_tree() or area.is_queued_for_deletion() \
+				or not area.boarding_enabled or area.get_ship() != craft or area.is_reserved():
+			return null
+		return craft
+	if not craft.is_boardable() or area == null or not area.is_available_for(player):
 		return null
 	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional"]:
 		return null
@@ -3936,6 +3950,8 @@ func _solo_safe_recovery_description() -> String:
 		return ""
 	var craft := _solo_safe_recovery_craft()
 	if is_instance_valid(craft) and not _network_session_is_live() and not _planetary_visit_blocks_network_session():
+		if craft.get_ship_id() == &"dynamic_provisional":
+			return " Safe recovery returns you on foot at the shipyard. %s remains available at its home berth; saved helm authority and flight position are not restored. Saved activity progress is kept." % craft.get_display_name()
 		if _solo_safe_recovery_context.mode == "pilot":
 			return " Safe recovery boards %s at its home berth; the previous flight position is not restored. Saved activity progress is kept." % craft.get_display_name()
 		if _solo_safe_recovery_context.mode == "crew":
@@ -4040,11 +4056,16 @@ func _capture_solo_safe_recovery_context() -> void:
 				mode = "on_foot"
 				# Cold Main's default Torrent must not replace the last settled
 				# exterior preference merely because the Player is beside its berth.
-				if _solo_safe_recovery_context.get("mode") == "on_foot":
+				if _solo_safe_recovery_context.get("mode") == "on_foot" \
+						or (_solo_safe_recovery_context.get("craft_id") == "dynamic_provisional" \
+							and _solo_safe_recovery_context.get("mode") == "pilot"):
 					var preferred := _solo_safe_recovery_craft()
 					if is_instance_valid(preferred):
 						context_ship = preferred
 		if not mode.is_empty():
+			# Dynamic saves only a home-craft preference, never helm authority.
+			if context_ship.get_ship_id() == &"dynamic_provisional":
+				mode = "on_foot"
 			context = {"location": "mudds_home_berth", "mode": mode,
 				"craft_id": String(context_ship.get_ship_id()),
 				"berth_id": String(context_ship.get_home_berth_id())}
@@ -4058,6 +4079,11 @@ func _apply_solo_safe_recovery() -> void:
 	var craft := _solo_safe_recovery_craft()
 	if not is_instance_valid(craft) or _network_session_is_live() \
 			or _planetary_visit_blocks_network_session() or _transition_busy:
+		return
+	# Both old pilot records and current on-foot preferences use the supported
+	# station spawn established by normal startup. Dynamic's exterior exit
+	# marker lies inside its closed hull and is not a cold recovery location.
+	if craft.get_ship_id() == &"dynamic_provisional":
 		return
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
