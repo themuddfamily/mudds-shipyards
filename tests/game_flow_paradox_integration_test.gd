@@ -64,8 +64,8 @@ func _run() -> void:
 	var dock := berth.get_dock_transform()
 	if not _check(_game.phase == GameFlow.Phase.APPROACH_SHIP and _player.is_control_enabled()
 		and _player.global_position.distance_to(world.get_player_spawn().origin)<0.25
-		and _game.get_flyable_ships().size()==12 and berth.get_occupant()==_ship
-		and berth.get_reservation_owner()==_ship,"actual normal Main spawn and existing production craft in expanded twelve-craft fleet with occupied own home"): return
+		and _game.get_flyable_ships().size()==13 and berth.get_occupant()==_ship
+		and berth.get_reservation_owner()==_ship,"actual normal Main spawn and existing production craft in expanded thirteen-craft fleet with occupied own home"): return
 	if not _test_physical_alignment(_ship,"Main initial OFFLINE"): return
 	var sources := {}
 	var poses := {}
@@ -84,7 +84,7 @@ func _run() -> void:
 	for id in OLD_TRANSFORMS:
 		if not _check(world.get_berth_transform(id).is_equal_approx(OLD_TRANSFORMS[id]),"old berth transform "+str(id)): return
 	var roster := _game._build_fleet_registry_snapshot()
-	if not _check(roster.rows.size()==12 and (_ship.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter).get_target_entity()==_ship,"actual registry console roster includes12 and unfitted craft remains damageable"): return
+	if not _check(roster.rows.size()==13 and (_ship.get_node("AuthoritativeDamageable") as LifecycleDamageableAdapter).get_target_entity()==_ship,"actual registry console roster includes13 and unfitted craft remains damageable"): return
 	var area := _ship.get_node("ShipBoardingArea") as ShipBoardingArea
 	var before_generation := _game._transition_generation
 	_game._board_ship(_ship)
@@ -118,8 +118,8 @@ func _run() -> void:
 			and [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees]==settings[craft],"old craft pose/source/settings preserved "+str(craft.name)): return
 	for home: ShipBerth in leases:
 		if not _check(home.audit()==leases[home],"old occupied lease immutable "+str(home.get_berth_id())): return
-	if not _check(_player.get_instance_id()==identity and unique.size()==12
-		and _game.get_flyable_ships().size()==12 and not area.is_reserved()
+	if not _check(_player.get_instance_id()==identity and unique.size()==13
+		and _game.get_flyable_ships().size()==13 and not area.is_reserved()
 		and not _ship.is_canopy_open(),"same Player finishes second complete sortie outside sealed unique real craft"): return
 	await _quit_normally()
 
