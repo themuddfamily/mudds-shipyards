@@ -120,7 +120,8 @@ GameFlow, ship geometry/controller or shared berth authority changes.
 Frozen four disjoint floor rectangles: deckx[-86,-74]/z[-43,-17]; entry
 x[-45.4,-42.6]/z[-13.4,7]; westx[-74,-45.4]/z[-13.4,-10.6]; northjoin
 x[-76.8,-74]/z[-17,-10.6]. Matching visible/collision floor tops-.02, physical
-exterior rails with open station mouth, one sign,13bodies/shapes/no process loops.
+exterior rails with open station mouth and a physically mounted sign;13bodies,
+15matching collision shapes,114meshes,1label/no process loops.
 Exact route after normal spawn: (8,11)→(8,13.5)→(-35.5,13.5)→(-35.5,8.5)→
 (-44,8.5)→(-44,7)→(-44,-12)→(-75.4,-12)→(-75.4,-18)→(-80,-18)→
 (-82.3,-18)→control(-82.3,-21.4), then full reverse; new floorY-.02.
@@ -139,7 +140,9 @@ all13old complete tokens/occupants/audits and craft poses.
 
 Required: complete new berth240s and unchanged Dynamic berth240s; Salyut/Dynamic/
 Utopia foundations90each; both full Salyut access profiles180each; definitions and
-boarding120each. Full ordinary Titan source300ALONE and actualWindowsPCK300ALONE
+boarding120each. Complete affected Titan/Predator/Paradox berth240each, route
+registry180 and feedback-world180 regressions preserve all original cases. Full
+ordinary Titan source300ALONE and actualWindowsPCK300ALONE
 must end normal Quit/actual clean_shutdown/clean/session_ended. ActualWindowsPCK
 new berth240, Salyut foundation90 and both full access180 use exact committed
 fixtures with source isolation. Paired clean exports/strictstartup3(exit0,one
