@@ -5,7 +5,7 @@ craft now exist in Main, including Titan, Predator, Paradox and Dynamic pilot
 checkpoints. This count is implementation, not full craft qualification. The
 four craft still awaiting Main integration have accepted standalone hull/pilot
 foundations; Katana has validated standalone physical access and pilot
-claims, and Salyut has validated standalone stern walking access. Their Main integration, four remaining berths and the remaining access
+claims, and Salyut and Utopia have validated standalone stern walking access. Their Main integration, four remaining berths and the remaining access
 work stay open. All 36 original parent outcomes and ten phase exit gates remain
 open. There is no evidence-backed completion percentage or finish date.
 
@@ -15,9 +15,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **1637b51** — [Windows ZIP](builds/windows/MuddsShipyards-1637b51-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-1637b51-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-1637b51-linux-x86_64.tar.gz).
+Latest playable checkpoint: **f17268b** — [Windows ZIP](builds/windows/MuddsShipyards-f17268b-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-f17268b-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-f17268b-linux-x86_64.tar.gz).
+Utopia now has continuous standalone stern access: reachable control, folding
+ramp, supported cabin walk to the fixed helm stand and full return/seal
+([preview](builds/windows/MuddsShipyards-f17268b-utopia-access-preview.png)).
+Two complete cycles pass at identity and elevated yaw in source and actual
+Windows PCK. Open/moving access blocks propulsion and fire; the closed controller
+retains its original pulse. Utopia stays outside Main pending berth and pilot
+integration; cargo, chairs and supply capability remain open.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
 ([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
@@ -40,7 +47,7 @@ Paradox now has its ordinary Main pilot journey and occupied home berth ([produc
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the four craft still outside Main:
-Vortex, Katana, Utopia and Salyut. Katana and Salyut standalone access is qualified;
+Vortex, Katana, Utopia and Salyut. Katana, Salyut and Utopia standalone access is qualified;
 remaining access work, four berth cards and four Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
@@ -101,7 +108,24 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Utopia continuous physical stern access — card2
+### Utopia continuous physical stern access — card2 DONE
+
+Accepted source **f17268bf12354233ebaac05092856264551669c7**, merged via
+**5ca1818d91442e485ca99a4a43268df5304c88e5**, checkpoint **f17268b**.
+The seven same-source focused cases pass: both complete access profiles61.672/
+61.635s, Utopia/Dynamic/Salyut foundations24.547/21.562/22.900s, definitions2.431s
+and boarding8.098s. Full ordinary Titan source164.434s and PCK157.355s pass normal
+Quit with actual clean_shutdown/clean/session_ended. ActualPCK Utopia foundation
+23.872s and access60.547/60.559s pass at original caps with exact committed
+fixtures/source isolation. Both complete walking cycles/101fraction geometry and
+every completed Player tick are proved without pose/mask/clock forcing.
+Cold3fixedviews9.304s/90, strictstartup3, equal1603-entry complete Windows/Linux
+maps, Utopia-only production delta plus80 typed node_ids-only scene changes,
+existing package audit9 and independent FINAL_GO/PACKAGE_GO pass. Eight artifacts
+are published with verified hashes. Production repair0/1; no failed runtime retry.
+The Main test's ten-completed-physics-tick FIRE observer retains every original
+weapon/receipt/cadence/full-journey requirement. Frozen contract below is retained;
+archive and exact owned cleanup closeout follow. No next card is selected here.
 
 Result: one real Player reaches Utopia's stern control, opens, walks the supported
 ramp/bridge/aisle to the fixed helm stand and the entire reverse route/seals,
