@@ -4243,9 +4243,11 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 	initial_berth_ids.append(&"titan_home_berth")
 	initial_berth_ids.append(&"predator_home_berth")
 	initial_berth_ids.append(&"paradox_home_berth")
+	initial_berth_ids.append(&"dynamic_home_berth")
 	# The Dock 04/05/06 berths assemble after the world's initial index pass.
 	# Until GameFlow refreshes that index, the three berth caches truthfully hold
-	# the six feedback-equipped berths plus Titan, Predator and Paradox; afterwards all twelve berths.
+	# the six feedback-equipped berths plus Titan, Predator, Paradox and Dynamic;
+	# afterwards all thirteen berths.
 	# Both atomic states are valid, but partial or foreign cache rosters are not.
 	if (
 		not _dictionary_has_exact_keys(_berth_nodes, initial_berth_ids)
