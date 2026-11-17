@@ -16,9 +16,18 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **f3cf6bb** — [Windows ZIP](builds/windows/MuddsShipyards-f3cf6bb-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-f3cf6bb-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-f3cf6bb-linux-x86_64.tar.gz).
+Latest playable checkpoint: **6e15126** — [Windows ZIP](builds/windows/MuddsShipyards-6e15126-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-6e15126-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-6e15126-linux-x86_64.tar.gz).
+Cinder Light now shows its registry speed/coasting trade-off beside complete
+boarding instructions, rated role/speed/hull and observed state. Both approach
+and available fit the existing card at normal fonts, without clipping. The six
+original global signatures and trade-offs remain intact; Light adds its scoped
+seventh contract. [Actual HUD component preview](builds/windows/MuddsShipyards-6e15126-cinder-light-choice-preview.png)
+is inspected at both required sizes; it is not a station-world capture.
+Full source/PCK checks and the checkpoint package gates pass.
+[Delivery and retained failures](#cinder-light-choice-current).
+
 Restarting after using Dynamic now preserves its home preference and returns the
 player to supported normal station walking without a pilot claim. Its sealed
 home recovery offer describes that behavior; ordinary opening/walking/boarding
@@ -117,12 +126,12 @@ external inputs remain binding. This reset starts no tests and marks no task
 passed or ready; no further approval is needed solely for an exhausted allowance
 or expired historical window.
 
-Current renewed counts supersede the historical used counts in task rows and
-closeouts below. In particular, unfinished Utopia card7 and Cinder Light
-role-choice each receive **0/1 used**. Their failed results and causal reopening
-conditions remain unchanged. Completed Dynamic lifecycle card8 is excluded.
-The unfinished Dynamic cold-recovery card9 remains **0/1 used**; this reset
-alone starts no implementation or tests.
+The renewed counts superseded historical used counts for tasks unfinished at
+this renewal, including Utopia card7, Cinder Light role-choice and Dynamic cold
+recovery card9 (0/1 each). Utopia remains unfinished. Dynamic card9 and Light's
+choice member were subsequently delivered with1/1 used each; their completed
+status does not grant another reset. Dynamic lifecycle card8 was already done
+and excluded. Historical failures and all causal reopening conditions remain.
 
 Earlier reset history:
 
@@ -213,34 +222,58 @@ attempts are verified in
 SHA256 `77e170947bdc353fc6784da68ef541b92d36ef35d6fc2fa38e10fc3053a93076`). Adjacent `closeout.json` records actual all-in
 elapsed time, final pushed commits, artifact hashes and cleanup accounting.
 
-### Selected — Cinder Light complete choice packing
-
-**2026-11-17 22:38:00 → 23:23:00 UTC, 45 minutes all-in**, definition by22:53.
-Same unfinished role/choice member; owner21:35:22 renewal supplies0/1, with the
-sole known-failure packing repair now selected1/1. Prior50.5055364minutes and
-all failed source remain retained. Baseline7d9c4458c, latest buildf3cf6bb.
-
-Display the complete registry trade-off, original instruction clauses, craft
-identity, literal role/speed/hull facts and literal observed shape/state inside
-the same396×112card at normal16/11px fonts. A real production-HUD metric preflight
-fits both states in all six original size/scale cells: title320/244px within
-365–366, body54/63px. Put MOVE TO/fullcraft in approach title (fullcraft in
-available title), retain exact trade-off/facts in body, and join the exact STATE
-marker beside the final instruction. A Light-only adapter branch avoids a
-second state line; generic HUD and other craft/states remain unchanged.
-
-Owned root/worktree `/srv/mudds-work/cinder-light-choice-packing-20261117`,
-branch `work/cinder-light-choice-packing-1117`. Four runtime files are the
-registry, boarding-facts GameFlow, presenter and narrow adapter; extend the same
-three original tests. Exact frozen contract in `frozen-card.md` retains full
-source4/PCK4 at300s, all six fit cells/1px tolerance, two actual reviewed PNGs,
-paired checkpoint/startup3/maps/audit9/eightartifacts and cleanup. No subset,
-font/card/content/case waiver, new UI framework or hosted CI. The following
-previous stop is historical; no new implementation is credited yet.
-
 <a id="cinder-light-choice-current"></a>
 
-### Cinder Light role-choice card — PARKED, unmerged
+### Cinder Light role-choice card — DONE, 6e15126
+
+Accepted source **6e15126b2f07df22934c22e7a680829bf35916f4**, merged/pushed with a fresh paired checkpoint.
+Only Light approach/available gains the exact registry reading
+**FAST RESPONSE // HIGH DRAG WHEN COASTING**. Full craft identity and original
+instruction clauses remain across title/body; the complete literal rated-facts
+line remains, and the exact observed shape/state sits beside the final
+instruction. Titles measure 320/244px within 365–366; body 54/63px at normal 16/11px
+fonts inside the unchanged 396×112 card. Other craft/states and actual boarding,
+profile, weapon and save authorities remain unchanged. The original six global
+signatures/non-dominance/minimum 14 of 16 remain; Light's seventh speed signature
+has explicit small-band scope.
+
+All four full source suites and all four actual exported-PCK suites pass under
+the original 300s limits, with original markers, zero diagnostics and stable
+source/cache/HEAD/clean guards. Both Light states fit all six original viewport/
+scale cells with unchanged 1px body tolerance. The same opt-in HUD run executes
+every default case before producing the two required 1280/1920 available-card
+PNGs at UI 1; both were actually inspected, and final-commit images are byte-
+identical. This is the production HUD component setup, not ordinary world/native
+qualification. Legacy capture paths/registered sets stay unchanged.
+
+The first source run exposed the differentiation fixture's stale nine-craft
+census. It now requires all fifteen exact accepted identities and applies all
+original handling/separation/trade-off/signature checks to all fifteen, while
+retaining original-five colour/seating/interior cases. No production repair or
+case removal was needed. The exact test-only colour helper is inlined with
+byte-reconstructed identity solely for the PCK external fixture; every original
+assertion and duration remains. The registry fixture's isolation guard uses its
+actual `_initialize` entry point.
+
+Clean paired exports, three strict menu-ready startups, exact Linux archive/
+modes/extracted ELF identity, equal complete 1,611-entry package maps, reviewed
+four-script delta, all nine existing package predicates and eight actual files
+pass independent release review. Native Windows/GPU/human/Main cold-render,
+full normalized role budgets, other Cinder/full-craft/flight/art/network and
+final-game gates remain open; all 36 parents / 10 phase gates stay open.
+
+Owner 21:35:22 renewal supplied 0/1; the sole known-failure packing repair uses 1/1.
+Original **22:38:00 → 23:23:00 UTC, 45-minute all-in window** retained. Prior cumulative
+**50.5055364 minutes** stays historical; actual new and cumulative cost are in
+adjacent `closeout.json`. Source, all prior failed attempts and the actual stale-
+census failure remain in verified archive
+`/srv/mudds-work/cinder-light-choice-packing-20261117/records.tar.gz`
+(**21,962,945 bytes**, **146 members**,
+SHA256 `d8a299333ac9aac7d8ce968fd23ad40940f1c2ff69e3b6d0717fdaca8837bd49`). Owned process/worktree/branch/scratch cleanup
+is complete; remote task branch absent. Unaccepted Paradox gunner work remains
+protected. No partial registry/UI acceptance or font/card/content/case waiver.
+
+### Previous Cinder Light title/body attempt — historical, unmerged
 
 Candidate **1ef02d4a0f0f786bdc4ce581b392bc6a1b2b28b9** is unaccepted.
 At that stop Main runtime/latest playable checkpoint **ec8cfda** were unchanged. Full required
@@ -3810,7 +3843,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 
 | Existing goal/member | Current result or blocker | Condition before further work |
 | --- | --- | --- |
-| [Cinder Light role-choice card](#cinder-light-choice-current) | PARKED: renewed title-packing candidate1ef02d4 fails369px/365–366px title; approachbody73px/63px,1/1used | Authorized bounded complete-title/body packing at normal16/11px, all original content/six cells/tolerance/caps and full source/package/release; retain both failed attempts/cost; no automatic retry |
+| [Cinder Light role-choice card](#cinder-light-choice-current) | DONE 6e15126: exact trade-off, instructions/facts/state fit both states in all six cells; source/PCK/package gates pass | Scoped choice member complete; full normalized roles/craft and native/human gates remain open; prior failures/cost retained |
 | [Bulwark whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105) | PARKED: required capture fails two unchanged cockpit-clearance assertions despite source and dimension passes | Log exact failed operands, reconcile original clearance contract, explicitly reprioritize with prior cost/exhausted allowance; no subset acceptance |
 | [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
 | [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |

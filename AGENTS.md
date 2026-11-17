@@ -23,8 +23,10 @@
   every unfinished task ready or authorize blind retries.
 
 - Earlier renewal: **2026-11-17 18:58:40 UTC**. Counts consumed under that
-  renewal remain historical. Unfinished Utopia card7 and Cinder Light role-choice
-  now receive **0/1 used**; completed Dynamic lifecycle card8 is excluded.
+  renewal remain historical. At21:35:22, then-unfinished Utopia card7 and Cinder
+  Light role-choice received **0/1 used**; completed Dynamic lifecycle card8 was
+  excluded. Dynamic cold recovery card9 and Light role-choice later delivered
+  with **1/1 used** each; completion does not grant another reset.
 
 - Earlier renewal: **2026-11-17 16:53:33 UTC**. Its consumed counts remain
   historical; the subsequent 18:58:40 renewal included then-parked Dynamic
