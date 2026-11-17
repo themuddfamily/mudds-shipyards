@@ -1031,7 +1031,7 @@ func _run_components() -> void:
 		craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
 		await _frames(1)
 		if not _check(model.get_component_state(id) == ShipComponentDamage.ComponentState.FAILED
-			and model.get_impaired_component_count() == 1
+			and model.get_failed_component_count() == 1 and model.get_impaired_component_count() == 0
 			and presentation.get_component_effect_ids() == [id]
 			and presentation.get_component_effect_state(id) == ShipComponentDamage.ComponentState.FAILED,
 			str(id)+" second real contact fails only same physical section and cue"): return
