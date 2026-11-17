@@ -804,27 +804,13 @@ func _recover_floor_snap_penetration(
 		pre_move_velocity: Vector3,
 		was_on_floor: bool
 	) -> void:
-	var trace := OS.get_environment("VORTEX_SUPPORT_TRACE") == "1" \
-		and Engine.get_physics_frames() >= 680 and Engine.get_physics_frames() <= 686
-	if trace:
-		print("VORTEX_SUPPORT_WRAPPER: ", {"frame": Engine.get_physics_frames(),
-			"pre_move_transform": pre_move_transform, "post_slide_transform": global_transform,
-			"pre_move_velocity": pre_move_velocity, "was_on_floor": was_on_floor,
-			"on_floor": is_on_floor(), "slide_count": get_slide_collision_count(),
-			"descent": (pre_move_transform.origin - global_position).dot(_get_movement_up_direction()),
-			"pre_up_speed": pre_move_velocity.dot(_get_movement_up_direction()), "safe_margin": safe_margin,
-			"collision_transform": _get_interior_collision_transform()})
 	if not was_on_floor or not is_on_floor() or get_slide_collision_count() != 0:
-		if trace: print("VORTEX_SUPPORT_WRAPPER_REJECT: floor/slide")
 		return
 	var movement_up := _get_movement_up_direction()
 	if (pre_move_transform.origin - global_position).dot(movement_up) <= safe_margin \
 			or pre_move_velocity.dot(movement_up) > 0.0:
-		if trace: print("VORTEX_SUPPORT_WRAPPER_REJECT: descent/up_speed")
 		return
-	if trace: print("VORTEX_SUPPORT_WRAPPER_ENTER_HELPER: ", Engine.get_physics_frames())
 	_recover_descending_floor_penetration(pre_move_transform, pre_move_velocity)
-	if trace: print("VORTEX_SUPPORT_WRAPPER_COMPLETE: ", {"frame": Engine.get_physics_frames(), "transform": global_transform})
 
 
 ## Contact validation shared by a normal descending snap and an explicit
@@ -840,33 +826,34 @@ func _recover_descending_floor_penetration(
 	var snapped := global_transform
 	var recovered := snapped
 	var collision := KinematicCollision3D.new()
-	var trace := OS.get_environment("VORTEX_SUPPORT_TRACE") == "1" \
-		and Engine.get_physics_frames() >= 680 and Engine.get_physics_frames() <= 686
+	var capsule_query := PhysicsShapeQueryParameters3D.new()
+	capsule_query.shape = _player_collision.shape
+	capsule_query.collision_mask = collision_mask
+	capsule_query.margin = 0.0
+	var excluded_bodies: Array[RID] = [get_rid()]
+	for body: PhysicsBody3D in get_collision_exceptions():
+		excluded_bodies.append(body.get_rid())
+	capsule_query.exclude = excluded_bodies
 	# Each engine query performs bounded fractional overlap recovery. Probe to
-	# contact tolerance before committing; cap any lift at the pre-snap level
-	# plus contact tolerance. Never change tangent position or use this as a
-	# second step-up/climbing solver.
+	# actual capsule clearance before committing: a correction below safe_margin
+	# can still leave the body inside a descending convex floor. Cap any lift at
+	# the pre-snap level plus contact tolerance; never change tangent position or
+	# use this as a second step-up/climbing solver.
 	for _attempt in 4:
 		var overlapping := test_move(
 			recovered, Vector3.ZERO, collision, safe_margin, true, 4
 		)
 		var correction := collision.get_travel() if overlapping else Vector3.ZERO
-		if trace:
-			print("VORTEX_SUPPORT_RECOVERY_PROBE: ", {"frame": Engine.get_physics_frames(),
-				"attempt": _attempt, "recovered": recovered, "overlapping": overlapping,
-				"correction": correction, "correction_length": correction.length(),
-				"depth": collision.get_depth(), "contact_count": collision.get_collision_count()})
 		if overlapping:
 			for contact_index in collision.get_collision_count():
 				if collision.get_normal(contact_index).dot(movement_up) < cos(floor_max_angle):
 					return false
 		if correction.length() <= safe_margin:
-			if trace: print("VORTEX_SUPPORT_RECOVERY_EARLY_ACCEPT_BRANCH: ", {"frame": Engine.get_physics_frames(), "depth": collision.get_depth(), "safe_margin": safe_margin})
-			if overlapping and collision.get_depth() > safe_margin:
-				return false
-			if recovered.origin != snapped.origin:
-				global_transform = recovered
-			return true
+			capsule_query.transform = recovered * _player_collision.transform
+			if get_world_3d().direct_space_state.intersect_shape(capsule_query, 1).is_empty():
+				if recovered.origin != snapped.origin:
+					global_transform = recovered
+				return true
 		if correction.dot(movement_up) <= 0.0 \
 				or correction.slide(movement_up).length() > safe_margin:
 			return false

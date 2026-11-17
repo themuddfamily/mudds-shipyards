@@ -557,6 +557,68 @@ func _test_floor_snap_descends_walkable_slope() -> void:
 		"floor snap keeps real contact while descending a walkable slope")
 	rig.queue_free()
 	await process_frame
+	for fixture: Transform3D in [Transform3D.IDENTITY,
+		Transform3D(Basis(Vector3.UP, deg_to_rad(35)), Vector3(30, 0.38, -20))]:
+		await _test_convex_floor_snap_capsule_clearance(fixture)
+
+
+## A real 1:4 convex floor exposes the sub-safe-margin recovery that used to
+## return success while the unchanged full capsule still intersected its plane.
+func _test_convex_floor_snap_capsule_clearance(fixture: Transform3D) -> void:
+	var rig := Node3D.new()
+	rig.transform = fixture
+	root.add_child(rig)
+	var ramp := StaticBody3D.new()
+	ramp.collision_layer = WORLD_LAYER
+	var collision := CollisionShape3D.new()
+	var convex := ConvexPolygonShape3D.new()
+	convex.points = PackedVector3Array([
+		Vector3(-1.2, 2, 0), Vector3(1.2, 2, 0),
+		Vector3(1.2, 0, 8), Vector3(-1.2, 0, 8),
+		Vector3(-1.2, 1.92, 0), Vector3(1.2, 1.92, 0),
+		Vector3(1.2, -0.08, 8), Vector3(-1.2, -0.08, 8)])
+	collision.shape = convex
+	ramp.add_child(collision)
+	rig.add_child(ramp)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.position = Vector3(0, 1.78, 1)
+	rig.add_child(player)
+	player.set_camera_active(false)
+	for _settle in 20:
+		await physics_frame
+		await process_frame
+	var capsule := player.get_node(^"PlayerCollision") as CollisionShape3D
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule.shape
+	query.collision_mask = player.collision_mask
+	query.exclude = [player.get_rid()]
+	query.margin = 0.0
+	var start := player.position
+	var previous := player.global_position
+	var kept_clear := player.is_on_floor()
+	var complete_ticks := true
+	Input.action_press(&"move_back")
+	for index in 50:
+		await physics_frame
+		await process_frame
+		var motion: Dictionary = player.get_step_up_assist_audit().completed_motion
+		complete_ticks = complete_ticks and int(motion.frame) == Engine.get_physics_frames() \
+			and motion.end == player.global_position and previous.distance_to(player.global_position) < 0.2
+		query.transform = capsule.global_transform
+		var hits := player.get_world_3d().direct_space_state.intersect_shape(query)
+		if kept_clear and (not player.is_on_floor() or not hits.is_empty()):
+			print("CONVEX_FLOOR_SNAP_OPERANDS: ", {"fixture": fixture, "tick": index,
+				"completed_motion": motion, "position": player.global_position,
+				"on_floor": player.is_on_floor(), "query_transform": query.transform,
+				"hits": hits, "rest_info": player.get_world_3d().direct_space_state.get_rest_info(query)})
+		kept_clear = kept_clear and player.is_on_floor() and hits.is_empty()
+		previous = player.global_position
+	Input.action_release(&"move_back")
+	_check(kept_clear and complete_ticks and player.position.z - start.z > 4.0
+		and start.y - player.position.y > 1.0,
+		"real 1:4 convex descent keeps full capsule clear on every completed tick " + str(fixture))
+	rig.queue_free()
+	await process_frame
 
 
 ## The native handback lost floor contact walking east off the ramp's side,
