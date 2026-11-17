@@ -864,6 +864,44 @@ and cold Main graphics gates remain unchanged/open.
 
 ### Main cold first-frame blocker — bounded definition stopped
 
+**2026-11-17 causal trace update:** accepted Main ee1b48e68, unchanged
+Operations camera(43,3,18)→(43,1,24.8), FOV52, actual physical/content960×540,
+full world and original90s cap reproduces exit124/no image. Read-only EGL/GL
+interception captured attached sources and timed calls; a live gdb sample again
+shows LLVM SelectionDAG compilation. The trace contains192programs/384sources:
+completed draw calls40.641857s, shader compile2.100041s, link7.529282s.
+This is cumulative first-draw compilation across material variants, not evidence
+of a single permanently hung shader. Timings are diagnostic/instrumented, not
+native performance acceptance.
+
+The dominant identical material-body family accounts for23.728147s completed
+draws across22programs: world-triplanar albedo/metal/roughness/normal/clearcoat/AO,
+owned by StationSurfaceKit.apply_panel_triplanar/apply_panel_orm and station
+material factories. Final unmatched program586 instead uses plain UV emission
+and clearcoat. Several production factories generate the same body; the exact
+draw node/material instance remains **unproven**. A packed ORMMaterial3D swap
+would discard existing scalar metalness/roughness/specular, so it is rejected as
+an equivalent optimization. The earlier failed custom-panel binding is not
+repeated. No justified bounded production correction was established; no source,
+checkpoint, renderer completion or native qualification credit. Owner16:53:33
+renewal remains0/1 used; all earlier failures/costs remain attached.
+
+Finite investigation selected16:50:33UTC, evidence and cleanup completed before
+its17:05:33 definition deadline. Diagnostic source/raw/GLSL/material census and
+live stacks are preserved in
+`/srv/mudds-work/main-gl-owner-20261117/records.tar.gz`:
+**6,664,077bytes**, SHA256
+`b256dde3ec6f527343aff2298bd8283d56e127602820e74f22dffd737615d06b`,
+**412members reread/verified**. No production source changed; clean owned worktree,
+exact local branch and all owned processes/scratch removed; remote task branch
+absent. Only the separate unaccepted Paradox gunner branch remains retained.
+Adjacent closeout records final all-in time and pushed documentation commit.
+Next repair needs an equivalent optimization addressing the measured families
+and their actual consumer/update contract, plus unchanged full cold-view proof;
+no blind render retry, warmed-cache result or reduced visual gate is authorized.
+
+Earlier bounded definition (historical):
+
 Accepted Main243a6e518 (13craft/13berths) reproduces the west-camera first-draw
 software-renderer delay without the parked Salyut candidate. Direct-Main capture
 reaches process_frame; native samples show LLVMInstSimplify then SelectionDAG /
