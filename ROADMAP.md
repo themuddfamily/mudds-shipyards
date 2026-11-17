@@ -111,7 +111,7 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Utopia physical Cinder supply destination — card7
+### Parked: Utopia physical Cinder supply destination — card7
 
 Baseline **d74eb350aa6b88f3a398773d87dac271254e2fac**, branch
 `work/utopia-supply-access-1117`, worktree
@@ -173,6 +173,32 @@ full capsule/head/support/adjacency checks remain, both directions required.
 These are explicit fixture contract corrections, not a passing claim for the
 failed literal assertion. Entire unchanged route/source8/PCK3/release remains
 required on b938569; production repair0/1 and original11:58:37 deadline unchanged.
+
+**PARKED, unmerged — b93856964b5a8dbf9ca41dd7d0c56e4e337d84c7.** Full actual
+source flight/strict Cinder landing/inside release/deployed geometry pass, but
+walking stops at the third connector stair: point(35.68452,-66.1997,-684.6524),
+actual capsule overlaps=[] and central support ray={}. Actual capsule contact
+versus a centre-ray miss just before the tread edge remains UNRESOLVED; no full
+terminal visit/return, source8/PCK3 or release acceptance. No checkpoint was made,
+no production source merged and no roadmap delivery credited. Production repair
+0/1 remains unspent. The remaining original window cannot fit a causally repaired
+fresh full delivery; no automatic successor or renewed window is selected.
+
+Verified archive `/srv/mudds-work/utopia-supply-access-20261117/records.tar.gz`,
+**30427277bytes**,SHA256
+`0dec660c651e5e8664244c30b6883187b3daa256dfce2ea38b4293a8d48e7e91`,
+**169members** read/hash-verified, retains exact committed source bundle,
+every failed attempt/actual operands and frozen checks. Clean task worktree removed;
+local source ref deleted by exact-CAS after archive verification, remote task ref
+confirmed absent; owned engine/supervisor processes gone. Root folder retains only
+archive+closeout.json. Archive/cleanup took57.540minutes from10:43:37UTC;
+final documentation/push cost is included in the closeout's final timestamp.
+Unaccepted Paradox gunner c743f585d remains the sole retained task-branch exception.
+Reopening requires actual full-capsule walkable contact/normal versus missing
+support at that exact unchanged stair, a causal correction without shrinking the
+body or waiving support, then the entire original route and source8/PCK3/release
+inside a freshly selected bounded window. Do not replay only the passed flight.
+Main remains14usablepilotcraft/14occupiedhomes; all36parents/10phasegates open.
 
 ### Utopia local physical passenger chairs — card6 DONE
 

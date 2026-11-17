@@ -7,6 +7,8 @@ The [working roadmap](../ROADMAP.md#current-work-and-next-selection) selects exe
 [delivery history](history/ROADMAP_DELIVERIES.md) records accepted and failed attempts.
 This backlog preserves remaining scope, not a ready queue or remaining-job count.
 
+Utopia card7 physical Cinder destination candidate **b938569** is PARKED/unmerged: real outbound landing/inside exit pass, third-stair central support predicate fails; full terminal/return/release remain unproven. Source/raw are archived and branch/worktree/processes removed. No new checkpoint or delivery credit. See [working roadmap](../ROADMAP.md#current-work-and-next-selection).
+
 **Owner allowance reset, 2026-11-17 05:12:56 UTC:** all unfinished tasks receive a renewed
 correction allowance of **0 used** against their last positive approved limit,
 or **one** if none was recorded. Completed tasks are excluded. The reset applies
