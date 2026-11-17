@@ -16,9 +16,20 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **1816be5** — [Windows ZIP](builds/windows/MuddsShipyards-1816be5-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-1816be5-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-1816be5-linux-x86_64.tar.gz).
+Latest playable checkpoint: **8b91aae** — [Windows ZIP](builds/windows/MuddsShipyards-8b91aae-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-8b91aae-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-8b91aae-linux-x86_64.tar.gz).
+Dynamic now has localized five-component damage on its actual hull sections,
+including both physical engine pods. Damaged shoulders impair firing, sensor
+loss shortens aim convergence and engine damage weakens movement/braking.
+Normal own-home service restores components and clears their cues without
+healing hull damage ([staged damage preview](builds/windows/MuddsShipyards-8b91aae-dynamic-damage-preview.png)).
+Full ordinary damage/home-service and existing flight/access journeys pass in
+source and actual Windows PCK. Main retains 15 usable craft and 15 occupied homes.
+Dynamic target-damage/
+comparative-handling, lifecycle/save/network/full-craft gates remain open.
+Main cold rendering and native/human qualification remain unresolved/NOT_RUN.
+Earlier accepted content remains included:
 Vortex now has continuous standalone stern access: operate the side hatch control,
 walk the deployed ramp/vestibule/aisle to the helm approach, then walk fully back
 outside and seal/reopen for reuse ([preview](builds/windows/MuddsShipyards-1816be5-vortex-access-preview.png)).
@@ -49,7 +60,7 @@ port access, two complete flight/home/OFFLINE/physical-exit sorties and fresh
 reboarding pass in source and actual Windows PCK
 ([Main preview](builds/windows/MuddsShipyards-aae5aa8-dynamic-main-preview.png)).
 Its approved pilot pulse is bound to unique source 1112; full combat-target,
-comparative-handling, service, recovery and multiplayer qualification stay open.
+comparative-handling, recovery and multiplayer qualification stay open.
 Katana retains validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
 its home and ordinary Main pilot route are now delivered; full craft qualification remains open.
@@ -131,32 +142,43 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="dynamic-components-current"></a>
 
-### Dynamic five-component damage and service — card7 IN PROGRESS
+### Dynamic five-component damage and service — card7 DONE
 
-Source candidate473200271 (not yet accepted) moves the five shared damage
-anchors onto the actual nose armor, shoulder assemblies, central systems wall
-and aft engine, and installs the existing shared localized damage presentation.
-The adopted hull/handling/weapon values and shared health/radii/stages/repair
-owners remain unchanged; no Titan-specific nose propulsion binding is added.
+Accepted source **8b91aaec5a2ce2ec0c9c280f043bc5c581a12a95**, checkpoint **8b91aae**. Real physical hits now
+select actual nose armor, both shoulder assemblies, central systems wall and
+both aft engine pods, with existing shared localized impaired/failed cues.
+Five existing ledger IDs/radii/health/stages/repair and adopted hull/handling/
+weapon settings remain. A candidate-only geometric routing guard maps either
+engine pod to the existing common engine channel; other attribution is inherited.
 
-Actual old-source preflight fails at missing presentation and records the generic
-empty-space anchors. Candidate focused five-craft physical-hit/cue and actual
-wing cadence/refusal, core convergence, engine thrust/turn/brake checks pass;
-foundation passes. Complete access, original Main route, additional full ordinary
-damage/home-service journey, Titan/Paradox regressions, isolated actual-PCK cases,
-clean paired checkpoint/startup/maps/audit and fixed standalone cue images remain
-required before acceptance. No delivery or full-craft credit yet. Existing Main
-cold rendering and native/human gates remain open; this standalone cue preview
-does not qualify them. Card6 target damage/comparative handling remains open.
+Source11 and actual exported Windows-PCK5 pass: original access profiles,
+foundation, five-component controller/cue proof plus ten transformed engine-face
+contacts, full Dynamic two-sortie/third-board Main and full additional normal
+spawn/damage/airborne-refusal/own-home/passive-service/two-sortie/third-board journey,
+Titan component/Main and Paradox primary/definition/registry regressions.
+Every complete Main case ends by normal UI Quit with actual persisted
+clean_shutdown/clean/session_ended. Ordinary home service restores components,
+clears cues and regains fire while retaining damaged hull through exit/reboard.
+All original cases/caps and source/cache/HEAD guards remain.
 
-All-in window17:03:10→18:18:10UTC2026-11-17 (75minutes including mapping,
-package/review/push/cleanup), definitiondeadline17:18:10. Owner16:53:33 renewal
-0/1 substantive corrections used. HIGH implementer owns Dynamic script and
-existing journey test; HIGH independent reviewer, root owns checks/release/docs.
-Frozen cases/caps and raw results:
-`/srv/mudds-work/dynamic-components-20261117/frozen-card.md`.
-First unexpected failure stops dependent checks; retain cause/cost, no reduced
-journey, blind retry or renamed successor. CI remains disabled.
+Clean paired exports/strictstartup3/exactLinux6/equal complete payload maps/
+reviewed delta/audit9/eight artifacts pass independent scoped FINAL_GO/PACKAGE_GO.
+Cold standalone nominal/impaired/failed images retain fixed960×540/FOV52/eight
+rendering frames; they hold actual post-hit snapshots with only staged craft
+physics paused. Automatic Main repair remains separately exercised. Main cold
+first-frame, native/human/readability/full-craft gates stay open/NOT_RUN; CI off.
+
+Original17:03:10→18:18:10UTC2026-11-17 all-in window remains. Actual failed
+473200271 left-engine→port-wing attribution and subsequent mechanical placement
+error remain archived; sole substantive correction1/1 used under owner16:53:33
+renewal. No deadline, geometry, radius, controller or acceptance relaxation.
+Verified archive `/srv/mudds-work/dynamic-components-20261117/records.tar.gz`:
+**35,865,519bytes**, SHA256 `054fd5e52885587a3f567e13f2b10c7e7d9988e6bfa9595294f6a6577b4194b1`,
+**300members reread/verified**. Adjacent closeout records final
+all-in time, pushed Main and exact task branch/worktree/process/scratch cleanup.
+Only separate unaccepted Paradox gunner backup remains retained. Dynamic card6
+full target/comparative-handling and later lifecycle/save/network/fullcraft remain
+open. No next task is selected by this closure.
 
 <a id="grounded-floor-contact-parked"></a>
 
@@ -166,8 +188,8 @@ Candidate **79c4d82211b6c342c1e9ada71ea327b8ffd3300c** is not accepted. Source10
 three strict startups and the existing nine-predicate package audit passed;
 all five complete Main journeys persisted clean_shutdown/clean/session_ended.
 The proposed shared Player runtime change is still unmerged and no new build
-was published. Current playable checkpoint1816be5 and Main15craft/15occupiedhomes
-remain unchanged; the separate Vortex berth stays parked.
+was published. At that closeout, playable checkpoint1816be5 and Main15craft/15occupiedhomes
+remained unchanged; the separate Vortex berth stays parked.
 
 Two unresolved acceptance limits prevent publication:
 

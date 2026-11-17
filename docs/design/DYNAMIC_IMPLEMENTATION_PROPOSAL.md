@@ -11,8 +11,8 @@ pilot pulse. All12oldercraft/home/source/settings remain intact. Full focused,
 three legacy Main source journeys, actual PCK cases/Titan, fixed views,
 strictstartup3/maps/audit9/eightartifacts pass independent review. Early card5
 pilot checkpoint is delivered with card4; no duplicate release-only task is
-needed. Corrections0/1, no failed run or gate waiver. Card6 and later full-function/
-lifecycle/network/integration/final qualification remain open.
+needed. Corrections0/1, no failed run or gate waiver. Card6 combat/handling and later lifecycle/network/integration/final qualification
+remain open; card7 damage/service is delivered below.
 [Delivery and cleanup](../../ROADMAP.md#dynamic-main-delivered).
 
 **Earlier berth delivery — 2026-11-17:** card3 DONE on sourceb3284183d3945041b53187f04835f69c41f361f1,
@@ -40,6 +40,18 @@ network/craft qualification. [Delivery and cleanup](../../ROADMAP.md#dynamic-acc
 First standalone foundation batch **a0446136e is PARKED, unmerged and archived**. Dynamic/Utopia source fixtures pass but the combined release card is incomplete; Salyut has invisible solid engine panels with active colliders OFFLINE after its1/1 bank correction was consumed. No new Main craft/checkpoint is credited. Original12:10→12:55UTC45minute budget, all cases/cumulative cost, source and proposed one-line repair are retained in `/srv/mudds-work/fleet-foundations-20261106/records.tar.gz`. Additional work requires explicit owner reprioritization and renewed bounded allowance. Full craft qualification remains open.
 
 Adoption covers the proposed geometry, scale/access/berth, handling, physical roles/actions, functions, weapon or explicit absence, custody and recovery baseline below. Earlier preparation-time statements that the design was unapproved or awaiting an owner decision are superseded by this adoption. Historical facts/unknowns, source permissions and full craft acceptance are unchanged. See the [recorded owner decision](../ROADMAP_BACKLOG.md#owner-design-baselines-20261105).
+
+**Component/service delivery — 2026-11-17:** card7 DONE on source **8b91aaec5a2ce2ec0c9c280f043bc5c581a12a95**,
+checkpoint **8b91aae**. Five real physical regions and shared localized damage cues
+now fit the actual nose/shoulders/central systems wall/paired engine pods. Actual
+wing fire cadence/refusal, core emitted aim and engine thrust/steering/braking
+impairment pass; normal own-home service restores components/cues without hull
+healing. Full automatic Main damage/service, retained pilot/access journeys and
+actual packaged checks pass with clean terminal primaries. Original values and
+shared health/radii/stage/repair authority stay unchanged. Prior measured failure,
+one correction and routine compiler repair are retained. Card6 target damage/
+comparative handling and later lifecycle/save/network/fullcraft remain open.
+[Delivery and cleanup](../../ROADMAP.md#dynamic-components-current).
 
 ## Supported facts and evidence boundary
 
@@ -126,7 +138,7 @@ Each estimate is a **45–75 minute work box**, not measured delivery time. Spli
 | 4 — DONEaae5aa8 (Main pilot loop) | Root fleet: `main.tscn`, `game_flow.gd`, `fleet_role_registry.gd`, `fleet_registry_console.gd`; candidate hooks | Production walk/board/start/launch/own strict home/neutral OFFLINE/physical exit/reboard works, candidate identity correct and neighbours remain usable. Stop at first meaningful playable pilot loop. |
 | 5 — early pilot checkpoint DONEaae5aa8 with card4 | Root release: existing `tools/release/` workflow and build notes | Fresh clean committed source, relevant focused checks, safe Windows export and silent isolated actual-package startup/archive inspection. EXE/ZIP/notes in repository `builds/windows/`, paired Linux artifact via existing workflow. Require `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`. Notes state pilot-loop limits/pending combat/recovery; stop at inspected early checkpoint. |
 | 6 / 60m | Root flight/combat: `game_flow.gd`, `fleet_role_registry.gd`, candidate muzzle/camera/audio hooks | Measured controller tradeoff and actual unchanged pulse hits/misses, cadence/heat, self/friendly/occluded/ownership refusal; unique source damages real target once. Extend focused existing combat/role checks; stop at actual gunship function. |
-| 7 / 60m | Root damage/service: `hero_ship.gd`, existing component/repair owners, candidate hooks | Five actual component impairments and normal authorized repair restore real behavior; access changes do not heal. Stop at impairment/service route. |
+| 7 — DONE8b91aae, selected75m all-in | Root damage/service: `hero_ship.gd`, existing component/repair owners, candidate hooks | Five actual component impairments and normal authorized repair restore real behavior; access changes do not heal. Stop at impairment/service route. |
 | 8 / 60m | Root lifecycle: `hero_ship.gd`, `game_flow.gd`, candidate reset hooks and berth composition | Destruction releases pilot; stale/occupied reset refusal is atomic; recall creates one usable home craft with fresh generations/access/fire. Stop at destruction/reset/reuse. |
 | 9 / 60m | Root recovery: `game_flow.gd`, `user_data_store.gd` | Committed fresh-process safe walking/Main availability and refused/interrupted-write preservation/retry, with no stale helm or duplicate craft. Stop at both real restart boundaries. |
 | 10 / 60m | Root network: `game_flow.gd`, existing boarding/pilot replica/session owners | Playing host plus two remote clients: physically approach, claim one helm, fly/fire/home/OFFLINE/exit and physically hand pilot role to another peer. Others stay supported on foot or use existing craft. Duplicate/nonpilot/stale drive/fire refuses. Stop at exact three-player single-helm profile, no guest capacity claim. |
