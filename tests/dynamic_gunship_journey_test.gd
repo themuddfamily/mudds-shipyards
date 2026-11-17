@@ -713,7 +713,7 @@ func _cold_initialize_parcel_inventory(store: UserDataStore) -> bool:
 	var payload := store.get_snapshot()
 	if payload.has(TitanCargoCustody.MARKER) or payload.has(TitanCargoCustody.SLOT):
 		return _main_check(payload.get(TitanCargoCustody.MARKER) == true
-			and payload.get(TitanCargoCustody.SLOT) == {"locker":4,"titan":0},
+			and payload.get(TitanCargoCustody.SLOT) == {"locker":4.0,"titan":0.0},
 			"existing real parcel inventory matches normal cold Main projection")
 	var fixture := Node3D.new()
 	root.add_child(fixture)
@@ -731,7 +731,7 @@ func _cold_initialize_parcel_inventory(store: UserDataStore) -> bool:
 	var accepted: bool = bool(initialized.get("accepted",false)) and bool(inventory.get("available",false)) \
 		and int(inventory.get("locker",-1)) == 4 and int(inventory.get("titan",-1)) == 0 \
 		and store.get_snapshot().get(TitanCargoCustody.MARKER) == true \
-		and store.get_snapshot().get(TitanCargoCustody.SLOT) == {"locker":4,"titan":0}
+		and store.get_snapshot().get(TitanCargoCustody.SLOT) == {"locker":4.0,"titan":0.0}
 	print("DYNAMIC_COLD_PARCEL_OWNER_INITIALIZED: ",JSON.stringify({"result":initialized,
 		"locker":inventory.get("locker"),"titan":inventory.get("titan"),
 		"generation":store.get_generation(),"recovery":store.get_snapshot().get("solo_safe_recovery",{})}))
