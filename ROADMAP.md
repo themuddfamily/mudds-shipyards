@@ -129,6 +129,35 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="dynamic-components-current"></a>
+
+### Dynamic five-component damage and service — card7 IN PROGRESS
+
+Source candidate473200271 (not yet accepted) moves the five shared damage
+anchors onto the actual nose armor, shoulder assemblies, central systems wall
+and aft engine, and installs the existing shared localized damage presentation.
+The adopted hull/handling/weapon values and shared health/radii/stages/repair
+owners remain unchanged; no Titan-specific nose propulsion binding is added.
+
+Actual old-source preflight fails at missing presentation and records the generic
+empty-space anchors. Candidate focused five-craft physical-hit/cue and actual
+wing cadence/refusal, core convergence, engine thrust/turn/brake checks pass;
+foundation passes. Complete access, original Main route, additional full ordinary
+damage/home-service journey, Titan/Paradox regressions, isolated actual-PCK cases,
+clean paired checkpoint/startup/maps/audit and fixed standalone cue images remain
+required before acceptance. No delivery or full-craft credit yet. Existing Main
+cold rendering and native/human gates remain open; this standalone cue preview
+does not qualify them. Card6 target damage/comparative handling remains open.
+
+All-in window17:03:10→18:18:10UTC2026-11-17 (75minutes including mapping,
+package/review/push/cleanup), definitiondeadline17:18:10. Owner16:53:33 renewal
+0/1 substantive corrections used. HIGH implementer owns Dynamic script and
+existing journey test; HIGH independent reviewer, root owns checks/release/docs.
+Frozen cases/caps and raw results:
+`/srv/mudds-work/dynamic-components-20261117/frozen-card.md`.
+First unexpected failure stops dependent checks; retain cause/cost, no reduced
+journey, blind retry or renamed successor. CI remains disabled.
+
 <a id="grounded-floor-contact-parked"></a>
 
 ### Grounded slope contact — PARKED, unmerged
