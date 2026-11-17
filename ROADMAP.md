@@ -135,8 +135,15 @@ station geometry is included here. Main remains15craft/15occupiedhomes.
 `/srv/mudds-work/ascending-floor-support-20261117/worktree`.
 **Budget:** 2026-11-17 **15:09:03→16:39:03UTC**,90minutes ALL-IN through final
 push/build/archive/cleanup. Definition frozen15:15:18 before15:24:03.
-One substantive correction, **0/1 used**. One HIGH implementer and HIGH
+One substantive correction, **1/1 used**. One HIGH implementer and HIGH
 independent reviewer; root engines/release/docs/integration. No nested agents.
+Sole charged correction: new ascent probes observe50–60 real automatic ticks,
+retaining all first50 and additional full-clearance checks plus physicalZ>4m/
+rise>1.3m and original fullsuite300. Actual50tick traces were clear but advanced
+3.946875–3.947021m; this fixes an invented observation-window deadline without
+changing runtime, speed, geometry, physical endpoints or original suite cap.
+Current clean candidate79c4d82211b6c342c1e9ada71ea327b8ffd3300c awaits the entire
+original source/package matrix. All earlier failed raw/source remain retained.
 
 **Cause:** the exact existing OperationsPodThreshold contact is positive
 .0001095626576m at completed frame860, Player(42.98533,-.016553,21.79902),
