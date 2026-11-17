@@ -17,12 +17,13 @@ const HUB_ENDPOINT_ID: StringName = &"station-hub"
 const CONNECTION_SLOT_META: StringName = &"station_connection_slot"
 const APPROACH_ROUTE_ID: StringName = &"approach"
 
-const EXPECTED_MODULE_COUNT := 11
-const EXPECTED_HUB_ENDPOINT_COUNT := 11
-const EXPECTED_CONNECTION_SLOT_COUNT := 11
-const EXPECTED_ROUTE_MARKER_COUNT := 63
+const EXPECTED_MODULE_COUNT := 12
+const EXPECTED_HUB_ENDPOINT_COUNT := 12
+const EXPECTED_CONNECTION_SLOT_COUNT := 12
+const EXPECTED_ROUTE_MARKER_COUNT := 66
 
 const EXPECTED_MODULE_IDS: Array[StringName] = [
+	&"utopia-dropship-berth",
 	&"dynamic-gunship-berth",
 	&"predator-detention-berth",
 	&"paradox-cruiser-berth",
@@ -38,6 +39,7 @@ const EXPECTED_MODULE_IDS: Array[StringName] = [
 
 ## slot id -> the single module that must claim it opposite the station hub.
 const EXPECTED_EDGES := {
+	&"hub-utopia-dropship-berth": &"utopia-dropship-berth",
 	&"hub-dynamic-gunship-berth": &"dynamic-gunship-berth",
 	&"hub-predator-detention-berth": &"predator-detention-berth",
 	&"hub-paradox-cruiser-berth": &"paradox-cruiser-berth",
@@ -52,6 +54,7 @@ const EXPECTED_EDGES := {
 }
 
 const EXPECTED_SLOT_ROUTES := {
+	&"utopia-dropship-berth": &"approach",
 	&"dynamic-gunship-berth": &"approach",
 	&"predator-detention-berth": &"approach",
 	&"paradox-cruiser-berth": &"approach",
@@ -292,7 +295,7 @@ func _test_hub_endpoints_resolve_to_world_geometry(world: ShipyardWorld) -> void
 # 5. Only the outward approach marker of each module is a connection slot.
 func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> void:
 	var modules := _module_nodes(world)
-	_check(modules.size() == EXPECTED_MODULE_COUNT, "all eleven production module nodes are reachable for marker inspection")
+	_check(modules.size() == EXPECTED_MODULE_COUNT, "all twelve production module nodes are reachable for marker inspection")
 
 	var every_module_tags_only_approach := true
 	var total_route_markers := 0
@@ -310,7 +313,7 @@ func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> v
 			and tagged_routes.size() == 1 \
 			and tagged_routes[0] == (EXPECTED_SLOT_ROUTES.get(module.get_module_id(), &"") as StringName)
 	_check(every_module_tags_only_approach, "each module tags exactly its one reviewed inbound/approach marker as a connection slot")
-	_check(total_route_markers == EXPECTED_ROUTE_MARKER_COUNT, "the live modules expose exactly sixty-three route markers")
+	_check(total_route_markers == EXPECTED_ROUTE_MARKER_COUNT, "the live modules expose exactly sixty-six route markers")
 
 	var every_dead_end_untagged := true
 	var dead_end_count := 0
@@ -345,12 +348,12 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	var report := world.get_station_route_registry_report()
 	var authority_claims := report.get("authority_claims", {}) as Dictionary
 	_check(
-		authority_claims == {&"titan_home_berth": &"titan-transport-berth", &"predator_home_berth": &"predator-detention-berth", &"paradox_home_berth": &"paradox-cruiser-berth", &"dynamic_home_berth": &"dynamic-gunship-berth"},
-		"only the Titan, Predator, Paradox and Dynamic modules declare their own ShipBerth authority"
+		authority_claims == {&"titan_home_berth": &"titan-transport-berth", &"predator_home_berth": &"predator-detention-berth", &"paradox_home_berth": &"paradox-cruiser-berth", &"dynamic_home_berth": &"dynamic-gunship-berth", &"utopia_home_berth": &"utopia-dropship-berth"},
+		"only the Titan, Predator, Paradox, Dynamic and Utopia modules declare their own ShipBerth authority"
 	)
 
 	var live_berth_ids := world.get_berth_ids()
-	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 4 and live_berth_ids.has(&"dynamic_home_berth") and live_berth_ids.has(&"paradox_home_berth") and live_berth_ids.has(&"predator_home_berth") and live_berth_ids.has(&"titan_home_berth")
+	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 5 and live_berth_ids.has(&"utopia_home_berth") and live_berth_ids.has(&"dynamic_home_berth") and live_berth_ids.has(&"paradox_home_berth") and live_berth_ids.has(&"predator_home_berth") and live_berth_ids.has(&"titan_home_berth")
 	var berths_unchanged := true
 	for berth_id in EXPECTED_BERTH_IDS:
 		berth_roster_exact = berth_roster_exact and live_berth_ids.has(berth_id)
@@ -358,13 +361,13 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 		berths_unchanged = berths_unchanged \
 			and berth != null \
 			and world.get_berth_transform(berth_id).is_equal_approx(EXPECTED_BERTH_TRANSFORMS[berth_id] as Transform3D)
-	_check(berth_roster_exact, "the world preserves all twelve accepted physical berths and the new Dynamic berth")
+	_check(berth_roster_exact, "the world preserves all thirteen accepted physical berths and the new Utopia berth")
 	_check(berths_unchanged, "all nine authoritative berth identities and transforms are untouched by the route registry")
 
 	var modules := report.get("modules", {}) as Dictionary
 	var modules_claim_nothing := true
 	for module_id: StringName in EXPECTED_MODULE_IDS:
-		if module_id in [&"titan-transport-berth", &"predator-detention-berth", &"paradox-cruiser-berth", &"dynamic-gunship-berth"]:
+		if module_id in [&"titan-transport-berth", &"predator-detention-berth", &"paradox-cruiser-berth", &"dynamic-gunship-berth", &"utopia-dropship-berth"]:
 			continue
 		var entry := modules.get(module_id, {}) as Dictionary
 		modules_claim_nothing = modules_claim_nothing \
@@ -489,7 +492,7 @@ func _test_report_is_deeply_detached(world: ShipyardWorld) -> void:
 	)
 	_check(
 		(fresh.get("hub_endpoints", {}) as Dictionary).size() == EXPECTED_HUB_ENDPOINT_COUNT
-		and (fresh.get("authority_claims", {}) as Dictionary) == {&"titan_home_berth": &"titan-transport-berth", &"predator_home_berth": &"predator-detention-berth", &"paradox_home_berth": &"paradox-cruiser-berth", &"dynamic_home_berth": &"dynamic-gunship-berth"},
+		and (fresh.get("authority_claims", {}) as Dictionary) == {&"titan_home_berth": &"titan-transport-berth", &"predator_home_berth": &"predator-detention-berth", &"paradox_home_berth": &"paradox-cruiser-berth", &"dynamic_home_berth": &"dynamic-gunship-berth", &"utopia_home_berth": &"utopia-dropship-berth"},
 		"hub endpoints and authority claims survive caller mutation"
 	)
 	_check(
@@ -596,7 +599,7 @@ func _edge_module_by_slot(adjacency: Dictionary) -> Dictionary:
 
 func _module_nodes(world: ShipyardWorld) -> Array[Node]:
 	var result: Array[Node] = []
-	for node_name in ["DynamicGunshipBerth", "AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth", "PredatorDetentionTransportBerth", "ParadoxCruiserBerth"]:
+	for node_name in ["UtopiaDropshipBerth", "DynamicGunshipBerth", "AftJunctionStack", "FabricationAnnex", "FleetDockComb", "HabitatSpine", "JovianFreightBerth", "ObservationLogisticsSpur", "SalvageTerrace", "TitanTransportBerth", "PredatorDetentionTransportBerth", "ParadoxCruiserBerth"]:
 		var module := world.get_node_or_null(NodePath(node_name))
 		if module != null:
 			result.append(module)

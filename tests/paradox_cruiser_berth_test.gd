@@ -71,7 +71,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"paradox_home_berth": matching += 1
-	if not _check(matching == 1 and world.get_berth_ids().size() == 13
+	if not _check(matching == 1 and world.get_berth_ids().size() == 14
 		and _game.get_flyable_ships().size() == 13 and berth.get_occupant() == _game.get_node("ParadoxCruiser")
 		and berth.get_reservation_owner() == _game.get_node("ParadoxCruiser"), "thirteen berths and thirteen registered craft; actual new craft owns unique home"): return
 	var old_leases: Dictionary = {}
@@ -179,22 +179,30 @@ func _run() -> void:
 
 func _test_titan_connector_opening(world: ShipyardWorld) -> bool:
 	var titan := world.get_node("TitanTransportBerth") as TitanTransportBerth
-	var north := titan.get_node("ConnectorSidePort") as StaticBody3D
-	var north_shape := (north.get_node("CollisionShape3D") as CollisionShape3D).shape as BoxShape3D
-	if not _check(titan.paradox_spur_open and north_shape.size == Vector3(0.16, 1.24, 6)
-		and north.position == Vector3(-1.52, 0.62, 19)
-		and north.global_position.is_equal_approx(Vector3(135, 1, 36.48))
-		and north.collision_layer == PhysicsLayers.WORLD
-		and titan.get_node_or_null("ConnectorSideStarboard") == null,
-		"production opens actual world-south rail while preserving full physical north safety edge"): return false
+	if not _check(titan.paradox_spur_open and titan.utopia_spur_open and titan.get_node_or_null("ConnectorSidePort") == null and titan.get_node_or_null("ConnectorSideStarboard") == null,
+		"production opens only the two exact supported north/south portals"): return false
 	var state := world.get_world_3d().direct_space_state
-	var north_query := PhysicsRayQueryParameters3D.create(Vector3(135, 1.1, 38), Vector3(135, 1.1, 36), PhysicsLayers.WORLD)
-	var south_query := PhysicsRayQueryParameters3D.create(Vector3(135, 1.1, 38), Vector3(135, 1.1, 41), PhysicsLayers.WORLD)
-	var north_hit := state.intersect_ray(north_query)
-	var south_hit := state.intersect_ray(south_query)
-	print("PARADOX_BERTH_CONNECTOR_OPENING: ", {"north": north_hit, "south": south_hit})
-	return _check(not north_hit.is_empty() and north_hit.get("collider") == north
-		and south_hit.is_empty(), "live pedestrian-height north safety ray blocks and south passage ray clears above real supported spur")
+	for side in [-1.0,1.0]:
+		for endpoint in [16.8,21.2]:
+			var edge_name := "ConnectorSide%s%s" % ["Port" if side < 0 else "Starboard",str(endpoint).replace(".","_")]
+			var edge := titan.get_node(edge_name) as StaticBody3D
+			var shape := (edge.get_node("CollisionShape3D") as CollisionShape3D).shape as BoxShape3D
+			if not _check(edge.position == Vector3(side*1.52,0.62,endpoint) and shape.size == Vector3(0.16,1.24,1.6) and edge.collision_layer == PhysicsLayers.WORLD,
+				"exact retained physical guard outside supported portal "+edge_name): return false
+			var guard_ray := PhysicsRayQueryParameters3D.create(titan.to_global(Vector3(0,0.72,endpoint)),titan.to_global(Vector3(side*2,0.72,endpoint)),PhysicsLayers.WORLD)
+			if not _check(state.intersect_ray(guard_ray).get("collider") == edge,"outside-portal pedestrian guard remains solid "+edge_name): return false
+		var portal_ray := PhysicsRayQueryParameters3D.create(titan.to_global(Vector3(0,0.72,19)),titan.to_global(Vector3(side*3,0.72,19)),PhysicsLayers.WORLD)
+		if not _check(state.intersect_ray(portal_ray).is_empty(),"supported north/south portal clears physical pedestrian ray "+str(side)): return false
+	# Default standalone content retains its complete original north guard;
+	# production opening cannot silently change every Titan module instance.
+	var standalone := load("res://scenes/world/modules/titan_transport_berth.tscn").instantiate() as TitanTransportBerth
+	standalone.position = Vector3(500,0,500)
+	root.add_child(standalone)
+	var closed := standalone.get_node("ConnectorSidePort") as StaticBody3D
+	var closed_shape := (closed.get_node("CollisionShape3D") as CollisionShape3D).shape as BoxShape3D
+	var preserved := not standalone.utopia_spur_open and not standalone.paradox_spur_open and closed.position == Vector3(-1.52,0.62,19) and closed_shape.size == Vector3(0.16,1.24,6)
+	standalone.free()
+	return _check(preserved,"default standalone Titan retains both original closed guards and exact north collider")
 
 func _test_leases(berth: ShipBerth) -> bool:
 	var before := berth.get_audit_report()

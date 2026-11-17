@@ -71,6 +71,7 @@ const SHIP_BERTH_PRODUCTION_IDS: Array[StringName] = [
 	&"predator_home_berth",
 	&"paradox_home_berth",
 	&"dynamic_home_berth",
+	&"utopia_home_berth",
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -769,6 +770,12 @@ const TOW_TRACTOR_SCENE := preload("res://scenes/world/tow_tractor.tscn")
 ## connectors is proved by `station_surface_playability_test.gd` and the
 ## per-module integration suites.
 const STATION_HUB_ENDPOINT_DECLARATIONS := [
+	{
+		"slot_id": &"hub-utopia-dropship-berth",
+		"expects_module": &"utopia-dropship-berth",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "UtopiaConnectorRouteAnchor",
+	},
 	{
 		"slot_id": &"hub-dynamic-gunship-berth",
 		"expects_module": &"dynamic-gunship-berth",
@@ -4244,10 +4251,11 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 	initial_berth_ids.append(&"predator_home_berth")
 	initial_berth_ids.append(&"paradox_home_berth")
 	initial_berth_ids.append(&"dynamic_home_berth")
+	initial_berth_ids.append(&"utopia_home_berth")
 	# The Dock 04/05/06 berths assemble after the world's initial index pass.
 	# Until GameFlow refreshes that index, the three berth caches truthfully hold
-	# the six feedback-equipped berths plus Titan, Predator, Paradox and Dynamic;
-	# afterwards all thirteen berths.
+	# the six feedback-equipped berths plus Titan, Predator, Paradox, Dynamic and Utopia;
+	# afterwards all fourteen berths.
 	# Both atomic states are valid, but partial or foreign cache rosters are not.
 	if (
 		not _dictionary_has_exact_keys(_berth_nodes, initial_berth_ids)
