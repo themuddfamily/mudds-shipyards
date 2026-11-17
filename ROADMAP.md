@@ -111,6 +111,55 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: finish retained Katana reachable home berth — card3
+
+Owner05:12:56 unfinished-task reset supplies fresh **0/1** for the earlier
+02:22:39 deadline stop; original92.3885483minutes, all failed callers and source
+archives remain historical. This is a selected fresh window under that existing
+authorization, not a replay of the stopped Utopia card or an automatic renewal.
+Baseline **5c5574acd3f5971231aa6fbd0296422dc292705d**, branch
+`work/katana-berth-renewal-1117`, worktree
+`/srv/mudds-work/katana-berth-renewal-20261117/worktree`.
+Window **2026-11-17 11:42:40→13:12:40UTC**,90minutes ALL-IN from first mapping,
+including implementation/source/PCK/export/startup/capture/audit/review/merge/
+push/archive/owned cleanup. Definition frozen before11:57:40. HIGH semantic
+integrator owns14boundedpaths, HIGH independent reviewer; root engines/release/
+docs/integration. No nested agents or new validators; CI remains disabled.
+
+Same adopted entire card3: signed18m deck and2.8m connected dogleg spur to exact
+empty Katana home **(72,-.02,-30)**; original receiver/strict bounds/assist/lift,
+module body caps, every physical route endpoint plus existing Habitat detour and
+full reverse retained. Katana is not spawned/selected in Main. Preserve all
+**14 current occupied homes/craft**; result **15physical homes/14Maincraft**,
+graph13modules/slots/hubends and69route markers. Original candidate7e8c177 is
+ported semantically so newer Dynamic/Utopia entries remain, not overwritten.
+
+Current actual baseline import/site probe exit0/raw0/source/cache/HEAD clean:
+14homes/14craft,73spur collider rows. Independent placementGO finds no positive
+XZ slab/rail overlap except intended oldnodeboundary; Gardennearest.59000435m.
+Broad deck region now includes2Dynamic floor/rail hits outside the actual new
+deck, and broad assist region6Dynamic hits, highesty1.22000003; actual4mlift
+lane bottom3.98 retains≥2.75999997m clearance. Historical zero-collider claims
+are not reused. Unchanged full actual hull/camera sweep queries remain required.
+
+Frozen source13: fullnewberth240 FIRSTalone; foundation90, accessidentity180,
+accesstransformed180, definitions120, registry180, feedback-world180, Titan/
+Predator/Paradox/Dynamic/Utopia berth240 each in independentpairs; then entire
+TitanMain300 alone with actualprimaryclean_shutdown/clean/session_ended.
+PCK5 exactcommittedfixtures+sourceisolation: newberth240 firstalone, foundation90/
+accessidentity180/accesstransformed180 independentpairs, fullTitanMain300 alone.
+Original complete endpoints/caps/actor/body/support/clearance/refusal checks and
+source/cache/HEAD guards remain. No fixture staging substitutes for ordinary walk.
+
+Release: samecommitted clean paired exports, strictstartup3, exactLinux6members/
+modes/extractedELFidentity, complete equal pair maps + reviewed current45ae175
+baseline delta, audit9/eightartifacts, independentFINAL_GO/PACKAGE_GO. Original
+three cold fixed960x540/eightframe Main views/privateXvfb/x11/GLES/Dummy/90sTOTAL:
+closed(54,10,-15)→(72,2,-30), open(56,7,-28)→(69,1,-30), FOV52; third exact
+actual candidate cockpit eye/FOV/near/far. Only count maintenance and camera
+ownership perframe; no view/quality/cap workaround. NativeWindows/GPU/device/
+human/fullcraft remain NOT_RUN/open. No automatic successor if unresolved.
+
 ### Parked: Utopia physical Cinder supply destination — card7
 
 Baseline **d74eb350aa6b88f3a398773d87dac271254e2fac**, branch
