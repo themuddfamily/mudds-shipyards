@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Adversarial production-world contract for the six authored berth-feedback
-## components within the thirteen-berth physical fleet. Every destructive probe
+## components within the fourteen-berth physical fleet. Every destructive probe
 ## restores the same cached production instances and proves that the audit
 ## returns to its exact component-clean baseline.
 
@@ -154,9 +154,9 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 	_check(
 		int(report.get("schema_version", 0)) == 2
 		and int(report.get("component_count", 0)) == 6
-		and int(report.get("live_berth_count", 0)) == 13
+		and int(report.get("live_berth_count", 0)) == 14
 		and int(report.get("live_feedback_count", 0)) == 6,
-		"audit reports the exact thirteen-berth physical and six-feedback production rosters"
+		"audit reports the exact fourteen-berth physical and six-feedback production rosters"
 	)
 	_check(
 		_string_name_arrays_equal(report.get("expected_berth_ids", []) as Array, EXPECTED_BERTH_IDS),
@@ -254,7 +254,7 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 			"%s audit placement publishes the exact immutable authored contract" % berth_id
 		)
 	_check(all_material_instance_ids.size() == 12, "all six feedback instances own twelve globally unique material ObjectIDs")
-	_check(_count_descendants(world, "ShipBerth") == 13, "production world contains exactly thirteen ShipBerth descendants")
+	_check(_count_descendants(world, "ShipBerth") == 14, "production world contains exactly fourteen ShipBerth descendants")
 	_check(_count_descendants(world, "ShipBerthFeedback") == 6, "production world contains no extra ShipBerthFeedback descendant")
 
 
@@ -294,13 +294,13 @@ func _test_rogue_descendants(world: ShipyardWorld) -> void:
 	var rogue_berth_report := world.get_ship_berth_feedback_audit_report()
 	_check(
 		not bool(rogue_berth_report.get("valid", true))
-		and int(rogue_berth_report.get("live_berth_count", 0)) == 14
+		and int(rogue_berth_report.get("live_berth_count", 0)) == 15
 		and _errors_have(rogue_berth_report, "ship_berth_descendants_do_not_match_production_contract"),
-		"audit rejects a valid rogue fourteenth ShipBerth even though the startup registry is unchanged"
+		"audit rejects a valid rogue fifteenth ShipBerth even though the startup registry is unchanged"
 	)
 	rogue_berth.queue_free()
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "removing the rogue fourteenth ShipBerth restores baseline")
+	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "removing the rogue fifteenth ShipBerth restores baseline")
 
 	var central_berth := world.get_node("CentralBerth") as ShipBerth
 	var rogue_feedback := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback

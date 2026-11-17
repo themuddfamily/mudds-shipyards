@@ -13,6 +13,8 @@ var _anchor: Marker3D
 var _berth: ShipBerth
 ## Open only over the new supported Paradox spur in the production world.
 @export var paradox_spur_open := false
+## Open only above the supported Utopia spine in the production world.
+@export var utopia_spur_open := false
 
 func _ready() -> void:
 	add_to_group(&"station_modules")
@@ -37,10 +39,11 @@ func _ready() -> void:
 		_rail("DeckSide%s" % ("Port" if side < 0 else "Starboard"), Vector3(side * 8.12, 0.62, 0), Vector3(0.16, 1.24, 32), rail)
 		_rail("SternSide%s" % ("Port" if side < 0 else "Starboard"), Vector3(side * 4.8, 0.62, 16.12), Vector3(6.4, 1.24, 0.16), rail)
 		# At production yaw -90, local +X is the supported world-south spur.
-		# Keep the opposite north edge and every default-closed instance intact.
-		if side > 0 and paradox_spur_open:
+		# The north edge opens only for its separate supported Utopia spur;
+		# every default-closed instance retains both original full guards.
+		if (side > 0 and paradox_spur_open) or (side < 0 and utopia_spur_open):
 			for end in [16.8, 21.2]:
-				_rail("ConnectorSideStarboard%s" % str(end).replace(".", "_"), Vector3(side * 1.52, 0.62, end), Vector3(0.16, 1.24, 1.6), rail)
+				_rail("ConnectorSide%s%s" % ["Port" if side < 0 else "Starboard", str(end).replace(".", "_")], Vector3(side * 1.52, 0.62, end), Vector3(0.16, 1.24, 1.6), rail)
 		else:
 			_rail("ConnectorSide%s" % ("Port" if side < 0 else "Starboard"), Vector3(side * 1.52, 0.62, 19), Vector3(0.16, 1.24, 6), rail)
 	_rail("NoseRail", Vector3(0, 0.62, -16.12), Vector3(16.4, 1.24, 0.16), rail)
@@ -156,7 +159,7 @@ func get_authority_contract() -> Dictionary:
 	contract["authority_ids"] = PackedStringArray([str(BERTH_ID)])
 	return contract
 func get_performance_contract() -> Dictionary:
-	return StationModuleContract.build_performance_contract(self, {"static_bodies": 10 if paradox_spur_open else 9, "collision_shapes": 10 if paradox_spur_open else 9, "mesh_instances": 75, "labels": 1, "lights": 0, "process_loops": 0, "physics_process_loops": 0})
+	return StationModuleContract.build_performance_contract(self, {"static_bodies": 9 + int(paradox_spur_open) + int(utopia_spur_open), "collision_shapes": 9 + int(paradox_spur_open) + int(utopia_spur_open), "mesh_instances": 75 + (2 if utopia_spur_open else 0), "labels": 1, "lights": 0, "process_loops": 0, "physics_process_loops": 0})
 func set_module_enabled(enabled: bool) -> void:
 	_enabled = enabled
 	StationModuleContract.apply_enabled_state(StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _enabled, self)

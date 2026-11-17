@@ -90,15 +90,15 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"dynamic_home_berth": matching += 1
-	if not _check(matching == 1 and world.get_berth_ids().size() == 13 and _game.get_flyable_ships().size() == 13 and _game.get_node_or_null("DynamicGunship") != null and berth.get_occupant() == _game.get_node("DynamicGunship") and berth.get_reservation_owner() == _game.get_node("DynamicGunship"),"thirteen physical berths and thirteen actual flyables; Dynamic owns its unique occupied home"): return
+	if not _check(matching == 1 and world.get_berth_ids().size() == 14 and _game.get_flyable_ships().size() == 13 and _game.get_node_or_null("DynamicGunship") != null and berth.get_occupant() == _game.get_node("DynamicGunship") and berth.get_reservation_owner() == _game.get_node("DynamicGunship"),"fourteen physical berths and thirteen actual flyables; Dynamic owns its unique occupied home"): return
 	var dock := Transform3D(Basis.IDENTITY,Vector3(108,-0.02,-30))
 	if not _check(berth.get_dock_transform().is_equal_approx(dock) and berth.dock_transform == Transform3D.IDENTITY and berth.compatibility_tags == PackedStringArray(["dynamic_gunship"]) and berth.landing_volume_center == Vector3.ZERO and berth.landing_half_extents == Vector3(6.2,5.8,6) and berth.assist_capture_center == Vector3(0,8,-18) and berth.assist_capture_half_extents == Vector3(18,12,26) and berth.assist_capture_maximum_speed == 27 and berth.assist_maximum_tilt_degrees == 68 and berth.departure_lift_height == 3.5 and DEFINITION.landing_maximum_speed == 16.5,"exact adopted root/strict-center/fit/capture/speed/tilt/departure contract"): return
 	if not _test_module_geometry(module): return
 	var registry := world.get_station_route_registry_report()
 	var graph := world.get_station_navigation_graph_report()
 	var edge := (graph.get("edges",{}) as Dictionary).get(&"hub-dynamic-gunship-berth",{}) as Dictionary
-	if not _check(registry.valid and registry.modules.size() == 11 and registry.route_marker_count == 63 and registry.hub_endpoints.size() == 11 and registry.slots.size() == 11 and graph.valid and is_equal_approx(float(edge.get("length",-1)),1.5) and edge.get("hub_node_id") == &"station-hub:hub-dynamic-gunship-berth" and edge.get("module_node_id") == &"dynamic-gunship-berth:approach","complete eleven-module/63-marker registry and actual 1.5m supported navigation edge"): return
-	if not _check(world.get_ship_berth_feedback_audit_report().valid,"existing six feedback owners remain valid with thirteenth berth"): return
+	if not _check(registry.valid and registry.modules.size() == 12 and registry.route_marker_count == 66 and registry.hub_endpoints.size() == 12 and registry.slots.size() == 12 and graph.valid and is_equal_approx(float(edge.get("length",-1)),1.5) and edge.get("hub_node_id") == &"station-hub:hub-dynamic-gunship-berth" and edge.get("module_node_id") == &"dynamic-gunship-berth:approach","complete twelve-module/66-marker registry and actual 1.5m supported navigation edge"): return
+	if not _check(world.get_ship_berth_feedback_audit_report().valid,"existing six feedback owners remain valid with fourteenth berth"): return
 	var saved_berths := {}
 	var saved_craft := {}
 	for id: StringName in OLD_TRANSFORMS:

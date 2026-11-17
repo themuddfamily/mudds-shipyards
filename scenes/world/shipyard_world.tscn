@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -21,6 +21,8 @@
 [ext_resource type="PackedScene" path="res://scenes/world/modules/predator_detention_transport_berth.tscn" id="16_predator_berth"]
 
 [ext_resource type="PackedScene" path="res://scenes/world/modules/dynamic_gunship_berth.tscn" id="18_dynamic_berth"]
+
+[ext_resource type="PackedScene" path="res://scenes/world/modules/utopia_dropship_berth.tscn" id="19_utopia_berth"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -149,6 +151,7 @@ metadata/route_support = &"observation_far_bridge_to_titan_connector"
 position = Vector3(154, 0.38, 38)
 rotation_degrees = Vector3(0, -90, 0)
 paradox_spur_open = true
+utopia_spur_open = true
 
 [node name="ParadoxConnectorRouteAnchor" type="Marker3D" parent="."]
 position = Vector3(135, 0.38, 48.5)
@@ -212,3 +215,11 @@ metadata/route_support = &"starboard_node_to_dynamic_spur"
 
 [node name="DynamicGunshipBerth" parent="." instance=ExtResource("18_dynamic_berth")]
 position = Vector3(108, -0.02, -30)
+
+[node name="UtopiaConnectorRouteAnchor" type="Marker3D" parent="."]
+position = Vector3(135, 0.38, 37.6)
+metadata/station_hub_route_anchor = true
+metadata/route_support = &"titan_connector_to_utopia_spur"
+
+[node name="UtopiaDropshipBerth" parent="." instance=ExtResource("19_utopia_berth")]
+position = Vector3(144, 0.38, -30)
