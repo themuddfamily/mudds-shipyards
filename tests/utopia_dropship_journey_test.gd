@@ -1068,7 +1068,7 @@ func _crew_seated_geometry(index: int) -> bool:
 				for chair in 2:
 					for part: String in ["Pedestal","Cushion","Back"]:
 						if _chair_part_bounds(chair,part).grow(-0.002).has_point(point):
-						return _main_check(false,"actual animated suit/backpack vertex penetrates fitted "+part+" point="+str(point))
+							return _main_check(false,"actual animated suit/backpack vertex penetrates fitted "+part+" point="+str(point))
 				if point.x >= cushion.position.x and point.x <= cushion.end.x and point.z >= cushion.position.z and point.z <= cushion.end.z:
 					support_gap = minf(support_gap,point.y-cushion.end.y)
 	var query := PhysicsShapeQueryParameters3D.new()
