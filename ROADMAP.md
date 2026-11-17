@@ -111,6 +111,39 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Utopia physical Cinder supply destination — card7
+
+Baseline **d74eb350aa6b88f3a398773d87dac271254e2fac**, branch
+`work/utopia-supply-access-1117`, worktree
+`/srv/mudds-work/utopia-supply-access-20261117/worktree`.
+Window **2026-11-17 10:43:37→11:58:37UTC**,75minutes ALL-IN includingmapping,
+implementation, focused/ordinary source+actualPCK checks, safeexports/startup3,
+captures/audit/review, merge/push/archive and exactownedcleanup. Definition frozen
+10:53 before10:58:37limit. Production repair0/1; no automatic successor/renewal.
+HIGH implementer owns exactaccess/dockselector/narrowGameFlowexit/actorhandoff and
+nearestfixture; HIGH reviewer; root engines/release/integration/docs/cleanup.
+
+Physicalroot Accesslocal(-29,2.9,0),yaw0, unchangedexistingdeck. Full Utopia deployed
+boundsx[-33.5,-24.5]/z[-8.5,12.5], alloriginalsupport rays, sternapron13.3→existing
+connector(-24.3,13.75)→actualterminal/fullreverse. Exact Utopia-owner verticalstaging
+and4mdeparturelift only; oldJovian/Haulerposes/leases/captures/lifts remain unchanged.
+Normal approach above exactroot stays within unowned/leasedcapture overlap; realL
+reserves candidatepose, no previewowner redesign. Both pre/post physicalexit gates
+allow ONLY exactcurrentlive CinderAccesssharedberth/strictUtopialease/instances/parent.
+After actual disembark completes, register PHYSICAL actor in access; binding STILL
+refuses cargo_source_unavailable with unchanged manifest/stock/payment. No card8
+custody grant, new stock store, schema or validator. Chairs remain HOME-only.
+
+Distinct existingfixture --main --supply300 starts realBoot/Player/fullstation/
+helm; realoutboundpulse/normalCinderL/OFFLINE/fullsternwalk+seal/actualterminalE
+refusalnocustody/reversewalk/reboard/secondrealflightpulse/stricthome/OFFLINE/
+fullphysicalexit/fullstationreturn/normalQuit, claims2/releases2. Source and actual
+WindowsPCK same300; defaultoriginalcompleteMain300 remains unchanged. No actor/
+craft pose/velocity/mask/gravity/clock forcing or directpositiveclaim qualification.
+Everycompleted unseatedtick requires actualcapsule/head/support/continuity. Original
+wholeCinderAccess source1200 remains required; remaining focused/release cases are
+being bound before any engine. Native/human/fullcraft and cargo/supply remain open.
+
 ### Utopia local physical passenger chairs — card6 DONE
 
 Accepted source **45ae17504f4fa8ee8351886f3fbf41236393c4c2**, merged via **cdea89ae805ff89cd4840e25f72c18b712253e34**,
