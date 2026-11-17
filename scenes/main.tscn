@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3]
+[gd_scene load_steps=43 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -54,6 +54,8 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ships/utopia_dropship.tscn" id="96_utopia"]
 
+[ext_resource type="PackedScene" path="res://scenes/ships/katana_fighter.tscn" id="97_katana"]
+
 [node name="Main" type="Node3D"]
 process_physics_priority = -100
 script = ExtResource("1_flow")
@@ -90,6 +92,10 @@ home_berth_id = &"dynamic_home_berth"
 [node name="UtopiaDropship" parent="." instance=ExtResource("96_utopia")]
 home_berth_id = &"utopia_home_berth"
 local_passenger_chairs_fitted = true
+
+[node name="KatanaFighter" parent="." instance=ExtResource("97_katana")]
+home_berth_id = &"katana_home_berth"
+pilot_weapon_fitted = true
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 release_visuals_while_dormant = true

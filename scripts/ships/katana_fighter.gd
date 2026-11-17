@@ -1,12 +1,57 @@
 extends HeroShip
 
 ## Original modern Katana: physical port access and one pilot.
-## Main registration, weapons and travelling interiors are not fitted.
+## Main fits one adopted pilot pulse; no travelling interior is fitted.
 ## Editable convex sections use metres, +Y up and -Z forward.
+@export var pilot_weapon_fitted := false
+const FUTURE_ENTRY := Vector3(-0.9,0.6,0)
+const CENTER_MUZZLE := Vector3(0,1,-6.2)
 const PILOT_ORIGIN := Vector3(0, 0.55, -1)
 const RESERVED_RECESS := AABB(Vector3(-1.5, 0.6, -2), Vector3(3, 2.9, 4.5))
 var _access_leaves: Array[Dictionary] = []
 var _access_fraction := 0.0
+var _original_shell: Node3D
+
+
+func can_board_from_landed_approach(actor: PlayerController) -> bool:
+	if not is_boardable() or not is_instance_valid(actor) or not actor.is_inside_tree() \
+			or actor.is_queued_for_deletion() or not actor.is_control_enabled() \
+			or actor.is_seated() or not actor.is_on_floor() \
+			or actor.collision_layer != PhysicsLayers.PLAYER_BODY_LAYER \
+			or actor.collision_mask != PhysicsLayers.PLAYER_BODY_MASK \
+			or (actor.get_node("PlayerCollision") as CollisionShape3D).disabled:
+		return false
+	var point := to_local(actor.global_position)
+	return Vector2(point.x-FUTURE_ENTRY.x,point.z-FUTURE_ENTRY.z).length() <= 0.16 \
+		and absf(point.y-FUTURE_ENTRY.y) <= 0.04 and has_clear_landed_pilot_stand(actor)
+
+
+## Query the actor's actual normal capsule at the supported interior exit.
+## The support surface stays in the query; only the normal contact skin is removed.
+func has_clear_landed_pilot_stand(actor: PlayerController) -> bool:
+	if not is_access_supported() or not is_instance_valid(actor):
+		return false
+	var collision := actor.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var pose := get_exit_transform() * collision.transform
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = pose
+	query.margin = 0
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [actor.get_rid()]
+	if not get_world_3d().direct_space_state.intersect_shape(query,16).is_empty():
+		return false
+	var up := global_basis.y.normalized()
+	var feet := get_exit_transform().origin
+	var support := PhysicsRayQueryParameters3D.create(feet+up*0.06,feet-up*0.06,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP,[actor.get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(support)
+	return not hit.is_empty() and hit.collider == self and (hit.normal as Vector3).dot(up) > 0.99
 
 
 func _has_deck_support() -> bool:
@@ -91,7 +136,7 @@ func _moving_leaf(label: String, closed: PackedVector3Array, opened: PackedVecto
 	mesh.name = label
 	mesh.mesh = _leaf_mesh(closed, material)
 	mesh.material_override = material
-	_visual_root.add_child(mesh)
+	_original_shell.add_child(mesh)
 	_access_leaves.append({"collision":collision,"mesh":mesh,"closed":closed,"open":opened,"material":material})
 
 
@@ -128,7 +173,7 @@ func _sliding_box(label: String, left: float, right: float, front: float, rear: 
 func _build_access(material: Material) -> void:
 	_canopy_pivot = Node3D.new()
 	_canopy_pivot.name = "CanopyMotionAuthority"
-	_visual_root.add_child(_canopy_pivot)
+	_original_shell.add_child(_canopy_pivot)
 	for index in 2:
 		var left := -6.0 + index * 2.25
 		var right := left + 2.25
@@ -165,7 +210,19 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 
 func _uses_inherited_primary_weapon() -> bool:
+	return pilot_weapon_fitted
+
+
+func get_variant_visual_root() -> Node3D:
+	return _original_shell
+
+
+func _uses_weapon_component_fallback_emitters() -> bool:
 	return false
+
+
+func _get_weapon_targeting_distance() -> float:
+	return 480.0 * lerpf(FAILED_SENSOR_MANUAL_AIM_DISTANCE_FACTOR,1.0,_get_damage_targeting_multiplier())
 
 
 func _wake_engine_for_automatic_demand(_release_dock_latch: bool = true) -> void:
@@ -183,8 +240,13 @@ func _build_ship() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	set_meta("authenticated_historical_silhouette", false)
 	set_meta("geometry_status", &"original_modern_candidate")
+	# Authored solids remain in the exact collision frame. Cosmetic bank owns
+	# a separate presentation root, as on the other physical pilot prefabs.
+	_original_shell = Node3D.new()
+	_original_shell.name = "KatanaOriginalShell"
+	add_child(_original_shell)
 	_visual_root = Node3D.new()
-	_visual_root.name = "KatanaOriginalShell"
+	_visual_root.name = "KatanaPilotPresentation"
 	add_child(_visual_root)
 	var armor := _finish(Color("b5c2c5"), 0.6)
 	var structure := _finish(Color("263640"), 0.8)
@@ -216,7 +278,7 @@ func _build_ship() -> void:
 		_engine_core_glows.append(glow)
 	_cockpit_root = Node3D.new()
 	_cockpit_root.name = "PilotFixture"
-	_visual_root.add_child(_cockpit_root)
+	_original_shell.add_child(_cockpit_root)
 	_pilot_seat_anchor = Marker3D.new()
 	_pilot_seat_anchor.name = "PilotSeatAnchor"
 	_pilot_seat_anchor.position = PILOT_ORIGIN
@@ -235,8 +297,13 @@ func _build_ship() -> void:
 	_boarding_marker.position = Vector3(-0.9,0.6,0)
 	_exit_marker.position = Vector3(-0.9,0.6,0)
 	_camera_pivot.position = Vector3(0,2.3,0)
-	_muzzle_left.position = Vector3(0,1,-6.2)
-	_muzzle_right.position = _muzzle_left.position
+	_muzzle_left.free()
+	_muzzle_right.free()
+	_muzzle_left = Marker3D.new()
+	_muzzle_left.name = "CenterMuzzle"
+	_muzzle_left.position = CENTER_MUZZLE
+	add_child(_muzzle_left)
+	_muzzle_right = _muzzle_left
 	var receiver := Marker3D.new()
 	receiver.name = "DockingReceiver"
 	add_child(receiver)
@@ -306,5 +373,5 @@ func _prism(label: String, footprint: Array, bottom: float, top: float, material
 	var mesh := MeshInstance3D.new()
 	mesh.name = label
 	mesh.mesh = surface.commit()
-	_visual_root.add_child(mesh)
+	_original_shell.add_child(mesh)
 	return mesh

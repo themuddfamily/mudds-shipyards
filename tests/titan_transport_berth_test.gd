@@ -43,11 +43,11 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"titan_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size() == 15 and world.get_berth_node(&"paradox_home_berth") != null and world.get_berth_node(&"paradox_home_berth").get_occupant() == game.get_node("ParadoxCruiser"), "own Titan berth exactly once among fifteen physical homes with the occupied Utopia berth and empty Katana berth")
+	_check(matching == 1 and world.get_berth_ids().size() == 15 and world.get_berth_node(&"paradox_home_berth") != null and world.get_berth_node(&"paradox_home_berth").get_occupant() == game.get_node("ParadoxCruiser"), "own Titan berth exactly once among fifteen physical homes with the occupied Utopia and Katana berths")
 	var unchanged := true
 	for berth_id in OLD_TRANSFORMS:
 		unchanged = unchanged and world.get_berth_transform(berth_id).is_equal_approx(OLD_TRANSFORMS[berth_id])
-	_check(unchanged and game.get_flyable_ships().size() == 14, "original nine transforms remain unchanged alongside production Titan")
+	_check(unchanged and game.get_flyable_ships().size() == 15, "original nine transforms remain unchanged alongside production Titan")
 	_check(berth.compatibility_tags == PackedStringArray(["titan_transport"])
 		and berth.landing_half_extents == Vector3(7, 7, 14)
 		and berth.assist_capture_center == Vector3(0, 10, -24)
