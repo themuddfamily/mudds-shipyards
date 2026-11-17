@@ -5,8 +5,8 @@ craft now exist in Main, including Titan, Predator, Paradox, Dynamic and Utopia
 pilot checkpoints. This is implementation, not full craft qualification.
 Vortex, Katana and Salyut still await Main integration. All three have accepted
 standalone foundations; Katana has validated physical access/pilot claims and
-Salyut has validated stern walking access. Katana has a delivered reachable empty home berth. Vortex/Salyut berths, all three
-Main integrations and remaining access work stay open. All36 original parent outcomes
+Salyut has validated stern walking access. Katana has a delivered reachable
+empty home berth. Vortex/Salyut berths, all three Main integrations and remaining access work stay open. All36 original parent outcomes
 and ten phase exit gates remain open. There is no evidence-backed completion
 percentage or finish date.
 
@@ -150,6 +150,23 @@ No production correction was needed. A pre-engine runner setup error and the ini
 Existing tutorial-dismiss/help-close actions clear only those overlays for the
 same cold cameras/FOV/eightframe/90s view contract; baseHUD/objective/radar remain.
 Final exact archive/cumulative cost/branch/process cleanup is recorded below.
+
+Katana card3 archive and cleanup completed **2026-11-17T12:44:00.203054+00:00**:
+new window **61.337minutes** through owned cleanup; previous attempt
+**92.388548minutes**, cumulative through cleanup
+**153.725minutes**, all retained rather than reset away. Final
+publication/confirmation cost is included in the closeout's final timestamp.
+Verified archive `/srv/mudds-work/katana-berth-renewal-20261117/records.tar.gz`,
+**77591670bytes**, SHA256
+`cbf06a8041d4988ffdf2f52cc16b59302a3a19e0029d205d2725f467a14343ad`,
+**3745members** read/hash-verified, including accepted source bundle,
+all runtime/export/visual/package inputs and rejected caller attempts. All eight
+published artifact hashes match; accepted source is contained in pushedMain.
+Clean task worktree removed and local branch exact-CAS deleted after archive
+verification; remote task branch absent, owned processes gone. Root scratch
+retains only archive+closeout.json. Only retained branch exception is unaccepted
+Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08 (no worktree).
+No next task branch has been opened.
 
 ### Parked: Utopia physical Cinder supply destination — card7
 
