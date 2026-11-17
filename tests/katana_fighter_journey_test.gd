@@ -663,32 +663,25 @@ func _audit_animated_geometry() -> bool:
 	for leaf in _access_ship.get("_access_leaves"):
 		var expected: PackedVector3Array = _access_ship.call("_access_leaf_points",leaf,float(_access_ship.get("_access_fraction")))
 		var points: PackedVector3Array = leaf.collision.shape.points
-		var faces: PackedVector3Array = leaf.mesh.mesh.get_faces()
+		# Inspect the actual render buffer, not get_faces() derived triangle data.
+		var vertices: PackedVector3Array = leaf.mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 		if not _check((leaf.mesh.global_transform as Transform3D).is_equal_approx(leaf.collision.global_transform),"actual moving visual/collider global poses agree " + leaf.mesh.name):
 			return false
 		for point in expected:
-			if not (_has_point(points,point) and _has_point(faces,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001):
-				var submitted_vertices: PackedVector3Array = leaf.mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-				var vertex_min_distance := INF
-				var face_min_distance := INF
-				for vertex in submitted_vertices:
-					vertex_min_distance = minf(vertex_min_distance, point.distance_to(vertex))
-				for vertex in faces:
-					face_min_distance = minf(face_min_distance, point.distance_to(vertex))
+			if not (_has_point(points,point) and _has_point(vertices,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001):
+				var closest_collision := Vector3(INF,INF,INF)
+				var closest_vertex := Vector3(INF,INF,INF)
+				for candidate in points:
+					if point.distance_squared_to(candidate) < point.distance_squared_to(closest_collision): closest_collision = candidate
+				for candidate in vertices:
+					if point.distance_squared_to(candidate) < point.distance_squared_to(closest_vertex): closest_vertex = candidate
 				print("KATANA_ANIMATED_GEOMETRY_OPERANDS: ", {
-					"leaf": leaf.mesh.name, "access_fraction": _access_ship.get("_access_fraction"),
-					"motion_active": _access_ship.call("is_access_motion_active"), "expected_point": point,
-					"has_collisionpoint": _has_point(points,point), "has_facepoint": _has_point(faces,point),
-					"submitted_vertices": submitted_vertices, "array_vertex_has_expectedpoint": _has_point(submitted_vertices,point),
-					"array_vertex_min_distance": vertex_min_distance, "get_faces_min_distance": face_min_distance,
-					"expected_points": expected, "collision_points": points, "mesh_faces": faces,
-					"collision_node_id": leaf.collision.get_instance_id(), "shape_id": leaf.collision.shape.get_instance_id(),
-					"collision_transform": leaf.collision.transform, "collision_global_transform": leaf.collision.global_transform,
-					"mesh_node_id": leaf.mesh.get_instance_id(), "mesh_id": leaf.mesh.mesh.get_instance_id(),
-					"mesh_transform": leaf.mesh.transform, "mesh_global_transform": leaf.mesh.global_transform})
-			if not _check(_has_point(points,point) and _has_point(faces,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001,"actual animated visible/collider leaf matches bounded trajectory " + leaf.mesh.name):
+					"leaf": leaf.mesh.name, "access_fraction": _access_ship.get("_access_fraction"), "expected_point": point,
+					"actual_collision_point": closest_collision, "actual_render_vertex": closest_vertex,
+					"collision_distance": point.distance_to(closest_collision), "render_distance": point.distance_to(closest_vertex)})
+			if not _check(_has_point(points,point) and _has_point(vertices,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001,"actual animated visible/collider leaf matches bounded trajectory " + leaf.mesh.name):
 				return false
-		for point in faces:
+		for point in vertices:
 			if not _check(_has_point(expected,point),"visible animated vertex belongs to actual collision " + leaf.mesh.name):
 				return false
 	if float(_access_ship.get("_access_fraction")) > 0.999 and not _access_ship.call("is_access_motion_active"):
