@@ -82,6 +82,62 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected definition: Katana own reachable home berth — card3
+
+Result: a signed physical Katana deck/spur and compatible `katana_home_berth`
+are reachable by the normal Main-spawn Player and usable by the actual standalone
+candidate. Keep all twelve existing dock transforms/leases/routes/craft; Main
+stays12flyable craft while the physical berth registry becomes13. Katana spawn,
+selection and Main pilot journey remain card4. Card2 dependency5ae5879 is accepted.
+
+Baselineb403e0749; WT `/srv/mudds-work/katana-berth-20261117/worktree`, branch
+work/katana-berth-1117. One HIGH implementer first maps current occupied geometry
+and proposes one measured site/route, then owns only new Katana berth module
+script/UID/scene and its focused runtime berth test/UID after root freezes pose.
+HIGH reviewer checks geometry/fit/support/authority independently. Root owns
+ShipyardWorld script/authored scene, route registry expectations, necessary exact
+old-berth-count test updates, all engine commands/release/integration/cleanup.
+No shared ship/player/GameFlow/authority edits, nested agents or agent engines.
+
+Fixed adopted contract: root-local identity DockingReceiver; strict final centre
+ZERO/half-extents(7,6.5,7), exact candidate root dock. Clear physical deck≥16×16m,
+port ramp x-6..-1.5/z±1.1/y0..0.6, supported apron tolocalx-8, approach≥2.2m.
+Deployed complete hullx[-6,5.5],z±6,y[0,5.8]; assistlocalcentre(0,8,-18),
+half-extents(20,14,30), speed28/tilt70°, lift4; final landing-speed15 unchanged.
+Do not consume an existing/deferred berth or change the approved craft geometry.
+Exact world dock pose, supported route endpoints, old-neighbour sweep/camera
+checks and fixed views MUST be frozen here before production edits. First15m
+mapping ends at those concrete fields or a named absent safe site; no rolling
+research. Its time is included in the same all-in window below.
+
+Cases: normal Main-spawn actor walks whole unchanged station prefix/new spur to
+port-control/apron and returns with completed-tick floor/capsule/head/continuity
+checks, no actor pose/clock/mask/gravity bypass. Actual standalone Katana at the
+exact candidate dock satisfies deployed/stowed strict bounds and support; broad
+assist cannot accept a strict final miss, wrongtag/foreign/occupied/stale leases
+refuse atomically, old12 dock poses/occupants/leases stay exact. Query full4m
+lift/forward departure/approach/camera geometry against actual station/neighbours;
+inspect original fixed-source geometry views. No hidden floating floor/gap/rail
+across a live route. New module is a real connected registry/graph endpoint,
+without ship ownership or gameplay authority beyond its ShipBerth.
+
+Acceptance includes new full-world berth test240s, same Katana foundation90s and
+both full access180s profiles, definition/berth120s, full existing route-registry
+and Titan/Predator/Paradox home cases at their recorded caps, full unchanged Titan
+Main300s ALONE/actual clean terminal primary. Freeze literal existing home/route
+caps during definition, before tests/code. Clean paired exports/startup3, actual
+WindowsPCK new full berth/foundation/bothaccess/fullTitan with identical caps and
+source isolation, complete pair/payload delta/audit9, eight checkpoint artifacts,
+independent review, merge/push/archive/exact-tip branch/worktree/process cleanup.
+Every Godot Dummy; headless/private Xvfb x11/GLES; original whole routes/caps and
+source/cache/head guards retained. CI disabled; native/human/fullcraft NOT_RUN.
+
+Window2026-11-17 **00:52:39→02:22:39UTC**,90minutes ALL-IN from first mapping;
+definition deadline**01:07:39UTC**. Substantive corrections0/1; no clock reset.
+Stop dependent checks at first unexpected failure, retain exact operands and
+measure cause before correction; exhausted repair/deadline parks the full card.
+Raw/task-start `/srv/mudds-work/katana-berth-20261117/`. No production code yet.
+
 <a id="katana-access-delivered"></a>
 
 ### Katana physical port access and pilot claim — card2 DONE, standalone
