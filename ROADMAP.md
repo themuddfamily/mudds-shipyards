@@ -101,6 +101,63 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Utopia continuous physical stern access — card2
+
+Result: one real Player reaches Utopia's stern control, opens, walks the supported
+ramp/bridge/aisle to the fixed helm stand and the entire reverse route/seals,
+twice at identity and elevated35degree yaw. Adopted Utopia card2 only; Main stays
+13craft/13berths. No pilot-seat, passenger, cargo, supply or travelling-frame grant.
+Baseline478019a1e; branch `work/utopia-access-1117`, worktree
+`/srv/mudds-work/utopia-access-20261117/worktree`. HIGH implementer owns only
+Utopia script and one new journey fixture/UID; HIGH independent review. Root owns
+release/docs/integration and the already-reviewed Main cannon fixture ten-completed-
+physics-tick maintenance, retaining every original shot/damage/replay/cadence gate.
+No shared HeroShip/GameFlow/Main/othercraft/definition changes.
+
+Frozen closed9×17×4.8m and deployedsternonlytoz12.5. CargoDeckrear8 replaces8.5
+so rampz8..12.5/top.8→0 meets actual floor/bridge without overlap. Hatch2halves
+width1.2 first aft+.3 over0..08 then outward±1.2 over.08..16. Three rigid1.5m
+leaves,width2.4,top.8*(12.5-z)/4.5,underside.72*(12.5-z)/4.5; stowtheta
+-PI/2-atan(.8/4.5),hingeY.8/Z7.65,7.8,7.95. Outer.16..44,middle.44..72,
+inner.72..1; each localfraction lift.04/slide.08/lower.04/rotate.08/settle.04.
+Raise.15, slide uprightY.95 to targetZ, lowerYtarget+.15, rotate with exact
+endZ-max(rotatedvertexZ) clamp, settle-.15. Exact reverse; hatchminimum1.2s.
+All actual mesh vertices/convex/rootposes/normals/SAT101fractions and real motion
+ticks must retain bounds/no positive overlap and the1.6m aisle/eight future rack/
+two chair reservations. Preserve16fields,3.45startup,650m/70/.62 pulse and exact
+muzzle/pilot/eye/stand/identity receiver.
+
+Physical control bracketx[-3.55,-3.25],y[2.2,2.4],z[8,8.3] meets port housingtop;
+interaction(-3.4,2.4,8.3),operator(-3.4,0,10.1), normal2.5m reach. InitialPlayer
+(0,0,14.5), closedcrossingrefusal/walkback. Route operator→(-3.4,0,13.3)→
+(0,0,13.3)→(0,.8,8)→(0,.8,7.5)→(0,.8,0)→fixedstand(.8,.8,-5.8), full
+reverse/seal twice perprofile. Secondfixtureyaw35/origin(23,7,-19), oneactual
+actor/setup. Everycompletedtick support/capsule/head/continuity<.2m, unchanged
+body/masks/gravity; queryskinonly.005radius/.01height. No pose/velocity/clockforcing.
+Controller-only public injectedcommands prove moving/open start/throttle/turn/FIRE
+neutralization (unchanged shots/heat/timer), positive closed ONLINE pulse, real
+closed startup/flight/brake/neutral idle and airborneOFFLINE opening refusal.
+
+Required source: Utopia/Dynamic/Salyut foundations90each, both full access180each,
+definitions/boarding120each; complete Titan Main300ALONE/normalQuit/actual clean
+terminal primary. ActualWindowsPCK exactcommittedUtopiafoundation90/access180x2
+andfullTitan300ALONE with source isolation. Paired clean exports/strictstartup3
+(exit0/exactoneSTARTUP_MENU_READY_OK/raw0), exact Linux6members/modes/ELFequality,
+complete equal Win/Linux maps/reviewed delta/audit9/eightartifacts and independent
+FINAL_GO/PACKAGE_GO before merge/push/verifiedarchive/exactcleanup.
+Standalone cold3views90total,960×540/eightframes,matching visible/physical32×40m
+probe deck: closedcamera(14,9,21)look(0,2,1), opencamera(9,7,19)look(0,1.5,7.5),
+FOV52; exactactualcockpiteye/FOV/near/far. PrivateXvfb/x11/GLES/Dummy only. Known
+Main software first-frame gate and native/human/full-craft gates remain open;
+this standalone card does not waive or retry them. CI stays disabled.
+
+All-in window **2026-11-17 06:51:12→08:06:12UTC**,75minutes including definition,
+checks/build/review/integration/archivecleanup; definitiondeadline07:06:12.
+Productionrepair0/1 under owner17Nov05:12:56 reset. Retain firstunexpectedfailure
+and stop dependentchecks; same-clock compiler/caller/assertion maintenance keeps
+all cases/caps. Unresolved production failure or harddeadline parks the wholecard.
+No automaticreset/successor. Frozen/raw `/srv/mudds-work/utopia-access-20261117/`.
+
 ### Main cold first-frame blocker — bounded definition stopped
 
 Accepted Main243a6e518 (13craft/13berths) reproduces the west-camera first-draw
