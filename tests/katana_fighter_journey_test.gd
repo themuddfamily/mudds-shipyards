@@ -625,7 +625,7 @@ func _trajectory_contract() -> bool:
 	var envelope := AABB(Vector3(-6,0,-6),Vector3(11.5,5.8,12))
 	for leaf in leaves:
 		for i in leaf.closed.size():
-			for fraction in [0.0,0.125,0.25,0.5,0.75,0.8,0.875,0.9,1.0]:
+			for fraction in [0.0,0.125,0.25,0.5,0.6,0.75,0.8,0.875,0.9,1.0]:
 				var trajectory: PackedVector3Array = _access_ship.call("_access_leaf_points",leaf,fraction)
 				var point: Vector3 = trajectory[i]
 				if not _check(point.x >= envelope.position.x - 0.00001 and point.x <= envelope.end.x + 0.00001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001,"complete affine trajectory bounded leaf=" + leaf.mesh.name + " point=" + str(point) + " fraction=" + str(fraction)):

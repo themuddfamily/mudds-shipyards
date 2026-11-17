@@ -58,19 +58,22 @@ func _set_canopy_open_fraction(open_fraction: float) -> void:
 func _access_leaf_points(leaf: Dictionary, fraction: float) -> PackedVector3Array:
 	var points := PackedVector3Array()
 	if leaf.mesh.name == &"PortRamp0":
-		# Slide above the fixed inner leaf, then lower only after their
-		# footprints meet at a single edge. Closing lifts before retracting.
-		var offset := Vector3.ZERO
-		if fraction <= 0.8:
-			var phase := fraction / 0.8
-			offset = Vector3(2.25 * (1.0-phase),0.5-0.3*phase,0)
-		else:
-			offset.y = 0.2 * (1.0-(fraction-0.8)/0.2)
+		# Stow outside the sill; slide above the inner leaf, then lower only
+		# after the inner leaf extends and their footprints meet at one edge.
+		var slide := clampf(fraction / 0.6, 0.0, 1.0)
+		var lower := clampf((fraction - 0.8) / 0.2, 0.0, 1.0)
+		var offset := Vector3(2.1 * (1.0 - slide), 0.5 * (1.0 - lower), 0)
 		for point in leaf.open:
 			points.append(point + offset)
+	elif leaf.mesh.name == &"PortRamp1":
+		# Hold clear of the descending sill until its top is below the wedge.
+		var extend := clampf((fraction - 0.6) / 0.2, 0.0, 1.0)
+		for point in leaf.open:
+			points.append(point + Vector3(-0.15 * (1.0 - extend), 0, 0))
 	else:
+		var phase := clampf(fraction / 0.6, 0.0, 1.0) if leaf.mesh.name == &"PortSill" else fraction
 		for i in leaf.closed.size():
-			points.append((leaf.closed[i] as Vector3).lerp(leaf.open[i], fraction))
+			points.append((leaf.closed[i] as Vector3).lerp(leaf.open[i], phase))
 	return points
 
 
@@ -136,7 +139,10 @@ func _build_access(material: Material) -> void:
 		var closed := opened.duplicate()
 		if index == 0:
 			for i in closed.size():
-				closed[i] += Vector3(2.25,0.5,0)
+				closed[i] += Vector3(2.1,0.5,0)
+		else:
+			for i in closed.size():
+				closed[i] += Vector3(-0.15,0,0)
 		_moving_leaf("PortRamp" + str(index),closed,opened,material)
 	var boarding := ShipBoardingArea.new()
 	boarding.name = "ShipBoardingArea"
@@ -193,7 +199,8 @@ func _build_ship() -> void:
 	_rect("AftTub", -1.6,1.6,2.5,6,0.6,2.0,armor)
 	_rect("AftCockpitWall", -1.6,1.6,2.5,2.7,2.0,3.5,structure)
 	# Walls reserve the complete x±1.5 recess above its 0.6m supported floor.
-	_sliding_box("PortSill", -1.6,-1.5,-2,2.5,0.6,1.0,-0.4,armor)
+	# The deployed sill top is .5, below the ramp's .508..52 underside here.
+	_sliding_box("PortSill", -1.6,-1.5,-2,2.5,0.6,1.0,-0.5,armor)
 	_sliding_box("PortClosedGlazing", -1.6,-1.5,-2,2.5,1.0,3.5,2.0,glass)
 	_rect("StarboardSill", 1.5,1.6,-2,2.5,0.6,1.0,armor)
 	_rect("StarboardGlazing", 1.5,1.6,-2,2.5,1.0,3.5,glass)
