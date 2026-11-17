@@ -87,6 +87,70 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Dynamic ordinary Main pilot loop — card4
+
+Result: Dynamic becomes the thirteenth usable Main craft at its already accepted
+home berth. Actual Boot/Begin Shift → normal Player spawn → full supported
+station/port-ramp/helm walk → Interact claim/seal → real2.1second start/launch/
+flight → own strict home landing/neutral OFFLINE → normal inside release and
+physical walkout/seal, twice, then fresh physical reboard and normal HUD Quit.
+Card2f3cb99a/card3b328418 accepted. Keep all12 oldcraft poses/source IDs/leases/
+settings and existing routes; no extra Player, guest, crew or moving-cabin grant.
+
+Baselinee7637618b; WT `/srv/mudds-work/dynamic-main-20261117/worktree`, branch
+work/dynamic-main-1117. One HIGH implementer owns GameFlow, Dynamic script,
+Main scene and existing Dynamic journey fixture(--main; default access retained).
+HIGH independent review. Root owns old exact13fleet-count consumers, existing
+Dynamic berth-fixture migration, source/PCK/export/capture/release/integration/
+cleanup. No shared HeroShip changes, resource retuning, new framework or
+registered-six role-policy expansion.
+
+Definition frozen before code: scene instance DynamicGunship/home dynamic_home_berth;
+source ID1112 is unused. Proper unique pilot binding uses only unchanged Bulwark
+pilot pulse (50damage/360m/.30s, original policy/cyan/audio), not generic Torrent
+or crew-lance paths. Full actual target-damage/comparative-handling qualification
+stays card6. Dynamic-only physical approach uses exact stand(-.9,.55,.4), real
+normal capsule/head support and unchanged access geometry/16fields/pilot/eye.
+The outside control is4.33m from the inside stand, beyond existing2.5m reach:
+safe supported home/OFFLINE release opens ramp fully WHILE the current pilot
+remains seated, then revalidates actor/area/current generation/strict occupied
+home lease/token/phase/stand before normal disembark. Existing Predator/Paradox
+sealed inside exit stays unchanged. No direct cabin or unsupported exit grant.
+
+Initial full station route: (8,11),(8,13.5),(35,13.5),(35,15.5),(43,15.5),
+(43,7),(43,-12),(55,-12),(55,-44),(99.6,-44),(99.6,-30),(101,-30),
+(102.1,-32.4), on accepted support; then candidate-local operator(-5.9,0,-2.4),
+(-5.9,0,0), fixedstand(-.9,.55,.4). Flight uses ordinary controls toward local
+(0,8,-20), actual airborne/OFFLINE exit refusal, normal wake/brake and L landing.
+After each exit, walk ramp→(-8.4,0,0)→(-8.4,0,-2.4)→operator before sealing;
+this real accepted-spur walk clears the unchanged>7m reboard guard. No block
+mutation, actor pose/velocity/clock forcing, direct positive boarding/landing
+calls or travel-to-staging bypass may supply the journey.
+
+| Case | Actual initial state/action | Expected | Actual |
+| --- | --- | --- | --- |
+| Main Dynamic | Ordinary Boot/Begin Shift; full route/two real sorties/home/OFFLINE/physical exits/seal/fresh third reboard/normal HUD Quit | Same Player, correct HUD/console/unique source+profile, exact home leases and safe current claims; actual clean terminal primary | NOT_RUN |
+| Negative ownership/access | Outside/throughwall/duplicate/foreign/stale claims, open/moving launch, airborne OFFLINE exit | Atomic refusal with current actor/lease/generation preserved; no crew/cabin grant | NOT_RUN |
+| Existing berth/standalone | Occupied actualMain Dynamic berth route240; same full independent exact-production-component empty-ledger cycles plus live occupied refusal/state conservation; Dynamicfoundation90/bothaccess180 | All original fit/cast/lease/walk cases retained; all12oldstates unchanged,13/13fleet; standalone scope remains standalone | NOT_RUN |
+| Existing world | Definitions120, registry180, feedback180, fullTitan/Predator/Paradoxhome240each | Same original physical routes/negative cases;13berths/13craft, graph11/63; sixfeedback/twelvematerials stable | NOT_RUN |
+| Existing Main | Full unchanged Titan/Predator/Paradox Main300each ALONE | Same full journeys and normal clean Quit; original fixtures only exact13-roster maintenance | NOT_RUN |
+| Actual package/release | Full DynamicMain300/berth240/foundation90/bothaccess180 and fullTitan300 ALONE against actual WindowsPCK; pairedexports/startup3/maps/delta/audit9/eightartifacts | Source isolation/exact same full committed fixtures/caps/clean terminal primaries; inspected current checkpoint | NOT_RUN |
+
+Fixed actualMain views: closedoverview(90,10,-17)look(108,2,-30), openport(92,7,-28)
+look(105,1,-30), bothFOV52; actual cockpit-eye transform/FOV/near/far. Cold
+three-view90s at actual960×540/eightframes/privateXvfb/x11/GLES/Dummy; use the
+actual Main Dynamic, no extra staged duplicate. Every Godot Dummy/headless or
+isolated, independent abort and released inputs. Native/GPU/human/fullcraft
+qualification stays NOT_RUN/open; CI stays disabled.
+
+Window2026-11-17 **03:44:50→04:59:50UTC**,75minutes ALL-IN from first mapping;
+definition deadline03:59:50. Production corrections0/1. Stop dependent checks on
+first unexpected failure and retain actual operands; routine compiler/caller/
+assertion maintenance keeps original clock/caps/full gates. Exhaustion, unresolved
+production failure or hard deadline parks whole card. Merge/push/checkpoint and
+verified archive/exact branch/worktree/process/scratch cleanup are completion.
+Raw/frozen contract `/srv/mudds-work/dynamic-main-20261117/`.
+
 <a id="dynamic-berth-delivered"></a>
 
 ### Dynamic own reachable home berth — card3 DONE, infrastructure only
