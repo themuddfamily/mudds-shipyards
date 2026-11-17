@@ -686,6 +686,7 @@ func _cold_prepare_profile() -> bool:
 	if not _main_check(bool(progress.restore().accepted)
 		and bool(progress.mark_seen(&"cinder_debris_beacon_traversal","dynamic-cold-progress-%d" % (store.get_generation()+1)).accepted),
 		"actual tutorial progress owner records real beacon briefing"): return false
+	if not _cold_initialize_parcel_inventory(store): return false
 	if _cold_mode.begins_with("legacy-"):
 		var payload := store.get_snapshot()
 		var context: Dictionary = payload.get("solo_safe_recovery",{})
@@ -703,6 +704,39 @@ func _cold_prepare_profile() -> bool:
 	_cold_unrelated = _cold_preserved(store.get_snapshot())
 	_cold_expected_context = store.get_snapshot().get("solo_safe_recovery",{}).duplicate(true)
 	return true
+
+
+## First-use Main creates Titan's real four-parcel inventory and, when no
+## preference exists, its on-foot recovery context. Establish that same owner
+## before taking the baseline; its stock is unrelated to the Dynamic journey.
+func _cold_initialize_parcel_inventory(store: UserDataStore) -> bool:
+	var payload := store.get_snapshot()
+	if payload.has(TitanCargoCustody.MARKER) or payload.has(TitanCargoCustody.SLOT):
+		return _main_check(payload.get(TitanCargoCustody.MARKER) == true
+			and payload.get(TitanCargoCustody.SLOT) == {"locker":4,"titan":0},
+			"existing real parcel inventory matches normal cold Main projection")
+	var fixture := Node3D.new()
+	root.add_child(fixture)
+	var authority := CargoTransferAuthority.new()
+	fixture.add_child(authority)
+	var titan_scene := load("res://scenes/ships/titan_medium_transport.tscn") as PackedScene
+	var titan := titan_scene.instantiate() as HeroShip
+	fixture.add_child(titan)
+	var locker := Node3D.new()
+	fixture.add_child(locker)
+	var custody := TitanCargoCustody.new()
+	fixture.add_child(custody)
+	var initialized := custody.initialize(authority,store,titan,locker,Callable())
+	var inventory := custody.snapshot()
+	var accepted := bool(initialized.get("accepted",false)) and bool(inventory.get("available",false)) \
+		and int(inventory.get("locker",-1)) == 4 and int(inventory.get("titan",-1)) == 0 \
+		and store.get_snapshot().get(TitanCargoCustody.MARKER) == true \
+		and store.get_snapshot().get(TitanCargoCustody.SLOT) == {"locker":4,"titan":0}
+	print("DYNAMIC_COLD_PARCEL_OWNER_INITIALIZED: ",JSON.stringify({"result":initialized,
+		"locker":inventory.get("locker"),"titan":inventory.get("titan"),
+		"generation":store.get_generation(),"recovery":store.get_snapshot().get("solo_safe_recovery",{})}))
+	fixture.free()
+	return _main_check(accepted,"actual Titan cargo owner seeds exactly four unrelated parcels before cold baseline")
 
 
 func _cold_check_offer() -> bool:
