@@ -18233,6 +18233,8 @@ func _register_flyable_ships() -> void:
 			candidate.global_transform = berth_transform
 			candidate.set_piloted(false)
 		ships.append(candidate)
+		if candidate_id == &"dynamic_provisional":
+			candidate.set(&"lifecycle_reset_guard", _authorize_dynamic_reset.bind(candidate))
 		candidate.add_to_group("flyable_ships")
 		_connect_flyable_ship_signals(candidate)
 	ships.sort_custom(func(first: HeroShip, second: HeroShip) -> bool:
@@ -24206,6 +24208,65 @@ func _attempt_pending_regeneration(
 		2.2
 	)
 	_regeneration_pending.erase(instance_id)
+
+
+## Dynamic keeps the shared receipt/lease transaction. The candidate's public
+## reset entry point must prove the same production home and actor safety as
+## timer recovery, including a second proof when its receipt actually commits.
+func _authorize_dynamic_reset(spawn_transform: Transform3D, craft: HeroShip) -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() or not is_instance_valid(craft) \
+			or not craft.is_inside_tree() or craft.is_queued_for_deletion() or craft not in ships \
+			or craft.get_ship_id() != &"dynamic_provisional" \
+			or craft.get_home_berth_id() != &"dynamic_home_berth" \
+			or not is_instance_valid(world) or not world.has_berth(&"dynamic_home_berth"):
+		return false
+	var berth := world.get_berth_node(&"dynamic_home_berth") as ShipBerth
+	if not craft.has_method(&"get_reset_collision_bounds"):
+		return false
+	var reset_bounds: AABB = craft.call(&"get_reset_collision_bounds")
+	if berth == null or not spawn_transform.is_equal_approx(berth.get_dock_transform()) \
+			or not berth.can_accept(craft.get_ship_definition(), craft) \
+			or not berth.contains_oriented_bounds(spawn_transform, reset_bounds) \
+			or not _dynamic_reset_actor_clear(craft, spawn_transform):
+		return false
+	var instance_id := craft.get_instance_id()
+	if craft.is_destroyed():
+		if not _regeneration_attempts_active.has(instance_id) \
+				or not _pending_regeneration_is_current(instance_id, craft) \
+				or Time.get_ticks_msec() < int((_regeneration_pending.get(instance_id, {}) as Dictionary).get("ready_at_msec", 0)):
+			return false
+		# The first preflight precedes acquisition. The existing coordinator sets
+		# this guard only after it has acquired the exact home lease for commit.
+		return not _regeneration_lease_guarded_instance_ids.has(instance_id) \
+			or _ship_owns_exact_occupied_berth(craft, &"dynamic_home_berth")
+	var telemetry := craft.get_telemetry()
+	if _transition_busy or _piloting or _station_seated or _regeneration_pending.has(instance_id) \
+			or not bool(telemetry.get("landed", false)) or craft.velocity.length() > 0.01 \
+			or StringName(telemetry.get("engine_state", &"")) != HeroShip.ENGINE_OFFLINE \
+			or not HeroShip._landing_transforms_match(craft.global_transform, berth.get_dock_transform()) \
+			or not berth.contains_oriented_bounds(craft.global_transform, craft.get_landing_collision_report().local_bounds) \
+			or not _ship_owns_exact_occupied_berth(craft, &"dynamic_home_berth") \
+			or not is_instance_valid(player) or not player.is_inside_tree() \
+			or player.is_queued_for_deletion() or player.is_seated() or player.is_sleeping() \
+			or not player.is_control_enabled() or not player.is_on_floor():
+		return false
+	return true
+
+
+func _dynamic_reset_actor_clear(craft: HeroShip, spawn_transform: Transform3D) -> bool:
+	# Check the real capsule at the destination, including its collision offset.
+	# This also protects a person who walks onto a temporarily empty recovery
+	# berth while its destroyed hull is elsewhere in the world.
+	if not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion():
+		return false
+	var collision := player.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape as CapsuleShape3D
+	var actor_bounds := AABB(Vector3(-capsule.radius, -capsule.height * 0.5, -capsule.radius),
+		Vector3(capsule.radius * 2.0, capsule.height, capsule.radius * 2.0))
+	actor_bounds = (spawn_transform.affine_inverse() * collision.global_transform) * actor_bounds
+	return not (craft.call(&"get_reset_collision_bounds") as AABB).grow(0.01).intersects(actor_bounds)
 
 
 func _hold_pending_regeneration(
