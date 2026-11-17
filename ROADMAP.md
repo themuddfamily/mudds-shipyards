@@ -138,6 +138,16 @@ production repair or test cap change. Local ledger negatives grant no concurrenc
 travelling/remote/cargo/supply/pressure/save/fullcraft/native/human gates remain open.
 Source archive and exact owned cleanup closeout follow; no next card selected.
 
+Closeout: all source/failure/raw/diagnostic records are retained in
+`/srv/mudds-work/utopia-chairs-20261117/records.tar.gz`:64,269,818bytes,
+SHA256 `182e8b9695419d89228580fbe93e4d424cda0e76bef5bbc49c0bb6fb18e930a3`,
+910 members individually re-read and verified. Exact source is contained in pushed
+Main; taskbranch deleted by exact tip, remotetaskbranch confirmedabsent, owned
+worktree/processes removed and scratch reduced to archive+closeout.json at
+10:42:44UTC before10:44:13deadline. Retained exception: unacceptedParadoxgunner
+c743f585d0a70beb0e6100b34a47147d16280e08 local/remote with no worktree.
+All36 parent outcomes/ten phase gates remainopen. No next card selected.
+
 Baseline **f7bd79d7bce3f10b9f68fa88092474167491f544**, branch
 `work/utopia-chairs-1117`, worktree `/srv/mudds-work/utopia-chairs-20261117/worktree`.
 Visible outcome: two adopted real passenger chairs support normal Main walking,
