@@ -353,7 +353,7 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 	)
 
 	var live_berth_ids := world.get_berth_ids()
-	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 4 and live_berth_ids.has(&"dynamic_home_berth") and live_berth_ids.has(&"paradox_home_berth") and live_berth_ids.has(&"predator_home_berth") and live_berth_ids.has(&"titan_home_berth")
+	var berth_roster_exact := live_berth_ids.size() == EXPECTED_BERTH_IDS.size() + 5 and live_berth_ids.has(&"utopia_home_berth") and live_berth_ids.has(&"dynamic_home_berth") and live_berth_ids.has(&"paradox_home_berth") and live_berth_ids.has(&"predator_home_berth") and live_berth_ids.has(&"titan_home_berth")
 	var berths_unchanged := true
 	for berth_id in EXPECTED_BERTH_IDS:
 		berth_roster_exact = berth_roster_exact and live_berth_ids.has(berth_id)
@@ -361,13 +361,13 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 		berths_unchanged = berths_unchanged \
 			and berth != null \
 			and world.get_berth_transform(berth_id).is_equal_approx(EXPECTED_BERTH_TRANSFORMS[berth_id] as Transform3D)
-	_check(berth_roster_exact, "the world preserves all twelve accepted physical berths and the new Dynamic berth")
+	_check(berth_roster_exact, "the world preserves all thirteen accepted physical berths and the new Utopia berth")
 	_check(berths_unchanged, "all nine authoritative berth identities and transforms are untouched by the route registry")
 
 	var modules := report.get("modules", {}) as Dictionary
 	var modules_claim_nothing := true
 	for module_id: StringName in EXPECTED_MODULE_IDS:
-		if module_id in [&"titan-transport-berth", &"predator-detention-berth", &"paradox-cruiser-berth", &"dynamic-gunship-berth"]:
+		if module_id in [&"titan-transport-berth", &"predator-detention-berth", &"paradox-cruiser-berth", &"dynamic-gunship-berth", &"utopia-dropship-berth"]:
 			continue
 		var entry := modules.get(module_id, {}) as Dictionary
 		modules_claim_nothing = modules_claim_nothing \
