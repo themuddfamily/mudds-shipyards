@@ -156,7 +156,7 @@ func _probe_propulsion_blocked(label: String) -> bool:
 	_commands.fire = true
 	_access_ship.request_engine_start()
 	await _frames(3)
-	var blocked := _access_ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE and _access_ship.velocity.length() < 0.001 and _access_ship.global_transform.is_equal_approx(before)
+	var blocked: bool = _access_ship.get("_engine_state") == HeroShip.ENGINE_OFFLINE and _access_ship.velocity.length() < 0.001 and _access_ship.global_transform.is_equal_approx(before)
 	_commands.throttle = 0
 	_commands.yaw = 0
 	_commands.roll = 0
