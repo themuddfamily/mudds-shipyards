@@ -96,14 +96,14 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"utopia_home_berth": matching += 1
-	if not _check(matching == 1 and world.get_berth_ids().size() == 14 and _game.get_flyable_ships().size() == 14 and _game.get_node_or_null("UtopiaDropship") != null and berth.get_occupant() == _game.get_node("UtopiaDropship") and berth.get_reservation_owner() == _game.get_node("UtopiaDropship"),"fourteen physical berths and fourteen actual flyables; Utopia owns its unique occupied home"): return
+	if not _check(matching == 1 and world.get_berth_ids().size() == 15 and _game.get_flyable_ships().size() == 14 and _game.get_node_or_null("UtopiaDropship") != null and berth.get_occupant() == _game.get_node("UtopiaDropship") and berth.get_reservation_owner() == _game.get_node("UtopiaDropship"),"fifteen physical berths and fourteen actual flyables; Utopia owns its unique occupied home"): return
 	var dock := Transform3D(Basis.IDENTITY,Vector3(144,0.38,-30))
 	if not _check(berth.get_dock_transform().is_equal_approx(dock) and berth.dock_transform == Transform3D.IDENTITY and berth.compatibility_tags == PackedStringArray(["utopia_supply"]) and berth.landing_volume_center == Vector3.ZERO and berth.landing_half_extents == Vector3(5.5,6,14) and berth.assist_capture_center == Vector3(0,8,-20) and berth.assist_capture_half_extents == Vector3(18,14,32) and berth.assist_capture_maximum_speed == 28 and berth.assist_maximum_tilt_degrees == 70 and berth.departure_lift_height == 4 and DEFINITION.landing_maximum_speed == 10.5,"exact adopted root/strict-center/fit/capture/speed/tilt/departure contract"): return
 	var registry := world.get_station_route_registry_report()
 	var graph := world.get_station_navigation_graph_report()
 	var edge := (graph.get("edges",{}) as Dictionary).get(&"hub-utopia-dropship-berth",{}) as Dictionary
-	if not _check(registry.valid and registry.modules.size() == 12 and registry.route_marker_count == 66 and registry.hub_endpoints.size() == 12 and registry.slots.size() == 12 and graph.valid and is_equal_approx(float(edge.get("length",-1)),1.5) and edge.get("hub_node_id") == &"station-hub:hub-utopia-dropship-berth" and edge.get("module_node_id") == &"utopia-dropship-berth:approach","complete twelve-module/66-marker registry and actual 1.5m supported navigation edge"): return
-	if not _check(world.get_ship_berth_feedback_audit_report().valid,"existing six feedback owners remain valid with fourteenth berth"): return
+	if not _check(registry.valid and registry.modules.size() == 13 and registry.route_marker_count == 69 and registry.hub_endpoints.size() == 13 and registry.slots.size() == 13 and graph.valid and is_equal_approx(float(edge.get("length",-1)),1.5) and edge.get("hub_node_id") == &"station-hub:hub-utopia-dropship-berth" and edge.get("module_node_id") == &"utopia-dropship-berth:approach","complete thirteen-module/69-marker registry and actual 1.5m supported navigation edge"): return
+	if not _check(world.get_ship_berth_feedback_audit_report().valid,"existing six feedback owners remain valid with fifteenth berth"): return
 	var saved_berths := {}
 	var saved_craft := {}
 	for id: StringName in OLD_TRANSFORMS:

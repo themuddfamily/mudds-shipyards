@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -23,6 +23,8 @@
 [ext_resource type="PackedScene" path="res://scenes/world/modules/dynamic_gunship_berth.tscn" id="18_dynamic_berth"]
 
 [ext_resource type="PackedScene" path="res://scenes/world/modules/utopia_dropship_berth.tscn" id="19_utopia_berth"]
+
+[ext_resource type="PackedScene" path="res://scenes/world/modules/katana_fighter_berth.tscn" id="20_katana_berth"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -223,3 +225,11 @@ metadata/route_support = &"titan_connector_to_utopia_spur"
 
 [node name="UtopiaDropshipBerth" parent="." instance=ExtResource("19_utopia_berth")]
 position = Vector3(144, 0.38, -30)
+
+[node name="KatanaConnectorRouteAnchor" type="Marker3D" parent="."]
+position = Vector3(47, -0.02, 8.5)
+metadata/station_hub_route_anchor = true
+metadata/route_support = &"starboard_node_south_edge_to_katana_spur"
+
+[node name="KatanaFighterBerth" parent="." instance=ExtResource("20_katana_berth")]
+position = Vector3(72, -0.02, -30)
