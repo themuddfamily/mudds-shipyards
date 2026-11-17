@@ -82,7 +82,32 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Katana own reachable home berth — card3
+### Parked: Katana own reachable home berth — card3
+
+**2026-11-17 deadline stop; not integrated or published.** The fixed
+00:52:39→02:22:39UTC all-in window expired before final review, package audit9,
+eight-artifact publication and integration/cleanup were complete. Source
+`7e8c177cad339932da67cc290b77833198360f7b` and runtime/export
+`8db7ea0c47e43830c633415e035532eb164716c7` are unaccepted candidates.
+Ten focused source cases passed at their actual recorded commits (the final
+change only updates Predator's excluded graph-count fixture); full ordinary
+Titan source165.208s and Windows-PCK157.202s both ended with actual clean
+terminal saves. Four focused actual PCK cases, paired exports/strict startup3,
+complete pair/payload delta and corrected original960×540 three-view
+capture74.246s passed. These do not substitute for the missing final gates.
+Production corrections remain0/1; every prior caller/roster/capture failure is
+preserved. No runtime changes were merged; latest accepted checkpoint remains
+5ae5879, Main12craft/12physical berths. Cleanup after the deadline is recorded
+as overrun, not excluded from cost. No successor/retry or extended clock is
+selected. Candidate source, unpublished build inputs, logs and frozen contract
+are preserved in the verified archive at
+`/srv/mudds-work/katana-berth-20261117/records.tar.gz`.
+Archive372175575bytes, SHA256
+`4ad49d12d37dcb1d33b6d4269cd36acd1adeda65cd7d9627e3da78a2dcdc52f1`;
+all1499members verified, including a verified candidate source bundle and
+unpublished EXE/ELF/Linux archive.
+
+Original frozen assignment (historical, not currently running):
 
 Result: a signed physical Katana deck/spur and compatible `katana_home_berth`
 are reachable by the normal Main-spawn Player and usable by the actual standalone
