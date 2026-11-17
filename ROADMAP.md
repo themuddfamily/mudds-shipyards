@@ -101,6 +101,41 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Main cold first-frame blocker — bounded definition stopped
+
+Accepted Main243a6e518 (13craft/13berths) reproduces the west-camera first-draw
+software-renderer delay without the parked Salyut candidate. Direct-Main capture
+reaches process_frame; native samples show LLVMInstSimplify then SelectionDAG /
+MCJIT finalization through stock Mesa25 libgallium before physics_frame/HUD start.
+This establishes active renderer compilation work, not the exact shader/material
+owner. The earlier station-shader archive does not establish that owner either.
+
+A separate harness defect is measured: production RuntimeSettings synchronously
+fits its requested1280window and schedules another fit on process_frame, undoing
+before-Main capture sizing. A private960×540 display plus after-Main content setup
+holds actual Window/content960×540 before and after process_frame. That corrected
+cold probe still exits124 at90.288s; viewport repair does not resolve the required
+90s gate. No material, geometry, light, frame count, driver or deadline was relaxed.
+No production code, checkpoint or parked task was retried/integrated here.
+
+Finite definition ran2026-11-17 **06:33:02→06:46:14UTC**, ending before06:48:02
+limit. A production repair assignment was not started: exact active GL program /
+attached vertex+fragment shader and actual material/texture/feature owner remain
+missing. Another candidate edit or render retry requires that measured causal
+link; do not repeat viewport or archived shader attempts. All prior station shader
+68.187minutes and Salyut berth72.591minutes/failures remain retained. This record
+adds no feature-completion credit; the underlying graphics/capture gate stays open.
+
+Verified archive `/srv/mudds-work/main-cold-render-20261117/records.tar.gz`:
+**29,291,296 bytes**, SHA256
+`2b0dec397611ad64861689719556071450d37c1f7747a2cbd7758e87fe6695e4`,
+**2,253 members individually verified**, including all native stacks, failed
+causal probes, isolated profiles and reviewed historical comparisons. Diagnostic
+branch/worktree/process/scratch cleaned; remote branch absent. Adjacent
+`closeout.json` records actual all-in closure/pushed docs. Separate unaccepted
+Paradox gunner local/remote backup remains. Main and latest accepted checkpoint
+**1637b51 remain unchanged**; native/human/full-release gates stay open, CI off.
+
 ### Salyut physical home berth — card3 PARKED (cold render gate)
 
 **Unmerged candidate723561c54b0e6e1fc855f4649eeb1f5c4266bc56 is PARKED.**
