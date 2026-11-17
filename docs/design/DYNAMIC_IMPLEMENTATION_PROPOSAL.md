@@ -1,8 +1,21 @@
 # Dynamic implementation proposal — APPROVED MODERN BASELINE
 
-Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The full craft remains unfinished and unqualified; its standalone foundation is delivered below.
+Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The full craft remains unfinished and unqualified; its Main pilot checkpoint is delivered below.
 
-**Current berth delivery — 2026-11-17:** card3 DONE on sourceb3284183d3945041b53187f04835f69c41f361f1,
+**Current Main delivery — 2026-11-17:** card4 DONE on source aae5aa880e1f435d5297ac5e41afccf0e0724138,
+checkpoint **aae5aa8**, merged via 2664d52aa4e034762878e9ff13ee325452ff7d1e. The normal Boot/Player route, two
+real flight/strict-home/OFFLINE/physical-exit sorties and fresh third boarding
+pass in source and actual Windows PCK. Dynamic is the thirteenth Main craft at
+its own berth, with unique source1112 and only the unchanged approved Bulwark
+pilot pulse. All12oldercraft/home/source/settings remain intact. Full focused,
+three legacy Main source journeys, actual PCK cases/Titan, fixed views,
+strictstartup3/maps/audit9/eightartifacts pass independent review. Early card5
+pilot checkpoint is delivered with card4; no duplicate release-only task is
+needed. Corrections0/1, no failed run or gate waiver. Card6 and later full-function/
+lifecycle/network/integration/final qualification remain open.
+[Delivery and cleanup](../../ROADMAP.md#dynamic-main-delivered).
+
+**Earlier berth delivery — 2026-11-17:** card3 DONE on sourceb3284183d3945041b53187f04835f69c41f361f1,
 paired checkpointb328418, mergedvia65de367d15b12f83ec84112ca027e88ccfb35e4e. Normal Main-spawn Player reaches the
 signed14×14m home deck/apron/control by the supported spur and walks fully back;
 actual source/PCK fit/lease/body/camera/old12-state cases pass. Ten source cases,
@@ -12,7 +25,7 @@ selectable until card4, which remains open. Native/GPU/human and fullcraft gates
 remain open. One exact initial-cache roster correction1/1; original review
 finding retained. [Delivery and cleanup](../../ROADMAP.md#dynamic-berth-delivered).
 
-**Current access delivery — 2026-11-17:** card2 DONE on sourcef3cb99a1ff87adb6a29af053fa5d07faf32c93c9,
+**Earlier access delivery — 2026-11-17:** card2 DONE on sourcef3cb99a1ff87adb6a29af053fa5d07faf32c93c9,
 paired checkpointf3cb99a, mergedvia1e227e89bdbef29e24423f644fed969fce7f7cae. Both complete actual Player identity/
 transformed physical access/pilot claim-release-reuse profiles pass in source and
 actual Windows PCK, with unchanged geometry/tuning/anchors and full negative cases.
@@ -107,11 +120,11 @@ Each estimate is a **45–75 minute work box**, not measured delivery time. Spli
 
 | Card / budget | Owner and exact bounded files | Visible outcome, smallest focused proof and stop |
 | --- | --- | --- |
-| 1 / 45m | Candidate implementer: three new candidate files | Honest candidate identity, original hull/collision and single-helm HeroShip start/stop/flight load. Check finite definition and actual controller in fixture; stop at standalone flight. |
+| 1 — DONE04a0de1 (standalone foundation) | Candidate implementer: three new candidate files | Honest candidate identity, original hull/collision and single-helm HeroShip start/stop/flight load. Check finite definition and actual controller in fixture; stop at standalone flight. |
 | 2 — DONEf3cb99a (standalone only) | Candidate: same files; root narrow `hero_ship.gd` access hook if required | Real Player continuously walks ramp/recess, claims/releases helm and exits; sealed state refuses unsafe access. Verify capsule, camera, support and state collision; stop at physical access. |
 | 3 — DONEb328418 (berth infrastructure only) | Root station: `shipyard_world.gd`, `fleet_dock_comb.gd`, `ship_berth.gd` | Reachable own signed deck/spur/lease fits entire deployed envelope and launch/approach sweep without blocking neighbours. Wrong tag/occupied lease refuses; stop at inspected usable home. |
-| 4 / 60m | Root fleet: `main.tscn`, `game_flow.gd`, `fleet_role_registry.gd`, `fleet_registry_console.gd`; candidate hooks | Production walk/board/start/launch/own strict home/neutral OFFLINE/physical exit/reboard works, candidate identity correct and neighbours remain usable. Stop at first meaningful playable pilot loop. |
-| 5 / 45–60m | Root release: existing `tools/release/` workflow and build notes | Fresh clean committed source, relevant focused checks, safe Windows export and silent isolated actual-package startup/archive inspection. EXE/ZIP/notes in repository `builds/windows/`, paired Linux artifact via existing workflow. Require `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`. Notes state pilot-loop limits/pending combat/recovery; stop at inspected early checkpoint. |
+| 4 — DONEaae5aa8 (Main pilot loop) | Root fleet: `main.tscn`, `game_flow.gd`, `fleet_role_registry.gd`, `fleet_registry_console.gd`; candidate hooks | Production walk/board/start/launch/own strict home/neutral OFFLINE/physical exit/reboard works, candidate identity correct and neighbours remain usable. Stop at first meaningful playable pilot loop. |
+| 5 — early pilot checkpoint DONEaae5aa8 with card4 | Root release: existing `tools/release/` workflow and build notes | Fresh clean committed source, relevant focused checks, safe Windows export and silent isolated actual-package startup/archive inspection. EXE/ZIP/notes in repository `builds/windows/`, paired Linux artifact via existing workflow. Require `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`. Notes state pilot-loop limits/pending combat/recovery; stop at inspected early checkpoint. |
 | 6 / 60m | Root flight/combat: `game_flow.gd`, `fleet_role_registry.gd`, candidate muzzle/camera/audio hooks | Measured controller tradeoff and actual unchanged pulse hits/misses, cadence/heat, self/friendly/occluded/ownership refusal; unique source damages real target once. Extend focused existing combat/role checks; stop at actual gunship function. |
 | 7 / 60m | Root damage/service: `hero_ship.gd`, existing component/repair owners, candidate hooks | Five actual component impairments and normal authorized repair restore real behavior; access changes do not heal. Stop at impairment/service route. |
 | 8 / 60m | Root lifecycle: `hero_ship.gd`, `game_flow.gd`, candidate reset hooks and berth composition | Destruction releases pilot; stale/occupied reset refusal is atomic; recall creates one usable home craft with fresh generations/access/fire. Stop at destruction/reset/reuse. |
@@ -135,8 +148,8 @@ All seventeen craft and historical reconstruction obligations remain. **Native W
 
 Every future automated Godot invocation requires `--audio-driver Dummy`, headless or owned isolated Xvfb with explicit `--display-driver x11`, independent abort, and released synthetic input/cursor capture. No real-audio/active-desktop run is authorized here. Use existing safe clean-commit export; Windows EXE/checkpoint ZIP/notes stay in repository `builds/windows/`, never Downloads. Readiness requires `--startup-check`, exit 0 **and** `STARTUP_MENU_READY_OK`; fixed `--quit-after` frames or external script overrides are insufficient. Keep GitHub Actions disabled: no enablement, dispatch or restored triggers.
 
-## Finite owner choice — pending
+## Original finite owner choice — superseded by adoption
 
-**Approve or reject this one explicitly modern Dynamic candidate:** original **9×10×3.6m** single-pilot short-range gunship, physical port ramp/canopy, the sixteen exact trial fields and own full-envelope berth above, one unchanged Bulwark **pilot pulse** with no charged crew lance/gunner/engineer/passenger/cargo/navigation fitting, five-component damage/service/reuse and the stated safe on-foot restart policy. Approval permits bounded implementation after root review; it accepts neither craft completion, historical geometry, supported capacity nor release. **No approval is recorded.**
+**Approve or reject this one explicitly modern Dynamic candidate:** original **9×10×3.6m** single-pilot short-range gunship, physical port ramp/canopy, the sixteen exact trial fields and own full-envelope berth above, one unchanged Bulwark **pilot pulse** with no charged crew lance/gunner/engineer/passenger/cargo/navigation fitting, five-component damage/service/reuse and the stated safe on-foot restart policy. Approval permits bounded implementation after root review; it accepts neither craft completion, historical geometry, supported capacity nor release. **The owner adopted this complete modern baseline on 2026-11-05; this original choice text is retained as history.**
 
 If rejected, choose **a revised modern candidate naming exact fields to change**, or **keep Dynamic frozen for historical reconstruction** pending legally available direct name-tied views and feature/unknowns review. No unspecified new mechanic blocks implementation of an approved baseline. SCOPE-LIMIT/SCOPE-DESKTOP remain separate existing decisions. Proposal preparation completes neither SPEC-DYNAMIC, BUILD-SPLIT-DYNAMIC nor CRAFT-ACCEPT-DYNAMIC.
