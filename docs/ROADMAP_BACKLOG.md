@@ -7,7 +7,14 @@ The [working roadmap](../ROADMAP.md#current-work-and-next-selection) selects exe
 [delivery history](history/ROADMAP_DELIVERIES.md) records accepted and failed attempts.
 This backlog preserves remaining scope, not a ready queue or remaining-job count.
 
-Utopia card7 physical Cinder destination candidate **127cc2b26** is PARKED/unmerged: real forward terminal visit and absent-custody E refusal pass, but reverse terminal stair fails the original per-tick grounded condition. Sole renewed production correction1/1 used; fullreturn/source8/PCK3/release remain unproven. Source/raw are verified archived and owned cleanup recorded; no runtime merge/checkpoint/delivery credit. Main stays15craft/15homes, checkpointec8cfda. See [working roadmap](../ROADMAP.md#current-work-and-next-selection).
+Dynamic card 9 limited cold continuation is delivered on **f3cf6bb**: supported
+station walking without saved helm, retained home preference for a sealed craft, real
+committed/refused/interrupted-write retry and preserved unrelated data. Both
+full original gameplay journeys and actual PCK cases pass. Broader save/network/
+full-craft and all parent/phase gates remain open.
+[Delivery and checkpoint](../ROADMAP.md#dynamic-cold-recovery-current).
+
+Utopia card7 physical Cinder destination candidate **127cc2b26** is PARKED/unmerged: real forward terminal visit and absent-custody E refusal pass, but reverse terminal stair fails the original per-tick grounded condition. Sole renewed production correction1/1 used; fullreturn/source8/PCK3/release remain unproven. Source/raw are verified archived and owned cleanup recorded; no runtime merge/checkpoint/delivery credit. At that stop Main retained15craft/15homes and checkpointec8cfda. See [working roadmap](../ROADMAP.md#current-work-and-next-selection).
 
 Cinder Light role-choice candidate **1ef02d4** is PARKED/unmerged after the owner-renewed title-packing attempt: exacttitle369px exceeds365–366px and approachbody73px exceeds63px in all six size/scale cells. Sole renewed correction1/1 used; no source/runtime subset, screenshot or checkpoint accepted. [Current stop and retained source](../ROADMAP.md#cinder-light-choice-current).
 

@@ -16,21 +16,24 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **ec8cfda** — [Windows ZIP](builds/windows/MuddsShipyards-ec8cfda-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-ec8cfda-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-ec8cfda-linux-x86_64.tar.gz).
-Dynamic now retires its actual solid hull after destruction and returns as the
-same usable ship through normal timed home regeneration. Occupied/unsafe resets
-refuse atomically. Healthy return reset preserves its exact occupied berth token
-through public callbacks; the next real departure releases it and landing owns
-a fresh lease. The complete destruction/recall/regeneration/flight/home/reset/
-next-flight/exit/clean-Quit journey passes in source and the actual Windows PCK
-([regenerated preview](builds/windows/MuddsShipyards-ec8cfda-dynamic-lifecycle-preview.png)).
-Previously accepted five-component damage and home service remain included;
-service restores components without healing hull damage. Main retains15 usable
-craft and15 occupied homes. Dynamic target-damage/comparative-handling,
-durable recovery/save/network/full-craft gates remain open. Main cold rendering
-and native/human qualification remain unresolved/NOT_RUN.
+Latest playable checkpoint: **f3cf6bb** — [Windows ZIP](builds/windows/MuddsShipyards-f3cf6bb-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-f3cf6bb-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-f3cf6bb-linux-x86_64.tar.gz).
+Restarting after using Dynamic now preserves its home preference and returns the
+player to supported normal station walking without a pilot claim. Its sealed
+home recovery offer describes that behavior; ordinary opening/walking/boarding
+still applies. Existing valid pilot/on-foot saves remain compatible. Real
+committed, refused/retried and killed-partial-write restart cases pass in source
+and the actual Windows PCK, preserving nondefault settings, tutorial progress
+and four real unrelated Titan parcels. Full ordinary Dynamic and destruction/
+reset/reuse journeys remain intact, including normal Quit and clean primaries.
+Prior lifecycle/component/service content stays included. Main retains 15 usable
+craft / 15 occupied homes. This delivers Dynamic card 9's limited cold continuation;
+full-game save coverage, target-damage/comparative handling, network/full-craft,
+Main cold render and native/human qualification remain open or NOT_RUN.
+[Reference appearance](builds/windows/MuddsShipyards-f3cf6bb-dynamic-reference-preview.png)
+is copied unchanged from the accepted ec8cfda view; no new render qualification
+is claimed. [Delivery and retained attempts](#dynamic-cold-recovery-current).
 Earlier accepted content remains included:
 Vortex now has continuous standalone stern access: operate the side hatch control,
 walk the deployed ramp/vestibule/aisle to the helm approach, then walk fully back
@@ -159,34 +162,56 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected — Dynamic card9: cold recovery
+<a id="dynamic-cold-recovery-current"></a>
 
-Frozen **2026-11-17 21:28:48 → 22:43:48 UTC**, 75 minutes all-in,
-including prior mapping, source/package checks and cleanup. Definition closes
-by21:43:48. Owner21:35:22 renewed allowance **0/1 used**. Source baseline
-01a74ac99; owned branch `work/dynamic-cold-recovery-1117` and worktree/records
-`/srv/mudds-work/dynamic-cold-recovery-20261117`.
+### Dynamic card 9 cold recovery — DONE, f3cf6bb
 
-Deliver the adopted station-walking restart policy: Dynamic saves no helm
-claim and fresh Main retains its authored supported station spawn. Preserve
-other craft behavior and the existing four-field save format. Prove real
-committed fresh-process recovery, actual temporary-directory write refusal and
-retry, and an owned process killed during a flushed partial temporary write
-followed by real cold recovery/retry. A complete valid staged successor retains
-the existing shared store's promotion policy. Preserve unrelated saved data,
-15 unique craft/home leases and normal physical reboarding. Accept old valid
-Dynamic pilot/on-foot records without restoring pilot authority.
+Accepted source **f3cf6bb06fa5f0920830afd7308440ac6d3db011**, integrated/pushed to main with fresh paired checkpoint.
+Dynamic saves an on-foot home preference; a fresh process retains supported
+station spawn/camera/control without restoring helm authority. The preference
+resolver accepts a sealed craft only when healthy, unpiloted, stationary and
+supported at its exact occupied home with live enabled unreserved access.
+Actual physical boarding still requires normal open access. Other craft,
+shared storage, four-field format, geometry and flight values are unchanged.
 
-Run existing store/crash/safe-start regressions, full ordinary Dynamic Main300s
-and lifecycle360s; keep all original checks/caps. A clean-commit paired checkpoint
-must repeat actual recovery cases and full Main/lifecycle against the exported
-PCK, pass three strict startup checks, full paired maps and existing package
-inventory, and publish eight actual artifacts with honest notes. Exact frozen
-case list is in `frozen-card.json` at the owned records root. No shared-store,
-physics, schema or unrelated craft changes. Native hardware/human/network/full
-craft gates remain open. Stop at an unresolved original acceptance failure,
-exhausted correction or deadline; retain failed source/results and clean owned
-processes/worktree/branch. No implementation or check is credited yet.
+Six fresh source regressions pass, including the full ordinary Main journey
+**175.447/300s** and lifecycle **308.593/360s**, with actual clean shutdowns.
+The eight real-file source cases prove committed/restarted walking/reboarding,
+legacy pilot/on-foot compatibility, actual directory refusal and retry, and an
+owned process killed after flushing 32 invalid temporary bytes. Its exact last
+committed primary survives; a separate reader recovers and retries normally.
+Unrelated FOV 87, actual tutorial progress and four Titan parcels remain intact.
+Actual final PCK repeats all eight cases and both complete original gameplay
+journeys in isolated empty source directories. Paired exports, three strict
+menu-ready startups, exact Linux archive/modes/extracted ELF identity, complete
+equal package maps, reviewed GameFlow-only production delta, all nine existing
+package predicates and eight actual artifacts pass independent review.
+
+Three existing safe-start negative-case warnings and one deliberate invalid-
+partial JSON parser error are narrowly reviewed and retained as expected;
+no unexpected diagnostic is accepted. The original source wrapper stopped on
+that expected parse diagnostic after all underlying cases passed. Independent
+completion verifies all 11,759 source files byte-exact, unchanged HEAD/clean tree,
+and all 323 cache entries/directories predating the actual baseline. The PCK
+runner records its cache hash before/after directly. No failed result is erased.
+
+Original **21:28:48 → 22:43:48 UTC, 75-minute all-in window** retained; correction
+**1/1 used** under owner 21:35:22 renewal. Actual failures/operands are retained:
+first fixture missed real Titan initialization; caller fixes address explicit
+bool typing and strict JSON float dictionary values. The first committed
+writer passed but reader exposed the real closed-access resolver gap. Closed
+access already blocked generic autoboarding; the sole production correction
+preserves the home preference and honest offer for a sealed craft without granting entry.
+No original route/assertion/cap is reduced. Native Windows/GPU/human/network,
+broader save/full-craft/full-game gates stay open; all 36 parents / 10 phases remain open.
+
+Owned worktree/process/branch cleanup complete; current remote task branch is
+absent. Unaccepted Paradox gunner branch remains protected. Source and all raw
+attempts are verified in
+`/srv/mudds-work/dynamic-cold-recovery-20261117/records.tar.gz`
+(**23,925,647 bytes**, **408 members**,
+SHA256 `77e170947bdc353fc6784da68ef541b92d36ef35d6fc2fa38e10fc3053a93076`). Adjacent `closeout.json` records actual all-in
+elapsed time, final pushed commits, artifact hashes and cleanup accounting.
 
 <a id="cinder-light-choice-current"></a>
 

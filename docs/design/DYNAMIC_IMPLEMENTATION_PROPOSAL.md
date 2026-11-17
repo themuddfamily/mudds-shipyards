@@ -62,6 +62,15 @@ pass independent review. Source merged/pushed; native/human/Main cold render,
 durable restart/save/network/full craft gates remain open. See
 [accepted delivery](../../ROADMAP.md#dynamic-lifecycle-current).
 
+**Cold recovery card 9 — DONE, f3cf6bb:** committed fresh-process station
+walking, legacy pilot/on-foot compatibility, actual refusal/retry and an owned
+partial-write kill/restart pass with real settings/progress/parcel preservation.
+Recognizing a sealed craft at its supported home grants no boarding authority.
+Both complete ordinary Main/lifecycle journeys and all eight recovery cases
+pass in source and actual PCK; fresh paired checkpoint/startup3/maps/audit9 and
+eight artifacts are published. Broader save, network/full craft and native/human
+qualification remain open. [Delivery and retained attempts](../../ROADMAP.md#dynamic-cold-recovery-current).
+
 **Previous parked lifecycle attempt (historical):** candidate5ff419f615cc3b03199a4cec50123b55ef6ed80d
 passes destruction/recall/timed same-instance regeneration and a recovered
 flight/home/exit prefix, but healthy ordinary-return reset releases its occupied
@@ -159,7 +168,7 @@ Each estimate is a **45–75 minute work box**, not measured delivery time. Spli
 | 6 / 60m | Root flight/combat: `game_flow.gd`, `fleet_role_registry.gd`, candidate muzzle/camera/audio hooks | Measured controller tradeoff and actual unchanged pulse hits/misses, cadence/heat, self/friendly/occluded/ownership refusal; unique source damages real target once. Extend focused existing combat/role checks; stop at actual gunship function. |
 | 7 — DONE8b91aae, selected75m all-in | Root damage/service: `hero_ship.gd`, existing component/repair owners, candidate hooks | Five actual component impairments and normal authorized repair restore real behavior; access changes do not heal. Stop at impairment/service route. |
 | 8 — DONEec8cfda, selected75m all-in | Root lifecycle: `dynamic_gunship.gd`, existing `game_flow.gd` and journey test | Destruction releases pilot; stale/occupied reset refusal is atomic; recall creates one usable home craft with fresh generations/access/fire. Stop at destruction/reset/reuse. |
-| 9 / 60m | Root recovery: `game_flow.gd`, `user_data_store.gd` | Committed fresh-process safe walking/Main availability and refused/interrupted-write preservation/retry, with no stale helm or duplicate craft. Stop at both real restart boundaries. |
+| 9 — DONE f3cf6bb, selected 75m all-in | Root recovery: `game_flow.gd`, `user_data_store.gd` | Committed fresh-process safe walking/Main availability and refused/interrupted-write preservation/retry, with no stale helm or duplicate craft. Stop at both real restart boundaries. |
 | 10 / 60m | Root network: `game_flow.gd`, existing boarding/pilot replica/session owners | Playing host plus two remote clients: physically approach, claim one helm, fly/fire/home/OFFLINE/exit and physically hand pilot role to another peer. Others stay supported on foot or use existing craft. Duplicate/nonpilot/stale drive/fire refuses. Stop at exact three-player single-helm profile, no guest capacity claim. |
 | 11 / 60m | Root network/lifecycle: same current owners | Actual remote pilot disconnect/rejoin, destruction/reset interruption and host-loss recovery retire old claims/epochs/control; players recover to supported usable contexts under existing migration policy. Stop at exercised cleanup boundaries, not an invented seamless handoff. |
 | 12 / 60–75m | Root integration: candidate journey test and named production fixes in owners above | Full combined-source two-sortie route below, cross-craft use and whole Main re-entry retain identity, claims, camera, effects and berths. Fix named seam failures; stop at exact complete route with remaining limits explicit. |
