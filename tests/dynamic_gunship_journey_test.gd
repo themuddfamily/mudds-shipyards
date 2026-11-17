@@ -749,6 +749,13 @@ func _cold_check_offer() -> bool:
 		"fresh process exposes actual unfinished-session recovery choice before Begin Shift"): return false
 	if _cold_before_shift_context.get("craft_id") == "dynamic_provisional":
 		var summary := _main_game.get_session_recovery_save_summary()
+		var craft := _main_game.get_node("DynamicGunship") as HeroShip
+		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+		print("DYNAMIC_COLD_OFFER_OPERANDS: ",JSON.stringify({"summary":summary,
+			"context":_cold_before_shift_context,"resolved":_main_game._solo_safe_recovery_craft() == craft,
+			"boardable":craft.is_boardable(),"area_available":area.is_available_for(_main_game.player),
+			"access_supported":craft.call(&"is_access_supported"),"access_motion":craft.call(&"is_access_motion_active"),
+			"reserved":area.is_reserved(),"exact_home":_main_game._ship_owns_exact_occupied_berth(craft,craft.get_home_berth_id())}))
 		return _main_check(summary.contains("on foot at the shipyard") and summary.contains("saved helm authority")
 			and not summary.contains("Safe recovery boards"),"Dynamic recovery offer honestly promises station walking without saved helm")
 	return true

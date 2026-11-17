@@ -3874,7 +3874,7 @@ func _solo_safe_recovery_craft() -> HeroShip:
 		return null
 	var craft := _find_flyable_ship_by_id(StringName(context.craft_id))
 	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
-			or craft not in ships or not craft.is_boardable() \
+			or craft not in ships \
 			or String(craft.get_ship_id()) != context.craft_id \
 			or String(craft.get_home_berth_id()) != context.berth_id:
 		return null
@@ -3883,7 +3883,21 @@ func _solo_safe_recovery_craft() -> HeroShip:
 			or berth.get_reservation_owner() != craft:
 		return null
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	if area == null or not area.is_available_for(player):
+	if craft.get_ship_id() == &"dynamic_provisional":
+		# A sealed Dynamic at its supported home is a recovery preference,
+		# not boarding permission. Actual entry still requires open access.
+		if context.mode not in ["pilot", "on_foot"] or not is_ancestor_of(craft) \
+				or craft.is_destroyed() or craft.is_piloted() \
+				or not craft.has_method(&"is_access_supported") \
+				or not bool(craft.call(&"is_access_supported")) \
+				or bool(craft.call(&"is_access_motion_active")) \
+				or not HeroShip._landing_transforms_match(craft.global_transform, berth.get_dock_transform()) \
+				or not _ship_owns_exact_occupied_berth(craft, craft.get_home_berth_id()) \
+				or area == null or not area.is_inside_tree() or area.is_queued_for_deletion() \
+				or not area.boarding_enabled or area.get_ship() != craft or area.is_reserved():
+			return null
+		return craft
+	if not craft.is_boardable() or area == null or not area.is_available_for(player):
 		return null
 	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID, &"titan_provisional", &"paradox_provisional"]:
 		return null
