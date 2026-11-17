@@ -769,7 +769,11 @@ Finish the entire original physical terminal visit/refusal/return/reboard/
 second flight/home/station return/normal Quit within300s, then full source8
 (including canonical Cinder1200), PCK3, coldviews3/90s, paired checkpoint/
 startup3/maps/audit9/eight artifacts and owned cleanup. Exact scope and stops in
-owned `frozen-card.md` preserve the previous full contract. No airborne waiver,
+owned `frozen-card.md` preserve the previous full contract. Before production,
+`definition-amendment.md` explicitly accounts for six matching nosings in the
+existing geometry census (21+6 shapes,13+6 meshes,19+6 submissions) and its two
+real test consumers, retaining the original roster plus six named additions.
+No native-performance or stock budget is relaxed. No airborne waiver,
 route shortcut or partial geometry delivery. The following stop is historical;
 no new implementation is credited yet.
 
