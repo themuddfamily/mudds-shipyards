@@ -4,8 +4,8 @@
 craft now exist in Main, including Titan, Predator, Paradox and Dynamic pilot
 checkpoints. This count is implementation, not full craft qualification. The
 four craft still awaiting Main integration have accepted standalone hull/pilot
-foundations; Katana also has validated standalone physical access and pilot
-claims. Their Main integration, four remaining berths and the remaining access
+foundations; Katana has validated standalone physical access and pilot
+claims, and Salyut has validated standalone stern walking access. Their Main integration, four remaining berths and the remaining access
 work stay open. All 36 original parent outcomes and ten phase exit gates remain
 open. There is no evidence-backed completion percentage or finish date.
 
@@ -15,9 +15,15 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **aae5aa8** — [Windows ZIP](builds/windows/MuddsShipyards-aae5aa8-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-aae5aa8-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-aae5aa8-linux-x86_64.tar.gz).
+Latest playable checkpoint: **1637b51** — [Windows ZIP](builds/windows/MuddsShipyards-1637b51-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-1637b51-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-1637b51-linux-x86_64.tar.gz).
+Salyut now has continuous standalone physical stern access: operate its hatch,
+walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
+([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
+Two complete cycles pass at identity and elevated yaw in source and actual
+Windows PCK. Salyut remains outside Main; seating, berth and Main integration
+remain open. Existing Dynamic Main content remains included.
 Dynamic now joins Main as the thirteenth usable pilot craft: ordinary physical
 port access, two complete flight/home/OFFLINE/physical-exit sorties and fresh
 reboarding pass in source and actual Windows PCK
@@ -34,7 +40,7 @@ Paradox now has its ordinary Main pilot journey and occupied home berth ([produc
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the four craft still outside Main:
-Vortex, Katana, Utopia and Salyut. Katana standalone access is qualified;
+Vortex, Katana, Utopia and Salyut. Katana and Salyut standalone access is qualified;
 remaining access work, four berth cards and four Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
@@ -95,7 +101,20 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Salyut continuous physical stern access — card2
+### Salyut continuous physical stern access — card2 DONE
+
+Accepted source **1637b51cb974069f5f7546663bdc96f3a915c3b9**, merged via
+**55c1018ac242b621a6636db6befba412a3bceebc**, checkpoint **1637b51**.
+All seven focused source cases and both full ordinary Titan regressions pass;
+source Titan164.744s and packaged Titan157.361s each end through normal Quit with
+actual clean_shutdown/clean/session_ended. Actual Windows PCK Salyut foundation
+and both full access profiles pass; strict startup3, equal1603-entry Windows/Linux
+maps, reviewed Salyut-only production delta plus80 node_ids-only scene metadata,
+cold3views9.668s/90, independent FINAL_GO/PACKAGE_GO and package audit9 pass.
+Eight artifacts are published with verified hashes. One retained fixture parser
+error was repaired by an explicit bool type; production corrections **0/1**.
+Frozen assignment and original checks below are retained. Archive/cleanup closeout
+is recorded at the end of this card; no successor is selected here.
 
 Result: the real Player starts on a supported outside apron, operates the reachable
 stern hatch, walks the ramp/vestibule/aisle to the fixed helm stand and walks the
@@ -139,11 +158,11 @@ origin(23,7,-19),yaw35; same actual actor/body/inputs after one initial setup.
 
 | Case | Initial state/action | Expected | Actual |
 | --- | --- | --- | --- |
-| Physical identity/transformed | Sealed crossing refusal/walkback; real Interact open; entire route+reverse/seal twice at each pose | Every completed Player tick supported/actual capsule+head clear/continuity<.2m; normal masks/gravity unchanged; queryskin.005radius/.01height only | NOT_RUN |
-| Motion/safety | Actual101fractions+real tween geometry; non-vacuous injected-controller moving/open throttle/start, active/unsupported refusal | Exact matching solids/meshes/bounds/no overlap; supported/OFFLINE-only opening and no open/moving propulsion | NOT_RUN |
-| Existing controller/fleet | Complete Salyut/Dynamic/Utopia foundations90each, definitions120, boarding120 | Original17profiles/16fields/real controller/geometry preserved; Salyut trulyUNARMED/noBoardingArea/frame/seat grants | NOT_RUN |
-| Main regression | Complete unchanged Titan source300 and actualWindowsPCK300 ALONE/normal HUD Quit | Same full journey, actual primary clean_shutdown/clean/session_ended | NOT_RUN |
-| Actual package | Same Salyutfoundation90/bothfullaccess180 from actualWindowsPCK, pairedexports/startup3/maps/delta/audit9/eightartifacts | Exact committed fixture/source isolation/originalcaps; strict menu-ready exit0/marker1/raw0, inspected current checkpoint | NOT_RUN |
+| Physical identity/transformed | Sealed crossing refusal/walkback; real Interact open; entire route+reverse/seal twice at each pose | Every completed Player tick supported/actual capsule+head clear/continuity<.2m; normal masks/gravity unchanged; queryskin.005radius/.01height only | PASS source51.265s/PCK50.330s; transformed51.384s/PCK50.237s, two cycles each |
+| Motion/safety | Actual101fractions+real tween geometry; non-vacuous injected-controller moving/open throttle/start, active/unsupported refusal | Exact matching solids/meshes/bounds/no overlap; supported/OFFLINE-only opening and no open/moving propulsion | PASS strict101fractions/every actual motion tick; actual supported/active/airborne refusals |
+| Existing controller/fleet | Complete Salyut/Dynamic/Utopia foundations90each, definitions120, boarding120 | Original17profiles/16fields/real controller/geometry preserved; Salyut trulyUNARMED/noBoardingArea/frame/seat grants | PASS all seven focused suites, unchanged original assertions |
+| Main regression | Complete unchanged Titan source300 and actualWindowsPCK300 ALONE/normal HUD Quit | Same full journey, actual primary clean_shutdown/clean/session_ended | PASS source164.744s/PCK157.361s, both actual clean terminal states |
+| Actual package | Same Salyutfoundation90/bothfullaccess180 from actualWindowsPCK, pairedexports/startup3/maps/delta/audit9/eightartifacts | Exact committed fixture/source isolation/originalcaps; strict menu-ready exit0/marker1/raw0, inspected current checkpoint | PASS source-isolated actual fixtures, startup3/maps/delta/views/audit9/eight artifacts |
 
 Controller-only negative probes use public set_remote_piloted with injected real
 commands: no Player seating, camera/input takeover or actual networking claim.
