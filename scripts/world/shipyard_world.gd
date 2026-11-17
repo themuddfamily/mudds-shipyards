@@ -70,6 +70,7 @@ const SHIP_BERTH_PRODUCTION_IDS: Array[StringName] = [
 	&"titan_home_berth",
 	&"predator_home_berth",
 	&"paradox_home_berth",
+	&"dynamic_home_berth",
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
@@ -768,6 +769,12 @@ const TOW_TRACTOR_SCENE := preload("res://scenes/world/tow_tractor.tscn")
 ## connectors is proved by `station_surface_playability_test.gd` and the
 ## per-module integration suites.
 const STATION_HUB_ENDPOINT_DECLARATIONS := [
+	{
+		"slot_id": &"hub-dynamic-gunship-berth",
+		"expects_module": &"dynamic-gunship-berth",
+		"evidence_status": &"modern_interpretation",
+		"anchor_path": "DynamicConnectorRouteAnchor",
+	},
 	{
 		"slot_id": &"hub-paradox-cruiser-berth",
 		"expects_module": &"paradox-cruiser-berth",

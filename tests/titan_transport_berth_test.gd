@@ -43,7 +43,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"titan_home_berth": matching += 1
-	_check(matching == 1 and world.get_berth_ids().size() == 12 and world.get_berth_node(&"paradox_home_berth") != null and world.get_berth_node(&"paradox_home_berth").get_occupant() == game.get_node("ParadoxCruiser"), "own Titan berth exactly once alongside accepted eleven and occupied production Paradox berth")
+	_check(matching == 1 and world.get_berth_ids().size() == 13 and world.get_berth_node(&"paradox_home_berth") != null and world.get_berth_node(&"paradox_home_berth").get_occupant() == game.get_node("ParadoxCruiser"), "own Titan berth exactly once alongside accepted eleven and new empty Dynamic berth")
 	var unchanged := true
 	for berth_id in OLD_TRANSFORMS:
 		unchanged = unchanged and world.get_berth_transform(berth_id).is_equal_approx(OLD_TRANSFORMS[berth_id])
