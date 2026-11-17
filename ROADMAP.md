@@ -4,8 +4,8 @@
 now exist in Main, including Titan, Predator and Paradox pilot checkpoints. This count
 is implementation, not full craft qualification. The five craft still awaiting
 Main integration have accepted standalone hull/pilot foundations; Katana and Dynamic also
-have validated standalone physical access and pilot claims. Their berths, Main
-integration and the remaining access work stay open. All 36 original parent
+have validated standalone physical access and pilot claims. Their Main
+integration, four remaining berths and the remaining access work stay open. All 36 original parent
 outcomes and ten
 phase exit gates remain open. There is no evidence-backed completion percentage
 or finish date.
@@ -16,24 +16,26 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **f3cb99a** — [Windows ZIP](builds/windows/MuddsShipyards-f3cb99a-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-f3cb99a-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-f3cb99a-linux-x86_64.tar.gz).
-Dynamic now has validated standalone physical port access and exclusive pilot
-claim/release/reuse ([preview](builds/windows/MuddsShipyards-f3cb99a-dynamic-access-preview.png));
-its berth and Main integration remain open.
+Latest playable checkpoint: **b328418** — [Windows ZIP](builds/windows/MuddsShipyards-b328418-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-b328418-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-b328418-linux-x86_64.tar.gz).
+Dynamic now has a signed, walkable home berth and port apron in Main
+([preview](builds/windows/MuddsShipyards-b328418-dynamic-berth-preview.png)).
+The preview stages its candidate for geometry checks; Dynamic is not spawned or
+selectable in Main yet. Its validated standalone physical access remains included.
 Katana now has validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
 it remains outside Main pending its berth and production integration.
 Valid runtime timestamps now save and reload without a self-rejected checksum;
 normal Titan shutdown persists its terminal event in source and packaged checks.
-Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
+Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 13 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the five craft still outside Main:
 Vortex, Katana, Dynamic, Utopia and Salyut. Katana and Dynamic standalone access are now
-qualified; remaining access work and all five berth/Main cards stay open.
+qualified; remaining access work, four berth cards and all five Main integration
+cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -85,7 +87,42 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Dynamic own reachable home berth — card3
+<a id="dynamic-berth-delivered"></a>
+
+### Dynamic own reachable home berth — card3 DONE, infrastructure only
+
+Accepted source **b3284183d3945041b53187f04835f69c41f361f1**, merged via
+**65de367d15b12f83ec84112ca027e88ccfb35e4e**, checkpoint **b328418**; eight artifacts published with verified hashes.
+The normal Main-spawn Player walks the full station prefix and five-plate spur to
+Dynamic's port apron/control, then every endpoint in reverse to the original
+spawn. Source113.406s and actual Windows-PCK107.029s both pass, with4710 adjacent
+completed walking-tick support/capsule/head/continuity audits. All twelve old
+berth poses/centres/leases/owners/tokens/occupants and craft poses stay intact.
+
+The signed14×14m deck at identity(108,-.02,-30) has fifteen outside-edge rails and
+an actual1.5m connected graph edge. Exact adopted centreZERO/half(6.2,5.8,6),
+assist/speed/tilt/lift3.5/landing16.5 stay fixed. Actual closed/deployed fit,
+strict misses, exclusive/foreign/stale lease refusal, complete500 body-shape
+casts, ten SpringArm casts and twenty camera casts pass in source/PCK. Module
+has21body/shapes,177meshes,1label,0lights/loops. Katana's reserved deck/spur remains
+unconsumed. Main now has13physical berths and12flyables; Dynamic is not spawned or
+selectable until card4. This staged fit/preview is not its Main pilot journey.
+
+All ten focused source cases and complete ordinary Titan source164.200s pass;
+actual PCK foundation20.672s, both full access50.440/50.235s and full Titan157.178s
+pass at the same source commit. Both actual Main primaries finish clean_shutdown/
+clean/session_ended. Paired exports/strictstartup3, cold fixed3views73.121s at
+actual960×540, complete equal1603-entry maps,4new module paths/2intended World
+changes plus78strict node_ids-only scene differences, one newUID/class, audit9
+and8artifacts pass independent review. Normal HUD overlays limit presentation/
+readability inspection; native/GPU/human/fullcraft gates remain NOT_RUN/open.
+Sole production correction1/1 completes exact initial10/final13 audit cache
+rosters; the original99a401d25 review finding/partial source are retained. No
+acceptance case, threshold, original cap or route endpoint was dropped.
+
+Original frozen assignment follows as historical scope. Archive and actual
+all-in closeout will be recorded below; no next task selected by this closure.
+
 
 Result: one signed14×14m physical Dynamic deck and supported≥2.8m spur reached
 by the normal Main-spawn Player, with compatible `dynamic_home_berth`. Card2
@@ -134,12 +171,12 @@ not an invented runtime failure. Every full gate remains required.
 
 | Case | Initial state/action | Expected endpoint | Actual |
 | --- | --- | --- | --- |
-| Normal access/return | Main ordinary spawn, whole route above, port-apron/control then full reverse | Supported every adjacent completed Player tick, actual capsule/head clearance, continuity<.2m; masks/gravity unchanged, no actor pose bypass | NOT_RUN |
-| Own fit/authority | Stage actual standalone candidate only at exact dock, closed/deployed fit, strict miss/wrongtag/foreign/occupied/stale lease attempts | Compatible full-envelope fit; refusals atomic; all12old dock/craft/lease state conserved | NOT_RUN |
-| Departure/camera | Every actual hull/access shape through full3.5m lift/18mforward/staging/approach/descent and inherited SpringArm+camera queries | No station/neighbour/rail intersections; no marker-only substitute | NOT_RUN |
-| Existing world/source | Full newberth240, Dynamicfoundation90, bothaccess180each, definitions120, registry180, feedback180, oldTitan/Predator/Paradoxhome240each | All old cases retained; graph11modules/11slots/11hubends/63markers,13berths/12craft; existing sixfeedback/twelvematerials unchanged | NOT_RUN |
-| Ordinary Main | Complete unchanged Titan source300 and actualWindowsPCK300 ALONE, normal Quit | Actual primary clean_shutdown/clean/session_ended, no concurrent engine | NOT_RUN |
-| Package/views | ActualWindowsPCK same complete newberth240/foundation90/bothaccess180; pairedexports/startup3/maps/delta/audit9/eightartifacts; original3views | Source isolation/full same cases, menu-ready exit0/marker1/raw0; fixed real960×540 captures inspected | NOT_RUN |
+| Normal access/return | Main ordinary spawn, whole route above, port-apron/control then full reverse | Supported every adjacent completed Player tick, actual capsule/head clearance, continuity<.2m; masks/gravity unchanged, no actor pose bypass | PASS113.406source/107.029actualPCK; full4710tickroute+return |
+| Own fit/authority | Stage actual standalone candidate only at exact dock, closed/deployed fit, strict miss/wrongtag/foreign/occupied/stale lease attempts | Compatible full-envelope fit; refusals atomic; all12old dock/craft/lease state conserved | PASS actualsource/PCKfit/refusals; all12oldstatesintact |
+| Departure/camera | Every actual hull/access shape through full3.5m lift/18mforward/staging/approach/descent and inherited SpringArm+camera queries | No station/neighbour/rail intersections; no marker-only substitute | PASS500bodycasts/10SpringArm/20camera plusinitial/endclearance |
+| Existing world/source | Full newberth240, Dynamicfoundation90, bothaccess180each, definitions120, registry180, feedback180, oldTitan/Predator/Paradoxhome240each | All old cases retained; graph11modules/11slots/11hubends/63markers,13berths/12craft; existing sixfeedback/twelvematerials unchanged | PASS all10fullsourcecases at same b328commit/guards |
+| Ordinary Main | Complete unchanged Titan source300 and actualWindowsPCK300 ALONE, normal Quit | Actual primary clean_shutdown/clean/session_ended, no concurrent engine | PASS164.200source/157.178actualPCK; cleanterminalprimaryboth |
+| Package/views | ActualWindowsPCK same complete newberth240/foundation90/bothaccess180; pairedexports/startup3/maps/delta/audit9/eightartifacts; original3views | Source isolation/full same cases, menu-ready exit0/marker1/raw0; fixed real960×540 captures inspected | PASS actualPCKfullcases; startup3/maps/delta/audit9/eightartifacts/fixedviews |
 
 Fixed views: closedoverview(90,10,-17)look(108,2,-30), openport(92,7,-28)
 look(105,1,-30), bothFOV52; actual cockpit-eye transform/FOV/near/far. All3 at

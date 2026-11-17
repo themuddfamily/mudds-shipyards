@@ -2,6 +2,16 @@
 
 Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The full craft remains unfinished and unqualified; its standalone foundation is delivered below.
 
+**Current berth delivery — 2026-11-17:** card3 DONE on sourceb3284183d3945041b53187f04835f69c41f361f1,
+paired checkpointb328418, mergedvia65de367d15b12f83ec84112ca027e88ccfb35e4e. Normal Main-spawn Player reaches the
+signed14×14m home deck/apron/control by the supported spur and walks fully back;
+actual source/PCK fit/lease/body/camera/old12-state cases pass. Ten source cases,
+full Titan source/PCK, fixed views, strictstartup3/maps/audit9/eightartifacts pass
+independent review. Main now13physical berths/12flyables; Dynamic is not spawned/
+selectable until card4, which remains open. Native/GPU/human and fullcraft gates
+remain open. One exact initial-cache roster correction1/1; original review
+finding retained. [Delivery and cleanup](../../ROADMAP.md#dynamic-berth-delivered).
+
 **Current access delivery — 2026-11-17:** card2 DONE on sourcef3cb99a1ff87adb6a29af053fa5d07faf32c93c9,
 paired checkpointf3cb99a, mergedvia1e227e89bdbef29e24423f644fed969fce7f7cae. Both complete actual Player identity/
 transformed physical access/pilot claim-release-reuse profiles pass in source and
@@ -99,7 +109,7 @@ Each estimate is a **45–75 minute work box**, not measured delivery time. Spli
 | --- | --- | --- |
 | 1 / 45m | Candidate implementer: three new candidate files | Honest candidate identity, original hull/collision and single-helm HeroShip start/stop/flight load. Check finite definition and actual controller in fixture; stop at standalone flight. |
 | 2 — DONEf3cb99a (standalone only) | Candidate: same files; root narrow `hero_ship.gd` access hook if required | Real Player continuously walks ramp/recess, claims/releases helm and exits; sealed state refuses unsafe access. Verify capsule, camera, support and state collision; stop at physical access. |
-| 3 / 60m | Root station: `shipyard_world.gd`, `fleet_dock_comb.gd`, `ship_berth.gd` | Reachable own signed deck/spur/lease fits entire deployed envelope and launch/approach sweep without blocking neighbours. Wrong tag/occupied lease refuses; stop at inspected usable home. |
+| 3 — DONEb328418 (berth infrastructure only) | Root station: `shipyard_world.gd`, `fleet_dock_comb.gd`, `ship_berth.gd` | Reachable own signed deck/spur/lease fits entire deployed envelope and launch/approach sweep without blocking neighbours. Wrong tag/occupied lease refuses; stop at inspected usable home. |
 | 4 / 60m | Root fleet: `main.tscn`, `game_flow.gd`, `fleet_role_registry.gd`, `fleet_registry_console.gd`; candidate hooks | Production walk/board/start/launch/own strict home/neutral OFFLINE/physical exit/reboard works, candidate identity correct and neighbours remain usable. Stop at first meaningful playable pilot loop. |
 | 5 / 45–60m | Root release: existing `tools/release/` workflow and build notes | Fresh clean committed source, relevant focused checks, safe Windows export and silent isolated actual-package startup/archive inspection. EXE/ZIP/notes in repository `builds/windows/`, paired Linux artifact via existing workflow. Require `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`. Notes state pilot-loop limits/pending combat/recovery; stop at inspected early checkpoint. |
 | 6 / 60m | Root flight/combat: `game_flow.gd`, `fleet_role_registry.gd`, candidate muzzle/camera/audio hooks | Measured controller tradeoff and actual unchanged pulse hits/misses, cadence/heat, self/friendly/occluded/ownership refusal; unique source damages real target once. Extend focused existing combat/role checks; stop at actual gunship function. |
