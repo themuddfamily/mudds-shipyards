@@ -106,6 +106,11 @@ Archive372175575bytes, SHA256
 `4ad49d12d37dcb1d33b6d4269cd36acd1adeda65cd7d9627e3da78a2dcdc52f1`;
 all1499members verified, including a verified candidate source bundle and
 unpublished EXE/ELF/Linux archive.
+Owned cleanup completed2026-11-17 02:25:02.312898UTC: actual all-in
+92.388548minutes (2.388548minutes overrun). Both clean worktrees and the exact
+local task branch were removed after archive verification; remote task branch
+was absent. Only archive/closeout remain in its scratch directory. The separate
+unaccepted Paradox gunner backup remains retained.
 
 Original frozen assignment (historical, not currently running):
 
