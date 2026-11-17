@@ -78,7 +78,32 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Vortex continuous physical access — card2 owner-reset renewal
+### Vortex continuous physical access — renewed card2 PARKED, unmerged
+
+Final candidate **49217b6fa2d33c76e57c5362d58036f74c5efb0c** imports cleanly
+(14.617s) and passes foundation/controller/geometry (22.823s/1027checks), zero
+diagnostics and all source/cache/HEAD guards. Source review accepts the causal
+moving-toe correction and genuine supported side-control walk; no gameplay
+acceptance is implied. The same real Player opens, walks inbound and reaches
+the helm, but the first return fails the unchanged full capsule-clearance query.
+At local(0,.518733,9.970517), fully open/OFFLINE/on_floor, actual contact is
+SternRampFirstCollision, normal(0,.970142,.242538), depth.00038754337584m.
+Identity access exits1 after16.895s; the complete route/reuse has not passed.
+Small depth is not a tolerance waiver or proof of a harmless numerical cause.
+
+Renewed correction**1/1** is consumed. Transformed/reuse completion, remaining
+regressions/full Titan/captures/exports/startups/PCK/package audit/checkpoint are
+**NOT_RUN**. No source merge or new checkpoint; latest validated213a2d8 remains.
+Verified archive `/srv/mudds-work/vortex-access-renewal-20261116/records.tar.gz`,
+11,603,132bytes, SHA256f0a287fc4cb997a1d945783b4fbcbebd94f38a9d3788878a1ca86230f60e005b,
+60members, all member hashes verified; exact candidate bundle and original failed
+archive included. Closed2026-11-17 00:00:51.828606UTC,14.406minutes this renewal,
+49.296 cumulative including original34.89. Owned processes/worktree/exact local
+branch and scratch cleaned after verification; no remote task branch created.
+Reopening needs the actual return-contact cause and an authorized repair budget,
+with every original route/clearance/geometry/package gate intact. Card3 stays
+gated. Original renewal contract follows as historical scope:
+
 
 Outcome: same real Player walks fixture apron→physical stern hatch/ramp→aisle→
 helm approach→outside, seals and reopens twice, without jumps, pose staging or
@@ -119,7 +144,7 @@ hosted CI remains disabled. No source-only or fixture-only full craft claim.
 
 Window **2026-11-16 23:46:27.459059→2026-11-17 01:16:27.459059UTC**,90minutes
 ALL-IN including restoration/mapping/checks/package/review/cleanup. Owner-reset
-allowance0/1 until causal production correction is delivered. Stop at first
+allowance initially0/1, consumed1/1 by49217b6 as recorded above. Stop at first
 unexpected failure; retain actual operands, measure cause before correction;
 exhausted repair or deadline parks this same full card. No dependent card3 starts.
 Raw/closeout root `/srv/mudds-work/vortex-access-renewal-20261116/`.
