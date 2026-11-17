@@ -668,10 +668,19 @@ func _audit_animated_geometry() -> bool:
 			return false
 		for point in expected:
 			if not (_has_point(points,point) and _has_point(faces,point) and point.x >= -6.00001 and point.x <= 5.50001 and point.y >= -0.00001 and point.y <= 5.80001 and absf(point.z) <= 6.00001):
+				var submitted_vertices: PackedVector3Array = leaf.mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+				var vertex_min_distance := INF
+				var face_min_distance := INF
+				for vertex in submitted_vertices:
+					vertex_min_distance = minf(vertex_min_distance, point.distance_to(vertex))
+				for vertex in faces:
+					face_min_distance = minf(face_min_distance, point.distance_to(vertex))
 				print("KATANA_ANIMATED_GEOMETRY_OPERANDS: ", {
 					"leaf": leaf.mesh.name, "access_fraction": _access_ship.get("_access_fraction"),
 					"motion_active": _access_ship.call("is_access_motion_active"), "expected_point": point,
 					"has_collisionpoint": _has_point(points,point), "has_facepoint": _has_point(faces,point),
+					"submitted_vertices": submitted_vertices, "array_vertex_has_expectedpoint": _has_point(submitted_vertices,point),
+					"array_vertex_min_distance": vertex_min_distance, "get_faces_min_distance": face_min_distance,
 					"expected_points": expected, "collision_points": points, "mesh_faces": faces,
 					"collision_node_id": leaf.collision.get_instance_id(), "shape_id": leaf.collision.shape.get_instance_id(),
 					"collision_transform": leaf.collision.transform, "collision_global_transform": leaf.collision.global_transform,
