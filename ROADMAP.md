@@ -749,10 +749,34 @@ retains only archive+closeout.json. Only retained branch exception is unaccepted
 Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08 (no worktree).
 No next task branch has been opened.
 
+### Selected — Utopia physical terminal return
+
+**2026-11-17 23:10:00 → 2026-11-18 00:40:00 UTC, 90 minutes all-in**;
+definition by23:25. Same unfinished card7, latest owner21:35:22 renewal0/1,
+prior127.4669150167minutes and all failures retained. Baseline5784fe0b5,
+latest accepted build6e15126. Root/worktree
+`/srv/mudds-work/utopia-supply-return-20261117`, branch
+`work/utopia-supply-return-1117`.
+
+First reproduce the unchanged reverse-stair failure with actual failed-frame
+velocity/native snap contacts; prior data shows capsule rolloff but lacks that
+last operand. Keep all original body/support/on-floor/route/cap checks. Only
+then consider one visible/collision-coherent local stair-nosing repair that
+retains original tread centres/tops/support points and the repaired platform.
+No Player/HeroShip, stock/custody/authority or unrelated craft changes.
+
+Finish the entire original physical terminal visit/refusal/return/reboard/
+second flight/home/station return/normal Quit within300s, then full source8
+(including canonical Cinder1200), PCK3, coldviews3/90s, paired checkpoint/
+startup3/maps/audit9/eight artifacts and owned cleanup. Exact scope and stops in
+owned `frozen-card.md` preserve the previous full contract. No airborne waiver,
+route shortcut or partial geometry delivery. The following stop is historical;
+no new implementation is credited yet.
+
 ### Utopia physical Cinder supply destination — card7 PARKED, unmerged
 
 Latest candidate **127cc2b26a97b6496159d03f939e04331cf78778** is unaccepted.
-Main runtime and playable checkpoint **ec8cfda** remain unchanged. The original
+At that stop Main runtime and playable checkpoint **ec8cfda** remained unchanged. The original
 complete route stops on reverse terminal stairs after a real forward visit;
 FINAL_GO/PACKAGE_GO are withheld. No subset is merged or checkpoint published.
 
