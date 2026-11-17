@@ -121,6 +121,71 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Vortex reachable home berth — card3
+
+Baseline **027f3182e81b3524fcc15e171614a05456cf0d86**, branch
+`work/vortex-berth-1117`, worktree
+`/srv/mudds-work/vortex-berth-20261117/worktree`. Window **2026-11-17
+14:38:06→16:08:06 UTC**, 90 minutes all-in, including mapping, implementation,
+validation, build, review, merge/push, archive and owned cleanup. Definition
+frozen **14:44:46 UTC**, before **14:53:06 UTC**. New card, prior cost zero;
+one substantive correction available, **0/1 used**. One HIGH implementation
+agent and one HIGH independent reviewer; root owns engines, release and integration.
+No nested agents. CI remains disabled.
+
+Deliver an actual reachable compatible home berth at **(180, .38, -30)**,
+identity orientation. Deck **14×28 m**, world x173..187/z-44..-16, top y.38;
+2.8 m dogleg links the existing Utopia spine at z-10 to the stern apron. Open
+only Utopia's east rail at z[-11.4,-8.6], behind a default-false module option
+set true in production. Preserve its old deck, route, berth, pose and lease.
+Vortex tight landing center **(0,2.5,1)**, half-extents **(6,4,13)**;
+capture center **(0,8,-24)**, half-extents **(20,14,36)**, speed28/tilt70/lift4.
+Deck leaves 2 m beyond the deployed ramp tip. Preserve all fifteen current
+homes, craft, transforms, center semantics, audits, owners and lease tokens.
+The new sixteenth berth starts empty; Main still has fifteen flyable craft.
+Vortex remains outside Main. No pilot-seat, weapon, passenger or network claim.
+
+One normal Main Player must walk from the unchanged spawn through the full
+station and new spur, discover/use the physical side control, walk the actual
+ramp/vestibule/aisle to the helm approach, then return all the way to spawn.
+Audit each completed walking tick with the unchanged full capsule, head,
+support, masks, gravity and continuity. Once-stage standalone Vortex only for
+the berth-fit fixture. No further actor/ship pose, speed, clock or collision
+forcing. Check actual closed/deployed/intermediate hull and ramp fit,
+mesh/collision agreement, tight-corner refusal, full approach/departure sweeps,
+neighbor routes and ordinary lease refusal/idempotency behavior.
+
+Frozen **source16**: new berth180 first/alone; Vortex foundation90 and both
+complete access180 profiles; definitions120/registry180/feedback180; complete
+Titan/Predator/Paradox/Dynamic/Utopia/Katana berth240 cases; then complete
+Titan/Utopia/Dynamic Main300 journeys, each alone with actual persisted
+clean_shutdown/clean/session_ended. Independent focused cases may run in pairs.
+Frozen **PCK5**: new berth180 first/alone; foundation90 plus full identity
+access180 pair; full transformed access180 alone; complete Titan Main300 alone.
+Exact committed fixtures plus source-isolation/excluded literal data only;
+all original cases, routes, limits, exit0/one marker/raw0 and source/cache/HEAD
+checks remain. Existing test edits only account for the new roster/count and
+exact conditional Utopia rail geometry. No unrelated stale-test reconciliation.
+
+Release requires clean paired exports, strict startup3, exact Linux six-member
+archive/types/modes/ELF identity, complete equal Windows/Linux maps and actual
+accepted1816be5 baseline delta, all nine package predicates and eight reviewed
+artifacts. Independent FINAL_GO then PACKAGE_GO. Three cold actual Main-world
+geometry views, once-staged Vortex: 960×540/FOV52/eight frames/90 s total;
+closed overview (160,32,26)→(160,1.88,-25), open stern
+(166,9,-8)→(180,2,-20), then actual cockpit-eye transform at FOV52. Retain full
+world and base HUD; use existing tutorial/help dismissal and only the public
+boarding presentation clear. Restore capture camera immediately after Begin
+Shift before any UI wait. Private Xvfb/x11/GLES/Dummy, no active desktop.
+
+Full frozen ownership/geometry/cases are in
+`/srv/mudds-work/vortex-berth-20261117/frozen-card.md` and will be archived.
+Stop at the first unexpected failure; retain actual operands before the one
+allowed correction. Unresolved failure or deadline parks the whole card, with
+no automatic renewal, renamed successor or subset acceptance. Native Windows,
+GPU/device/audio/human/readability/full-craft/network/travelling-occupant gates
+remain NOT_RUN/open. All36 parent outcomes and ten phase exit gates remain open.
+
 <a id="vortex-access-delivered"></a>
 
 ### Vortex physical stern access and descending capsule recovery — card2 DONE
