@@ -121,6 +121,70 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: grounded slope contact — WALK-FLEET
+
+**Result:** the unchanged Player walks the existing Operations Pod threshold
+forward and back with its full capsule clear on every completed walking tick.
+This implements the existing [WALK-FLEET clearance member](docs/ROADMAP_BACKLOG.md#fleet-cabin-reverse-clear-reboard),
+not a renewal or restoration of the parked Vortex berth. That card retains its
+original scope, deadline, source and30.1438699-minute cost; none of its new
+station geometry is included here. Main remains15craft/15occupiedhomes.
+
+**Start:** baselineaafdf8dab5ba01c7bb286e008dd4db84f764c353, branch
+`work/ascending-floor-support-1117`, worktree
+`/srv/mudds-work/ascending-floor-support-20261117/worktree`.
+**Budget:** 2026-11-17 **15:09:03→16:39:03UTC**,90minutes ALL-IN through final
+push/build/archive/cleanup. Definition frozen15:15:18 before15:24:03.
+One substantive correction, **0/1 used**. One HIGH implementer and HIGH
+independent reviewer; root engines/release/docs/integration. No nested agents.
+
+**Cause:** the exact existing OperationsPodThreshold contact is positive
+.0001095626576m at completed frame860, Player(42.98533,-.016553,21.79902),
+with synchronized static target geometry, full radius.38/height1.94 capsule,
+margin0 and unchanged5.8m/s input. Foot rises.001776m; current recovery excludes
+ascending slide contact. The old actor server pose and query-only contact skin
+cannot replace the current completed-body clearance requirement.
+
+**Owned files:** PlayerController; existing PlayerStep suite; new
+`tests/player_operations_threshold_test.gd` and its UID. No world/ship geometry,
+Main/GameFlow, body shape, gravity, speed, snap distance, mask, input ownership,
+seat, weapon or network changes. Preserve the old remote/large-descent recovery
+wrapper and its descent+safe_margin bound. Reuse its existing four-attempt
+positive-up/full-shape-clear solver for already-grounded walkable contact,
+strictly nonpositive pre-up velocity, maximum residual lift exactlysafe_margin.
+Retain all normal/tangent/headroom/no-progress guards and no tangent writes.
+This does not enlarge step-up, airborne, jump or wall authority.
+
+**Actions and proof:** add real auto-physics convex/rotated-box1:3 ascent probes
+at identity and translated/yaw35 to the full existing suite. Actual normal Main
+Player follows (8,0,11)→(8,0,13.5)→(35,0,13.5)→(35,0,15.5)→(43,0,15.5)→
+(43,0,24.8), then every leg reversed to original spawn. Real engine processing
+and input only; no manual tick, processing disable, pose/speed/clock/body forcing
+or route shortcut. Each adjacent completed tick retains full capsule, head,
+floor/support, masks, gravity and<.2m continuity.
+
+**Source10:** full Main threshold180 first/alone; full PlayerStep300 alone;
+Vortex foundation90/definitions120/movingInterior120 in isolated pairs; both
+complete Vortex access180 profiles alone; complete Titan/Katana/Utopia Main300
+alone each. **PCK6:** exact threshold180 first/alone, full PlayerStep300, both
+full access180, complete Titan300 and Katana300, all alone. Original cases,
+limits, fixtures, exit0/one marker/raw0/source-cache-HEAD guards remain. Complete
+Main journeys require actual primary clean_shutdown/clean/session_ended.
+
+**Release/close:** same clean candidate paired exports, strictstartup3, exact
+Linux6members/types/modes/extractedELFidentity, complete equal payload maps and
+actual1816be5 baseline delta, audit9/eight independently reviewed artifacts.
+One cold fixed unchanged Main threshold geometry preview960×540/FOV52/eight
+frames/90s total, camera(43,3,18)→(43,1,24.8), fullworld/baseHUD retained;
+privateXvfb/x11/GLES/Dummy. This image does not prove contact or UI/native quality.
+FINAL_GO then PACKAGE_GO, repository builds, merge/push and verified source/raw
+archive plus exact owned ref/worktree/process cleanup. The full frozen contract
+is in `/srv/mudds-work/ascending-floor-support-20261117/frozen-card.md` for later
+archive. Stop dependent checks on first unexpected failure; unresolved failure,
+exhausted repair or deadline parks this original card without renamed successor
+or reduced acceptance. Native/GPU/device/audio/human/readability/fullcraft/network
+and all36parents/ten phase gates remain open/NOT_RUN; CI remains disabled.
+
 <a id="vortex-home-berth-parked"></a>
 
 ### Vortex home berth — card3 PARKED, unmerged
