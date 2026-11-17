@@ -159,7 +159,8 @@ it does not register Katana in Main or replace the normal Player route.
 
 Freeze source caps: newberth240, Katanafoundation90, bothfullaccess180each,
 definitions120, route-registry180, Titan/Predator/Paradoxberths240each,
-fullTitanMain300ALONE. Actual PCK repeats newberth240/foundation90/bothaccess180/
+fullTitanMain300ALONE. Existing feedback-world180 also protects the changed
+canonical cache roster, retaining all six displays/twelve material IDs. Actual PCK repeats newberth240/foundation90/bothaccess180/
 fullTitan300ALONE with raw-source guards and exact excluded constants inlined.
 New full berth checks preserve all12actualdock/transforms/occupants/leaseowners;
 registry13berths/12flyable, graph11modules/11slots/11hubends/63route markers,
