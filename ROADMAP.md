@@ -123,8 +123,17 @@ Full target-damage/comparative-handling, component service/recovery/save/network
 whole-craft and full-game gates remain open. Normal HUD overlays limit capture
 readability inspection; native/GPU/human/readability qualification remains
 NOT_RUN/open, CI disabled. Original frozen assignment follows as historical scope.
-Archive and actual all-in closeout are recorded below; no next task selected by
-this closure.
+Verified archive: `/srv/mudds-work/dynamic-main-20261117/records.tar.gz`,
+37,296,856 bytes, SHA256
+`26eb958543ce2680a1b940158b78383a905c3a286f6062ac47fdbb32ee947f49`.
+All 788 members verified, including the source bundle, complete actual source/
+packaged/legacy journeys, primary payloads, captures, export/audit/review records
+and eight published-artifact hashes. Owned cleanup completed 2026-11-17T04:39:32.462902+00:00:
+exact task branch retired after pushed Main containment; worktree/process/
+scratch removed. Only archive and closeout remain in its scratch directory.
+The separate unfinished Paradox gunner backup remains retained. Final all-in
+elapsed cost and final pushed head are in adjacent `closeout.json`.
+No next task is selected by this closure.
 
 
 Result: Dynamic becomes the thirteenth usable Main craft at its already accepted
