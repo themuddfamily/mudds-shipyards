@@ -158,6 +158,22 @@ fullcraft/nativeWindows/GPU/device/audio/human/UIreadability/fullMainshader gate
 remain open/NOT_RUN. All36parents/10phasegates stay open; CI remains disabled.
 Final archive, actual all-in cost and branch/process cleanup are recorded below.
 
+Verified task archive `/srv/mudds-work/katana-main-20261117/records.tar.gz`:
+**44433454bytes**, SHA256
+`0262fb82d0f4f4a552b1bddf6708f9db3b5ebb031988e77e50bf9d52fdb2476a`;
+**906members** read/hash-verified, including exact source bundle, all18source/
+6PCK results and actual primary stores, original cold views, complete package maps,
+reviews/audit9/eightartifact hashes and publication proof. Archive/owned cleanup
+completed2026-11-17T13:46:11.131019+00:00 at59.786minutes from12:46:24UTC;
+final documentation/push/verification time is included in closeout.json's final
+confirmation. SourceC is contained in pushedMain and identical to its runtime/tests.
+Task worktree removed clean, local branch deleted by exact-CAS, remote task branch
+freshly confirmed absent; owned Godot/Xvfb/supervisor processes gone. Scratch folder
+retains only archive+closeout. Only Main worktree and the unaccepted retained
+Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08 local/remote branch remain.
+No next task branch opened here. Production repair0/1; no failed gameplay attempt
+or extra evidence version was substituted for this delivery.
+
 <a id="katana-home-berth-delivered"></a>
 
 ### Katana reachable empty home berth — card3 DONE
