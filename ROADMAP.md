@@ -147,7 +147,18 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="dynamic-lifecycle-current"></a>
 
-### Dynamic destruction and reuse — card8 PARKED, unmerged
+### Dynamic destruction and reuse — card8 RESUMED, unmerged
+
+Resumed under the owner18:58:40UTC allowance reset: **0/1 used**. Fresh all-in
+window **18:59:18→20:14:18UTC2026-11-17 (75minutes)** includes restoration,
+atomic healthy-home lease correction, full unchanged source11/PCK7 matrix,
+fixed cold capture, paired checkpoint/startup3/payload maps/audit9, independent
+review, merge/push and owned cleanup. Same card and full acceptance endpoints;
+previous source/failures/cost remain preserved. Worktree/contract:
+`/srv/mudds-work/dynamic-lifecycle-renewal-20261117/`. No new runtime accepted yet.
+
+Previous parked attempt:
+
 
 Candidate **5ff419f615cc3b03199a4cec50123b55ef6ed80d** remains unaccepted.
 Main runtime and latest playable checkpoint **8b91aae** are unchanged. The
