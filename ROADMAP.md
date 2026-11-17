@@ -132,7 +132,36 @@ Preserve1.6m full aisle, hatch motion, racks, pilot anchors/tuning/source1113 an
 all fourteen old craft/home state. Only future guest-chair reservations may be
 consumed by exact real fixed-chair fitting with body/stand/eye clearance proof.
 No nestedagents/hostedCI/audible or active-desktop checks. Original test/journey
-caps remain; retain all failures/cost, no automatic renewal. Definition in progress.
+caps remain; retain all failures/cost, no automatic renewal.
+
+Frozen09:34UTC; clean reviewed candidate **aba209b9c5fddd4bc5473518f1cfce57efd1414c**.
+Main-only flag fits two actual passenger chairs at feetanchors±2,.8,-3.6 and
+stands±.7,.8,-3.6. Measured actual authored sitting-rig convention selects cushion
+topfeet+.68; actual animated suit/backpack clearance/cushion support/eye sphere
+must pass, with full unchanged standing capsule/masks restored after each stand.
+Manual frame has no automatic volume sensor. Cabin support is only exact ownhome,
+landedOFFLINE/fullopen/no motion; an occupied guest prevents access closure/start.
+No HeroShip/ShipCrewSeat edits: candidate, Main flag, narrow GameFlowlocal hooks
+and existing journey fixture only. Blocked stand retains exact live claim/body/
+containment; actual release retires area/role/frame/_cabin_ship. No remote whitelist
+or safe-save policy extension. Default standalonefoundation/access stay untouched.
+
+Required source16: new ordinarycrew300 first,13focused (threefoundations90,
+access2×180, Utopiaberth240, definitions/boarding120, registry/feedback180,
+existing seat-role/gameplay authorities120, Paradoxcrewcarry180), then fullordinary
+Utopia/Titan300 eachalone. ActualWindowsPCK7: newcrew/Utopiapilot/Titan300 plus
+foundation90/access2×180/berth240 with exact committed adapters/sourceisolation.
+Maincases require normalpauseExit/actual clean_shutdown/clean/session_ended.
+Existingfour other berth-walk loops and DynamicMain are not repeated: no external
+geometry or old pilot path change; actualUtopiaberth and old-state snapshots plus
+Titan/Paradox cases protect the changed physical/seat seams. No pass inferred.
+Pairedcleanexports/strictstartup3/Linux6members+modes+ELFequality, completeequalmaps/
+revieweddelta/audit9/8artifacts and independentSOURCE_GO/FINAL_GO/PACKAGE_GO remain.
+ColdprivateXvfb/x11/GLES/Dummy90total, actual960×540/eightframes: fitted-chair
+interior and both passenger-eye views. First normal fullMain frame stays intact;
+then dismiss tutorial/help through their existing UI actions for chair inspection,
+without material/light/shader/feature reduction. Scopedgeometry only, no posed
+ordinaryclaim or native/human/readability qualification. Allin10:44:13 unchanged.
 
 ### Utopia ordinary Main pilot journey — card4 DONE; early pilot package card5 DONE
 
