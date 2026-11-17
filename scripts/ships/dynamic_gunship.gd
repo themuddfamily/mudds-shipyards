@@ -1,7 +1,7 @@
 extends HeroShip
 
 ## Original modern Dynamic: supported physical port access and one pilot.
-## Main/berth and combat integration remain separate cards.
+## Main composes its single helm; full combat qualification remains separate.
 ## Metres, +Y up, -Z forward; every solid section owns matching mesh vertices.
 const PILOT_ORIGIN := Vector3(0, 0.50, -0.8)
 const FUTURE_ENTRY := Vector3(-0.9, 0.55, 0.4)
@@ -10,6 +10,47 @@ const ROOF_OPEN_ANGLE := asin(1.9 / sqrt(4.24 * 4.24 + 0.2 * 0.2)) - atan2(0.2, 
 var _original_shell: Node3D
 var _access_leaves: Array[Dictionary] = []
 var _access_fraction := 0.0
+
+
+func can_board_from_landed_approach(actor: PlayerController) -> bool:
+	if not is_boardable() or not is_instance_valid(actor) or not actor.is_inside_tree() \
+			or actor.is_queued_for_deletion() or not actor.is_control_enabled() \
+			or actor.is_seated() or not actor.is_on_floor() \
+			or actor.collision_layer != PhysicsLayers.PLAYER_BODY_LAYER \
+			or actor.collision_mask != PhysicsLayers.PLAYER_BODY_MASK \
+			or (actor.get_node("PlayerCollision") as CollisionShape3D).disabled:
+		return false
+	var point := to_local(actor.global_position)
+	return Vector2(point.x-FUTURE_ENTRY.x,point.z-FUTURE_ENTRY.z).length() <= 0.16 \
+		and absf(point.y-FUTURE_ENTRY.y) <= 0.04 and has_clear_landed_pilot_stand(actor)
+
+
+## Query the actor's actual normal capsule at the supported interior exit.
+## The support surface stays in the query; only the normal contact skin is removed.
+func has_clear_landed_pilot_stand(actor: PlayerController) -> bool:
+	if not is_access_supported() or not is_instance_valid(actor):
+		return false
+	var collision := actor.get_node_or_null("PlayerCollision") as CollisionShape3D
+	if collision == null or not collision.shape is CapsuleShape3D:
+		return false
+	var capsule := collision.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	var pose := get_exit_transform() * collision.transform
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = pose
+	query.margin = 0
+	query.collision_mask = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	query.exclude = [actor.get_rid()]
+	if not get_world_3d().direct_space_state.intersect_shape(query,16).is_empty():
+		return false
+	var up := global_basis.y.normalized()
+	var feet := get_exit_transform().origin
+	var support := PhysicsRayQueryParameters3D.create(feet+up*0.06,feet-up*0.06,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP,[actor.get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(support)
+	return not hit.is_empty() and hit.collider == self and (hit.normal as Vector3).dot(up) > 0.99
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:

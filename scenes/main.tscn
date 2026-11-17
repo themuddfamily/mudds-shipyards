@@ -1,4 +1,4 @@
-[gd_scene load_steps=40 format=3]
+[gd_scene load_steps=41 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -50,6 +50,8 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ships/paradox_cruiser_pilot.tscn" id="94_paradox"]
 
+[ext_resource type="PackedScene" path="res://scenes/ships/dynamic_gunship.tscn" id="95_dynamic"]
+
 [node name="Main" type="Node3D"]
 process_physics_priority = -100
 script = ExtResource("1_flow")
@@ -79,6 +81,9 @@ home_berth_id = &"predator_home_berth"
 
 [node name="ParadoxCruiser" parent="." instance=ExtResource("94_paradox")]
 home_berth_id = &"paradox_home_berth"
+
+[node name="DynamicGunship" parent="." instance=ExtResource("95_dynamic")]
+home_berth_id = &"dynamic_home_berth"
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 release_visuals_while_dormant = true
