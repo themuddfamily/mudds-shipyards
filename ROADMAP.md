@@ -213,12 +213,37 @@ attempts are verified in
 SHA256 `77e170947bdc353fc6784da68ef541b92d36ef35d6fc2fa38e10fc3053a93076`). Adjacent `closeout.json` records actual all-in
 elapsed time, final pushed commits, artifact hashes and cleanup accounting.
 
+### Selected — Cinder Light complete choice packing
+
+**2026-11-17 22:38:00 → 23:23:00 UTC, 45 minutes all-in**, definition by22:53.
+Same unfinished role/choice member; owner21:35:22 renewal supplies0/1, with the
+sole known-failure packing repair now selected1/1. Prior50.5055364minutes and
+all failed source remain retained. Baseline7d9c4458c, latest buildf3cf6bb.
+
+Display the complete registry trade-off, original instruction clauses, craft
+identity, literal role/speed/hull facts and literal observed shape/state inside
+the same396×112card at normal16/11px fonts. A real production-HUD metric preflight
+fits both states in all six original size/scale cells: title320/244px within
+365–366, body54/63px. Put MOVE TO/fullcraft in approach title (fullcraft in
+available title), retain exact trade-off/facts in body, and join the exact STATE
+marker beside the final instruction. A Light-only adapter branch avoids a
+second state line; generic HUD and other craft/states remain unchanged.
+
+Owned root/worktree `/srv/mudds-work/cinder-light-choice-packing-20261117`,
+branch `work/cinder-light-choice-packing-1117`. Four runtime files are the
+registry, boarding-facts GameFlow, presenter and narrow adapter; extend the same
+three original tests. Exact frozen contract in `frozen-card.md` retains full
+source4/PCK4 at300s, all six fit cells/1px tolerance, two actual reviewed PNGs,
+paired checkpoint/startup3/maps/audit9/eightartifacts and cleanup. No subset,
+font/card/content/case waiver, new UI framework or hosted CI. The following
+previous stop is historical; no new implementation is credited yet.
+
 <a id="cinder-light-choice-current"></a>
 
 ### Cinder Light role-choice card — PARKED, unmerged
 
 Candidate **1ef02d4a0f0f786bdc4ce581b392bc6a1b2b28b9** is unaccepted.
-Main runtime/latest playable checkpoint **ec8cfda** are unchanged. Full required
+At that stop Main runtime/latest playable checkpoint **ec8cfda** were unchanged. Full required
 HUD execution exits1 in**27.667/300s**, marker0, raw18FAIL diagnostics;
 source/cache/HEAD/clean-worktree guards remain stable. Dependent suites stopped.
 
