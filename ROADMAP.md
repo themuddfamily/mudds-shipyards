@@ -5,7 +5,7 @@ craft now exist in Main, including Titan, Predator, Paradox and Dynamic pilot
 checkpoints. This count is implementation, not full craft qualification. The
 four craft still awaiting Main integration have accepted standalone hull/pilot
 foundations; Katana has validated standalone physical access and pilot
-claims, and Salyut and Utopia have validated standalone stern walking access. Their Main integration, four remaining berths and the remaining access
+claims, and Salyut and Utopia have validated standalone stern walking access. Their Main integration, three remaining berths and the remaining access
 work stay open. All 36 original parent outcomes and ten phase exit gates remain
 open. There is no evidence-backed completion percentage or finish date.
 
@@ -15,16 +15,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **f17268b** — [Windows ZIP](builds/windows/MuddsShipyards-f17268b-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-f17268b-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-f17268b-linux-x86_64.tar.gz).
-Utopia now has continuous standalone stern access: reachable control, folding
-ramp, supported cabin walk to the fixed helm stand and full return/seal
-([preview](builds/windows/MuddsShipyards-f17268b-utopia-access-preview.png)).
-Two complete cycles pass at identity and elevated yaw in source and actual
-Windows PCK. Open/moving access blocks propulsion and fire; the closed controller
-retains its original pulse. Utopia stays outside Main pending berth and pilot
-integration; cargo, chairs and supply capability remain open.
+Latest playable checkpoint: **b69e91f** — [Windows ZIP](builds/windows/MuddsShipyards-b69e91f-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-b69e91f-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-b69e91f-linux-x86_64.tar.gz).
+Utopia now has a signed physical home deck and supported station approach through
+Titan's north portal ([preview](builds/windows/MuddsShipyards-b69e91f-utopia-berth-preview.png)).
+Main has **13 usable craft / 14 physical berths (13 occupied)**. The new Utopia
+berth is empty; its full normal walking route/control/return and hull/camera
+clearances pass. Utopia's accepted standalone stern access remains included.
+Utopia stays outside Main pending card4 pilot integration; cargo, chairs and
+supply capability remain open.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
 ([preview](builds/windows/MuddsShipyards-1637b51-salyut-access-preview.png)).
@@ -42,13 +42,13 @@ claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-acce
 it remains outside Main pending its berth and production integration.
 Valid runtime timestamps now save and reload without a self-rejected checksum;
 normal Titan shutdown persists its terminal event in source and packaged checks.
-Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 13 flyable craft / 13 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
+Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main now has 13 flyable craft / 14 physical berths (13 occupied). Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
 
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the four craft still outside Main:
 Vortex, Katana, Utopia and Salyut. Katana, Salyut and Utopia standalone access is qualified;
-remaining access work, four berth cards and four Main-integration cards stay open.
+remaining access work, three berth cards and four Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -108,7 +108,25 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Utopia physical home berth — card3
+### Utopia physical home berth — card3 DONE
+
+Accepted source **b69e91fad8d1cd4fe486471787690be194995d45**, merged via
+**3fe0f1cb3d22fceac1e06eae7d2255d60b46f19f**, checkpoint **b69e91f**.
+All14 fresh source cases pass, including19789 berth checks/6427 completed walking
+ticks in146.394s/240. Actual Windows PCK berth140.814s/240, foundation23.828s/90
+and both access profiles60.596/60.642s/180 pass. Full ordinary Titan source174.311s
+and PCK158.494s/300 run alone and end through normal Quit with actual
+clean_shutdown/clean/session_ended. Cold three fixed Main views pass87.484s/90
+at actual960×540; normal HUD remains visible, so this is scoped geometry review,
+not human/readability qualification. Complete Windows/Linux maps match1607entries:
+four new owned entries, three intended changed production payloads and79 unrelated
+typed node_ids-only scene changes. Strictstartup3, Linux six-member/mode/ELF proof,
+audit9, independent FINAL_GO/PACKAGE_GO and all eight artifact hashes pass.
+First86f2725 registry run failed two stale fixture census expectations; three
+fixture-only lines were corrected, the failure retained, and all14 cases rerun
+fresh on b69e91f. Production corrections remain0/1. No acceptance or cap weakened.
+Frozen contract follows. Archive and exact cleanup recorded below at closure.
+Card4 Main pilot integration remains open; no next assignment selected here.
 
 Visible result: signed13×30m deck at identity **(144,.38,-30)**,2.5m stern apron
 and guarded2.8m station approach through a new supported Titan north portal.
