@@ -3,8 +3,9 @@
 **Playable alpha; the full game is unfinished.** Twelve of the promised17 craft
 now exist in Main, including Titan, Predator and Paradox pilot checkpoints. This count
 is implementation, not full craft qualification. The five craft still awaiting
-Main integration now have accepted standalone hull/pilot foundations; their
-physical access, berths and Main integration remain open. All 36 original parent
+Main integration have accepted standalone hull/pilot foundations; Katana also
+has validated standalone physical access and pilot claims. Their berths, Main
+integration and the remaining access work stay open. All 36 original parent
 outcomes and ten
 phase exit gates remain open. There is no evidence-backed completion percentage
 or finish date.
@@ -15,9 +16,12 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **213a2d8** — [Windows ZIP](builds/windows/MuddsShipyards-213a2d8-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-213a2d8-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-213a2d8-linux-x86_64.tar.gz).
+Latest playable checkpoint: **5ae5879** — [Windows ZIP](builds/windows/MuddsShipyards-5ae5879-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-5ae5879-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-5ae5879-linux-x86_64.tar.gz).
+Katana now has validated standalone physical port access and exclusive pilot
+claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
+it remains outside Main pending its berth and production integration.
 Valid runtime timestamps now save and reload without a self-rejected checksum;
 normal Titan shutdown persists its terminal event in source and packaged checks.
 Paradox now has its ordinary Main pilot journey and occupied home berth ([production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png)); Main has 12 flyable craft / 12 physical berths. Its local gunner/passenger chairs now work ([interior preview](builds/windows/MuddsShipyards-86c5a90-paradox-primary-preview.png)); the pilot cannon now fires; the gunner cannon remains unfitted.
@@ -25,8 +29,8 @@ Paradox now has its ordinary Main pilot journey and occupied home berth ([produc
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the five craft still outside Main:
-Vortex, Katana, Dynamic, Utopia and Salyut. Their further access, berth and Main
-integration cards remain open.
+Vortex, Katana, Dynamic, Utopia and Salyut. Katana standalone access is now
+qualified; remaining access work and all five berth/Main cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
 Halyard access/departure, canonical travel, strict landing, supported surface
@@ -43,7 +47,7 @@ Destroyed Titan now returns through normal recovery with conserved cargo.
 The original nine craft remain available. Paired exports, three strict
 startups, the actual packaged-content full pilot loop and all nine package-audit
 predicates pass. Native Windows/GPU/device/human and full craft gates remain open.
-Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; the pilot cannon now fires; the gunner cannon remains unfitted. Katana standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-b0f97ba-katana-preview.png); it is not registered in Main. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
+Vortex standalone hull/pilot content is included, with [preview](builds/windows/MuddsShipyards-0c2f322-vortex-preview.png); it is not registered in Main. Paradox now joins Main as the twelfth usable pilot craft: its full ordinary access, two flight/home/OFFLINE/exit sorties and reboarding are included, with [production preview](builds/windows/MuddsShipyards-976824f-paradox-main-preview.png). Its local gunner/passenger chairs now work; the pilot cannon now fires; the gunner cannon remains unfitted. Katana standalone physical port access and pilot claim/release/reuse are included, with [preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png); its berth/Main integration remains open. Predator now joins Main as the eleventh usable pilot craft: ordinary physical access, two complete flight/strict-home/OFFLINE/exit sorties and physical reboard are included, with [preview](builds/windows/MuddsShipyards-cc38736-predator-alignment-preview.png). Solid hull/helm/eye now stay in the physical frame through turns, with solid exhaust visible OFFLINE and separate cosmetic bank/glow. Detention roles, moving cabin and full-craft qualification remain pending. Earlier accepted changes remain included in their recorded scopes.
 
 ## Current work and next selection
 
@@ -78,7 +82,47 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Katana physical port access and pilot claim — card2 renewal
+<a id="katana-access-delivered"></a>
+
+### Katana physical port access and pilot claim — card2 DONE, standalone
+
+Accepted source **5ae5879d9d27f4090788e15daeae93d7565a95a7**, merged/pushed via
+**80cf73e1eff5974edda230077e7482fae8f30f45**, checkpoint**5ae5879**. Same real Player
+walks apron/control/port ramp/recess, claims the exclusive pilot through existing
+APIs, completes sealed2.3s startup/neutral OFFLINE, safely releases, walks out and
+seals, twice at identity and separately elevated35degree yaw. Original foreign/
+duplicate/stale, closed crossing, unsafe propulsion/opening and airborne-exit
+refusals pass. No actor pose/clock/mask/gravity bypass replaces normal controls.
+
+Actual retracted ramp clears the sill; staged sill/inner/outer motion preserves
+approved hull/deployed bounds, exact open ramp/recess/eye/anchor and all16 fields.
+The sill travels an additional.1m as the measured geometry repair; intermediate
+poses intentionally change. Renewed production correction**1/1**. The original
+moving-vertex test wrongly read rounded derived get_faces triangles; same-instance
+ARRAY_VERTEX and collision agree at distance0. Its routine API correction retains
+original comparisons/bounds/skin/cases/caps. All earlier failed raw runs remain.
+
+Five focused source cases and full Titan164.321s pass; actual Windows-PCK
+foundation19.236s, both complete access profiles50.406/50.540s and full Titan
+157.178s pass from blank source-isolated directories. Both actual Main primaries
+end clean_shutdown/clean/session_ended. Three fixed source views, clean paired
+exports, three strict startups, complete equal1599-entry Win/Linux maps, reviewed
+one intended Katana script change plus79 typed node_ids-only scene differences,
+existing audit9 and all eight published artifacts pass independent source/package
+review. Native/human/fullcraft/network/comparative handling stay open/NOT_RUN;
+Katana is not in Main, which remains12/17. Card3 berth work is now dependency-ready
+for bounded selection; it has not been implemented by this card.
+
+Verified archive `/srv/mudds-work/katana-access-renewal-20261117/records.tar.gz`,
+33,039,942bytes, SHA2564fb9cceb50fab433e4d58adfd7f6deae164d5e6fe53130f94093b8178cdf6d22,
+440members, all member hashes verified. Exact source bundle, original failed
+archive and all current failure/source/PCK/build/review records are retained.
+Final cost, pushed head and owned cleanup are recorded in adjacent closeout.json;
+original37.844minutes are preserved in addition to the renewal's actual cost.
+Owned task branch/worktree/processes are retired after verified archive and pushed
+Main containment; the separate unfinished gunner backup remains retained. Hosted
+CI stays disabled. Original renewal contract follows as historical scope:
+
 
 Goal/result: approved Katana card2, same real Player walks apron→portcontrol→
 ramp/recess→helm, Interact reserves/seats one pilot, sealed2.3s startup/neutral
@@ -1041,7 +1085,11 @@ source bundle, raw checks/source-cache guards/views and package records are
 retained in verified `/srv/mudds-work/predator-foundation-20261106/records.tar.gz`;
 adjacent closeout records actual publication and owned process/ref/worktree cleanup.
 
-### Katana physical port access and pilot claim — build card2 PARKED
+### Katana physical port access and pilot claim — build card2 PARKED (historical first attempt)
+
+This dated failed attempt is preserved unchanged below. The accepted full renewal
+is recorded at [Katana access delivered](#katana-access-delivered); its current
+source/checkpoint supersede this historical PARKED status.
 
 Goal / contract: approved Katana card2 in docs/design/KATANA_IMPLEMENTATION_PROPOSAL.md. Foundation b0f97baf1 is accepted. Paradox berth, Vortex access and Titan remote remain parked; pending reprioritization is unchanged. This is candidate-only access, not Main integration or a travelling cabin.
 Result: the same real Player walks supported apron → port control → ramp/recess → helm approach, claims the single pilot through existing ShipBoardingArea/Player APIs, safely releases to the supported stand pose, walks outside, seals and repeats. Sealed crossing and unsafe launch/access/exit refuse. No jump, through-hull shortcut or free-standing flight/cargo/crew capability.
