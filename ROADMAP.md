@@ -149,22 +149,46 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="cinder-light-choice-current"></a>
 
-### Cinder Light role-choice card — RESUMED, unmerged
+### Cinder Light role-choice card — PARKED, unmerged
 
-Same unfinished CRAFT-ACCEPT-CINDER-LIGHT role/choice member, restored from
-50134b4 under owner18:58:40UTC renewal. Known73px/63px body overflow is addressed
-by packing the exact trade-off in the existing title for Light approach/available
-only; full ordinary instruction/facts/observed state remain in the retained body.
-No font/card geometry, body1px tolerance, viewport/scale case or othercraft/state
-change is allowed. One renewed correction**1/1 used** on this known fit cause.
-Fresh all-in window**20:58:50→21:43:50UTC2026-11-17 (45minutes)** includes all
-source4, six-case title/body fit, two actual-resolution images, actualPCK4,
-paired checkpoint/startup3/maps/audit9/eightartifacts, independent root review,
-merge/push/archive/owned cleanup. Original300s suite/capture caps retained.
-`/srv/mudds-work/cinder-light-choice-renewal-20261117/frozen-card.md` preserves
-literal original obligations/failures/cost. Latest accepted build staysec8cfda;
-no current role/card delivery is credited until all gates pass. Native/human,
-whole Main graphics, craft/role budgets and full-game gates remain open; CI off.
+Candidate **1ef02d4a0f0f786bdc4ce581b392bc6a1b2b28b9** is unaccepted.
+Main runtime/latest playable checkpoint **ec8cfda** are unchanged. Full required
+HUD execution exits1 in**27.667/300s**, marker0, raw18FAIL diagnostics;
+source/cache/HEAD/clean-worktree guards remain stable. Dependent suites stopped.
+
+The exact trade-off in the retained normal16px title needs**369px**, while the
+actual label has**365–366px** across both viewports/all three scales. Production
+title clipping/ellipsis is enabled, so this is a real full-text fit failure.
+Available-body height fits after the move; Light approach still needs**73px**
+inside**63px** in every case. Complete approach instruction/facts/shape/state
+were retained and the unchangedbody1px tolerance fails. No font, card geometry,
+text/state content, viewport or scale case was reduced to accept it.
+
+One owner18:58:40-renewed correction**1/1 used** moved the old50134b4 extra
+trade-off line into the existing title for Light approach/available only.
+The original six-case available matrix and all other craft/states remain;
+current validation also checks complete approach title/body in each same cell.
+The first measured title-packing attempt fails; no alternative implementation,
+subset registry/choice delivery or automatic successor/reset is accepted.
+Remaining3source suites, two1280/1920 screenshots, PCK4, exports/startup3/
+maps/audit9/eightartifacts and integration are **NOT_RUN**. Full craft/normalized
+role budgets, other Cinder roles, native/human/whole-Main and finalgame gates stay
+open; CI remains disabled.
+
+Original renewed all-in window**20:58:50→21:43:50UTC2026-11-17 (45minutes)**,
+original300s suite/capture caps and prior**30.095minutes** remain preserved.
+Reopening needs an authorized bounded packing proposal that demonstrates the
+complete title/instruction/facts/exacttrade-off/state at normal16/11px fonts
+inside the same card under all six size/scale cells, then every original gate.
+No implicit allowance renewal or font/card/tolerance/case waiver.
+
+Verified archive `/srv/mudds-work/cinder-light-choice-renewal-20261117/records.tar.gz`:
+**7,851,217bytes**, SHA256 `589b73edf0e582dfe4fc132e2bd01570cbbf7ca6958ef7d073e358fba0cc487a`,
+**99members individually reread/hash-verified**, including exact verified source
+bundle, prior history/source, frozen contract, actual failed HUD raw/guards and
+root/implementer stop review. Adjacent closeout records actual/cumulative cost,
+pushed docs and exact owned branch/worktree/process/scratch cleanup. Unaccepted
+Paradox gunner backup remains retained. No code was merged merely for cleanup.
 
 <a id="dynamic-lifecycle-current"></a>
 
@@ -3695,7 +3719,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 
 | Existing goal/member | Current result or blocker | Condition before further work |
 | --- | --- | --- |
-| [Cinder Light role-choice card](docs/history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105) | PARKED: added line needs73px inside63px body in all six existing fit cases | Explicit reprioritization and bounded text packing that preserves exact trade-off/full instructions/facts/state,normal fonts and original case/tolerance limits;retain cost/exhausted allowance |
+| [Cinder Light role-choice card](#cinder-light-choice-current) | PARKED: renewed title-packing candidate1ef02d4 fails369px/365–366px title; approachbody73px/63px,1/1used | Authorized bounded complete-title/body packing at normal16/11px, all original content/six cells/tolerance/caps and full source/package/release; retain both failed attempts/cost; no automatic retry |
 | [Bulwark whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#bulwark-lod-cockpit-clearance-stop-20261105) | PARKED: required capture fails two unchanged cockpit-clearance assertions despite source and dimension passes | Log exact failed operands, reconcile original clearance contract, explicitly reprioritize with prior cost/exhausted allowance; no subset acceptance |
 | [Halyard whole-craft LOD runtime](docs/history/ROADMAP_DELIVERIES.md#halyard-lod-capture-viewport-stop-20261105) | PARKED: source passes,but captured strip/panel dimensions crop the staged review layout | Explicitly reprioritize exact harness viewport/content scaling;unchanged image/geometry/camera/package gates and prior cost remain |
 | [Rime solo access/outbound caller](docs/history/ROADMAP_DELIVERIES.md#rime-solo-outbound-alignment-stop-20261105) | PARKED: consumed look continues after alignment stage changes; four-tick tolerance fails | Measured input cause/correction and explicit reprioritization; no tuning or tolerance change inferred |

@@ -9,6 +9,8 @@ This backlog preserves remaining scope, not a ready queue or remaining-job count
 
 Utopia card7 physical Cinder destination candidate **127cc2b26** is PARKED/unmerged: real forward terminal visit and absent-custody E refusal pass, but reverse terminal stair fails the original per-tick grounded condition. Sole renewed production correction1/1 used; fullreturn/source8/PCK3/release remain unproven. Source/raw are verified archived and owned cleanup recorded; no runtime merge/checkpoint/delivery credit. Main stays15craft/15homes, checkpointec8cfda. See [working roadmap](../ROADMAP.md#current-work-and-next-selection).
 
+Cinder Light role-choice candidate **1ef02d4** is PARKED/unmerged after the owner-renewed title-packing attempt: exacttitle369px exceeds365–366px and approachbody73px exceeds63px in all six size/scale cells. Sole renewed correction1/1 used; no source/runtime subset, screenshot or checkpoint accepted. [Current stop and retained source](../ROADMAP.md#cinder-light-choice-current).
+
 **Owner allowance reset, 2026-11-17 18:58:40 UTC:** all unfinished tasks receive a renewed
 correction allowance of **0 used** against their last positive approved limit,
 or **one** if none was recorded. Completed tasks are excluded. The reset applies

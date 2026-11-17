@@ -35461,6 +35461,11 @@ ends with this contradiction and exact absent artifacts;no automatic successor.
 <a id="cinder-light-choice-card-fit-stop-20261105"></a>
 ## Cinder Light role-choice card — parked at full-text fit, 2026-11-05
 
+Later owner-renewed attempt2026-11-17 also remains PARKED/unmerged: title-packing
+candidate1ef02d4 measures369px text inside365–366px and approachbody73px/63px.
+No runtime/build is accepted; see [current stop and archive](../../ROADMAP.md#cinder-light-choice-current).
+The original dated record below remains historical.
+
 **PARKED / NOT_ACCEPTED.** No runtime merge,screenshot,export or new playable
 checkpoint. Latest accepted playable remains5bc9a17. Selected result was one
 production Cinder registry/choice member with actual HUD fit and paired build
