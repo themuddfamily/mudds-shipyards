@@ -7,7 +7,7 @@ The [working roadmap](../ROADMAP.md#current-work-and-next-selection) selects exe
 [delivery history](history/ROADMAP_DELIVERIES.md) records accepted and failed attempts.
 This backlog preserves remaining scope, not a ready queue or remaining-job count.
 
-**Owner allowance reset, 2026-11-16:** all unfinished tasks receive a renewed
+**Owner allowance reset, 2026-11-17 05:12:56 UTC:** all unfinished tasks receive a renewed
 correction allowance of **0 used** against their last positive approved limit,
 or **one** if none was recorded. Completed tasks are excluded. The reset applies
 once per task and supersedes older exhausted-allowance permission requirements
@@ -249,7 +249,7 @@ next stop. Renamed or split cards retain cumulative cost; review neither
 replenishes the allowance nor authorizes automatic retry.
 
 The selected card fixes its total correction allowance (default one) and absolute
-deadline including closure before editing. Apply the 2026-11-16 owner reset above
+deadline including closure before editing. Apply the 2026-11-17 owner reset above
 to unfinished tasks instead of reusing their exhausted historical counts or
 expired windows. Once renewed, neither allowance nor deadline replenishes when
 a new cause or branch is found. Validate the final allowed correction; any

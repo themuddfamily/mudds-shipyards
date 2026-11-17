@@ -58,18 +58,26 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 <a id="owner-allowance-reset"></a>
 
-### Owner allowance reset — 2026-11-16
+### Owner allowance reset — 2026-11-17
 
-**Latest owner renewal: 2026-11-16 21:02:44 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-17 05:12:56 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved limit,
 or **one** if none was recorded. This includes tasks that consumed renewed
-allowances earlier today. Apply this renewal once per unfinished task, including
+allowances under earlier renewals. Apply this renewal once per unfinished task, including
 parked, failed, blocked and gated work; completed tasks are excluded. Earlier
 used counts below are historical and do not reduce this fresh allowance.
 On resumption, record the renewed count and a fresh bounded all-in window;
 retain previous elapsed cost, failures and all original acceptance gates.
 
+The active Salyut card2 now has **0/1 substantive corrections used** under this
+renewal. Its existing **05:55:44 UTC** all-in deadline remains unchanged. For
+parked work, freeze a fresh bounded window when it is selected; this reset does
+not start every task or restart any test.
+
 Earlier reset history:
+
+The previous renewal was **2026-11-16 21:02:44 UTC**; its consumed counts remain
+historical.
 
 The owner reset correction allowances for **all unfinished tasks**. Each task
 then received **0 used** against its last positive approved limit, or **one** if no
@@ -2597,7 +2605,7 @@ Estimate implementation, checks, required checkpoint, integration and cleanup
 larger production capabilities before starting. Full journeys and soaks retain
 their original durations; do not shorten them to fit an implementation card.
 Default correction allowance is one; freeze it and the absolute deadline first.
-For unfinished tasks covered by the 2026-11-16 owner reset, use the renewed
+For unfinished tasks covered by the 2026-11-17 owner reset, use the renewed
 allowance above rather than carrying forward an exhausted historical count.
 
 Stop dependent checks at the first unexpected failure and retain its actual
