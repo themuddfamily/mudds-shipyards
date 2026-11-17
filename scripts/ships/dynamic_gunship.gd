@@ -2,6 +2,7 @@ extends HeroShip
 
 ## Original modern Dynamic: supported physical port access and one pilot.
 ## Main composes its single helm; full combat qualification remains separate.
+## Component positions below follow this shell; health/stages/repair stay shared.
 ## Metres, +Y up, -Z forward; every solid section owns matching mesh vertices.
 const PILOT_ORIGIN := Vector3(0, 0.50, -0.8)
 const FUTURE_ENTRY := Vector3(-0.9, 0.55, 0.4)
@@ -10,6 +11,25 @@ const ROOF_OPEN_ANGLE := asin(1.9 / sqrt(4.24 * 4.24 + 0.2 * 0.2)) - atan2(0.2, 
 var _original_shell: Node3D
 var _access_leaves: Array[Dictionary] = []
 var _access_fraction := 0.0
+
+
+## One existing five-section ledger, placed on real candidate solids rather
+## than the fighter template's empty-space anchors. A single logical engine
+## section is anchored at the starboard aft engine; both engines retain the
+## existing common mobility channel. No new forward-hull mobility binding.
+class DynamicComponentDamage:
+	extends ShipComponentDamage
+
+	func _derive_layout(local_bounds: AABB) -> Dictionary:
+		var layout := super._derive_layout(local_bounds)
+		if layout.is_empty():
+			return layout
+		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0.85,1.2,-4.3)
+		layout[COMPONENT_PORT_WING].local_position = Vector3(-3.6,1.2,2.8)
+		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(3.6,1.2,2.8)
+		layout[COMPONENT_CORE_SYSTEMS].local_position = Vector3(0,3,2.06)
+		layout[COMPONENT_ENGINE_BAY].local_position = Vector3(3.15,2.15,4.9)
+		return layout
 
 
 func can_board_from_landed_approach(actor: PlayerController) -> bool:
@@ -81,6 +101,11 @@ func _build_ship() -> void:
 	if _built:
 		return
 	_built = true
+	var damage := DynamicComponentDamage.new()
+	damage.name = "ShipComponentDamage"
+	add_child(damage)
+	install_shared_damage_presentation(Vector3(-3.6,1.2,2.8),
+		Vector3(3.15,2.15,4.9),Vector3(0,3,2.06),8)
 	collision_layer = PhysicsLayers.SHIP_BODY_LAYER
 	collision_mask = PhysicsLayers.SHIP_BODY_MASK
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
