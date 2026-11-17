@@ -165,8 +165,21 @@ Downloads. All15Maincraft/homes remain. NativeWindows/GPU/device/audio/human/UI/
 fullcraft/network/travelling occupants remain NOT_RUN/open; full Main rendered
 shader coverage remains open. CI remains disabled.
 All36parents/10phasegates remain open. Previous failures and cumulative cost are
-retained; owner renewal supplied one substantive correction, now1/1 used. Exact
-verified archive and all-in closure accounting follow below.
+retained; owner renewal supplied one substantive correction, now1/1 used.
+
+Closure: source/runtime/test changes are contained in pushed Main **13516a0e60fcf1c80f4f4bf5bccb4a1878d0595b**.
+Verified source bundle and all raw results/caller controls are retained in
+`/srv/mudds-work/vortex-access-20261117/records.tar.gz`:
+**37127429bytes / 488 independently reread/hash-verified members**,
+SHA256 **9eafdc0771c549d31bd4d3e5d0b9bfdcbd482a5acd9d1e0bfc2ff2fa7970aebc**.
+Owned source branch/worktree/processes and loose task files are removed; the
+folder contains only this archive and `closeout.json`. Fresh remote tips and
+registered ownership were checked before exact-tip deletion. Main is the only
+worktree; the unaccepted Paradox gunner local/remote branch
+`work/paradox-gunner-1116` atc743f585d0a70beb0e6100b34a47147d16280e08 is explicitly
+retained. Final push/time/cleanup/artifact proof is recorded in `closeout.json`,
+including the original13:47:48→15:17:48UTC window and prior49.296159minutes;
+no historical cost or failed case was reset away.
 
 No next task is selected. Remaining Vortex work begins with its actual reachable
 home berth; Salyut berth/Main and other named incomplete runtime cards remain open.
