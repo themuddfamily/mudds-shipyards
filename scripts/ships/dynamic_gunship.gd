@@ -199,10 +199,15 @@ func _access_leaf_points(leaf: Dictionary, fraction: float) -> PackedVector3Arra
 		for point in leaf.open:
 			points.append(point + Vector3(-0.15 * (1.0 - extend), 0, 0))
 	elif leaf.mesh.name == &"PortSealedAccess":
-		var hinge := Vector3(-1.6,3.4,0)
-		var rotation := Basis(Vector3.FORWARD, PI * 0.5 * fraction)
+		# The side spans the aft shoulder's z range. Raise its lower edge
+		# above that armor before hinging outward; the complete hinge arc
+		# stays above y=4.1-sqrt(2.55^2+.1^2)=1.548, clear of y<=1.5.
+		var rise := clampf(fraction / 0.6, 0.0, 1.0)
+		var swing := clampf((fraction - 0.6) / 0.4, 0.0, 1.0)
+		var hinge := Vector3(-1.6,3.4 + 0.7 * rise,0)
+		var rotation := Basis(Vector3.FORWARD, PI * 0.5 * swing)
 		for point in leaf.closed:
-			points.append(hinge + rotation * (point - hinge))
+			points.append(hinge + rotation * (point + Vector3.UP * 0.7 * rise - hinge))
 	elif leaf.mesh.name == &"CanopyRoof":
 		var hinge := Vector3(0,3.4,2.12)
 		var rotation := Basis(Vector3.RIGHT, ROOF_OPEN_ANGLE * fraction)
