@@ -127,7 +127,19 @@ candidate/necessary fleet integrations and existing journey fixture; HIGH review
 owns independent source/actual-result review; root owns engines/release/integration.
 No production edits until route/claim/exit/combat ownership and acceptance freeze.
 No nested agents, hosted CI or audible/active-desktop tests. No automatic renewal.
-Frozen scope and actual results will replace this definition status.
+Scope frozen08:40UTC: source/actualPCK Main300s, access180s/profile, berth240s,
+three cold fixed Main views90s total at960×540. Two complete flight/home/OFFLINE/
+physical-exit sorties, third helm claim/release, full station return/normal Quit.
+Existing helm anchor/stand/display gains pilot claim; no new chair solids, fixed
+anchor/eye changes or aisle reduction. Seated safe opening revalidates exact home/
+claim before landed release. Unique source1113 uses unchanged650m/70/.62 pulse.
+Every unseated completed Player tick checks actual support/capsule/head/continuity;
+no pose/mask/gravity/clock forcing. All thirteen old craft/source/settings/home
+leases/tokens/audits stay exact. Exterior/foreign/duplicate/stale/airborne misuse
+refuses. Original14focused source cases, full Utopia/Titan/Dynamic Main source,
+actualPCK Utopia/Titan Main plus Utopia foundation/access2/berth, complete paired
+package maps/delta/audit9/eight artifacts and independent review remain required.
+Fitted pilot-chair geometry and full-craft acceptance remain open.
 
 ### Utopia physical home berth — card3 DONE
 
