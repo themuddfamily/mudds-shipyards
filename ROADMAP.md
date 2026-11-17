@@ -82,6 +82,56 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Dynamic continuous physical port access — card2
+
+Contract: adopted [Dynamic card2](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md),
+foundation04a0de1 accepted. Real Player walks port ramp/recess, claims one helm,
+seals, starts for the unchanged2.1seconds, returns neutral OFFLINE, releases
+inside, walks out, seals and repeats. Standalone only; Main stays12craft/12berths.
+Baselinebb6dabf33; branchwork/dynamic-access-1117 and
+`/srv/mudds-work/dynamic-access-20261117/worktree`. One HIGH implementer owns
+only Dynamic script and one focused journey fixture/UID; HIGH independent review.
+Root owns existing foundation's exact conditional boarding assertion, all engine
+checks, release, integration and cleanup. No shared HeroShip/Player edits.
+
+Definition frozen before production changes after analytic independent GO:
+closed9×10×3.6m; deployedx[-5.2,4.5],z±5,y[0,5.3]. Exact2m-wide rampx-5.2..-1.5
+rises0..55cm; recessx±1.5,z±2/floor.55, aperture2×2.3m, beside-chair≥1.2m.
+CentralFloor port edge trims to-1.5; port sill drops.5m in first60% motion.
+Port glass rotates90degrees clockwise aboutZ at(-1.6,3.4,0). Roofx±1.5 hinges
+about aftedge(0,3.4,2.12), with front/top bound
+3.4+4.24sin(angle)+.2cos(angle)≤5.3. Two equal1.85m ramp leaves meet at-3.35;
+outer stows offset(+.7,+.5), extends first60%, lowers80..100%; inner stows-.15m
+and extends60..80%. Actual matching mesh ARRAY_VERTEX/convex shapes, outward
+normals and no positive-volume overlap throughout. Closed/deployed extrema,
+all16 approved fields, exact pilot(0,.50,-.8)/eye(0,2.26,-1.05)/stand(-.9,.55,.4)
+and identity receiver retained. Hatch(-4.2,1.6,-2.4) on visible bracket
+x[-4.3,-1.6],z[-2.5,-2.3],y[1.5,1.7]; safe operator(-5.9,0,-2.4).
+
+| Case | Initial state and action | Expected | Actual |
+| --- | --- | --- | --- |
+| Physical identity | Real Player initially(-7,0,0), closed crossing attempt and walk back; operator→open Interact→(-5.9,0,0)→fixed stand; normal claim/seal/start/OFFLINE/release; reverse route/seal, twice | Exclusive existing reservation/seating APIs, adjacent completed walking-tick support/capsule/head audit, continuity<.2m, restored masks/gravity; no pose/clock bypass | NOT_RUN |
+| Physical transformed | Same complete route/cases with fixture35degree yaw and origin(23,7,-19) | Same supported two-cycle result | NOT_RUN |
+| Refusals/motion | Foreign/duplicate/stale claims, closed crossing, open/moving launch, active/unsupported opening and final real-command airborne OFFLINE exit; actual intermediate geometry/collision | Atomic refusal, no free cabin; all original bounds/clearance checks | NOT_RUN |
+| Foundation regression | Existing full Dynamic/Utopia/Salyut foundation fixtures90s each, definitions120, boarding120 | Same17 profiles/16fields/real controllers/weapon state/full geometry and old policies; only Dynamic now has boarding area | NOT_RUN |
+| Ordinary integration | Complete unchanged Titan Main source300s and actual Windows-PCK300s ALONE, normal HUD Quit | Actual primary clean_shutdown/clean/session_ended; no other engines concurrent | NOT_RUN |
+| Package/captures | Actual Windows-PCK Dynamic foundation90s/both full access180s; paired exports/strictstartup3, complete payload delta/maps/audit9/eight artifacts | Source isolation, same assertions/caps; exports menu-ready; no unexpected payload change | NOT_RUN |
+
+Fixed views: closedcamera(10,7,12)look(0,1,0), openport(-10,6,-1)look(-.5,1,0),
+bothFOV52; actual cockpit-eye transform/FOV/near/far. All3 at actual960×540,
+eight frames each, cold private Xvfb/x11/GLES/Dummy90s total. No capture
+resizing/quality/camera workaround. Every Godot Dummy/headless or isolated;
+CI disabled, native/hardware/human/fullcraft gates remain NOT_RUN.
+
+Budget02:25:47→03:40:47UTC2026-11-17,75minutes ALL-IN, including definition,
+checks/build/review/merge/push/archive/cleanup. Definition deadline02:35:47.
+Substantive correction0/1; first unexpected failure retains operands and stops
+dependent checks. Routine caller/assertion/compiler repairs retain same clock
+and all full gates. Unresolved production failure/exhaustion/deadline parks whole
+card; no silent successor/reset. Proof/raw/task-start in
+`/srv/mudds-work/dynamic-access-20261117/`. Close with actual source/package
+commits, measured cumulative cost and exact-tip cleanup.
+
 ### Parked: Katana own reachable home berth — card3
 
 **2026-11-17 deadline stop; not integrated or published.** The fixed
