@@ -1066,6 +1066,8 @@ func _run_components() -> void:
 		craft.set_piloted(false)
 		craft.queue_free()
 		await _frames(2)
+	await _component_paired_engines()
+	if _failed: return
 	print("DYNAMIC_COMPONENTS_TEST_OK: checks=",_checks)
 	quit(0)
 
@@ -1157,3 +1159,53 @@ func _main_component_damage() -> bool:
 		and float(_main_ship.get_telemetry().hull) == _component_service_hull,
 		"normal refused airborne access preserves real damaged ledger and hull"): return false
 	return true
+
+
+## Real contacts on both pods, including their front, exhaust, outer/inner side
+## and top. Each fresh hull takes one real loss, so attribution cannot hide in
+## an already-impaired section. The transformed fixture checks boundary residue
+## without expanding any collider or accepting an air volume as engine armor.
+func _component_paired_engines() -> void:
+	var starts := [Vector3(3.15,2.15,1.8),Vector3(3.15,2.15,7),
+		Vector3(6,2.15,3.5),Vector3(1.8,2.15,3.5),Vector3(3.15,4,3.5)]
+	var ends := [Vector3(3.15,2.15,2.5),Vector3(3.15,2.15,4.8),
+		Vector3(3.9,2.15,3.5),Vector3(2.4,2.15,3.5),Vector3(3.15,2.5,3.5)]
+	var crafts: Array[HeroShip] = []
+	for side in [-1.0,1.0]:
+		for face in starts.size():
+			var craft := DYNAMIC.instantiate() as HeroShip
+			craft.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(35)),Vector3(3000+crafts.size()*80,100,200))
+			root.add_child(craft)
+			crafts.append(craft)
+	await _frames(2)
+	var index := 0
+	for side in [-1.0,1.0]:
+		for face in starts.size():
+			var craft := crafts[index]
+			var start: Vector3 = starts[face]
+			var end: Vector3 = ends[face]
+			start.x *= side
+			end.x *= side
+			var ray := PhysicsRayQueryParameters3D.create(craft.to_global(start),craft.to_global(end),PhysicsLayers.SHIP)
+			var hit := craft.get_world_3d().direct_space_state.intersect_ray(ray)
+			var shape_name := ""
+			if not hit.is_empty() and hit.collider == craft:
+				shape_name = str(craft.shape_owner_get_owner(craft.shape_find_owner(int(hit.shape))).name)
+			var expected := ("Port" if side < 0 else "Starboard")+("ExhaustFaceCollision" if face == 1 else "EngineBlockCollision")
+			if not _check(hit.get("collider") == craft and shape_name == expected,
+				"paired-engine real transformed face "+str(face)+" strikes "+expected+" actual="+shape_name): return
+			craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
+			var model := craft.get_component_damage()
+			if not _check(model.get_component_state(&"engine_bay") == ShipComponentDamage.ComponentState.IMPAIRED
+				and model.get_impaired_component_count() == 1 and model.get_failed_component_count() == 0
+				and is_equal_approx(float(craft.get_telemetry().hull),craft.maximum_hull*0.9),
+				"actual "+expected+" face "+str(face)+" damages only existing shared engine region once"): return
+			# Supplemental collision path consumes the same real contact and obeys
+			# its existing functional candidate whitelist. It does not apply hull.
+			var collision := model.record_collision_damage(craft.maximum_hull*0.01,craft.to_local(hit.position))
+			var sections := collision.get("components",{}) as Dictionary
+			if not _check(bool(collision.get("accepted",false)) and sections.size() == 1 and sections.has(&"engine_bay"),
+				"actual engine face also selects engine through unchanged collision candidates"): return
+			craft.queue_free()
+			index += 1
+	await _frames(2)

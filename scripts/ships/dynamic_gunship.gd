@@ -24,6 +24,22 @@ class DynamicComponentDamage:
 		var layout := super._derive_layout(local_bounds)
 		if layout.is_empty():
 			return layout
+
+	## Both physical engine pods feed the one existing engine channel. Keep the
+	## inherited nearest-region rule everywhere else, including its candidate
+	## filter for collision-only contacts. Surface equality admits only normal
+	## floating-point transform residue at an authored boundary.
+	func _nearest_component(local_hit_position: Vector3, candidates: Array[StringName]) -> StringName:
+		if COMPONENT_ENGINE_BAY in candidates and local_hit_position.is_finite() \
+				and _within_engine_axis(absf(local_hit_position.x),2.2,4.1) \
+				and _within_engine_axis(local_hit_position.y,1.5,2.8) \
+				and _within_engine_axis(local_hit_position.z,2.3,5.0):
+			return COMPONENT_ENGINE_BAY
+		return super._nearest_component(local_hit_position,candidates)
+
+	func _within_engine_axis(value: float, minimum: float, maximum: float) -> bool:
+		return (value >= minimum or is_equal_approx(value,minimum)) \
+			and (value <= maximum or is_equal_approx(value,maximum))
 		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0.85,1.2,-4.3)
 		layout[COMPONENT_PORT_WING].local_position = Vector3(-3.6,1.2,2.8)
 		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(3.6,1.2,2.8)
