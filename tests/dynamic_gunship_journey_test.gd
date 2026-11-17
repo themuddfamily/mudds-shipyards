@@ -1174,7 +1174,7 @@ func _component_paired_engines() -> void:
 	for side in [-1.0,1.0]:
 		for face in starts.size():
 			var craft := DYNAMIC.instantiate() as HeroShip
-			craft.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(35)),Vector3(3000+crafts.size()*80,100,200))
+			craft.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(35)),Vector3(23+crafts.size()*20,7,-19))
 			root.add_child(craft)
 			crafts.append(craft)
 	await _frames(2)
