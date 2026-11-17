@@ -582,7 +582,20 @@ retains only archive+closeout.json. Only retained branch exception is unaccepted
 Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08 (no worktree).
 No next task branch has been opened.
 
-### Parked: Utopia physical Cinder supply destination — card7
+### Utopia physical Cinder supply destination — card7 RESUMED, unmerged
+
+Resumed under owner18:58:40UTC renewal**0/1 used**. Fresh all-in window
+**19:49:18→21:19:18UTC2026-11-17 (90minutes)** includes restoration, causal
+stair-contact proof, complete original route/source8/PCK3 and required release,
+independent review, integration/push/archive/owned cleanup. Definition ends
+20:04:18UTC. The exact unchanged full capsule must demonstrate actual walkable
+support at the recorded third stair before any support-oracle correction.
+No source/runtime accepted yet; latest playable checkpoint staysec8cfda.
+Frozen original cases/caps and owner mapping are in
+`/srv/mudds-work/utopia-supply-renewal-20261117/frozen-card.md`.
+
+Previous parked attempt (historical):
+
 
 Baseline **d74eb350aa6b88f3a398773d87dac271254e2fac**, branch
 `work/utopia-supply-access-1117`, worktree
