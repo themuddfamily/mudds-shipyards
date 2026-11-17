@@ -2,6 +2,16 @@
 
 Status: **Owner adopted this complete prepared proposal as a labelled modern design baseline on 2026-11-05** (user: “Yes adopt pls”). Implementation is now authorized under the existing bounded build cards; this is design acceptance only. The full craft remains unfinished and unqualified; its standalone foundation is delivered below.
 
+**Current access delivery — 2026-11-17:** card2 DONE on sourcef3cb99a1ff87adb6a29af053fa5d07faf32c93c9,
+paired checkpointf3cb99a, mergedvia1e227e89bdbef29e24423f644fed969fce7f7cae. Both complete actual Player identity/
+transformed physical access/pilot claim-release-reuse profiles pass in source and
+actual Windows PCK, with unchanged geometry/tuning/anchors and full negative cases.
+Source/PCK full Titan, fixed views, strictstartup3/maps/audit9/eightartifacts pass
+independent review. One measured sidepanel lift-before-hinge repair1/1; original
+failure retained. Not registered in Main, which remains12/17 with12berths. Card3
+own berth and card4 Main journey remain open, along with full functions/lifecycle/
+network/craft qualification. [Delivery and cleanup](../../ROADMAP.md#dynamic-access-delivered).
+
 **Current delivery — 2026-11-16:** standalone hull/pilot foundation card1 is accepted on source04a0de13cb607de025d2830ebfe23923d5c69e0a, checkpoint04a0de1. All adopted values and original full source/PCK/controller/geometry/presentation/release checks pass, including normal clean Predator Main source/PCK. This is modern standalone implementation only: not Main-registered; Main stays11/17. Physical access/berth/Main and role/function/lifecycle/network/full-craft gates remain open. Previous failure/cost/source are retained in the original archive and current `/srv/mudds-work/fleet-foundations-renewal-20261116/closeout.json`. The dated earlier stop below describes its historical status.
 
 First standalone foundation batch **a0446136e is PARKED, unmerged and archived**. Dynamic/Utopia source fixtures pass but the combined release card is incomplete; Salyut has invisible solid engine panels with active colliders OFFLINE after its1/1 bank correction was consumed. No new Main craft/checkpoint is credited. Original12:10→12:55UTC45minute budget, all cases/cumulative cost, source and proposed one-line repair are retained in `/srv/mudds-work/fleet-foundations-20261106/records.tar.gz`. Additional work requires explicit owner reprioritization and renewed bounded allowance. Full craft qualification remains open.
@@ -88,7 +98,7 @@ Each estimate is a **45–75 minute work box**, not measured delivery time. Spli
 | Card / budget | Owner and exact bounded files | Visible outcome, smallest focused proof and stop |
 | --- | --- | --- |
 | 1 / 45m | Candidate implementer: three new candidate files | Honest candidate identity, original hull/collision and single-helm HeroShip start/stop/flight load. Check finite definition and actual controller in fixture; stop at standalone flight. |
-| 2 / 60m | Candidate: same files; root narrow `hero_ship.gd` access hook if required | Real Player continuously walks ramp/recess, claims/releases helm and exits; sealed state refuses unsafe access. Verify capsule, camera, support and state collision; stop at physical access. |
+| 2 — DONEf3cb99a (standalone only) | Candidate: same files; root narrow `hero_ship.gd` access hook if required | Real Player continuously walks ramp/recess, claims/releases helm and exits; sealed state refuses unsafe access. Verify capsule, camera, support and state collision; stop at physical access. |
 | 3 / 60m | Root station: `shipyard_world.gd`, `fleet_dock_comb.gd`, `ship_berth.gd` | Reachable own signed deck/spur/lease fits entire deployed envelope and launch/approach sweep without blocking neighbours. Wrong tag/occupied lease refuses; stop at inspected usable home. |
 | 4 / 60m | Root fleet: `main.tscn`, `game_flow.gd`, `fleet_role_registry.gd`, `fleet_registry_console.gd`; candidate hooks | Production walk/board/start/launch/own strict home/neutral OFFLINE/physical exit/reboard works, candidate identity correct and neighbours remain usable. Stop at first meaningful playable pilot loop. |
 | 5 / 45–60m | Root release: existing `tools/release/` workflow and build notes | Fresh clean committed source, relevant focused checks, safe Windows export and silent isolated actual-package startup/archive inspection. EXE/ZIP/notes in repository `builds/windows/`, paired Linux artifact via existing workflow. Require `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`. Notes state pilot-loop limits/pending combat/recovery; stop at inspected early checkpoint. |

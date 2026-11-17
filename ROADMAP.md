@@ -3,8 +3,8 @@
 **Playable alpha; the full game is unfinished.** Twelve of the promised17 craft
 now exist in Main, including Titan, Predator and Paradox pilot checkpoints. This count
 is implementation, not full craft qualification. The five craft still awaiting
-Main integration have accepted standalone hull/pilot foundations; Katana also
-has validated standalone physical access and pilot claims. Their berths, Main
+Main integration have accepted standalone hull/pilot foundations; Katana and Dynamic also
+have validated standalone physical access and pilot claims. Their berths, Main
 integration and the remaining access work stay open. All 36 original parent
 outcomes and ten
 phase exit gates remain open. There is no evidence-backed completion percentage
@@ -16,9 +16,12 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **5ae5879** — [Windows ZIP](builds/windows/MuddsShipyards-5ae5879-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-5ae5879-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-5ae5879-linux-x86_64.tar.gz).
+Latest playable checkpoint: **f3cb99a** — [Windows ZIP](builds/windows/MuddsShipyards-f3cb99a-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-f3cb99a-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-f3cb99a-linux-x86_64.tar.gz).
+Dynamic now has validated standalone physical port access and exclusive pilot
+claim/release/reuse ([preview](builds/windows/MuddsShipyards-f3cb99a-dynamic-access-preview.png));
+its berth and Main integration remain open. Katana access remains included.
 Katana now has validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
 it remains outside Main pending its berth and production integration.
@@ -29,7 +32,7 @@ Paradox now has its ordinary Main pilot journey and occupied home berth ([produc
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the five craft still outside Main:
-Vortex, Katana, Dynamic, Utopia and Salyut. Katana standalone access is now
+Vortex, Katana, Dynamic, Utopia and Salyut. Katana and Dynamic standalone access are now
 qualified; remaining access work and all five berth/Main cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
@@ -82,7 +85,34 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: Dynamic continuous physical port access — card2
+<a id="dynamic-access-delivered"></a>
+
+### Dynamic physical port access and pilot claim — card2 DONE, standalone
+
+Accepted source**f3cb99a1ff87adb6a29af053fa5d07faf32c93c9**, mergedvia**1e227e89bdbef29e24423f644fed969fce7f7cae**,
+checkpoint**f3cb99a**; all eight artifacts published with verified hashes.
+The same actual Player completes both full identity and elevated35degree profiles:
+normal Interact/open, supported ramp/recess walk, exclusive pilot claim/seal,
+real2.1second startup/neutral OFFLINE, supported release/walkout/seal, twice,
+then real-command airborne OFFLINE refusal. All original negative cases and
+adjacent completed-Player support/capsule/head/continuity audits pass.
+
+Seven focused source cases pass; complete ordinary Titan source164.119s and
+actual Windows-PCK157.152s finish with actual clean_shutdown/clean/session_ended.
+Actual PCK Dynamic foundation20.512s, both access50.379/50.314s pass with raw-source
+isolation. Both full source access51.371/51.309s retain the same committed fixture.
+Paired exports/strictstartup3, cold fixed3views8.904s at actual960×540,
+complete equal1599-entrymaps, one intended Dynamic.gdc change plus79 strict
+node_ids-only scene differences, audit9 and8artifacts pass independent review.
+One production correction1/1 raises sidepanel.7m before hinging above the shoulder;
+original b494collision and routine root inventory-shape failure remain preserved.
+All16fields and closed/deployed bounds/anchors stay fixed. Main remains12/17 and
+12physical berths; Dynamic berth/Main/combat/service/recovery/network/fullcraft
+remain open. Native/hardware/human gates remain NOT_RUN; CI remains disabled.
+
+Original frozen assignment and failure history follow; no next task selected by
+this closure. Archive and actual all-in cleanup cost are recorded below.
+
 
 Contract: adopted [Dynamic card2](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md),
 foundation04a0de1 accepted. Real Player walks port ramp/recess, claims one helm,
@@ -120,12 +150,12 @@ One production correction1/1; complete fresh source/PCK matrix still required.
 
 | Case | Initial state and action | Expected | Actual |
 | --- | --- | --- | --- |
-| Physical identity | Real Player initially(-7,0,0), closed crossing attempt and walk back; operator→open Interact→(-5.9,0,0)→fixed stand; normal claim/seal/start/OFFLINE/release; reverse route/seal, twice | Exclusive existing reservation/seating APIs, adjacent completed walking-tick support/capsule/head audit, continuity<.2m, restored masks/gravity; no pose/clock bypass | NOT_RUN |
-| Physical transformed | Same complete route/cases with fixture35degree yaw and origin(23,7,-19) | Same supported two-cycle result | NOT_RUN |
-| Refusals/motion | Foreign/duplicate/stale claims, closed crossing, open/moving launch, active/unsupported opening and final real-command airborne OFFLINE exit; actual intermediate geometry/collision | Atomic refusal, no free cabin; all original bounds/clearance checks | NOT_RUN |
-| Foundation regression | Existing full Dynamic/Utopia/Salyut foundation fixtures90s each, definitions120, boarding120 | Same17 profiles/16fields/real controllers/weapon state/full geometry and old policies; only Dynamic now has boarding area | NOT_RUN |
-| Ordinary integration | Complete unchanged Titan Main source300s and actual Windows-PCK300s ALONE, normal HUD Quit | Actual primary clean_shutdown/clean/session_ended; no other engines concurrent | NOT_RUN |
-| Package/captures | Actual Windows-PCK Dynamic foundation90s/both full access180s; paired exports/strictstartup3, complete payload delta/maps/audit9/eight artifacts | Source isolation, same assertions/caps; exports menu-ready; no unexpected payload change | NOT_RUN |
+| Physical identity | Real Player initially(-7,0,0), closed crossing attempt and walk back; operator→open Interact→(-5.9,0,0)→fixed stand; normal claim/seal/start/OFFLINE/release; reverse route/seal, twice | Exclusive existing reservation/seating APIs, adjacent completed walking-tick support/capsule/head audit, continuity<.2m, restored masks/gravity; no pose/clock bypass | PASS51.371s; exactsourcef3cb99a, raw0/marker1/guards4 |
+| Physical transformed | Same complete route/cases with fixture35degree yaw and origin(23,7,-19) | Same supported two-cycle result | PASS51.309s; samecompletefixture/guards |
+| Refusals/motion | Foreign/duplicate/stale claims, closed crossing, open/moving launch, active/unsupported opening and final real-command airborne OFFLINE exit; actual intermediate geometry/collision | Atomic refusal, no free cabin; all original bounds/clearance checks | PASS101fractions plusactualmotion/walkticks; allrefusals |
+| Foundation regression | Existing full Dynamic/Utopia/Salyut foundation fixtures90s each, definitions120, boarding120 | Same17 profiles/16fields/real controllers/weapon state/full geometry and old policies; only Dynamic now has boarding area | PASS21.689/24.573/22.745s; definitions2.519/boarding8.125 |
+| Ordinary integration | Complete unchanged Titan Main source300s and actual Windows-PCK300s ALONE, normal HUD Quit | Actual primary clean_shutdown/clean/session_ended; no other engines concurrent | PASS164.119/157.152s; actualbothprimarycleanterminal |
+| Package/captures | Actual Windows-PCK Dynamic foundation90s/both full access180s; paired exports/strictstartup3, complete payload delta/maps/audit9/eight artifacts | Source isolation, same assertions/caps; exports menu-ready; no unexpected payload change | PASS actualPCK20.512/50.379/50.314; startup3/maps/audit9/eightartifacts |
 
 Fixed views: closedcamera(10,7,12)look(0,1,0), openport(-10,6,-1)look(-.5,1,0),
 bothFOV52; actual cockpit-eye transform/FOV/near/far. All3 at actual960×540,
