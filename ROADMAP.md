@@ -4,7 +4,7 @@
 craft now exist in Main, including Titan, Predator, Paradox, Dynamic, Utopia and Katana
 pilot checkpoints. This is implementation, not full craft qualification.
 Vortex and Salyut still await their berths and Main integration. Both have
-accepted standalone foundations; Salyut has validated stern walking access.
+accepted standalone foundations and validated stern walking access.
 Katana now has its delivered home and Main pilot checkpoint. Remaining access
 work and two berth/Main integrations stay open. All36 original parent outcomes
 and ten phase exit gates remain open. There is no evidence-backed completion
@@ -16,9 +16,18 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **1a8c084** — [Windows ZIP](builds/windows/MuddsShipyards-1a8c084-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-1a8c084-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-1a8c084-linux-x86_64.tar.gz).
+Latest playable checkpoint: **1816be5** — [Windows ZIP](builds/windows/MuddsShipyards-1816be5-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-1816be5-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-1816be5-linux-x86_64.tar.gz).
+Vortex now has continuous standalone stern access: operate the side hatch control,
+walk the deployed ramp/vestibule/aisle to the helm approach, then walk fully back
+outside and seal/reopen for reuse ([preview](builds/windows/MuddsShipyards-1816be5-vortex-access-preview.png)).
+Both complete twice-repeated walking profiles pass in source and actual Windows
+PCK. A measured shared descending-floor recovery error is fixed: success now
+requires the actual full capsule to be clear before committing its bounded
+upward correction. Vortex stays outside Main; berth, ordinary pilot seating,
+production flight, passenger chairs and network qualification remain open.
+Main retains **15 usable pilot craft / 15 occupied physical homes**.
 Katana now joins Main as the fifteenth usable pilot craft at its own connected
 home ([preview](builds/windows/MuddsShipyards-1a8c084-katana-main-preview.png)). Walk
 the station and port ramp to the helm, start/fly/fire, return with Landing Assist,
@@ -51,7 +60,7 @@ Paradox now has its ordinary Main pilot journey and occupied home berth ([produc
 Dynamic, Utopia and Salyut now have accepted editable standalone hulls and pilot
 controllers ([preview](builds/windows/MuddsShipyards-04a0de1-foundations-preview.png)).
 Standalone foundations also exist for the two craft still outside Main:
-Vortex and Salyut. Katana, Salyut and Utopia standalone access is qualified;
+Vortex and Salyut. Vortex, Katana, Salyut and Utopia standalone access is qualified;
 remaining access work, two berth cards and two Main-integration cards stay open.
 
 The ordinary Aurora outbound release driver now completes fresh Boot, physical
@@ -86,10 +95,10 @@ used counts below are historical and do not reduce this fresh allowance.
 On resumption, record the renewed count and a fresh bounded all-in window;
 retain previous elapsed cost, failures and all original acceptance gates.
 
-The active Salyut card2 now has **0/1 substantive corrections used** under this
-renewal. Its existing **05:55:44 UTC** all-in deadline remains unchanged. For
-parked work, freeze a fresh bounded window when it is selected; this reset does
-not start every task or restart any test.
+At this renewal, the then-active Salyut card2 received **0/1 substantive
+corrections used** while retaining its existing **05:55:44 UTC** deadline. Its
+later accepted result is recorded below. For parked work, freeze a fresh bounded
+window when selected; this reset does not start every task or restart any test.
 
 Earlier reset history:
 
@@ -112,65 +121,55 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected: clear descending capsule support and Vortex access — WALK-FLEET/card2
+<a id="vortex-access-delivered"></a>
 
-Baseline **5ab9a8622**, branch `work/vortex-access-1117`, worktree
-`/srv/mudds-work/vortex-access-20261117/worktree`. Window **2026-11-17
-13:47:48→15:17:48UTC**,90minutes ALL-IN including restoration/mapping/diagnostics,
-implementation/source/PCK/exports/startup/views/audit/review/merge/push/archive/
-owned cleanup. Definition frozen14:00:35 before14:02:48. Owner05:12:56 reset
-supplied fresh **0/1** for the unfinished earlier Vortex attempt; now **1/1 used** by
-source **1816be59e164d5f3862bb3c812ba4f83b2e028e2**. Prior cumulative
-**49.296159minutes**, original envelope failure and every failed route stay
-historical. One HIGH implementer, HIGH independent reviewer, root engines/release/
-integration/docs; no nested agents or automatic successor. CI stays disabled.
+### Vortex physical stern access and descending capsule recovery — card2 DONE
 
-Actual restored49217b6 candidate + read-only diagnostics reproduce fullcapsule
-penetration atlocal(0,.518733,9.970517), SternRampFirstCollision depth.000387543m.
-Scene/server agree, interior remapidentity, tangentpoint awayfromleafedge; geometry
-or tolerance waiver is unsupported. Exact e4c41da trace frame686: prevelocity
-(0,0,5.8), previous/currentfloortrue, slide0, descent.0259765, helperentered then
-EARLY_ACCEPT becausecorrectionlength.00193043/depth.000387543 arebelow safe_margin
-.002, returning unchanged penetrating pose. All raw and temporarytrace source are
-retained. The current definition therefore extends the old candidate-only file
-ownership to the measured WALK-FLEET shared support primitive, before production
-repair; this is a causal runtime fix, not a rewritten clearance requirement.
+Accepted source **1816be59e164d5f3862bb3c812ba4f83b2e028e2**, merged via **757b8bb852d43529fad6c63f3f2914e17183e706**, checkpoint **1816be5**.
+Same actual Player completes the full supported apron→physical side control→
+stern ramp→vestibule→aisle→helm approach→full return→seal/reopen route twice,
+separately at identity and translated(30,.38,-20)/yaw35. Source 38.772/38.991s
+and actual Windows PCK 37.698/37.627s, each within original180s caps.
+Every completed walking tick retains actual full-capsule/head clearance, support,
+continuity and interior registration/retirement. Closed/unsupported/active-engine
+refusals remain; the fixture's engine-state checks use existing direct setup and
+do not establish an ordinary seated pilot journey. No new pilot claim/release,
+passenger, berth, Main or travelling-occupant qualification is claimed.
 
-Owned7paths: original Vortexscript/resource evidence wording/foundation/accessTest+
-UID, plus PlayerController and existingplayer_step_up_assist_test. One correction
-must require actual unchanged PlayerCollision.shape at recovered pose, margin0/
-actualcollisionmask/self exclusion (actualexceptionsifpresent), to be empty before
-success/commit. While overlap remains, apply the existing positive-up projected
-recovery even below safe_margin. Preserve4attempts/descent+margin/tangent/normal/
-headroom/no-progressfailure and existing wrapper/remote scope. No body/shape/skin/
-gravity/mask/reach/tolerance/geometry/envelope/cap change. Remove temporaryPlayer
-trace before production commit. Extend existing convex1:4 descent/fullcapsule case
-atidentity/translatedyaw35 without removing shallow/jump/headroom/remote cases.
+Measured original failure: descending helper early-accepted a correction length
+.00193043 and contact depth .000387543 below safe_margin .002 while the unchanged
+capsule still intersected SternRampFirstCollision. Scene/server geometry agreed;
+no envelope or clearance waiver was justified. Shared Player recovery now tests
+its unchanged full shape at the recovered transform with margin0/current mask/
+self and actual exception exclusion before success; if contact remains it uses
+the existing positive-up projected correction. Existing four attempts, maximum
+lift/descent, tangent, normal, headroom, wrapper and remote-support guards remain.
+No capsule shrink, tolerance inflation, gravity/mask/reach or route/cap change.
+Vortex closed/deployed/intermediate collision/render geometry remains inside the
+original envelope and deployedz≤12.0001; all16 approved tuning fields preserved.
 
-Full original Vortex route remains mandatory twice in identity and separately
-(30,.38,-20),yaw35: supported actual Player apron/sidecontrol/sternramp/vestibule/
-aisle/helm/fullreturn/seal/reopen/reuse; every capsule/head/support, registration/
-retirement and engine/sealed/unsupported refusal case retained. Existing toe,
-closed/deployed/intermediate vertices/collision/render agreement andz≤12.0001
-remain unchanged. Vortex stays outside Main; berth/chairs/travel/network later.
+Source9/PCK6 pass exact committed fixtures, all original cases/caps,
+exit0/one marker/raw0/source-cache-HEAD guards. Full existing Player step suite
+retains shallow/jump/headroom/thin-pad/remote/cache/wrong-frame cases and adds
+real convex1:4 full-capsule-clear descent in both frames. Complete source Titan,
+Katana and Utopia Main journeys and complete packed Titan/Katana Main journeys
+all persist actual clean_shutdown/clean/session_ended. Source fixture adapters
+add only source isolation and exact excluded literal data, without runtime edits.
 
-Frozen source9: repairedidentity180 firstalone, transformed180alone, complete
-existingPlayerStep300, foundation90/definitions120/movingInterior120 in isolated
-pairs, then complete TitanMain300/KatanaMain300/UtopiaMain300 aloneeach with
-actual persisted clean_shutdown/clean/session_ended. PCK6: identity180 firstalone,
-transformed180alone, foundation90/PlayerStep300 pair, fullTitan300/KatanaMain300
-alone; exact committed fixture + source isolation/excludedliteral data only.
-Original full caps/cases preserved; exit0/one marker/raw0/source-cache-HEAD guards.
+Clean paired exports, strictstartup3, exact Linux6members/types/modes/ELFidentity,
+complete equal Windows/Linux maps, actual accepted1a8c084 baseline delta and all9
+package predicates pass. Three original cold fixed960x640/FOV52/eight-frame views
+pass in 10.191s/90total, privateXvfb/x11/GLES/Dummy; root/reviewer inspect actual
+images. Independently reviewed eight artifacts are in repository builds, not
+Downloads. All15Maincraft/homes remain. NativeWindows/GPU/device/audio/human/UI/
+fullcraft/network/travelling occupants remain NOT_RUN/open; full Main rendered
+shader coverage remains open. CI remains disabled.
+All36parents/10phasegates remain open. Previous failures and cumulative cost are
+retained; owner renewal supplied one substantive correction, now1/1 used. Exact
+verified archive and all-in closure accounting follow below.
 
-Release: samecommitted cleanpairedexports/strictstartup3/Linuxexact6members/modes/
-ELFidentity/completeequalpackage maps/current1a8c084 baseline reviewed delta,
-audit9/eightartifacts/independentFINAL_GO/PACKAGE_GO. Original three cold fixed
-960x640/eightframe views/privateXvfb/x11/GLES/Dummy/90sTOTAL: closed/openaft
-(-19,12,25)→(0,2.4,0),52FOV; thirdactualCockpitCamera globaltransform atsame52FOV.
-Originalship/floor/environment retained; explicitviewport/camera ownership only,
-no view/quality/cap workaround. Stop first unexpectedfailure; measure before any
-remaining repair. NativeWindows/GPU/device/audio/human/UI/fullcraft/network/
-travelling occupants and all36parents/10phasegates remain open/NOT_RUN.
+No next task is selected. Remaining Vortex work begins with its actual reachable
+home berth; Salyut berth/Main and other named incomplete runtime cards remain open.
 
 <a id="katana-main-pilot-delivered"></a>
 
