@@ -86,21 +86,29 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-17
 
-**Latest owner renewal: 2026-11-17 05:12:56 UTC.** Every task still unfinished
-at this renewal receives **0 used** against its last positive approved limit,
-or **one** if none was recorded. This includes tasks that consumed renewed
-allowances under earlier renewals. Apply this renewal once per unfinished task, including
-parked, failed, blocked and gated work; completed tasks are excluded. Earlier
-used counts below are historical and do not reduce this fresh allowance.
-On resumption, record the renewed count and a fresh bounded all-in window;
-retain previous elapsed cost, failures and all original acceptance gates.
+**Latest owner renewal: 2026-11-17 16:53:33 UTC.** Every task still unfinished
+at this renewal receives **0 used** against its last positive approved correction
+limit, or **one** if none was recorded. This includes active, parked, failed,
+blocked and gated tasks, including tasks that consumed allowances since the
+previous renewal. Completed tasks are excluded. Apply this renewal once per
+unfinished task; retrying, branching or splitting work does not replenish it.
 
-At this renewal, the then-active Salyut card2 received **0/1 substantive
-corrections used** while retaining its existing **05:55:44 UTC** deadline. Its
-later accepted result is recorded below. For parked work, freeze a fresh bounded
-window when selected; this reset does not start every task or restart any test.
+On resumption, record this renewed count and a fresh bounded all-in window under
+the existing budget rules. Preserve previous failures, source archives, actual
+elapsed cost, historical allowance counts, original acceptance checks and
+per-test/journey caps. Actual causal reopening conditions, dependencies and
+external inputs remain binding. This reset starts no tests and marks no task
+passed or ready; no further approval is needed solely for an exhausted allowance
+or expired historical window.
 
 Earlier reset history:
+
+The previous renewal was **2026-11-17 05:12:56 UTC**. At that renewal,
+the then-active Salyut card2 received **0/1 substantive corrections used** while
+retaining its existing **05:55:44 UTC** deadline. Its later accepted result is
+recorded below; completed work is excluded from the latest reset. Parked tasks
+were eligible for a fresh bounded window when selected. Counts subsequently
+consumed under that renewal remain historical.
 
 The previous renewal was **2026-11-16 21:02:44 UTC**; its consumed counts remain
 historical.
