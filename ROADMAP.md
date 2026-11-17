@@ -119,7 +119,8 @@ Baseline **5ab9a8622**, branch `work/vortex-access-1117`, worktree
 13:47:48→15:17:48UTC**,90minutes ALL-IN including restoration/mapping/diagnostics,
 implementation/source/PCK/exports/startup/views/audit/review/merge/push/archive/
 owned cleanup. Definition frozen14:00:35 before14:02:48. Owner05:12:56 reset
-supplies fresh **0/1** for the unfinished earlier Vortex attempt; prior cumulative
+supplied fresh **0/1** for the unfinished earlier Vortex attempt; now **1/1 used** by
+source **1816be59e164d5f3862bb3c812ba4f83b2e028e2**. Prior cumulative
 **49.296159minutes**, original envelope failure and every failed route stay
 historical. One HIGH implementer, HIGH independent reviewer, root engines/release/
 integration/docs; no nested agents or automatic successor. CI stays disabled.
