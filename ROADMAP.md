@@ -108,6 +108,27 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Utopia ordinary Main pilot journey — card4
+
+Baseline **d20dfcd5cc953e8e5dc5d53a6ec922a3167f22fb**, branch
+`work/utopia-main-1117`, worktree `/srv/mudds-work/utopia-main-20261117/worktree`.
+Visible outcome: Utopia becomes the fourteenth usable Main pilot craft at its
+accepted own home berth. Real station walk/open/ramp/helm claim, sealed start,
+flight/strict home/neutral OFFLINE, supported physical exit/return, second sortie
+and fresh reboard; existing thirteen craft and homes remain intact. Cargo/supply,
+passenger chairs, travelling cabin and remote access remain later cards.
+
+Window **2026-11-17 08:34:00→09:49:00UTC**,75minutes ALL-IN including mapping,
+implementation, focused source/actual-PCK journeys, isolated views, clean exports,
+startup3/audit, independent review, merge/push/archive and exact owned cleanup.
+Definition freezes before08:49; **0/1** substantive corrections. Original journey/
+test caps stay fixed; retain failures and cumulative cost. HIGH implementer owns
+candidate/necessary fleet integrations and existing journey fixture; HIGH reviewer
+owns independent source/actual-result review; root owns engines/release/integration.
+No production edits until route/claim/exit/combat ownership and acceptance freeze.
+No nested agents, hosted CI or audible/active-desktop tests. No automatic renewal.
+Frozen scope and actual results will replace this definition status.
+
 ### Utopia physical home berth — card3 DONE
 
 Accepted source **b69e91fad8d1cd4fe486471787690be194995d45**, merged via
