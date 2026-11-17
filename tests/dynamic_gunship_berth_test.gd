@@ -1,7 +1,8 @@
 extends SceneTree
 
-## Full normal Main Player route; Dynamic is staged once only for physical
-## berth/clearance/lease probes. This does not register or spawn it in Main.
+## Full normal Main Player route to the actual occupied Dynamic home.
+## Live occupied lease refusals and independent identical-production-component
+## empty-ledger cycles preserve the current craft and its real home token.
 ## Preloads reference production only, so the same fixture uses the real PCK.
 const MAIN := preload("res://scenes/main.tscn")
 const DYNAMIC := preload("res://scenes/ships/dynamic_gunship.tscn")
@@ -89,7 +90,7 @@ func _run() -> void:
 	var matching := 0
 	for candidate in get_nodes_in_group(ShipBerth.GROUP):
 		if candidate.get_berth_id() == &"dynamic_home_berth": matching += 1
-	if not _check(matching == 1 and world.get_berth_ids().size() == 13 and _game.get_flyable_ships().size() == 12 and _game.get_node_or_null("DynamicGunship") == null and berth.get_occupant() == null and berth.get_reservation_owner() == null,"thirteen physical berths, twelve existing flyables, exactly one empty Dynamic berth and no Dynamic Main spawn"): return
+	if not _check(matching == 1 and world.get_berth_ids().size() == 13 and _game.get_flyable_ships().size() == 13 and _game.get_node_or_null("DynamicGunship") != null and berth.get_occupant() == _game.get_node("DynamicGunship") and berth.get_reservation_owner() == _game.get_node("DynamicGunship"),"thirteen physical berths and thirteen actual flyables; Dynamic owns its unique occupied home"): return
 	var dock := Transform3D(Basis.IDENTITY,Vector3(108,-0.02,-30))
 	if not _check(berth.get_dock_transform().is_equal_approx(dock) and berth.dock_transform == Transform3D.IDENTITY and berth.compatibility_tags == PackedStringArray(["dynamic_gunship"]) and berth.landing_volume_center == Vector3.ZERO and berth.landing_half_extents == Vector3(6.2,5.8,6) and berth.assist_capture_center == Vector3(0,8,-18) and berth.assist_capture_half_extents == Vector3(18,12,26) and berth.assist_capture_maximum_speed == 27 and berth.assist_maximum_tilt_degrees == 68 and berth.departure_lift_height == 3.5 and DEFINITION.landing_maximum_speed == 16.5,"exact adopted root/strict-center/fit/capture/speed/tilt/departure contract"): return
 	if not _test_module_geometry(module): return
@@ -106,14 +107,24 @@ func _run() -> void:
 		var owner := old.get_reservation_owner()
 		saved_berths[id] = {"owner":owner,"occupant":old.get_occupant(),"token":old.get_reservation_token(owner),"ship_id":old.get_reserved_ship_id(),"audit":old.audit()}
 	for craft: HeroShip in _game.get_flyable_ships():
-		saved_craft[craft] = craft.global_transform
+		if craft != _game.get_node("DynamicGunship"):
+			saved_craft[craft] = craft.global_transform
 	if not _check(saved_berths.size() == 12 and saved_craft.size() == 12,"all twelve original berth/craft states retained before independent candidate probes"): return
-	_ship = DYNAMIC.instantiate() as HeroShip
-	_ship.transform = dock # One initial standalone candidate placement only.
-	root.add_child(_ship)
-	await _frames(3)
-	if not _check((_ship.get_node("DockingReceiver") as Marker3D).transform == Transform3D.IDENTITY and not _game.get_flyable_ships().has(_ship),"actual candidate has identity receiver and remains outside Main fleet"): return
-	if not _test_leases(berth): return
+	_ship = _game.get_node("DynamicGunship") as HeroShip
+	if not _check((_ship.get_node("DockingReceiver") as Marker3D).transform == Transform3D.IDENTITY and _game.get_flyable_ships().has(_ship) and _ship.global_transform.is_equal_approx(dock),"actual registered Main Dynamic has identity receiver and exact own dock pose"): return
+	var occupied_before := berth.audit()
+	var live_token := berth.get_reservation_token(_ship)
+	if not _check(berth.try_reserve(_ship,DEFINITION) == live_token and berth.occupy(_ship,live_token) and not berth.can_accept(WRONG,_player) and berth.try_reserve(_player,WRONG).is_empty() and not berth.occupy(_player,live_token) and not berth.release(_player,live_token) and not berth.release(_ship,&"stale") and berth.try_reserve(_player,DEFINITION).is_empty() and berth.audit() == occupied_before,"actual occupied Main lease preserves owner/token through idempotent/wrong-tag/foreign/stale requests"): return
+	# Preserve every original empty/fresh/stale lifecycle case on the exact
+	# production component and fields, without cloning or moving a live hull.
+	var ledger := ShipBerth.new()
+	ledger.berth_id = &"dynamic_independent_lease_fixture"
+	for field in [&"compatibility_tags",&"dock_transform",&"landing_volume_center",&"landing_half_extents",&"assist_capture_center",&"assist_capture_half_extents",&"assist_capture_maximum_speed",&"assist_maximum_tilt_degrees",&"departure_lift_height"]:
+		ledger.set(field,berth.get(field))
+	root.add_child(ledger)
+	if not _test_leases(ledger): return
+	ledger.free()
+	if not _check(berth.audit() == occupied_before and berth.get_occupant() == _ship and berth.get_reservation_token(_ship) == live_token and _ship.global_transform.is_equal_approx(dock),"independent empty-ledger cases leave actual Main geometry and occupied home unchanged"): return
 	for deployed in [false,true]:
 		_ship.set_canopy_open(deployed,0)
 		await _frames(3)
@@ -164,11 +175,10 @@ func _run() -> void:
 		if not _check(world.get_berth_transform(id).is_equal_approx(OLD_TRANSFORMS[id]) and old.landing_volume_center.is_equal_approx(OLD_CENTERS[id]) and old.get_reservation_owner() == saved.owner and old.get_occupant() == saved.occupant and old.get_reservation_token(saved.owner) == saved.token and old.get_reserved_ship_id() == saved.ship_id and old.audit() == saved.audit,"all twelve old complete berth states preserved " + str(id)): return
 	for craft: HeroShip in saved_craft:
 		if not _check(craft.global_transform.is_equal_approx(saved_craft[craft]),"all twelve old craft poses preserved " + String(craft.name)): return
-	if not _check(berth.get_occupant() == null and berth.get_reservation_owner() == null and not _game.get_flyable_ships().has(_ship),"candidate probes leave own berth empty and no new Main fleet binding"): return
+	if not _check(berth.audit() == occupied_before and berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and berth.get_reservation_token(_ship) == live_token and _game.get_flyable_ships().has(_ship),"actual occupied Main home and current token remain unchanged after full probes and route"): return
 	print("DYNAMIC_BERTH_MODULE_BUDGET: ",module.get_performance_contract())
 	_release_inputs()
 	_observer.queue_free()
-	_ship.queue_free()
 	_game.queue_free()
 	await _frames(3)
 	print("DYNAMIC_GUNSHIP_BERTH_TEST_OK: checks=",_checks," walking_ticks=",_samples)
