@@ -21,7 +21,7 @@ Latest playable checkpoint: **f3cb99a** — [Windows ZIP](builds/windows/MuddsSh
 [Linux archive](builds/linux/MuddsShipyards-f3cb99a-linux-x86_64.tar.gz).
 Dynamic now has validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-f3cb99a-dynamic-access-preview.png));
-its berth and Main integration remain open. Katana access remains included.
+its berth and Main integration remain open.
 Katana now has validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
 it remains outside Main pending its berth and production integration.
@@ -89,8 +89,8 @@ reset. Historical records below and in archives remain unchanged.
 
 ### Dynamic physical port access and pilot claim — card2 DONE, standalone
 
-Accepted source**f3cb99a1ff87adb6a29af053fa5d07faf32c93c9**, mergedvia**1e227e89bdbef29e24423f644fed969fce7f7cae**,
-checkpoint**f3cb99a**; all eight artifacts published with verified hashes.
+Accepted source **f3cb99a1ff87adb6a29af053fa5d07faf32c93c9**, merged via
+**1e227e89bdbef29e24423f644fed969fce7f7cae**, checkpoint **f3cb99a**; all eight artifacts published with verified hashes.
 The same actual Player completes both full identity and elevated35degree profiles:
 normal Interact/open, supported ramp/recess walk, exclusive pilot claim/seal,
 real2.1second startup/neutral OFFLINE, supported release/walkout/seal, twice,
@@ -110,8 +110,18 @@ All16fields and closed/deployed bounds/anchors stay fixed. Main remains12/17 and
 12physical berths; Dynamic berth/Main/combat/service/recovery/network/fullcraft
 remain open. Native/hardware/human gates remain NOT_RUN; CI remains disabled.
 
+Verified archive: `/srv/mudds-work/dynamic-access-20261117/records.tar.gz`,
+31,271,391 bytes, SHA256
+`a192b5b4227e882081cef24c0af60a86cca8c62b89c89a10202cc7b95821e1ee`.
+All 440 members verified, including the source bundle, both retained failed
+attempts and actual source/PCK/capture/release/review records. Eight published
+artifacts remain in this repository's builds directories. Owned cleanup completed
+2026-11-17T02:58:00.002275+00:00: exact branch retired after pushed Main containment;
+worktree/process/scratch removed. Only archive and closeout remain in its scratch
+directory. The separate unfinished Paradox gunner backup remains retained.
+Final all-in elapsed cost and final pushed head are in adjacent `closeout.json`.
 Original frozen assignment and failure history follow; no next task selected by
-this closure. Archive and actual all-in cleanup cost are recorded below.
+this closure.
 
 
 Contract: adopted [Dynamic card2](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md),
