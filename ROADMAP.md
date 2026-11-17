@@ -109,6 +109,64 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Katana Main pilot integration — cards4/5
+
+Baseline **146b4c9563ab71ffd09003b82e8ee4daf8a2c373**, branch
+`work/katana-main-1117`, worktree `/srv/mudds-work/katana-main-20261117/worktree`.
+Window **2026-11-17 12:46:24→14:16:24UTC**,90minutes ALL-IN from first mapping
+through code/source/PCK/exports/startup/views/audit/review/merge/push/archive and
+owned cleanup. Definition frozen12:58:28 before13:01:24. One HIGH implementer
+owns15 bounded paths; HIGH independent reviewer; root engines/release/docs/
+integration. Production correction **0/1**; no automatic successor. CI disabled.
+
+Actual Main Katana fills its delivered exact home(72,-.02,-30): result15craft/
+15occupiedhomes, all14oldcraft/sourceIDs/settings/poses/currenthomeleases retained.
+Normal Boot/Begin Shift/same Player/full station route/port canopy/ramp/helm,
+2.3s startup, two real usable flights and approved pilot pulses, strict own L/
+home/OFFLINE/inside physical release/full port walk each, third claim/release/
+exit and complete original station reverse/spawn/normal UI Quit. Claims3/releases3,
+unchanged300s complete profile. Full7m reboard fence remains; supported deckx=-8
+provides clearance. No body/pose/velocity/mask/gravity/clock forcing qualifies play.
+
+Main-only pilot_weapon_fitted=true/defaultfalse retains delivered standalone
+unarmed foundation. Approved unchanged Arrow emitter480m/24damage/.38s with
+unique source1114/one centre muzzle(0,1,-6.2). This proves usable firing, not target
+damage or comparative handling. Rigid original shell preserves every authored
+vertex/material/path; separate cosmetic bank root keeps actual solids aligned
+with collision through turns. All16trial fields remain unchanged. Exact current
+home/lease/actor/seat/body/support/OFFLINE checks revalidate before and after
+opening for physical entry/exit. No travelling cabin/crew/cargo/network grant.
+Seated-eye query uses authoritative physics body snapshot times actual root-local
+eye transform, same.1m sphere/no exclusions; standaloneSHIP mask retained, new
+Main WORLD|SHIP. No body/camera writes. Console permits15rows at unchangedfont40/
+pixel.0016 and existing screen; actual glyph AABB fit is required before any fix.
+
+Frozen source18: newMain300 FIRSTalone; focused14 in independentpairs:
+foundation90/accessidentity180/accesstransformed180/actualoccupiedKatanaBerth240/
+definitions120/boardingarea120/stationregistry180/feedbackworld180/console300/
+Titan/Predator/Paradox/Dynamic/Utopia home240 each; then complete oldUtopiaMain300,
+oldDynamicMain300 and TitanMain300 ALONEeach. Known oldMain count callers change
+only to15craft/15homes/14others; every original full route/cap remains. Own berth
+uses REAL Main occupied Katana, with identical independent empty component ledger
+only supplementary. PCK6: same committednewMain300 firstalone, foundation90/
+accessidentity180/accesstransformed180/berth240 in independentpairs, fullTitan300
+alone; source isolation and exact excluded data inlining only. Every case requires
+exit0/one marker/raw0/source-cache-HEAD guards; all Main cases actual persisted
+clean_shutdown/clean/session_ended. Stop first unexpected failure, retain operands.
+
+Fresh clean paired checkpoint exports, strictstartup3, exactLinux6members/modes/
+extractedELFidentity, complete equal package maps/current7a8f012 baseline delta,
+audit9/eight artifacts and independentFINAL_GO/PACKAGE_GO required. Actual Main
+Katana, no staged duplicate, original3cold960x540/eightframe views/privateXvfb/x11/
+GLES/Dummy/90sTOTAL: closed(54,10,-15)→(72,2,-30), open(56,7,-28)→(69,1,-30),
+FOV52, actualcockpiteye/FOV/near/far. Restore frozen capture camera immediately
+afterBeginShift before UI waits. Existing tutorial/help and keyed unrelated
+boarding presentation clear only in geometry fixture; baseHUD/objective/radar
+retained. No view/quality/cap workaround or ordinary-play credit from images.
+Comparative handling/actual target damage/service/destruction/recovery/save/
+network/fullcraft/nativeWindows/GPU/device/audio/human/UIreadability/fullMain
+shader gates remain open/NOT_RUN; all36parents/10phasegates still open.
+
 <a id="katana-home-berth-delivered"></a>
 
 ### Katana reachable empty home berth — card3 DONE
