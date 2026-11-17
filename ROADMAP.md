@@ -87,6 +87,77 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Selected: Salyut continuous physical stern access — card2
+
+Result: the real Player starts on a supported outside apron, operates the reachable
+stern hatch, walks the ramp/vestibule/aisle to the fixed helm stand and walks the
+entire reverse route to seal, twice, at identity and elevated35degree yaw. Adopted
+Salyut card2; accepted foundation04a0de1. No Main integration, pilot-seat claim,
+passenger/travelling-frame/cargo/specialist fitting. Main remains13craft/13berths.
+
+Baseline4bf5bf91a; WT `/srv/mudds-work/salyut-access-20261117/worktree`, branch
+work/salyut-access-1117. One HIGH implementer owns only Salyut script and one new
+journey fixture/UID; HIGH independent physics/source/release review. Root owns
+release/docs/integration/cleanup. Shared HeroShip/GameFlow, other craft and existing
+foundation assertions stay unchanged. Preserve all16fields, real2.9s startup,
+pilot/eye/stand/receiver and trulyUNARMED/direct/status/no-emitter/no-heat behavior.
+
+Definition frozen before production edits after actual source/shear review and
+offline101fraction full-convex-SAT precheck (proposal only, not engine evidence).
+Closedx±4,z±7,y0..4.5; deployed stern only toz10, same width/height. Cabin floor.9,
+clearx±2/z±5.6/ceiling≥3.4; opening≥2×2.4, continuous aisle≥1.4. The real vestibule
+x±1.1/z6.4..7/y.82..9 meets actual KeelFloorrear6.4 without overlap/hidden floor.
+Two exact1.1wide sheared closure halves first translate-.2Z over0..15%, then
+±1.1X over15..30%; openx[-2.2,-1.1]/[1.1,2.2] stays outside aisle. Door original
+Y/shear remains; sheath/header/roof do not move.
+
+Ramp: two rigid1.5m leaves,totalwidth2.2,z7..10,top.9→0/underside.82→.41→0.
+Vertical stow theta=-PI/2-atan(.3): innerhingez7-.08abs(sin theta), outerhingez
+6.82-.04abs(sin theta),bothY.9/tips2.46605. Outer sidesteps+2.2X0..15%, shifts
+aft/lowershingetoz8.5/Y.6 at15..30%, recenters30..40%, rotates40..60% raised.15Y
+with hingeZ=min(8.5,10-max(rotatedvertexZ)), lowers60..65%. Inner holdsuntil65%,
+raises.15/advancestoz7 over65..75%, rotates75..95% raised with hingeZ=min(7,
+8.5-max(rotatedvertexZ)), lowers95..100%. Exact reverse on seal. Strict actual
+ARRAY_VERTEX/convex/poses/outwardnormals/separation at101fractions and every actual
+motion tick; no tolerance/bounds expansion.
+
+Control(-2,1.6,6.72),portoperator(-2.3,0,8.6). Actual sheared bracket
+x[-2.15,-1.85],z[6.4,6.65],y[1.5,1.7] meets jamb rear; operator is inside original
+2.5m reach and clear of starboard ramp sidestep. InitialPlayer(0,0,12), closed
+crossing/refusal and normal walkback. Positive route: operator→(-2.3,0,10.8)→
+(0,0,10.8)→(0,.9,7)→(0,.9,5.6)→(0,.9,0)→fixedstand(-.75,.9,-3.3), then
+all points reversed/controlseal/returninitialapron, twice. Transformed fixture
+origin(23,7,-19),yaw35; same actual actor/body/inputs after one initial setup.
+
+| Case | Initial state/action | Expected | Actual |
+| --- | --- | --- | --- |
+| Physical identity/transformed | Sealed crossing refusal/walkback; real Interact open; entire route+reverse/seal twice at each pose | Every completed Player tick supported/actual capsule+head clear/continuity<.2m; normal masks/gravity unchanged; queryskin.005radius/.01height only | NOT_RUN |
+| Motion/safety | Actual101fractions+real tween geometry; non-vacuous injected-controller moving/open throttle/start, active/unsupported refusal | Exact matching solids/meshes/bounds/no overlap; supported/OFFLINE-only opening and no open/moving propulsion | NOT_RUN |
+| Existing controller/fleet | Complete Salyut/Dynamic/Utopia foundations90each, definitions120, boarding120 | Original17profiles/16fields/real controller/geometry preserved; Salyut trulyUNARMED/noBoardingArea/frame/seat grants | NOT_RUN |
+| Main regression | Complete unchanged Titan source300 and actualWindowsPCK300 ALONE/normal HUD Quit | Same full journey, actual primary clean_shutdown/clean/session_ended | NOT_RUN |
+| Actual package | Same Salyutfoundation90/bothfullaccess180 from actualWindowsPCK, pairedexports/startup3/maps/delta/audit9/eightartifacts | Exact committed fixture/source isolation/originalcaps; strict menu-ready exit0/marker1/raw0, inspected current checkpoint | NOT_RUN |
+
+Controller-only negative probes use public set_remote_piloted with injected real
+commands: no Player seating, camera/input takeover or actual networking claim.
+After physical cycles, actual closed2.9s startup/flight/brake/idle establish active
+and airborneOFFLINE opening refusals; no hull/player pose or clock forcing. The
+positive product proof remains ordinary on-foot access, not pilot flight.
+
+Fixed views: closedstern(12,8,17)look(0,2,1), openstern(7,6,15)look(0,1.6,5), both
+FOV52; actual cockpit-eye transform/FOV/near/far. Cold3views90s total, actual960×540,
+eightframes/privateXvfb/x11/GLES/Dummy on standalone ship and supported probe deck.
+Every Godot Dummy/headless or isolated; independent abort/released inputs. Native/
+GPU/human/fullcraft gates NOT_RUN/open; CI disabled. Same complete profiles/caps
+in source and PCK; no evidence-only/versioned-validator work.
+
+Window2026-11-17 **04:40:44→05:55:44UTC**,75minutes ALL-IN from first source read;
+definitiondeadline04:55:44. Productioncorrection0/1. Retain firstunexpectedfailure
+and stop dependentchecks; same-clock compiler/caller/assertion repairs retain full
+original cases/thresholds/caps. Exhaustion/unresolvedproductionfailure/deadline
+parks whole card. Actual build/review/merge/push/archive/exact branch/worktree/
+process/scratch cleanup are required before PASS. No automatic successor/reset.
+Raw/frozen contract `/srv/mudds-work/salyut-access-20261117/`.
+
 <a id="dynamic-main-delivered"></a>
 
 ### Dynamic ordinary Main pilot loop — card4 DONE; early card5 pilot package delivered
