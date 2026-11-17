@@ -757,48 +757,57 @@ retains only archive+closeout.json. Only retained branch exception is unaccepted
 Paradox gunner c743f585d0a70beb0e6100b34a47147d16280e08 (no worktree).
 No next task branch has been opened.
 
-### Selected — Utopia physical terminal return
+### Utopia physical terminal return — card7 PARKED, unmerged
 
-**2026-11-17 23:10:00 → 2026-11-18 00:40:00 UTC, 90 minutes all-in**;
-definition by23:25. Same unfinished card7, owner23:37:41 renewal **0/1 used**
-(previous21:35:22 renewal consumed1/1, retained as history),
-prior127.4669150167minutes and all failures retained. Baseline5784fe0b5,
-latest accepted build6e15126. Root/worktree
-`/srv/mudds-work/utopia-supply-return-20261117`, branch
-`work/utopia-supply-return-1117`.
+Selected **2026-11-17 23:10:00 → 2026-11-18 00:40:00 UTC**,90minutes all-in;
+closed early after the first required final-source timeout. Unaccepted candidate
+**5011845e8fcbc6e599d5210019bc2a7f2ecc4980** is recoverable in the verified
+archive below. Main runtime and latest accepted checkpoint **6e15126** are unchanged.
 
-First reproduce the unchanged reverse-stair failure with actual failed-frame
-velocity/native snap contacts; prior data shows capsule rolloff but lacks that
-last operand. Keep all original body/support/on-floor/route/cap checks. Only
-then consider one visible/collision-coherent local stair-nosing repair that
-retains original tread centres/tops/support points and the repaired platform.
-No Player/HeroShip, stock/custody/authority or unrelated craft changes.
+The actual native cause was an upper stair-edge contact blocking the original
+.35m floor snap: UP-normal.633686 was below the original50degree walkable limit,
+while the lower tread was.14077m beneath the unchanged full capsule. Candidate
+six visible/collision nosings preserved original tread centres/tops, body owners,
+support points and the repaired platform. Exact production geometry accounting
+and both real test consumers were migrated explicitly before the definition
+cutoff; original controller, body, masks, gravity and per-tick safety checks stayed.
+No geometry or gameplay from this candidate is accepted or merged.
 
-Finish the entire original physical terminal visit/refusal/return/reboard/
-second flight/home/station return/normal Quit within300s, then full source8
-(including canonical Cinder1200), PCK3, coldviews3/90s, paired checkpoint/
-startup3/maps/audit9/eight artifacts and owned cleanup. Exact scope and stops in
-owned `frozen-card.md` preserve the previous full contract. Before production,
-`definition-amendment.md` explicitly accounts for six matching nosings in the
-existing geometry census (21+6 shapes,13+6 meshes,19+6 submissions) and its two
-real test consumers, retaining the original roster plus six named additions.
-No native-performance or stock budget is relaxed. No airborne waiver,
-route shortcut or partial geometry delivery.
+Actual source5011845 reached the terminal, refused absent custody without stock/
+payment mutation, walked the full reverse route, reboarded, flew/fired home,
+landed strictly at its own berth, shut OFFLINE and physically exited. Measured
+support-shape evidence proves ascent/descent on all six nosings. Ordinary motion
+stayed below.2m, with honest0/0 large-step/down-snap exceptions. The fixture's
+artificial nonzero-exception summary was explicitly replaced by exact six-stair
+traversal coverage; all original per-tick safety/exception validators remained.
+Normal hover/brake prepared the same home endpoint after actual84degree tilt
+exceeded its unchanged70degree limit; no pose forcing or admission relaxation.
 
-Current unaccepted source70723ae completed the terminal refusal, reverse stairs,
-reboard, second pulse, strict home landing and physical exit in272.510s, with all
-original walking predicates passing. Its final summary failed because six smooth
-nosings eliminated large-motion step/down-snap exceptions, leaving both exception
-counters0. Independent review approved a fixture-only summary correction: measure
-actual grounded ascent/descent on each of the six named stairs separately; retain
-and honestly report original exception counters/validators without requiring an
-exception to occur. This explicitly replaces the summary's nonzero-exception
-assertion; full route, per-tick support/body/continuity, claims/identity and300s
-remain binding. The preceding home approach refusal was an84degree actual tilt
-against the existing70degree home limit; normal hover/brake input now prepares
-that same endpoint without changing admission limits. Full station return/Quit,
-all final source checks and package gates remain unproven. No runtime is merged.
-The following stop is historical; no new implementation is credited yet.
+**Final required MainSupply failed:** exit124,301.989seconds including owned
+process cleanup, no success marker, sole diagnostic `suite exceeded timeout`.
+The binding300s cap stopped the final station walk after waypoint109, at
+(68.49406,.381669,37.99847). Remaining station return/spawn/normal UI Quit and clean
+primary are unproven. Source/cache/HEAD/clean guards all passed. Earlier type,
+home-attitude and summary failures remain archived. The remaining eight source
+checks, PCK3, cold geometry3/90s, paired exports/startup3/maps/audit9/eight artifacts
+and integration were **NOT_RUN**, stopped after this first required failure.
+Independent FINAL_GO/PACKAGE_GO were withheld; there is no partial geometry merge.
+
+Latest owner **23:37:41 renewal remains0/1 used**; the previous21:35:22 stair
+repair1/1 is historical. Prior127.4669150167minutes are retained; actual current
+and cumulative elapsed costs are in adjacent `closeout.json`. Reopening requires
+a demonstrated execution-cost reduction preserving the entire route, original
+checks and300s cap, or an explicit owner acceptance-cap decision. Unused allowance
+alone does not justify a blind replay, route cut or clock change.
+
+Verified archive `/srv/mudds-work/utopia-supply-return-20261117/records.tar.gz`:
+**26,653,722bytes**,138members,
+SHA256 `817f04e855525fa9a9c06a88331bf3da4beedfa3b6e78b7d90304a7adf036117`.
+Includes all failed raw results, previous history and verified source bundle.
+Owned engines/worktree/branch/scratch are removed; remote task branch absent;
+owned root retains only archive and closeout. Unaccepted Paradox gunner
+c743f585d remains the protected branch exception. Native/human/full-craft,
+custody/network/full-game gates stay open; CI remains disabled. No next card selected.
 
 ### Utopia physical Cinder supply destination — card7 PARKED, unmerged
 
