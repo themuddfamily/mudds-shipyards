@@ -161,6 +161,19 @@ scene transforms before classifying cause. No tolerance/mask/route/geometry chan
 or production repair has been spent. Original failed raw, inputs and source remain
 under the task root; no accepted supply-port result is credited yet.
 
+Actual0b57163 proves physics body snapshot lags scene translation exactlyvelocity/60;
+8d84057 fixture-only query alignment keeps exact .1m sphere/masks/no exclusions.
+Actual full flight/strict Cinder landing/inside release/deployed geometry pass,
+then literal universal<.2m walking assertion fails at connector stairs. da8c832
+records exact same-frame real controller step: rise.29975/advance.4/distance.499866,
+unchanged body/shape/masks/gravity. Independently reviewed b938569 keeps ordinary
+<.2m and admits only exact same-frame identified/live-bounded controller steps or
+negative≤unchangedfloor_snap supported snaps on actual canonical Cinder floors;
+full capsule/head/support/adjacency checks remain, both directions required.
+These are explicit fixture contract corrections, not a passing claim for the
+failed literal assertion. Entire unchanged route/source8/PCK3/release remains
+required on b938569; production repair0/1 and original11:58:37 deadline unchanged.
+
 ### Utopia local physical passenger chairs — card6 DONE
 
 Accepted source **45ae17504f4fa8ee8351886f3fbf41236393c4c2**, merged via **cdea89ae805ff89cd4840e25f72c18b712253e34**,
