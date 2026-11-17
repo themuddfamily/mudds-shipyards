@@ -82,7 +82,7 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Selected definition: Katana own reachable home berth — card3
+### Selected: Katana own reachable home berth — card3
 
 Result: a signed physical Katana deck/spur and compatible `katana_home_berth`
 are reachable by the normal Main-spawn Player and usable by the actual standalone
@@ -136,7 +136,45 @@ Window2026-11-17 **00:52:39→02:22:39UTC**,90minutes ALL-IN from first mapping;
 definition deadline**01:07:39UTC**. Substantive corrections0/1; no clock reset.
 Stop dependent checks at first unexpected failure, retain exact operands and
 measure cause before correction; exhausted repair/deadline parks the full card.
-Raw/task-start `/srv/mudds-work/katana-berth-20261117/`. No production code yet.
+Raw/task-start `/srv/mudds-work/katana-berth-20261117/`.
+
+**Definition frozen after actual baseline inventory and independent placement GO.**
+Identity dock(72,-.02,-30); deckworldx63..81,z-39..-21,top-.02; slabs A
+x45.6..48.4,z-9.4..7; B x48.4..65.4,z-9.4..-6.6; C x62.6..65.4,z-21..-9.4,
+allwidth2.8/top-.02 andphysicaledgejoins. Hub(47,-.02,8.5) onexisting
+StarboardBerthNode, moduleapproach(47,-.02,7), one1.5m graphconnection.
+Actual oldnodefloorx37..49,z7..24/top-.01999998 is the only exit-region collider;
+no oldrail/prop needs removal. Actual deck and complete assist/departure regions
+contain zero oldcolliders; all65 neighbouring spurcollider AABBs clear proposed
+slabs/railmargins, nearest Garden separation.590m. Do not change any oldmodule.
+
+Frozen ordinary route from unchanged Main spawn(-8.5,.18,11): (8,0,11),
+(8,0,13.5),(35,0,13.5),(35,0,15.5),(39,0,15.5),(47,0,15.5),(47,0,8.5),
+(47,0,7),(47,0,-8),(64,0,-8),(64,0,-22),(64,0,-30)apron,(65.4,0,-28.4)control,
+then same supported reverse return. Keep safe rail openings at both L turns and
+deck entry; actorcapsule .38 must remain supported/clear. One independent
+candidate initial fixture at exact dock proves actual receiver/deployed fit,
+strict miss/wrongtag/foreign/occupied/stale lease refusal and query sweeps;
+it does not register Katana in Main or replace the normal Player route.
+
+Freeze source caps: newberth240, Katanafoundation90, bothfullaccess180each,
+definitions120, route-registry180, Titan/Predator/Paradoxberths240each,
+fullTitanMain300ALONE. Actual PCK repeats newberth240/foundation90/bothaccess180/
+fullTitan300ALONE with raw-source guards and exact excluded constants inlined.
+New full berth checks preserve all12actualdock/transforms/occupants/leaseowners;
+registry13berths/12flyable, graph11modules/11slots/11hubends/63route markers,
+newroutesapproach/port-apron/hatch-control. Source registration/count caller
+updates preserve every legacy case/threshold and explicit old IDs.
+
+Freeze views: closedoverviewcamera(54,10,-15)look(72,2,-30), openport(56,7,-28)
+look(69,1,-30), bothFOV52; third actual candidate cockpit-eye transform/FOV/near/far.
+Project960×540 viewport, eight frames each, fullthreeview90s cold private
+Xvfb/x11/GLES/Dummy; no camera/quality/cap workaround. Staged probe for geometry
+captures is not Main registration. Actual4m lift then18m forward and staged
+assist(72,7.98,-48) approach hull/camera queries use original collision shapes;
+no enlarged volume or hidden floor. Newmodule caps≤20bodies/shapes,≤200meshes,
+1label,0lights/process/physicsloops. Production edits may now start under the
+same02:22:39UTC absolute deadline and0/1 substantive correction budget.
 
 <a id="katana-access-delivered"></a>
 
