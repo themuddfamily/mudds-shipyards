@@ -120,8 +120,18 @@ Sole production correction1/1 completes exact initial10/final13 audit cache
 rosters; the original99a401d25 review finding/partial source are retained. No
 acceptance case, threshold, original cap or route endpoint was dropped.
 
-Original frozen assignment follows as historical scope. Archive and actual
-all-in closeout will be recorded below; no next task selected by this closure.
+Verified archive: `/srv/mudds-work/dynamic-berth-20261117/records.tar.gz`,
+36,896,719 bytes, SHA256
+`9be91f04d347e65851ad773344cadf6ec5a47f9ef1fe3eab66d0263cb8648b1b`.
+All 771 members verified, including source bundle/partial review finding,
+actual inventory, source/PCK/capture/build/audit/review records and eight
+published-artifact hashes. Owned cleanup completed 2026-11-17T03:43:47.306888+00:00:
+exact task branch retired after pushed Main containment; worktree/process/
+scratch removed. Only archive and closeout remain in its scratch directory.
+The separate unfinished Paradox gunner backup remains retained. Final all-in
+elapsed cost and final pushed head are in adjacent `closeout.json`.
+Original frozen assignment follows as historical scope; no next task selected
+by this closure.
 
 
 Result: one signed14×14m physical Dynamic deck and supported≥2.8m spur reached
