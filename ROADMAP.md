@@ -141,8 +141,25 @@ fullphysicalexit/fullstationreturn/normalQuit, claims2/releases2. Source and act
 WindowsPCK same300; defaultoriginalcompleteMain300 remains unchanged. No actor/
 craft pose/velocity/mask/gravity/clock forcing or directpositiveclaim qualification.
 Everycompleted unseatedtick requires actualcapsule/head/support/continuity. Original
-wholeCinderAccess source1200 remains required; remaining focused/release cases are
-being bound before any engine. Native/human/fullcraft and cargo/supply remain open.
+wholeCinderAccess source1200 remains required. Frozen source8: newMainSupply300
+first, then CinderAccess1200/streamedbinding300/nearbyactivity300/material300/
+worldgeometry300 in isolated pairs, then completeoriginalMain300 and localCrew300
+alone. ActualWindowsPCK3: same committed newSupply300/originalMain300/localCrew300,
+each alone with source-isolation guard. Existing input-only CinderAccess uses its
+canonical privateXvfb/x11/dummy-renderer invocation. Release: pairedcleanexports,
+strictstartup3, equalcompletepackage maps + reviewed baseline delta, Linuxexact6
+members/modes/ELFidentity, packageaudit9/eightartifacts and independentFINAL_GO/
+PACKAGE_GO. Three supplygeometry views retain full authoredcluster+actualterminal,
+960x540/8frames/privateXvfb/x11/GLES/Dummy,90stotal; geometry-only staging gives no
+ordinaryflight credit. Native/human/fullcraft and cargo/supply remain open.
+
+Retained attempts before any correction:829d75d parser fails six inferred fixture
+types; explicit type-only6ba10a6 compiles then fails cockpit eye clearance during
+actual outbound flight. Diagnostic-only5fa3d3d confirms requiredlocaleye unchanged
+and only owning BowWindshield hit at~38m/s;0b57163 records exact PhysicsServer vs
+scene transforms before classifying cause. No tolerance/mask/route/geometry change
+or production repair has been spent. Original failed raw, inputs and source remain
+under the task root; no accepted supply-port result is credited yet.
 
 ### Utopia local physical passenger chairs — card6 DONE
 
