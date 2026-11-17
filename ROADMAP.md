@@ -142,34 +142,45 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="dynamic-lifecycle-current"></a>
 
-### Dynamic destruction and reuse — card8 IN PROGRESS
+### Dynamic destruction and reuse — card8 PARKED, unmerged
 
-Baseline0eaa0f22a reproduces two real gaps: reset preflight accepts an actively
-reserved/piloted Dynamic, and the separate physical shell stays visible after
-destruction although its rig/collisions retire. Candidate9c5022788 adds guarded
-Dynamic shell hide/restore and occupied/transition refusal, with a Main-owned
-exact-home/reset-footprint and current regeneration guard. Shared HeroShip,
-geometry, handling/weapon values and the existing recall/receipt/timer/lease
-transaction remain unchanged. No acceptance or checkpoint credit yet.
+Candidate **5ff419f615cc3b03199a4cec50123b55ef6ed80d** remains unaccepted.
+Main runtime and latest playable checkpoint **8b91aae** are unchanged. The
+candidate fixes separate-shell destruction visibility and occupied reset
+preflight, but fails the complete healthy ordinary-return reset requirement.
 
-Required proof retains all existing component/access/Main/service cases and adds
-focused lifecycle/receipt/race checks plus a complete normal-spawn destruction,
-supported same-Player recall, occupied-berth delay, normal timed same-craft
-regeneration, physical reboard/start/fire/home/exit and healthy home reset/reuse.
-Source11, isolated actual-PCK7, paired checkpoint/strictstartup3/maps/audit9 and
-fixed nominal/dead/regenerated snapshots require independent review before merge.
-Main cold-render, native/human/full-craft gates stay open; CI remains disabled.
+Actual final diagnostic: reset commits, all17 health/body/camera/collider flags
+pass and component generation advances2→3. The actual home berth nevertheless
+becomes unreserved/unoccupied, with an empty current token while Main retains
+its old cached token. HeroShip reset cleanup calls
+`_end_landing_for_lifecycle(reset_for_reuse)` and releases the completed landing's
+retained occupied lease. A healthy physical craft without its exact owned home
+lease cannot satisfy this card. FINAL_GO/PACKAGE_GO are withheld.
 
-Original18:00:29→19:15:29UTC2026-11-17 all-in75minute window includes definition,
-checks/package/review/push/archive/cleanup; definitiondeadline18:15:29. Owner
-16:53:33 renewal0/1 substantive corrections used. Initial focused failure is a
-missing outside-Player camera in the isolated fixture, confirmed by individual
-operands; test-only setup correction retains every assertion. Full new Main
-lifecycle is prioritized before unchanged regressions, with every original case
-and cap preserved. Frozen contract/raw:
-`/srv/mudds-work/dynamic-lifecycle-20261117/frozen-card.md`.
-First unexpected production failure stops dependent checks for measured cause;
-no automatic reset, renamed successor or reduced journey acceptance.
+The focused lifecycle fixture passed19.474/120s on124c16d75, including immediate
+reset refusal during queued collision retirement, later reset before the old
+hide timer and all25 colliders enabled afterward. Full Main passed the actual
+registered-opponent destruction, supported same-Player recall, competing-lease
+delay, normal timed same-instance regeneration and physical next flight/home/
+exit prefix. It failed at healthy return reset; final reboarding/reuse/normalQuit,
+remaining source regressions, allPCK7, captures, exports/startups/maps/audit/new
+checkpoint remain unperformed. Prefix successes do not close the card.
+
+Original18:00:29→19:15:29UTC2026-11-17 all-in75minute window and every original
+case/cap remain. Sole substantive correction**1/1 used** fixed the measured
+queued-disable race; camera setup, bounded recovery-fall classification and
+compiler/diagnostic maintenance remain recorded separately. Reopening needs an
+authorized bounded atomic healthy-home lease-preservation correction plus the
+full unchanged acceptance matrix. No automatic reset or renamed successor.
+
+Source/raw/diagnostics and independently reviewed failure are preserved in
+`/srv/mudds-work/dynamic-lifecycle-20261117/records.tar.gz`:
+**11,188,546bytes**, SHA256 `b6b360fd797214bd3b18ed6196e6077b81c92f6a07ebb90da323dda9aa62bebd`,
+**164members individually reread/verified**, including a verified
+exact source bundle. Adjacent closeout records actual all-in time, pushed docs
+and exact task branch/worktree/process/scratch cleanup. No candidate runtime was
+merged or checkpoint published; only separate unaccepted Paradox gunner backup
+remains retained. Native/human/Main cold-render/full-craft gates stay open; CI off.
 
 <a id="dynamic-components-current"></a>
 

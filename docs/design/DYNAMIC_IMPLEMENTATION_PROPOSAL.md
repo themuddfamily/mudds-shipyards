@@ -53,6 +53,16 @@ one correction and routine compiler repair are retained. Card6 target damage/
 comparative handling and later lifecycle/save/network/fullcraft remain open.
 [Delivery and cleanup](../../ROADMAP.md#dynamic-components-current).
 
+**Lifecycle card8 — PARKED, unmerged:** candidate5ff419f615cc3b03199a4cec50123b55ef6ed80d
+passes destruction/recall/timed same-instance regeneration and a recovered
+flight/home/exit prefix, but healthy ordinary-return reset releases its occupied
+home lease despite restoring all physical/component/camera state. Main keeps a
+stale cached token. The complete original card remains unfinished; no new build
+or accepted runtime. One substantive correction used on queued collider retirement;
+all failed operands and original75minute window/cases/caps are archived. Reopening
+requires authorized atomic lease preservation and the full original matrix.
+[Failure and source archive](../../ROADMAP.md#dynamic-lifecycle-current).
+
 ## Supported facts and evidence boundary
 
 The registered creator-authored **A3** page, captured **2009-11-12T09:12:26Z**, supports **Dynamic-class Gunship**, described as a **small, powerful gunship**. [RESEARCH.md's dated original roster](../../RESEARCH.md#best-creator-authored-original-roster-2009-11-12) records high confidence in that name/role. This supports neither launch-day presence nor historical geometry, scale, weapons, capacity, access or handling.
@@ -139,7 +149,7 @@ Each estimate is a **45–75 minute work box**, not measured delivery time. Spli
 | 5 — early pilot checkpoint DONEaae5aa8 with card4 | Root release: existing `tools/release/` workflow and build notes | Fresh clean committed source, relevant focused checks, safe Windows export and silent isolated actual-package startup/archive inspection. EXE/ZIP/notes in repository `builds/windows/`, paired Linux artifact via existing workflow. Require `--startup-check`, exit 0 and `STARTUP_MENU_READY_OK`. Notes state pilot-loop limits/pending combat/recovery; stop at inspected early checkpoint. |
 | 6 / 60m | Root flight/combat: `game_flow.gd`, `fleet_role_registry.gd`, candidate muzzle/camera/audio hooks | Measured controller tradeoff and actual unchanged pulse hits/misses, cadence/heat, self/friendly/occluded/ownership refusal; unique source damages real target once. Extend focused existing combat/role checks; stop at actual gunship function. |
 | 7 — DONE8b91aae, selected75m all-in | Root damage/service: `hero_ship.gd`, existing component/repair owners, candidate hooks | Five actual component impairments and normal authorized repair restore real behavior; access changes do not heal. Stop at impairment/service route. |
-| 8 / 60m | Root lifecycle: `hero_ship.gd`, `game_flow.gd`, candidate reset hooks and berth composition | Destruction releases pilot; stale/occupied reset refusal is atomic; recall creates one usable home craft with fresh generations/access/fire. Stop at destruction/reset/reuse. |
+| 8 — PARKED5ff419f61, selected75m all-in | Root lifecycle: `hero_ship.gd`, `game_flow.gd`, candidate reset hooks and berth composition | Destruction releases pilot; stale/occupied reset refusal is atomic; recall creates one usable home craft with fresh generations/access/fire. Stop at destruction/reset/reuse. |
 | 9 / 60m | Root recovery: `game_flow.gd`, `user_data_store.gd` | Committed fresh-process safe walking/Main availability and refused/interrupted-write preservation/retry, with no stale helm or duplicate craft. Stop at both real restart boundaries. |
 | 10 / 60m | Root network: `game_flow.gd`, existing boarding/pilot replica/session owners | Playing host plus two remote clients: physically approach, claim one helm, fly/fire/home/OFFLINE/exit and physically hand pilot role to another peer. Others stay supported on foot or use existing craft. Duplicate/nonpilot/stale drive/fire refuses. Stop at exact three-player single-helm profile, no guest capacity claim. |
 | 11 / 60m | Root network/lifecycle: same current owners | Actual remote pilot disconnect/rejoin, destruction/reset interruption and host-loss recovery retire old claims/epochs/control; players recover to supported usable contexts under existing migration policy. Stop at exercised cleanup boundaries, not an invented seamless handoff. |
