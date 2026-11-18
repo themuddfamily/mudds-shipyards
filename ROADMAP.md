@@ -1662,20 +1662,32 @@ locally/remotely at c743f585d0a70beb0e6100b34a47147d16280e08. Adjacent
 `closeout.json` records final all-in closure and pushed Main; parked Salyut berth
 and cold Main graphics gates remain unchanged/open.
 
-### Main cold first-frame blocker — exact consumer probe selected
+### Main cold first-frame blocker — direct consumers mapped, no renderer acceptance
 
-Bounded causal definition **2026-11-18 02:59→03:19UTC**,20minutes allin. Accepted
-main567233084/runtime7801f6b, one original fixedOperations90s coldGLES capture,
-privateXvfb/explicitx11/Dummy; originalworld/camera/FOV/physical960×540/eightframes/
-quality unchanged. New readonly bridge records actual native texture handles,
-active sampler bindings, world transform, materialUBO3 bytes and draw counts
-against pre-firstdraw actualnode/surface/material census, includingacceptedEGL
-context transitions. Earlier family/timing trace lacked those fields.
-Unique actual owner is required; ambiguous or failed hooks stop without a warm
-retry or production proposal. Timings are instrumented, not native performance.
-No source/renderer completion credit, production edit or Arrow reopening. Owner
-01:39:01 renewal0/1 remainsunused; all old source/failures/costs retained. Full
-frozen card under `/srv/mudds-work/main-render-owner-20261118/frozen-card.md`.
+Bounded03:18 causal result on acceptedmain567233084/runtime7801f6b: one original
+Operations90s instrumentedcoldGLcapture exits124/marker0/images0 in91.953s with
+ownedreap. Source/HEAD/clean unchanged; actual960×540/FOV52/fullworld/eightframe
+recipe/privateXvfb/x11/GLES/Dummy preserved. This is not renderer completion.
+New bridge captures actualnative texture handles/active samplers/worldtransform/
+materialUBO3 bytes and geometrycounts, not another shader-family survey.
+OneacceptedEGLcontext/oneGLthread/203freshprograms;6196drawbegins/6195ends.
+Programs535/538/544 uniquely match AftUpperFloor, OperationsFloor andCombTrunk,
+each with active texture IDs/world/count and16decoded canonical scalars.
+Finalunfinished583 matches OperationsRoom/ServiceWall/CabinetStatus uniquely by
+transform/324vertices/14materialscalars; independentreview confirms that surface,
+but rawparser retains candidate qualification because its textures are renderer
+defaults. Instanced draws remain candidates. No claim that one material alone
+caused90s failure; timingsinstrumented, not nativeperformance. No productionfix
+selected, allowance0/1unused; old costs/source/failures remain attached. Next
+productionchoice needs mathematically equivalent optimization at these actual
+producers and full unchanged cold-view proof, not another blind/warmcapture.
+Window02:59→03:19UTC20min including archive/cleanup. Verified archive
+`/srv/mudds-work/main-render-owner-20261118/records.tar.gz`:
+9075106bytes/656members, SHA256`6fe0702a04f66c6759dbc26d3c57c0ef8431970f18f3cce790ba075b593c0d1b`.
+Allmembersverified; sourceacceptedalreadyreachableinpushedmain. Detachedowned
+worktree/process/profile/helpers cleaned; rootonlyarchive+closeout. No localbranch
+created; protectedParadoxc743 remains. Main/checkpoint780 unchanged; CI off,
+all native/listening/human/fullgame gates open. No Arrow/Vulkan cause inferred.
 
 ### Earlier Main cold first-frame definition — stopped, historical
 
