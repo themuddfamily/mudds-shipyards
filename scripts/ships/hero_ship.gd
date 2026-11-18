@@ -5413,6 +5413,17 @@ func _clear_landing_authority_snapshot() -> void:
 	_landing_capture_maximum_tilt_snapshot = 0.0
 
 
+## Healthy firing configuration only; this read never advances readiness or heat.
+func get_pilot_weapon_constraints() -> Dictionary:
+	return {
+		"cooldown": float(weapon_cooldown), "warmup": 0.0, "minimum_operators": 1.0,
+		"ammo_unbounded": true, "refill_rule": "unbounded",
+		"thermal": {"model": "native", "heat_per_shot": WEAPON_HEAT_PER_SHOT,
+			"heat_capacity": 1.0, "cooling_per_second": WEAPON_HEAT_COOLING_PER_SECOND,
+			"lockout_seconds": WEAPON_OVERHEAT_DURATION, "recovery_heat": WEAPON_RECOVERY_HEAT},
+	}.duplicate(true)
+
+
 ## Detached availability snapshot for the existing weapon consumer and HUD
 ## telemetry. It does not reserve a shot or resolve damage.
 func get_weapon_fire_status() -> Dictionary:

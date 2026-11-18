@@ -139,6 +139,12 @@ func _uses_weapon_component_fallback_emitters() -> bool:
 	return false
 
 
+func get_pilot_weapon_constraints() -> Dictionary:
+	var constraints := super.get_pilot_weapon_constraints()
+	constraints.thermal = {"model": "none"}
+	return constraints
+
+
 func get_weapon_definition() -> WeaponDefinition:
 	return PRIMARY_DEFINITION.duplicate(true) as WeaponDefinition if _uses_inherited_primary_weapon() else null
 

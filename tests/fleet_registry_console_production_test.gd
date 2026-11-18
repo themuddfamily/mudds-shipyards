@@ -1,5 +1,23 @@
 extends SceneTree
 
+const EXPECTED_PILOT := {
+	"torrent_provisional": [34.0, 360.0, 0.22],
+	"arrow_provisional": [24.0, 480.0, 0.38],
+	"jovian_provisional": [70.0, 650.0, 0.62],
+	"zenith_b7_observed": [28.0, 420.0, 0.24],
+	"halyard_new_design": [52.0, 560.0, 0.95],
+	"bulwark_new_design": [50.0, 360.0, 0.30],
+	"cinder_light_interceptor": [18.0, 320.0, 0.28],
+	"cinder_long_range_bomber": [80.0, 900.0, 1.0],
+	"cinder_cargo_hauler": [26.0, 180.0, 0.70],
+	"titan_provisional": [70.0, 650.0, 0.62],
+	"paradox_provisional": [70.0, 650.0, 0.62],
+	"predator_provisional": [],
+	"dynamic_provisional": [50.0, 360.0, 0.30],
+	"katana_provisional": [24.0, 480.0, 0.38],
+	"utopia_provisional": [70.0, 650.0, 0.62],
+}
+
 const EXPECTED_RATED_FIELDS := {
 	"maximum_speed": ["m/s", "benefit", "flight"],
 	"maximum_hull": ["hull point", "benefit", "systems"],
@@ -132,8 +150,17 @@ func _run() -> void:
 	if not complete_footprint:
 		await _finish(game)
 		return
+	var complete_pilot := rows.size() == 15
+	for row: Dictionary in rows:
+		var pilot: Variant = (row.get("rated_budget", {}) as Dictionary).get("pilot_weapon")
+		complete_pilot = complete_pilot and pilot is Dictionary and pilot.get("status") in ["SOURCED", "UNARMED"]
+	_check(complete_pilot, "ordinary E must publish actual complete pilot weapon budget for all fifteen live craft")
+	if not complete_pilot:
+		await _finish(game)
+		return
+	_check_live_pilot_sources(game, live_snapshot)
 	var first_accepted_snapshot := live_snapshot.duplicate(true)
-	for page in 5:
+	for page in 8:
 		if page > 0:
 			game.call(&"_on_interact_requested")
 			await process_frame
@@ -146,7 +173,7 @@ func _run() -> void:
 		_check(default_receipt.get("accepted", false) and (console.call(&"get_presentation_snapshot") as Dictionary).screen_text == text, "default snapshot refresh preserves the current page")
 	game.call(&"_on_interact_requested")
 	await process_frame
-	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/5"), "sixth ordinary E wraps back to page one")
+	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/8"), "ninth ordinary E wraps back to page one")
 	_check(
 		_berth_snapshot(game.world) == berths_before
 			and _regeneration_snapshot(game) == regeneration_before,
@@ -286,7 +313,7 @@ func _finish(game: GameFlow) -> void:
 
 func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page: int) -> void:
 	var rows := snapshot.get("rows", []) as Array
-	_check(rows.size() == 15 and text.begins_with(("RATED %d/5" % [page + 1]) if page < 4 else "COLLISION 5/5") and text.contains("INTERACT:NEXT"), "physical page labels rated data and ordinary next interaction")
+	_check(rows.size() == 15 and text.begins_with(_page_heading(page)) and text.contains("INTERACT:NEXT"), "physical page labels rated data and ordinary next interaction")
 	var pages := [
 		["maximum_speed", "maximum_hull", "boost_speed", "thrust_acceleration"],
 		["yaw_speed_degrees", "roll_speed_degrees", "brake_acceleration", "passive_drag"],
@@ -320,6 +347,18 @@ func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page:
 			for axis: String in ["span", "height", "length"]:
 				var field: Dictionary = budget.footprint.fields[axis]
 				cells.append("%.3f/%.3f" % [field.raw, field.normalized])
+		elif page >= 5:
+			var pilot: Dictionary = budget.pilot_weapon
+			if pilot.status == "SOURCED":
+				var context: Dictionary = pilot.contexts[pilot.selected_context]
+				var pilot_pages := [["damage", "range", "cooldown"], ["warmup", "heatlockout", "minimum_operators"], ["ammo_capacity"]]
+				for axis: String in pilot_pages[page - 5]:
+					var field: Dictionary = context.fields[axis]
+					cells.append("UNBOUNDED/1.000" if axis == "ammo_capacity" and field.unbounded else "%s/%.3f" % [str(field.raw), field.normalized])
+				if page == 7:
+					cells.append("UNBOUNDED" if context.constraints.ammo_unbounded else "PILOT RETAKE ONLY")
+			else:
+				cells.append(str(pilot.status))
 		else:
 			for axis: String in pages[page]:
 				var field: Dictionary = budget.fields[axis]
@@ -342,6 +381,8 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 		return
 	var receipt := console.call(&"present_fleet_snapshot", source) as Dictionary
 	_check(bool(receipt.get("accepted", false)), "sourced rated snapshot can be presented again")
+	var roundtrip: Variant = JSON.parse_string(JSON.stringify(source))
+	_check(bool((console.call("present_fleet_snapshot", roundtrip) as Dictionary).get("accepted", false)), "complete actual pilot JSON roundtrip is accepted")
 	var retained := console.call(&"get_presentation_snapshot") as Dictionary
 	var edited := source.duplicate(true)
 	edited.rows[0].rated_budget.fields.maximum_speed.raw = 999.0
@@ -408,6 +449,44 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 	var mixed := source.duplicate(true)
 	mixed.rows[0].erase("rated_budget")
 	cases.append(mixed)
+	for row_index in source.rows.size():
+		var pilot: Dictionary = source.rows[row_index].rated_budget.pilot_weapon
+		for replacement in [null, [], "pilot", {}, {"status": "SOURCED"}]:
+			var malformed := source.duplicate(true)
+			malformed.rows[row_index].rated_budget.pilot_weapon = replacement
+			cases.append(malformed)
+		if pilot.status != "SOURCED":
+			var armed_predator := source.duplicate(true)
+			armed_predator.rows[row_index].rated_budget.pilot_weapon = source.rows[0].rated_budget.pilot_weapon.duplicate(true)
+			armed_predator.rows[row_index].rated_budget.pilot_weapon.ship_id = "predator_provisional"
+			cases.append(armed_predator)
+			continue
+		for context_name: String in pilot.contexts:
+			for axis: String in ["damage", "range", "cooldown", "warmup", "heatlockout", "minimum_operators", "ammo_capacity"]:
+				for patch: Dictionary in [{"normalized": 0.123}, {"normalized": INF}, {"normalized": []}, {"unit_scale": 2.0}, {"direction": "invented"}, {"raw": NAN}, {"raw": true}]:
+					var malformed := source.duplicate(true)
+					malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name].fields[axis].merge(patch, true)
+					cases.append(malformed)
+			for profile_key: String in pilot.contexts[context_name].resolver_profile:
+				for bad: Variant in [[], true, INF, NAN, -1.0]:
+					var malformed := source.duplicate(true)
+					malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name].resolver_profile[profile_key] = bad
+					cases.append(malformed)
+			for bad: Variant in [[], ""]:
+				var malformed := source.duplicate(true)
+				malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name].weapon_id = bad
+				cases.append(malformed)
+			for patch: Dictionary in [{"refill_rule": "automatic"}, {"ammo_unbounded": 1}, {"warmup": 4.0}, {"minimum_operators": 0.0}, {"thermal": {"model": "none", "lockout_seconds": INF}}]:
+				var malformed := source.duplicate(true)
+				malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name].constraints.merge(patch, true)
+				cases.append(malformed)
+		var missing_context := source.duplicate(true)
+		missing_context.rows[row_index].rated_budget.pilot_weapon.contexts.erase("combat")
+		cases.append(missing_context)
+		for patch: Dictionary in [{"ship_id": "foreign"}, {"ship_id": []}, {"selected_context": "foreign"}, {"selected_context": []}, {"status": "UNARMED"}]:
+			var malformed := source.duplicate(true)
+			malformed.rows[row_index].rated_budget.pilot_weapon.merge(patch, true)
+			cases.append(malformed)
 	for candidate: Dictionary in cases:
 		receipt = console.call(&"present_fleet_snapshot", candidate, true) as Dictionary
 		_check(not bool(receipt.get("accepted", true)) and (console.call(&"get_presentation_snapshot") as Dictionary) == retained, "malformed rated payload refuses atomically without changing text, sequence or retained data")
@@ -418,13 +497,13 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 		unavailable.rows[0].rated_budget.missing_dimensions = EXPECTED_MISSING_DIMENSIONS.duplicate()
 		receipt = console.call(&"present_fleet_snapshot", unavailable) as Dictionary
 		_check(bool(receipt.get("accepted", false)), "explicit missing geometry remains presentable without pretending qualification")
-		for step in 5:
+		for step in 8:
 			var presentation := console.call(&"get_presentation_snapshot") as Dictionary
 			if int(presentation.get("rated_page", -1)) == 4:
 				break
 			console.call(&"present_fleet_snapshot", unavailable, true)
 		var unavailable_text := str((console.call(&"get_presentation_snapshot") as Dictionary).screen_text)
-		_check(unavailable_text.begins_with("COLLISION 5/5") and unavailable_text.split("\n")[1].contains("%s  %s  %s" % [status, status, status]), "missing footprint prints explicit unknown cells without numeric zeros")
+		_check(unavailable_text.begins_with("COLLISION 5/8") and unavailable_text.split("\n")[1].contains("%s  %s  %s" % [status, status, status]), "missing footprint prints explicit unknown cells without numeric zeros")
 		var malformed := unavailable.duplicate(true)
 		malformed.rows[0].rated_budget.footprint["shape_count"] = 0
 		var before := console.call(&"get_presentation_snapshot") as Dictionary
@@ -495,7 +574,7 @@ func _capture_rated_registry() -> void:
 	var receipt := console.call(&"present_fleet_snapshot", snapshot) as Dictionary
 	_check(bool(receipt.get("accepted", false)), "production component accepts the exact real captured snapshot")
 	_check(DirAccess.make_dir_recursive_absolute(output) == OK, "component capture output directory is available")
-	for page in 5:
+	for page in 8:
 		if page > 0:
 			receipt = console.call(&"present_fleet_snapshot", snapshot, true) as Dictionary
 			_check(bool(receipt.get("accepted", false)), "component advances the exact pinned snapshot")
@@ -505,11 +584,11 @@ func _capture_rated_registry() -> void:
 				await process_frame
 				await RenderingServer.frame_post_draw
 			_check_console_bounds(console, page)
-			_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with(("RATED %d/5" % [page + 1]) if page < 4 else "COLLISION 5/5"), "component captures the requested real page")
+			_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with(_page_heading(page)), "component captures the requested real page")
 			var image := root.get_texture().get_image()
 			_check(image.get_size() == viewport, "component capture has exact requested native dimensions")
 			if _failures.is_empty():
-				_check(image.save_png(output.path_join("fleet_footprint_page_%02d_%dx%d.png" % [page + 1, viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
+				_check(image.save_png(output.path_join("fleet_pilot_page_%02d_%dx%d.png" % [page + 1, viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
 	component.queue_free()
 	await _finish(null)
 
@@ -573,3 +652,69 @@ func _check_footprint_geometry(craft: HeroShip, budget: Dictionary) -> void:
 		_check(is_equal_approx(float(footprint.local_bounds.position[components[index]]), bounds.position[index]) and is_equal_approx(float(footprint.local_bounds.size[components[index]]), bounds.size[index]), "complete union position and size match independent support points")
 		var field: Dictionary = footprint.fields[axes[index]]
 		_check(is_equal_approx(float(field.raw), bounds.size[index]) and field.unit == "m" and field.unit_scale == 1.0 and field.direction == "cost" and field.source == "actual_enabled_direct_root_collision_shapes" and field.normalized == 1.0 / (1.0 + field.raw), "physical dimension keeps exact metre cost normalization")
+
+
+func _page_heading(page: int) -> String:
+	return "RATED %d/8" % [page + 1] if page < 4 else ("COLLISION 5/8" if page == 4 else "PILOT %d/8" % [page + 1])
+
+
+func _check_live_pilot_sources(game: GameFlow, source: Dictionary) -> void:
+	_check(EXPECTED_PILOT.size() == 15, "independent literal pilot oracle covers all fifteen craft")
+	var authority := game.get("combat_authority") as Node
+	for row: Dictionary in source.rows:
+		var craft := game.call("_find_flyable_ship_by_id", StringName(row.ship_id)) as HeroShip
+		var pilot: Dictionary = row.rated_budget.pilot_weapon
+		var expected: Array = EXPECTED_PILOT[str(row.ship_id)]
+		if expected.is_empty():
+			_check(pilot.status == "UNARMED" and pilot.contexts.is_empty() and not pilot.has("fields"), "Predator has explicit unarmed state without fabricated numeric weapon quantities")
+			continue
+		_check(pilot.status == "SOURCED" and pilot.contexts.size() == (2 if str(row.ship_id) == "torrent_provisional" else 1), "actual pilot membership retains both Torrent configurations and one config per other armed craft")
+		if pilot.status != "SOURCED":
+			continue
+		var native_before := craft.get_weapon_fire_status()
+		for context_name: String in pilot.contexts:
+			var context: Dictionary = pilot.contexts[context_name]
+			var registered: Dictionary = authority.call("get_weapon_profile", craft, StringName(context.weapon_id))
+			_check(context.resolver_profile == registered and registered == (game.call("_get_player_weapon_profiles", craft) as Dictionary).get(StringName(context.weapon_id)), "pilot budget reads the exact live registered profile without a parallel definition lookup")
+			var values := expected.duplicate()
+			if context_name == "tutorial_range":
+				values = [50.0, 360.0, 0.22]
+			for index in 3:
+				var axis: String = ["damage", "range", "cooldown"][index]
+				_check(is_equal_approx(float(context.fields[axis].raw), float(values[index])), "literal %s %s %s actual budget" % [row.ship_id, context_name, axis])
+			_check(context.fields.damage.raw == registered.get("trigger_damage", registered.damage) and context.fields.range.raw == registered.range, "damage is per trigger including scatter and range is resolver range rather than convergence")
+			_check(context.fields.warmup.raw == 0.0 and context.fields.minimum_operators.raw == 1.0, "weapon warmup stays distinct from engine spool and pilot needs one operator")
+			var no_heat := str(row.ship_id) in ["paradox_provisional", "cinder_long_range_bomber"]
+			_check(context.constraints.thermal == ({"model": "none"} if no_heat else {"model": "native", "heat_per_shot": 0.28, "heat_capacity": 1.0, "cooling_per_second": 0.5, "lockout_seconds": 1.0, "recovery_heat": 0.35}) and context.fields.heatlockout.raw == (0.0 if no_heat else 1.0), "native thermal provenance includes Dynamic/Katana and excludes Paradox/payload")
+			var ammo: Dictionary = context.fields.ammo_capacity
+			if str(row.ship_id) == "cinder_long_range_bomber":
+				_check(not ammo.unbounded and ammo.raw == 4.0 and ammo.normalized == 0.8 and context.constraints.refill_rule == "pilot_retake_only" and context.constraints.cooldown == craft.call("get_payload_authority_snapshot").cooldown_seconds, "Bomber uses four-round payload authority with one-second cooldown and pilot-retake-only refill")
+			else:
+				_check(ammo.unbounded and not ammo.has("raw") and ammo.normalized == 1.0 and context.constraints.refill_rule == "unbounded", "ordinary ammo is explicitly unbounded without Infinity or fake zero")
+		_check(craft.get_weapon_fire_status() == native_before, "pilot reporting does not mutate heat or firing readiness")
+	var retained_authority: Variant = game.get("combat_authority")
+	game.set("combat_authority", null)
+	_check((game.call("get_pilot_weapon_budget_source", game.get("ship")) as Dictionary).is_empty(), "missing live combat authority refuses pilot reporting rather than reconstructing definitions")
+	var empty_authority: Node = retained_authority.get_script().new()
+	game.set("combat_authority", empty_authority)
+	_check((game.call("get_pilot_weapon_budget_source", game.get("ship")) as Dictionary).is_empty(), "mismatched authority without the actual registered source/profile fails closed without creating a registration")
+	game.set("combat_authority", retained_authority)
+	empty_authority.free()
+	var standalone := (load("res://scripts/ships/katana_fighter.gd") as Script).new() as HeroShip
+	_check(not bool(standalone.get("pilot_weapon_fitted")) and (game.call("get_pilot_weapon_budget_source", standalone) as Dictionary).is_empty(), "standalone Katana is unfitted and cannot borrow Main's adopted pilot pulse")
+	standalone.free()
+	var torrent := game.get("ship") as HeroShip
+	var old_phase: int = game.get("phase")
+	for phase_value: int in [GameFlow.Phase.LAUNCH, GameFlow.Phase.TARGET_PRACTICE, GameFlow.Phase.START_ENGINES]:
+		game.set("phase", phase_value)
+		var read: Dictionary = game.call("get_pilot_weapon_budget_source", torrent)
+		_check(read.selected_context == ("tutorial_range" if phase_value in [GameFlow.Phase.LAUNCH, GameFlow.Phase.TARGET_PRACTICE] else "combat") and read.profiles.size() == 2, "Torrent selected context follows the actual existing firing phase rule and retains both configurations")
+	game.set("phase", old_phase)
+	var registry := load("res://scripts/ships/fleet_role_registry.gd")
+	var detached_source: Dictionary = game.call("get_pilot_weapon_budget_source", torrent)
+	var frozen: Resource = registry.call("create_rated_budget", torrent.get_ship_definition(), torrent, detached_source)
+	var frozen_snapshot: Dictionary = frozen.call("get_snapshot")
+	detached_source.constraints.cooldown = 9.0
+	_check(frozen.call("get_snapshot") == frozen_snapshot, "pilot resource retains no mutable source collections")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(source))
+	_check(parsed is Dictionary and not _contains_object(parsed), "complete actual pilot fleet survives detached JSON roundtrip")
