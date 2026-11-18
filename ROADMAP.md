@@ -215,6 +215,56 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Dynamic gunship actual pilot combat — card6 ACTIVE
+
+Goal BUILD-SPLIT-DYNAMIC/card6, parents10/11/36; exact adopted specification
+[Dynamic card6](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md). Result: only
+the current physical pilot may emit Dynamic's single pulse, with exactly one
+registered damage resolution; actual controls demonstrate its existing handling
+tradeoffs. This is the whole existing function card, not full-craft qualification.
+Candidate starts accepted1d920d1f0/runtime7801f6b, existing15craft Main,
+Dynamic home/open/ramp/helm/ordinary departure through existing journey. No
+shader candidate, native renderer gate or other parked source is included.
+
+Budget **2026-11-18 03:59:39→05:14:39 UTC,75 minutes ALL-IN**, including readiness
+mapping, implementation, reviews, negative control, all source/PCK checks,
+checkpoint, integration/push/archive/cleanup. Owner03:44:02 renewal applies once
+**0/1 corrections used** (no earlier card6 correction recorded). All historical
+member caps stay fixed. First real unexpected failure stops dependents; cause
+required before sole substantive repair; second failure/deadline parks wholecard.
+Routine compiler/caller/incorrect assertion repairs stay inside same window.
+
+Owner: one HIGH implementer owns scripts/ships/dynamic_gunship.gd,
+scripts/game/game_flow.gd, tests/dynamic_gunship_journey_test.gd and
+ tests/fleet_candidate_foundation_test.gd; root integration/checkpoint/docs,
+one HIGH independent reviewer, no nested agents. Shared HeroShip edits forbidden
+unless an exact emission seam is demonstrated and explicitly added before editing.
+No optional HUD/role/story work, ship numbers, weapons, geometry, camera, damage,
+heat, clock, targets' authority, or sibling policy retuning. Existing controls
+and all original cases stay. Dependencies accepted Dynamic cards1–5/7–9, existing
+pulse profile and source1112; no missing owner product decision for card6.
+
+| Case | Initial/action | Expected result |
+| --- | --- | --- |
+| Current seated pulse | Existing full ordinary Main journey boards/starts/departs Dynamic; real held FIRE against registered production target | Actual source1112, only unchanged Bulwark pilot pulse,360m/50damage/.30s; one emitted pulse causes one authoritative hit/health delta; same callback cannot commit twice |
+| Miss/self/friendly/world | Existing real target/physics fixtures and actual registered resolver, plus ordinary pilot miss | Miss produces zero target damage; self/friendly policy refusal and physical world obstruction preserve health; no alternate damage owner |
+| Ownership and stale emission | Direct/stale callback without synchronous emission; unseated/nonpilot/foreign reserved token; explicit crew aim; released/reboarded current claim | No accepted shot or damage/heat/cooldown consumption for ownership refusals; current pilot resumes after legitimate reacquisition; no new crew/navigation authority |
+| Cadence and heat | Hold actual FIRE, observe original tick intervals/heat/status/recovery | Original.30s cadence; inherited.28 heat/shot,.50/s cooling,1s lockout/.35 recovery retained; no shot during cooldown/lockout, usable fire after recovery |
+| Actual handling comparison | Separate production Dynamic/Arrow controller fixtures, initial placement only, real timed start/throttle/boost/brake/yaw/roll | Actual launch/acceleration and settled cruise/boost/yaw/roll show adopted differences; Dynamic90/121/57/91 below Arrow94/132/62/128 for corresponding outcomes, with real startup/brake/neutral behavior; unchanged17-profile14-axis/non-dominance/signatures |
+| Existing full Dynamic scope | Original access identity/transformed, component damage, lifecycle fixture, full two-sortie Main/reboard/home/walk/normalQuit, full service and full destruction/reuse modes | All original cases/endpoints pass with original120/180/300s caps; real primary clean_shutdown/clean/lastsession_ended for Main modes |
+| Shared controls | Complete existing foundation, definitions, role registry/differentiation, shared heat and full default Titan Main | No original case removal or sibling behavior regression; foundation90, definitions120, registry180, differentiation300, heat120, Titan300 |
+| Old negative | Same strengthened actual ownership/refusal route on exact baseline with unchanged300 cap | Actual old dispatch accepts stale/nonpilot pulse where new rejects; specific expected failure, all source/cache/HEAD/clean guards, not a missing-method/compile-only failure |
+| Actual package | Source gates first, then exact relevant Dynamic functions/access/components/lifecycle/full Main/service/lifecycle and full Titan against real Windows PCK from source-empty cwd/path | Same complete cases/caps/assertions, only entry isolation guard and necessary excluded-test immutable constant inlining; exit0/exactone marker/raw0/all4guards; no source fallback |
+| Deliver | Clean paired safe exports/trusted private templates/strictstartup3, equal complete Win/Linux maps/intended delta, existing9predicate audit | Eight actualrepo artifacts EXE/ZIP/notes/preview+LinuxELF/TAR/exportJSON/notes; exact6memberLinux/ZIPbyteidentity; strict --startup-check exit0+exactoneSTARTUP_MENU_READY_OK, original exports300internal360outer and startups60/300/300 |
+
+Proof root /srv/mudds-work/dynamic-gunship-combat-20261118, private profiles,
+all Godot Dummy, headless or privateXvfb/explicitx11/independent suite_process
+abort/reap/inputrelease. New geometry/render gate not claimed: unchanged accepted
+Dynamic reference preview may be reused with explicit attribution. NativeWindows/
+GPU/device/listening/human/fullcraft/network/fullgame remain NOT_RUN/open. CI OFF.
+Accepted source merged into pushedmain before exact-tip branch deletion; failed
+unique source bundled/hash-verified before cleanup. No smaller source-only delivery.
+
 ### Station panel shader cold five-view rendering — PARKED, unmerged af5a29888
 
 No production, render or checkpoint delivery. Candidate
