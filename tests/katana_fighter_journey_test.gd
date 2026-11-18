@@ -37,12 +37,13 @@ class FixtureCommands:
 	var throttle := 0.0
 	var brake := false
 	var boost := false
+	var fire := false
 	var yaw := 0.0
 	var pitch := 0.0
 	var roll := 0.0
 
 	func _sample_controls() -> Dictionary:
-		return {"throttle": throttle, "brake": brake, "boost": boost, "yaw": yaw, "pitch": pitch, "roll": roll}
+		return {"throttle": throttle, "brake": brake, "boost": boost, "fire": fire, "yaw": yaw, "pitch": pitch, "roll": roll}
 
 
 func _init() -> void:
@@ -50,6 +51,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--components" in OS.get_cmdline_user_args():
+		await _run_components()
+		return
 	if "--main" in OS.get_cmdline_user_args():
 		await _run_main()
 		return
@@ -761,6 +765,9 @@ var _main_combat_records: Array[Dictionary] = []
 var _main_stale_probed := false
 var _main_heat_probe := false
 var _main_heat_ticks: Array[Dictionary] = []
+var _component_service_hull := -1.0
+var _component_service_repairs := 0
+var _component_service_repair_cues: Array[StringName] = []
 var _main_audio_start := false
 var _main_audio_flight := false
 var _main_audio_offline := false
@@ -817,6 +824,9 @@ func _run_main() -> void:
 		if source == _main_ship.get_instance_id():
 			_main_fire_cues.append({"cue":cue,"position":position,"source":source,"tick":Engine.get_physics_frames()}))
 	if not _main_check(_main_rig.get_parent() == _main_ship and _main_rig.get_profile_id() == &"standard_fighter" and not _main_rig.is_engine_running(),"actual Katana standard_fighter rig is bound to same offline ship"): return
+	if "--component-service" in OS.get_cmdline_user_args():
+		_main_ship.component_repair_progressed.connect(func(_progress: Dictionary): _component_service_repairs += 1)
+		_main_ship.get_damage_presentation().component_repair_cue_started.connect(func(id: StringName,_point: Vector3): _component_service_repair_cues.append(id))
 	var identity := _main_player.get_instance_id()
 	var spawn := _main_player.global_position
 	var world := _main_game.world
@@ -923,6 +933,8 @@ func _main_board_from_port(sortie: int, identity: int, area: ShipBoardingArea) -
 		await _main_frames(1)
 	if not _main_check(_main_game.active_ship == _main_ship and _main_game._piloting and not _main_game._transition_busy and _main_player.is_seated_at(_main_ship.get_pilot_seat_anchor()) and area.get_reservation_token() == _main_player and _main_player.get_instance_id() == identity and not _main_ship.is_canopy_open() and _main_ship.get_camera().current,"actual ordinary E claims seat/camera/input and fully seals Katana sortie="+str(sortie)): return false
 	_main_claims += 1
+	if _component_service_hull > 0 and "--component-service" in OS.get_cmdline_user_args():
+		if not _main_component_service_restored(): return false
 	generation = _main_game._transition_generation
 	_main_game._board_ship(_main_ship)
 	if not _main_check(_main_game._transition_generation == generation and area.get_reservation_token() == _main_player,"duplicate seated direct boarding cannot replace current transaction"): return false
@@ -971,6 +983,10 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 	await _main_frames(20)
 	Input.action_release(&"fire")
 	if not _main_check(_main_shots > shots and _main_projectiles > projectiles and not _main_bad_shot,"actual held fire uses approved center-muzzle pulse on usable flight "+str(sortie)): return false
+	if sortie == 0 and "--component-service" in OS.get_cmdline_user_args():
+		if not await _main_component_damage(): return false
+	if sortie == 1 and "--component-service" in OS.get_cmdline_user_args():
+		if not await _main_component_recovered_fire(): return false
 	Input.action_press(&"brake")
 	await _main_frames(30)
 	_main_release_inputs()
@@ -996,6 +1012,8 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 	_main_release_inputs()
 	await _main_frames(95)
 	if not _main_check(StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE,"landed neutral input shuts propulsion OFFLINE"): return false
+	if "--component-service" in OS.get_cmdline_user_args():
+		if not _main_component_service_restored(): return false
 	return await _main_release_at_home(identity,area)
 
 
@@ -1007,6 +1025,8 @@ func _main_release_at_home(identity: int, area: ShipBoardingArea) -> bool:
 	await _main_frames(3)
 	if not _main_check(not _main_game._piloting and not _main_ship.is_piloted() and not _main_player.is_seated() and _main_player.get_instance_id() == identity and _main_player.is_control_enabled() and _main_player.is_on_floor() and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and _main_player.collision_layer == _main_layer and _main_player.collision_mask == _main_mask and not (_main_player.get_node("PlayerCollision") as CollisionShape3D).disabled and not area.is_reserved() and _main_game._boarding_area == null and _main_ship.is_canopy_open() and not _main_ship.call("is_access_motion_active") and _main_ship.to_local(_main_player.global_position).distance_to(Vector3(-0.9,0.6,0)) < 0.05 and not bool(_main_player.get_cabin_containment_report().get("active",false)),"normal supported seated-open/inside release restores exact stand, walking body/control/camera and retires claim"): return false
 	_main_releases += 1
+	if _component_service_hull > 0 and "--component-service" in OS.get_cmdline_user_args():
+		if not _main_component_service_restored(): return false
 	if "--combat" in OS.get_cmdline_user_args() and not _main_unseated_combat_refusal(&"released"): return false
 	return _main_check(not area.release_reservation(_main_player),"stale released pilot claim cannot act")
 
@@ -1146,6 +1166,8 @@ func _main_quit_normally() -> void:
 		if root.gui_get_focus_owner() == exit_button: break
 		await _main_key(KEY_TAB)
 	if not _main_check(is_instance_valid(exit_button) and root.gui_get_focus_owner() == exit_button,"normal pause Tab reaches actual Exit to desktop"): return
+	if "--component-service" in OS.get_cmdline_user_args():
+		print("KATANA_COMPONENT_SERVICE_TEST_OK: repairs=",_component_service_repairs," hull=",_component_service_hull," repair_cues=",_component_service_repair_cues)
 	print("KATANA_MAIN_USER_DATA_DIR: ",OS.get_user_data_dir())
 	print("KATANA_FIGHTER_MAIN_TEST_OK",": claims=",_main_claims," releases=",_main_releases," walking_ticks=",_main_ticks," actual_pulse_shots=",_main_shots," elapsed_ms=",Time.get_ticks_msec()-_main_started_ms)
 	await _main_key(KEY_ENTER)
@@ -1490,3 +1512,420 @@ func _main_audio_complete() -> bool:
 		and _main_rig.get_profile_id() == &"standard_fighter" and _main_audio_start and _main_audio_flight
 		and _main_audio_offline and startup >= 2 and stop >= 2 and fire == _main_shots,
 		"same actual standard_fighter rig follows start/flight/offline and production shot audio follows every current pulse")
+
+
+const COMPONENT_ANCHORS := [Vector3(0,1.2,-4),Vector3(-4.9,0.9,4.5),
+	Vector3(4.9,0.9,4.5),Vector3(0,2.8,2.6),Vector3(3.4,1.75,4.5)]
+const COMPONENT_RAY_STARTS := [Vector3(0,1.2,-7),Vector3(-7,0.9,4.5),
+	Vector3(7,0.9,4.5),Vector3(0,2.8,3.5),Vector3(3.4,1.75,7)]
+const COMPONENT_RAY_ENDS := [Vector3(0,1.2,-3.8),Vector3(-4.8,0.9,4.5),
+	Vector3(4.8,0.9,4.5),Vector3(0,2.8,2.55),Vector3(3.4,1.75,4.5)]
+const COMPONENT_SURFACES := ["BluntNoseCollision","PortAftOutriggerCollision",
+	"StarboardAftOutriggerCollision","AftCockpitWallCollision","StarboardExhaustCollision"]
+
+
+func _component_contact(craft: HeroShip,index: int) -> Dictionary:
+	return _component_ray(craft,COMPONENT_RAY_STARTS[index],COMPONENT_RAY_ENDS[index],COMPONENT_SURFACES[index])
+
+
+func _component_ray(craft: HeroShip,start: Vector3,end: Vector3,expected: String) -> Dictionary:
+	var ray := PhysicsRayQueryParameters3D.create(craft.to_global(start),craft.to_global(end),PhysicsLayers.SHIP)
+	var hit := craft.get_world_3d().direct_space_state.intersect_ray(ray)
+	var actual := ""
+	if hit.get("collider") == craft:
+		actual = str(craft.shape_owner_get_owner(craft.shape_find_owner(int(hit.shape))).name)
+	print("KATANA_COMPONENT_CONTACT: expected=",expected," actual=",actual," hit=",hit)
+	_check(hit.get("collider") == craft and actual == expected,"real physics ray strikes named Katana solid "+expected)
+	return hit
+
+
+func _run_components() -> void:
+	var watchdog := create_timer(120.0)
+	watchdog.timeout.connect(func(): _check(false,"fixed120s component fixture cap"))
+	var crafts: Array[HeroShip] = []
+	var sources: Array[FixtureCommands] = []
+	var pilots: Array[PlayerController] = []
+	for index in 5:
+		var craft := KATANA.instantiate() as HeroShip
+		craft.set("pilot_weapon_fitted",true)
+		craft.position = Vector3(1000+index*2000,100,0)
+		root.add_child(craft)
+		await _frames(2)
+		# The exact old accepted source must reach this real missing-presentation
+		# assertion, before any candidate-only API call or consequential setup.
+		var model := craft.get_component_damage()
+		var hit := _component_contact(craft,index)
+		if _failed: return
+		var presentation := craft.get_damage_presentation()
+		print("KATANA_COMPONENT_BASELINE: model=",model.get_component_report()," hit=",hit," presentation=",presentation," nodes=",craft.get_children())
+		if not _check(presentation != null,"Katana installs actual shared localized component presentation"): return
+		var section: Dictionary = model.get_component_states()[index]
+		var point := PhysicsPointQueryParameters3D.new()
+		point.position = craft.to_global(COMPONENT_ANCHORS[index])
+		point.collision_mask = PhysicsLayers.SHIP
+		var anchor_owner := ""
+		for occupant in craft.get_world_3d().direct_space_state.intersect_point(point,16):
+			if occupant.collider == craft:
+				anchor_owner = str(craft.shape_owner_get_owner(craft.shape_find_owner(int(occupant.shape))).name)
+		var anchor_solid: String = COMPONENT_SURFACES[index] if index != 4 else "StarboardEngineHousingCollision"
+		if not _check(anchor_owner == anchor_solid,"exact component anchor is inside actual named solid "+anchor_solid): return
+		var extents: Vector3 = (model.get_component_report().local_bounds as AABB).size*0.5
+		var radius := extents.z*0.55 if index in [0,4] else (extents.x+extents.z)*0.28 if index == 3 else extents.x*0.55
+		if not _check(section.local_position == COMPONENT_ANCHORS[index] and is_equal_approx(section.local_radius,radius)
+			and craft.find_children("*","ShipComponentDamage",true,false).size() == 1,
+			"one inherited five-component ledger/radius at exact solid anchor "+str(section.id)): return
+		var source := FixtureCommands.new()
+		source.brake = true
+		craft.add_child(source)
+		craft.set_command_source(source)
+		var pilot := await _component_fixture_pilot(craft)
+		if not _check(pilot != null,"actual supported reserved seated Player in armed Katana fixture"): return
+		craft.set_piloted(true)
+		craft.request_engine_start()
+		crafts.append(craft)
+		sources.append(source)
+		pilots.append(pilot)
+	await _frames(150)
+	for source in sources:
+		source.brake = false
+		source.throttle = 0.5
+	await _frames(100)
+	for source in sources:
+		source.throttle = 0
+		source.brake = true
+	await _frames(60)
+	for index in crafts.size():
+		var craft := crafts[index]
+		var source := sources[index]
+		var model := craft.get_component_damage()
+		var presentation := craft.get_damage_presentation()
+		var id: StringName = ShipComponentDamage.COMPONENT_ORDER[index]
+		if not _check(not bool(craft.get_telemetry().landed) and not craft.get("_departure_lift_active") and craft.velocity.length() < 0.001
+			and bool(craft.call("get_primary_pilot_claim_is_current")),"ordinary launch leaves current physical pilot airborne before damage"): return
+		var failure_cues: Array[Dictionary] = []
+		var semantic_cues: Array[StringName] = []
+		presentation.component_failure_started.connect(func(component: StringName,point: Vector3): failure_cues.append({"id":component,"point":point}))
+		craft.get_ship_audio_rig().semantic_engine_cue_emitted.connect(func(cue: StringName,_intensity: float): semantic_cues.append(cue))
+		var healthy := await _component_motion(craft,source)
+		if index in [1,2] and not await _component_cadence(craft,source,23,"nominal "+String(id)): return
+		if index == 3 and not await _component_aim(craft,source,480): return
+		for stage in [1,2]:
+			var hit := _component_contact(craft,index)
+			if _failed: return
+			craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
+			await _frames(1)
+			if not _component_assert_stage(craft,index,stage): return
+			var motion := await _component_motion(craft,source)
+			if index == 0 and not _check(absf(motion.speed-healthy.speed)<0.01 and absf(motion.turn-healthy.turn)<0.001,
+				"nose stage "+str(stage)+" leaves actual thrust/turn unchanged"): return
+			if index == 4:
+				print("KATANA_COMPONENT_ENGINE_MOTION: stage=",stage," nominal=",healthy," measured=",motion)
+				if stage == 1 and not _check(motion.speed > healthy.speed*0.50 and motion.speed < healthy.speed*0.68
+					and absf(motion.turn/healthy.turn-0.62)<0.01,"actual impaired engine thrust/turn follow existing .62 power"): return
+				if stage == 2 and not _check(motion.speed<0.001 and motion.turn<0.001,"actual failed engine refuses thrust and turn"): return
+			if index in [1,2]:
+				if stage == 1 and not await _component_cadence(craft,source,37,"impaired "+String(id)): return
+				if stage == 2:
+					var refused: Array[int] = []
+					var on_fire := func(_origin: Vector3,_direction: Vector3): refused.append(1)
+					craft.projectile_fired.connect(on_fire)
+					source.fire = true
+					await _frames(60)
+					source.fire = false
+					craft.projectile_fired.disconnect(on_fire)
+					if not _check(refused.is_empty() and craft.get_weapon_fire_status().reason == &"weapon_component_failed","failed weaker wing refuses actual pilot fire"): return
+			if index == 3 and not await _component_aim(craft,source,480*(lerpf(0.30,1.0,0.62) if stage == 1 else 0.30)): return
+			var ledger := model.get_ledger_snapshot()
+			var hull := float(craft.get_telemetry().hull)
+			craft.set_canopy_open(true)
+			await _frames(3)
+			if not _check(not craft.is_canopy_open() and model.get_ledger_snapshot() == ledger and float(craft.get_telemetry().hull) == hull,
+				"unsupported access never heals actual component ledger or hull"): return
+		var expected_cue: StringName = ShipAudioRig.COMPONENT_IMPACT_CUE_BY_ID.get(id,&"hull_impact_medium")
+		if not _check(failure_cues.size() == 1 and failure_cues[0].id == id and failure_cues[0].point == COMPONENT_ANCHORS[index]
+			and semantic_cues.has(expected_cue),"actual localized failure position and semantic impact audio match "+String(id)): return
+	for index in crafts.size(): _component_retire_fixture(crafts[index],pilots[index])
+	await _frames(2)
+	if not await _component_engine_braking(): return
+	if not await _component_paired_engines(): return
+	print("KATANA_COMPONENTS_TEST_OK: checks=",_checks)
+	quit(0)
+
+
+func _component_assert_stage(craft: HeroShip,index: int,stage: int) -> bool:
+	var model := craft.get_component_damage()
+	var id: StringName = ShipComponentDamage.COMPONENT_ORDER[index]
+	var states := model.get_component_states()
+	var exact := states.size() == 5
+	for slot in states.size():
+		exact = exact and int(states[slot].state) == (stage if slot == index else 0)
+		exact = exact and absf(float(states[slot].integrity)-((1.0-stage*0.4) if slot == index else 1.0)) < 0.00001
+	var presentation := craft.get_damage_presentation()
+	return _check(exact and is_equal_approx(float(craft.get_telemetry().hull),craft.maximum_hull*(1.0-stage*0.1))
+		and presentation.get_component_effect_ids() == [id] and presentation.get_component_effect_state(id) == stage,
+		"real contact stage "+str(stage)+" changes only "+String(id)+" exact ledger/hull and localized cue")
+
+
+func _component_motion(craft: HeroShip,source: FixtureCommands) -> Dictionary:
+	source.fire = false
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(60)
+	var attitude := craft.global_basis.get_rotation_quaternion()
+	source.brake = false
+	source.throttle = 1
+	source.yaw = 0.2
+	await _frames(30)
+	var result := {"speed":craft.velocity.length(),"turn":attitude.angle_to(craft.global_basis.get_rotation_quaternion()),"tick":Engine.get_physics_frames()}
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(60)
+	return result
+
+
+func _component_cadence(craft: HeroShip,source: FixtureCommands,interval: int,label: String) -> bool:
+	source.fire = false
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(90)
+	var ticks: Array[int] = []
+	var fired := func(_origin: Vector3,_direction: Vector3): ticks.append(Engine.get_physics_frames())
+	craft.projectile_fired.connect(fired)
+	source.fire = true
+	await _frames(70)
+	source.fire = false
+	craft.projectile_fired.disconnect(fired)
+	print("KATANA_COMPONENT_CADENCE: ",label," actual_ticks=",ticks," expected_interval=",interval)
+	return _check(ticks.size() >= 2 and ticks[1]-ticks[0] == interval,
+		label+" actual pilot cadence follows unchanged cooldown and weaker-wing power")
+
+
+func _component_aim(craft: HeroShip,source: FixtureCommands,expected: float) -> bool:
+	source.fire = false
+	source.throttle = 0
+	source.yaw = 0
+	source.brake = true
+	await _frames(40)
+	var shots: Array[Dictionary] = []
+	var fired := func(origin: Vector3,direction: Vector3): shots.append({"origin":origin,"direction":direction})
+	craft.projectile_fired.connect(fired)
+	source.fire = true
+	await _frames(1)
+	source.fire = false
+	craft.projectile_fired.disconnect(fired)
+	var distance := -1.0
+	if shots.size() == 1:
+		var camera := craft.get_camera()
+		var camera_direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size*0.5).normalized()
+		var direction: Vector3 = shots[0].direction
+		var cross := camera_direction.cross(direction)
+		distance = ((shots[0].origin as Vector3)-camera.global_position).cross(direction).dot(cross)/cross.length_squared()
+	print("KATANA_COMPONENT_AIM: expected=",expected," actual_convergence=",distance)
+	return _check(shots.size() == 1 and absf(distance-expected)<0.5,"actual core state controls emitted pilot convergence")
+
+
+func _component_fixture_canopy(craft: HeroShip,opened: bool) -> bool:
+	craft.set_canopy_open(opened,0.05)
+	for frame in 60:
+		if craft.is_canopy_open() == opened and not bool(craft.call("is_access_motion_active")) \
+				and is_equal_approx(float(craft.get("_access_fraction")),1.0 if opened else 0.0): return true
+		await _frames(1)
+	return _check(false,"ordinary supported fixture access completes")
+
+
+func _component_fixture_pilot(craft: HeroShip) -> PlayerController:
+	var deck := StaticBody3D.new()
+	deck.name = "ComponentPilotSupportDeck"
+	deck.transform = craft.global_transform
+	deck.collision_layer = PhysicsLayers.WORLD
+	deck.collision_mask = 0
+	var collision := CollisionShape3D.new()
+	var slab := BoxShape3D.new()
+	slab.size = Vector3(24,0.5,20)
+	collision.shape = slab
+	collision.position.y = -0.25
+	deck.add_child(collision)
+	root.add_child(deck)
+	await _frames(2)
+	if not await _component_fixture_canopy(craft,true): return null
+	var pilot := PLAYER.instantiate() as PlayerController
+	pilot.transform = craft.get_boarding_entry_transform()
+	root.add_child(pilot)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	if not craft.is_boardable() or not area.try_reserve(pilot) \
+			or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
+		_check(false,"physical supported fixture pilot reservation and boarding")
+		return null
+	if not await _component_fixture_canopy(craft,false): return null
+	pilot.set_meta("fixture_support",deck)
+	return pilot
+
+
+func _component_retire_fixture(craft: HeroShip,pilot: PlayerController) -> void:
+	craft.queue_free()
+	(pilot.get_meta("fixture_support") as Node).queue_free()
+	pilot.queue_free()
+
+
+func _component_engine_braking() -> bool:
+	var craft: Array[HeroShip] = []
+	var sources: Array[FixtureCommands] = []
+	var pilots: Array[PlayerController] = []
+	for index in 3:
+		var item := KATANA.instantiate() as HeroShip
+		item.set("pilot_weapon_fitted",true)
+		item.position = Vector3(20000+index*2000,100,0)
+		root.add_child(item)
+		var source := FixtureCommands.new()
+		source.brake = true
+		item.add_child(source)
+		item.set_command_source(source)
+		var pilot := await _component_fixture_pilot(item)
+		if pilot == null: return false
+		item.set_piloted(true)
+		item.request_engine_start()
+		craft.append(item)
+		sources.append(source)
+		pilots.append(pilot)
+	await _frames(150)
+	var stable := 0
+	for tick in 600:
+		var matched := true
+		for index in craft.size():
+			var speed := craft[index].velocity.length()
+			sources[index].brake = false
+			sources[index].throttle = clampf((craft[index].passive_drag+4.0*(30-speed))/craft[index].thrust_acceleration,0,1)
+			matched = matched and not bool(craft[index].get_telemetry().landed) and absf(speed-30)<0.001
+		stable = stable+1 if matched else 0
+		if stable >= 12: break
+		await _frames(1)
+	if not _check(stable >= 12,"three nominal engines reach actual common30m/s through normal throttle feedback"): return false
+	# Real damage at the current moving hull changes only component power; all
+	# three receive the same brake command at this same completed tick.
+	for index in [1,2]:
+		for loss in index:
+			var hit := _component_contact(craft[index],4)
+			if _failed: return false
+			craft[index].apply_damage(craft[index].maximum_hull*0.1,hit.position,hit.normal)
+	var starts: Array[float] = []
+	var origins: Array[Vector3] = []
+	var stopped: Array[Dictionary] = []
+	var first_tick := Engine.get_physics_frames()
+	for index in craft.size():
+		starts.append(craft[index].velocity.length())
+		origins.append(craft[index].global_position)
+		stopped.append({})
+		sources[index].throttle = 0
+		sources[index].brake = true
+	for tick in 180:
+		await _frames(1)
+		var complete := true
+		for index in craft.size():
+			if stopped[index].is_empty() and craft[index].velocity.length()<0.0001:
+				stopped[index] = {"stage":index,"start_speed":starts[index],"first_tick":first_tick,
+					"last_tick":Engine.get_physics_frames(),"distance":craft[index].global_position.distance_to(origins[index]),
+					"seconds":float(Engine.get_physics_frames()-first_tick)/Engine.physics_ticks_per_second}
+			complete = complete and not stopped[index].is_empty()
+		if complete: break
+	for index in craft.size():
+		print("KATANA_COMPONENT_BRAKING: ",stopped[index]," modifiers=",craft[index].get_operational_modifiers())
+		if not _check(not stopped[index].is_empty() and absf(starts[index]-30)<0.01
+			and craft[index].get_component_damage().get_component_state(&"engine_bay") == index,
+			"actual equal-speed brake result retains real engine stage "+str(index)): return false
+		if index > 0 and not _check(float(stopped[index].distance)>float(stopped[index-1].distance)
+			and int(stopped[index].last_tick)>int(stopped[index-1].last_tick),
+			"actual damaged-engine braking distance/time worsens monotonically"): return false
+	for index in craft.size(): _component_retire_fixture(craft[index],pilots[index])
+	await _frames(2)
+	return true
+
+
+func _component_paired_engines() -> bool:
+	var starts := [Vector3(3.4,1.75,2.9),Vector3(3.4,1.75,6.5),
+		Vector3(4.8,1.75,4.5),Vector3(1.9,1.75,4.5),Vector3(3.4,2.5,4.5)]
+	var ends := [Vector3(3.4,1.75,3.4),Vector3(3.4,1.75,5.9),
+		Vector3(4.2,1.75,4.5),Vector3(2.6,1.75,4.5),Vector3(3.4,1.9,4.5)]
+	var crafts: Array[HeroShip] = []
+	for transformed in [false,true]:
+		for side in [-1.0,1.0]:
+			for face in starts.size():
+				var craft := KATANA.instantiate() as HeroShip
+				craft.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(35)) if transformed else Basis.IDENTITY,
+					Vector3(23+crafts.size()*20,7,-19))
+				root.add_child(craft)
+				crafts.append(craft)
+	await _frames(2)
+	var index := 0
+	for transformed in [false,true]:
+		for side in [-1.0,1.0]:
+			for face in starts.size():
+				var craft := crafts[index]
+				var start: Vector3 = starts[face]
+				var end: Vector3 = ends[face]
+				start.x *= side
+				end.x *= side
+				var expected := ("Port" if side < 0 else "Starboard")+("ExhaustCollision" if face == 1 else "EngineHousingCollision")
+				var hit := _component_ray(craft,start,end,expected)
+				if _failed: return false
+				craft.apply_damage(craft.maximum_hull*0.1,hit.position,hit.normal)
+				var model := craft.get_component_damage()
+				if not _check(model.get_component_state(&"engine_bay") == 1 and model.get_impaired_component_count() == 1
+					and model.get_failed_component_count() == 0 and is_equal_approx(float(craft.get_telemetry().hull),craft.maximum_hull*0.9),
+					"fresh real pod face maps only existing engine at placement="+str(transformed)+" side="+str(side)+" face="+str(face)): return false
+				var collision := model.record_collision_damage(craft.maximum_hull*0.01,craft.to_local(hit.position))
+				var regions: Dictionary = collision.get("components",{})
+				if not _check(bool(collision.get("accepted",false)) and regions.size() == 1 and regions.has(&"engine_bay"),
+					"same actual pod face retains functional collision candidate routing"): return false
+				craft.queue_free()
+				index += 1
+	await _frames(2)
+	return true
+
+
+func _main_component_damage() -> bool:
+	var hit := _component_contact(_main_ship,1)
+	if _failed: return false
+	_main_ship.apply_damage(_main_ship.maximum_hull*0.1,hit.position,hit.normal)
+	await _main_frames(1)
+	var model := _main_ship.get_component_damage()
+	_component_service_hull = float(_main_ship.get_telemetry().hull)
+	var ledger := model.get_ledger_snapshot()
+	if not _main_check(model.get_component_state(&"port_wing") == 1
+		and _main_ship.get_damage_presentation().get_component_effect_ids() == [&"port_wing"]
+		and is_equal_approx(float(_main_ship.get_operational_modifiers().fire_multiplier),0.62),
+		"real airborne Katana outrigger damage impairs actual weaker-wing fire and localized cue"): return false
+	await _main_tap(&"interact")
+	return _main_check(_main_game._piloting and _main_player.is_seated_at(_main_ship.get_pilot_seat_anchor())
+		and model.get_ledger_snapshot() == ledger and float(_main_ship.get_telemetry().hull) == _component_service_hull,
+		"ordinary refused airborne access preserves same real damaged hull and ledger")
+
+
+func _main_component_service_restored() -> bool:
+	return _main_check(_component_service_hull > 0 and _component_service_repairs > 0
+		and _component_service_repair_cues.has(&"port_wing")
+		and _main_ship.get_component_damage().get_worst_integrity() == 1.0
+		and float(_main_ship.get_operational_modifiers().fire_multiplier) == 1.0
+		and _main_ship.get_damage_presentation().get_active_component_effect_count() == 0
+		and float(_main_ship.get_telemetry().hull) == _component_service_hull,
+		"ordinary strict-home service restores component function/cue while damaged hull survives access, release and reboard")
+
+
+func _main_component_recovered_fire() -> bool:
+	Input.action_press(&"brake")
+	for tick in 90: await _main_observer.completed_tick
+	var first := _main_combat_records.size()
+	Input.action_press(&"fire")
+	for tick in 50: await _main_observer.completed_tick
+	Input.action_release(&"fire")
+	var events := _main_combat_records.slice(first)
+	var exact := events.size() >= 2
+	for index in range(1,events.size()):
+		exact = exact and int(events[index].tick)-int(events[index-1].tick) == 23
+	for event in events:
+		exact = exact and bool(event.result.get("accepted",false)) and event.request.source_id == 1114
+	print("KATANA_COMPONENT_SERVICE_FIRE: events=",events," hull=",_main_ship.get_telemetry().hull)
+	return _main_check(exact and float(_main_ship.get_telemetry().hull) == _component_service_hull,
+		"second ordinary sortie fires actual restored23-tick pilot cadence while hull remains damaged")
