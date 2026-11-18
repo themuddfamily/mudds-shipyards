@@ -1700,6 +1700,32 @@ func _main_reset_snapshot(berth: ShipBerth) -> Dictionary:
 		"stream":_main_ship.get_command_source().get_stream_id()}.duplicate(true)
 
 
+func _main_incoming_cadence(ticks: int, index: int) -> bool:
+	var started_tick := Engine.get_physics_frames()
+	var started_process := Engine.get_process_frames()
+	var started_usec := Time.get_ticks_usec()
+	var deadline := started_tick + ticks
+	# Count completed physics ticks directly. A paired physics/process await
+	# counts process resumptions and can multiply the intended cadence interval
+	# when the engine catches up several physics steps in one process frame.
+	while Engine.get_physics_frames() < deadline:
+		await _main_observer.completed_tick
+		if _failed: return false
+	# Keep the resolver's ordinary process-delta heat advancement. Only this
+	# final process boundary may add physics catch-up beyond the deadline.
+	await process_frame
+	var elapsed_ticks := Engine.get_physics_frames() - started_tick
+	var maximum_overshoot := Engine.max_physics_steps_per_frame
+	print("DYNAMIC_LIFECYCLE_CADENCE: index=",index," requested_ticks=",ticks,
+		" started_tick=",started_tick," ended_tick=",Engine.get_physics_frames(),
+		" elapsed_ticks=",elapsed_ticks," maximum_overshoot=",maximum_overshoot,
+		" started_process=",started_process," ended_process=",Engine.get_process_frames(),
+		" elapsed_usec=",Time.get_ticks_usec()-started_usec)
+	return _main_check(elapsed_ticks >= ticks and elapsed_ticks <= ticks+maximum_overshoot
+		and Engine.get_process_frames() > started_process,
+		"incoming cadence actual-physics deadline and single-process-boundary overshoot")
+
+
 func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth, dock: Transform3D) -> void:
 	var neighbors := _main_lifecycle_neighbors()
 	if not await _main_board_from_port(0,identity,area): return
@@ -1728,9 +1754,14 @@ func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth
 	var cadence_ticks := ceili(60.0/weapon.cadence_shots_per_second)
 	var hits := 0
 	for index in ceili(_main_ship.maximum_hull/weapon.damage_per_hit):
-		if index > 0: await _main_frames(cadence_ticks)
+		var incoming_started_tick := Engine.get_physics_frames()
+		var incoming_started_process := Engine.get_process_frames()
+		var incoming_started_usec := Time.get_ticks_usec()
+		if index > 0 and not await _main_incoming_cadence(cadence_ticks,index): return
+		var vent_polls := 0
 		for vent in 240:
 			if not authority.is_weapon_heat_locked(opponent,GameFlow.OPPONENT_WEAPON_ID): break
+			vent_polls += 1
 			await _main_frames(1)
 		if float(_main_ship.get_telemetry().hull) <= weapon.damage_per_hit:
 			var spawn: Vector3 = (_main_game.world.get_player_spawn() as Transform3D).origin
@@ -1745,7 +1776,10 @@ func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth
 			_main_recovery_settling = {"identity":identity,"spawn":spawn,"support":plane,"last_y":spawn.y,"last_velocity_y":0.0}
 		var aim := _main_ship.to_global(Vector3(3.6,2.15,3.5))
 		var result := authority.submit_hitscan(opponent,GameFlow.OPPONENT_WEAPON_ID,opponent.global_position,(aim-opponent.global_position).normalized())
-		print("DYNAMIC_LIFECYCLE_INCOMING: index=",index," status=",result.get("status")," damage=",result.get("applied_damage")," target=",result.get("target_entity"))
+		print("DYNAMIC_LIFECYCLE_INCOMING: index=",index," status=",result.get("status")," damage=",result.get("applied_damage")," target=",result.get("target_entity"),
+			" started_tick=",incoming_started_tick," hit_tick=",Engine.get_physics_frames(),
+			" started_process=",incoming_started_process," hit_process=",Engine.get_process_frames(),
+			" elapsed_usec=",Time.get_ticks_usec()-incoming_started_usec," vent_polls=",vent_polls)
 		if not _main_check(bool(result.get("damaged",false)) and result.get("target_entity") == _main_ship,"actual cadence/heat-authorized incoming ray damages physical Dynamic engine"): return
 		hits += 1
 	if not _main_check(_main_ship.is_destroyed() and not _main_game._piloting and not _main_ship.is_piloted() and not area.is_reserved() and not _main_player.is_seated() and _main_game._regeneration_pending.has(_main_ship.get_instance_id()),"actual terminal damage releases pilot/body/helm and queues ordinary regeneration"): return
