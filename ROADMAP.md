@@ -274,6 +274,49 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Katana card10a — network ground access and physical pilot handoff, ACTIVE
+
+Before-code split of the adopted card10 into two genuine runtime dependencies.
+10a delivers authoritative ground access/one pilot/inside exit/handoff. 10b adds
+validated remote primary transport/emission and proves the ORIGINAL complete
+playing-host/two-remotes approach/claim/flight/fire/home/OFFLINE/exit/handoff route.
+Card10 remains OPEN until10b passes that unchanged full contract. This does not
+substitute ground evidence for flight/fire, the original nonplaying dedicated/
+two-client baseline, adversity/endurance or global SCOPE-LIMIT capacity.
+
+Dependencies cards1–9 accepted. Clean base **60fb8f9e2b8268b36cce5e80884dfe7313500f1b**, runtime9694a3310110f32e1337b52bb709dd385d7c185b.
+First mapping **2026-11-18 11:21:46UTC** counts in10a. Hard all-in window
+**11:21:46→12:51:46UTC,90minutes** covers mapping/code/review/source/PCK/checkpoint/
+merge/push/archive/process/worktree/branch cleanup/finaldocs and finalverification.
+The entire card10 FAMILY shares the owner08:57:09 renewal **0/1 substantive
+corrections used**, limit1; splitting/branches do not replenish it for10b. Keep
+cumulative card10 cost and all failures. No failed10a automatic successor/retry.
+
+One HIGH implementer owns ONLY scripts/game/game_flow.gd,
+scripts/interaction/ship_cabin_hatch.gd, scripts/ships/katana_fighter.gd,
+scripts/network/network_boarding_intent.gd, network_boarding_authority.gd and
+network_enet_session_adapter.gd, tests/network/jovian_network_two_client_boarding_test.gd
+(Katana opt-in profile; unchanged legacy default) and
+ tests/network/network_boarding_authority_test.gd (small new action cases).
+Root owns engines/release/integration. Independent HIGH review covers transport,
+access ownership, replica state and negative paths. No engines in mutable source.
+No movement/fire wire or remote primary permission changes in10a; no fake cabin,
+passenger berths, station-walker admission, new capacities or physics tuning.
+
+| Frozen outcome | Acceptance and stop |
+| --- | --- |
+| Production gap/control | Actual live production host startup currently omits Katana from boarding registration because it lacks a travelling cabin. Exact final opt-in three-peer fixture on old60fb base first proves actual missing katana_provisional ship/pilot seat in existing host ledger snapshot, before any candidate-only API/constant.300s actor/360s supervisor caps; no compiler/missing-method or fabricated dictionary substitute. |
+| Scope/authority | Existing pilot contract: clients walk physical normal Main and use ordinary Interact; authenticated host ledger owns seat/ship identity. Do not claim server-simulated station walking (no such admission exists) or create a cabin to obtain it. Playing host enters normal Begin Shift and demonstrably walks supported on foot; two actual remote Main clients remain supported on foot except the one actual pilot. |
+| Exact registration | Host registers exactly one Katana pilot seat and ZERO guest/cabin berths through existing registration/ownership owners. No other craft roles/seats/sources/profiles change; preserve15craft/15homes and all14othercraft/current leases/poses/settings/sourceIDs. |
+| Access messages | Extend the ONE existing authenticated NetworkBoardingIntent/RPC and authority with explicit access-open/access-close actions, same record/schema/peer/tick/sequence/generation checks. No new parallel RPC/validator family. Host checks exact Katana/healthy grounded supported/OFFLINE/current ownership/access phase, then animates the real canopy/ramp. Access answers cannot accidentally create a pilot claim. Existing four boarding actions/defaults remain unchanged. |
+| Canopy agreement | Actual host canopy open/close, logical open bool, fraction and collision agree on all three peers through existing operation replication. Client hatch controls route through host; other craft hatch behavior stays unchanged. Seated closure and post-exit opening use the actual authority and natural motion, no local-only success. |
+| Inside exit/handoff | Publish initial landed only from real exact occupied home/fit/support proof using existing publication, not a fabricated completed landing contract. Current pilot A enters through full station/port ramp/helm, seals; ordinary grounded OFFLINE exit needs host-confirmed state, releases the actual seat, restores same supported inside Player/capsule/camera/input, then walks fully out along ramp. Retain access ownership until real outside close acknowledgement, so B/host cannot steal/close during A exit. B then physically opens/walks/claims/exits/walks out; stale A/duplicates/foreign ownership refuse atomically with existing feedback. No guest role or exterior teleport shortcut. |
+| New complete ground profile | New opt-in Katana profile in existing3OS Main harness: actual playing host +two remote actors A→B sequential physical pilots, both complete ground entry/seal/inside-release/walkout/closure; playing host walks normally. Initial outside/sealed boarding, foreign-held/duplicate/stale/access-phase requests refuse without state mutation; host currentness/replica facts and zero cabin claims agree. Existing per-transition8s, physical route bounds/caps inherited; input only after initial setup, no pose/velocity/authority/clock/engine forcing.300s full actor profile/360s owned supervisor; all actual OS exits0, canonical coordinator marker once, actor success and PID/display/process cleanup. |
+| Source eight | New Katana ground profile300/outer360; unchanged complete Jovian return --postdock-redepart profile300/outer360; existing network_boarding_authority_test120, network_remote_craft_pose_test120, network_ship_ownership_authority_test120; exact Katana full --main--combat300, --main--component-service300, --main--lifecycle300. Every original assertion/route/threshold remains; new ground is not fullcard10 proof. All Main/network invocations alone. |
+| PCK six | Exact same newground and unchanged fullJovian profiles300/360, same boarding authority120, same three fullKatana journeys300each, actual new WindowsPCK from empty production-source paths. Relocate exact committed fixture inheritance/resources only as necessary; pin every fixture and retain all assertions/caps. Each peer must prove requestedpack loaded; no source fallback. |
+| Diagnostics/display | Every Godot invocation Dummy. Headless or isolated Xvfb/explicitx11, stripped inherited desktop displays, independent abort/release/reap and private profiles. Require exact success markers/exit0/raw0/source-cache-HEAD-clean; normal solo Main primaries clean_shutdown/clean/session_ended. Network protocol shutdowns prove their own actual OS results, no invented clean-save claim. No nativeGPU/desktop/performance qualification. |
+| Checkpoint/close | All selected sourceGO then fresh paired safeexports/trusted private template/strictstartup3/equal complete maps/intended production payloads+independently reviewed metadata/exactZIP+TAR bytes/existing audit9/eight local artifacts. Reuse accepted reference image with explicit attribution; no new render qualification for this networking change. Then accepted10a merge/push, verify every archived member/hash before owned worktree/exacttip local+remote branch cleanup. Paradox gunner stays protected. Full10/10b,11–13/fullcraft/network capacity/adversity/endurance/all36parents/10phasegates remain OPEN. Native Windows/mandatoryhuman OWNER-EXCLUDED/NOT_RUN and applicable GPU/device/listening/readability gates unchanged. CI remains OFF. |
+
 <a id="katana-cold-recovery-current"></a>
 
 ### Katana committed, refused and interrupted cold continuation — card9 DONE,9694a33
