@@ -9627,6 +9627,21 @@ func get_boarding_time_budget_source(candidate: HeroShip) -> Dictionary:
 	return observation.duplicate(true)
 
 
+## This one stock kind is composed by Titan custody; no other cargo is inferred.
+func get_cargo_budget_source(candidate: HeroShip) -> Dictionary:
+	if not is_instance_valid(candidate) or candidate.get_ship_id() != &"titan_provisional":
+		return {}
+	if not is_inside_tree() or is_queued_for_deletion() or candidate not in ships \
+			or candidate.get_parent() != self or not is_instance_valid(titan_cargo) \
+			or titan_cargo.get_parent() != self or titan_cargo.ship != candidate \
+			or titan_cargo.authority != cargo_transfer_authority \
+			or titan_cargo.store != _runtime_settings_user_data_store \
+			or titan_cargo.authorize_actor != Callable(self, "_authorize_titan_cargo_actor") \
+			or not is_instance_valid(_titan_locker_panel) or not is_instance_valid(_titan_hold_panel):
+		return {"status": "UNAVAILABLE", "reason": "invalid_custody", "source": "actual_titan_parcel_custody_and_transfer"}
+	return titan_cargo.get_budget_source(candidate, _titan_locker_panel, _titan_hold_panel)
+
+
 func _input(event: InputEvent) -> void:
 	_observe_boarding_budget_input(event)
 	if is_instance_valid(_network_engineer_client_seat) and is_instance_valid(_network_engineer_source) \
@@ -10024,7 +10039,7 @@ func _build_fleet_registry_snapshot() -> Dictionary:
 			"display_name": candidate.get_display_name(),
 			"berth_id": candidate.get_home_berth_id(),
 			"state": state,
-			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate, get_pilot_weapon_budget_source(candidate), get_boarding_time_budget_source(candidate)).get_snapshot(),
+			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate, get_pilot_weapon_budget_source(candidate), get_boarding_time_budget_source(candidate), get_cargo_budget_source(candidate)).get_snapshot(),
 		})
 	rows.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
 		return String(first.get("ship_id", "")) < String(second.get("ship_id", ""))

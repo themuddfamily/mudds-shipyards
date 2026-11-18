@@ -161,6 +161,88 @@ func snapshot() -> Dictionary:
 		"titan": authority.get_quantity(ship_handle, ITEM) if is_instance_valid(authority) else -1, "status": status,
 		"locker_handle": _endpoint_handle(locker_handle), "ship_handle": _endpoint_handle(ship_handle)}
 
+
+## Read only: project the current exact custody pair and the two real consumers.
+## Never retries persistence, admits an actor, transfers stock or repairs a binding.
+func get_budget_source(candidate: HeroShip, load_panel: TitanCargoPanel, return_panel: TitanCargoPanel) -> Dictionary:
+	var unavailable := {"status": "UNAVAILABLE", "reason": "invalid_custody", "source": "actual_titan_parcel_custody_and_transfer"}
+	if candidate != ship or not is_available() or _committing or not is_instance_valid(store) \
+			or not is_instance_valid(locker) or not locker.is_inside_tree() or locker.is_queued_for_deletion() \
+			or not ship.is_inside_tree() or ship.is_queued_for_deletion() or ship.get_ship_id() != &"titan_provisional" \
+			or not authorize_actor.is_valid():
+		return unavailable
+	if not is_instance_valid(load_panel) or not is_instance_valid(return_panel) \
+			or not load_panel.is_inside_tree() or not return_panel.is_inside_tree() \
+			or load_panel.is_queued_for_deletion() or return_panel.is_queued_for_deletion() \
+			or load_panel.custody != self or return_panel.custody != self \
+			or not load_panel.loading or return_panel.loading \
+			or load_panel.get_parent() != locker or return_panel.get_parent() != ship \
+			or load_panel.name != &"TitanLockerPanel" or return_panel.name != &"TitanHoldPanel" \
+			or not _budget_panel_is_physical(load_panel) or not _budget_panel_is_physical(return_panel):
+		return unavailable
+	# Existing authority preflight is a read-only exact owner/handle check.
+	var first := authority._preflight_reattach_member(locker, locker_handle, &"locker")
+	var second := authority._preflight_reattach_member(ship, ship_handle, &"ship")
+	if not bool(first.get("accepted", false)) or not bool(second.get("accepted", false)):
+		return unavailable
+	var supply := authority.get_manifest_snapshot(locker_handle)
+	var hold := authority.get_manifest_snapshot(ship_handle)
+	if not bool(supply.get("attached", false)) or not bool(hold.get("attached", false)) \
+			or supply.get("manifest_id") != &"titan_supply_manifest" or hold.get("manifest_id") != &"titan_cargo_manifest" \
+			or supply.get("owner_entity_id") != &"titan_supply_locker" or hold.get("owner_entity_id") != &"titan_provisional" \
+			or int(supply.get("capacity", -1)) != 4 or int(hold.get("capacity", -1)) != 4:
+		return unavailable
+	var unit_costs := authority._unit_capacities()
+	if not unit_costs.get(ITEM) is int or int(unit_costs[ITEM]) != 1:
+		return unavailable
+	var aboard := authority.get_quantity(ship_handle, ITEM)
+	var stored := authority.get_quantity(locker_handle, ITEM)
+	var pair := {"locker": stored, "titan": aboard}
+	var payload := store.get_snapshot()
+	if store.get_loaded_source() != &"primary" or not payload.get(MARKER) is bool or not payload[MARKER] \
+			or not payload.get(SLOT) is Dictionary or (payload[SLOT] as Dictionary).size() != 2:
+		return unavailable
+	var saved_pair: Dictionary = payload[SLOT]
+	for key: String in ["locker", "titan"]:
+		var quantity: Variant = saved_pair.get(key)
+		if quantity is bool or not _whole(quantity) or float(quantity) < 0.0 or float(quantity) > 4.0:
+			return unavailable
+	# UserDataStore installs parsed JSON numbers. Compare validated whole parcel
+	# quantities in the same integer representation as the live authority.
+	var committed_pair := {"locker": int(saved_pair.locker), "titan": int(saved_pair.titan)}
+	if committed_pair != pair or pair != _last_pair \
+			or aboard < 0 or stored < 0 or aboard + stored != 4 \
+			or int(hold.get("used_capacity", -1)) != aboard or int(supply.get("used_capacity", -1)) != stored \
+			or int(hold.get("remaining_capacity", -1)) != int(hold.capacity) - aboard:
+		return unavailable
+	# Entries must contain only this actual registered unit-capacity-one kind.
+	for manifest: Dictionary in [supply, hold]:
+		var quantity := stored if manifest == supply else aboard
+		var expected: Array = [] if quantity == 0 else [{"item_id": ITEM, "quantity": quantity}]
+		if manifest.entries != expected:
+			return unavailable
+	return {"status": "SOURCED", "source": "actual_titan_parcel_custody_and_transfer", "ship_id": str(ship.get_ship_id()),
+		"craft_instance_id": ship.get_instance_id(), "custody_instance_id": get_instance_id(), "authority_instance_id": authority.get_instance_id(),
+		"manifest_id": str(hold.manifest_id), "manifest_generation": int(hold.generation), "owner_generation": int(hold.owner_generation),
+		"item_id": str(ITEM), "capacity": int(hold.capacity), "aboard": aboard, "free": int(hold.remaining_capacity), "locker": stored,
+		"handoff": {"load_panel_instance_id": load_panel.get_instance_id(), "return_panel_instance_id": return_panel.get_instance_id(),
+			"quantity": 1, "load": "supply_locker", "return": "parcel_hold", "conditions": "on_foot_at_own_offline_home"}}.duplicate(true)
+
+
+func _budget_panel_is_physical(panel: TitanCargoPanel) -> bool:
+	if not panel.monitorable or panel.collision_layer != PhysicsLayers.INTERACTABLE_AREA_LAYER or panel.collision_mask != 0:
+		return false
+	var shapes := 0
+	for child in panel.get_children():
+		if child is CollisionShape3D:
+			var collision := child as CollisionShape3D
+			if collision.disabled or not collision.transform.is_equal_approx(Transform3D.IDENTITY) or not collision.shape is SphereShape3D:
+				return false
+			if not is_equal_approx((collision.shape as SphereShape3D).radius, 0.18):
+				return false
+			shapes += 1
+	return shapes == 1
+
 func request_transfer(actor: Node, panel: Node3D, loading: bool, quantity: Variant = 1, transfer_id: StringName = &"", source: Dictionary = {}, destination: Dictionary = {}) -> Dictionary:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return _reject(&"custody_unavailable")
