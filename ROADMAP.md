@@ -147,10 +147,13 @@ lifecycle card8, Dynamic cold recovery card9, Cinder Light role-choice, Cinder
 Loadmaster receipt captions and Zenith modern-airframe LOD. Older counts below
 and in linked cards are historical where superseded by this renewal.
 
-Unfinished Arrow complete-static LOD and Utopia card7 each receive **0/1 used**
-under this renewal. Arrow's consumed **1/1** under the 23:37:41 renewal and
-Utopia's older consumed counts remain historical. Arrow still needs a concrete
-geometry plan; Utopia still needs a demonstrated execution-cost reduction or
+At this renewal, unfinished Arrow complete-static LOD and Utopia card7 each
+received **0/1 used**. Arrow subsequently consumed **1/1** in the cause-backed
+[directed-extrema correction](#arrow-whole-lod-renewal-current); its new re-entry
+failure remains parked. Arrow's consumed **1/1** under the 23:37:41 renewal and
+Utopia's older consumed counts remain historical. Arrow now needs the exact
+shared-audio lifecycle and listener-contract repair; Utopia still needs a
+demonstrated execution-cost reduction or
 an explicit cap decision. Original acceptance checks and test caps remain
 unchanged; this reset starts no new work and grants no acceptance credit.
 
@@ -266,50 +269,52 @@ Paradox gunnerc743 remains protected. No next card selected.
 
 <a id="arrow-whole-lod-renewal-current"></a>
 
-### Arrow complete static LOD — renewed causal assessment, 2026-11-18
+### Arrow complete static LOD — PARKED at shared audio re-entry,712259ad4
 
-Same unfinished Arrow member, owner01:39:01 renewal **0/1 used**; prior
-**61.0810887minutes** and all failed source/raw retained. Bounded all-in window
-**01:40→03:10UTC**,90minutes including cleanup. Baseline6598a96be/checkpoint09e0ece.
-First measure final7a contributors without changing geometry: its archived
-per-source census preceded reduction, so the aggregate15,004 does not identify
-the remaining2,380 excess. One existing-cap300s isolated diagnostic is selected,
-not another acceptance replay. No geometry repair selected until measured cause
-supports a concrete plan meeting unchanged12,624/25% and all silhouette/opening/
-material/.025m/authority/resource/camera requirements. All original source5,
-render12/PCK5/paired-checkpoint gates and caps remain binding; no subset delivery.
-Root-owned card/helpers/results under
-`/srv/mudds-work/arrow-whole-lod-renewal-20261118/`; previous failed closeout below
-stays historical. Main runtime remains unchanged pending complete acceptance.
+Same unfinished card; no runtime merge/checkpoint/delivery credit. Latest accepted
+playable remains09e0ece, Main runtime unchanged. Source b79e59426 fixes the measured
+blanket AABB-extrema lock using exact directed coordinate constraints. Final
+712259ad4 adds failure-only operands; every original predicate remains intact.
 
-<a id="arrow-whole-lod-renewal-current"></a>
+**Geometry now passes:** far **12,374** /close **50,496**triangles, **24.505%**,
+250below the unchanged12,624maximum; submissions **8≤119**. Actual2,630fewer
+triangles than previous15,004. Open-boundary grid, new closed-facet exact bounds/
+corners/winding test, complete actual renderer census/membership and epoch0
+boundary/nonfinite/quiet-authority/resource checks pass. This is a passing prefix,
+not completed LOD acceptance or a smaller delivered subset.
 
-### Arrow complete static LOD — renewed directed-extrema correction selected
+Full focused source stops52.026s at retained Main re-entry; one diagnostic-only
+full same-case run52.020s preserves the failure and prints exact operands. Both
+exit143/marker0, original300s cap and all four source/cache/HEAD/clean guards pass.
+Actual Player/world/berth IDs, occupant/reservation, source1102 and empty host
+claim remain correct. No node/mesh/material difference occurs. Two signal changes:
+ShipAudioRig **loses** its parent component_damage_changed callback after detach;
+ShipBoardingArea intentionally replaces its BoardingSeatAudioBinding identity.
+The former is a real shared audio lifecycle defect: exit disconnects, retained
+re-entry restores runtime state without reattaching. The latter requires explicit
+reconciliation with this card's original all-listener identity contract; it must
+not hide the missing damage callback. Independent FINAL_GO/PACKAGE_GO withheld.
 
-Same unfinished card, owner2026-11-18 01:39:01 reset **0/1 substantive used**
-until the selected correction is applied. Window **01:40→03:10UTC**,90minutes
-ALL-IN including mapping/fullchecks/checkpoint/integration/push/owned cleanup;
-prior61.08108871666666minutes and all failures/source archives remain historical.
-Baseline6598a96be/checkpoint09e0ece. Existing five-file candidate restored exactly
-as a90c93eb9, not merged or accepted. Single unchanged-geometry diagnostic passes
-30.997s/exit0/marker1/raw0/source-cache-HEAD-clean guards:128final contributors
-sum15,004, with1,768vertices locked only by AABB extrema,1,671having at least
-two same-plane neighbours. This provides a measured seam, not accepted savings.
+Window **2026-11-18 01:40→03:10UTC**,90minutes ALL-IN, closed early at real failure.
+Owner01:39:01 renewal **1/1 substantive correction used**; prior61.08108871666666
+minutes/all failures/source retained. The eligibility review corrected the
+initial opportunity ceiling from1,671vertices to1,430actually entering the reducer;
+those estimates never supplied acceptance credit. Remaining four source suites,
+all12rendered images, PCK5, exports/startup3/maps/audit9/eight checkpoint artifacts
+are **NOT_RUN**. Ordinary/native/human/fullcraft/fullgame gates stay open; CI off.
 
-Selected one correction allows a directed collapse only when every removed
-extremal coordinate is exactly preserved by its retained neighbour. Actual open
-boundaries/nonmanifold/junction locks, feature chains, accumulated plane error,
-.025m scale bound, topology/winding/attributes and every original full gate
-remain. Target is unchanged≤12,624far of50,496close triangles/≤119submissions.
-Existing focused test gains a closed-facet regression; existing open-grid and
-all original cases stay mandatory. No recipe/nozzle/camera/material/budget cuts.
-One implementation agent plus independent high-risk reviewer; root owns engine
-checks/release/integration/cleanup. Original five source300s/five actual-PCK300s,
-12fixed rendered images and paired checkpoint/startup3/maps/audit9/eightfiles
-remain required. No ordinary/native/human/full-craft qualification inferred.
-Owned root `/srv/mudds-work/arrow-whole-lod-renewal-20261118`; full frozen card and
-prior archive retained there. First final failure stops dependents and parks
-the whole candidate unmerged; no automatic tuning successor.
+Reopening requires a cause-backed accepted shared-audio restoration and explicit
+listener-contract reconciliation under authorized scope/allowance, retaining all
+original cases/caps/cumulative cost. No automatic geometry tuning, silent signal
+filter, partial runtime merge or renamed allowance successor is authorized.
+Verified archive `/srv/mudds-work/arrow-whole-lod-renewal-20261118/records.tar.gz`:
+**16,710,009bytes /88members**, SHA256
+`35d5904062a7e9b9b77ccde4a27daa523e6874d07e0cfd6dbe25e695771441f5`.
+All members/source bundle verified; both raw failures/diagnostic/contributor data,
+old archive and full source preserved. Owned worktree/branch/processes/scratch
+removed after fresh remote/ownership/exact-tip checks; root contains only archive
+and closeout with actual cumulative cost. Unaccepted Paradox gunnerc743 remains
+protected. [Earlier geometry stop](#arrow-whole-lod-current) remains historical.
 
 <a id="arrow-whole-lod-current"></a>
 
@@ -4156,7 +4161,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 | [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
 | [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
 | [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
-| [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED7a33796: actual far15,004/50,496triangles(29.713%) exceeds25% | Fresh substantive allowance and a cause-backed reduction of at least2,380fartriangles; full original visual/runtime/package gates and prior cost retained |
+| [Arrow whole-craft LOD](#arrow-whole-lod-renewal-current) | PARKED712259ad4: geometry12,374/50,496≤25% passes; actual Main re-entry loses shared damage-audio callback and replaces boarding-audio binding identity | Cause-backed accepted shared audio restoration and explicit original listener-contract reconciliation under authorized scope/allowance; full gates/caps/priorcost retained |
 | [Zenith modern-airframe LOD](#zenith-modern-lod-current) | DONE09e0ece: complete modern roots/source+PCK234each/render10/package gates pass | Scoped runtime/component member closed; ordinary/native/Player/Main/fullcraft gates remain open; original failures/cost retained |
 | [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
 | [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
@@ -4270,7 +4275,7 @@ Estimate implementation, checks, required checkpoint, integration and cleanup
 larger production capabilities before starting. Full journeys and soaks retain
 their original durations; do not shorten them to fit an implementation card.
 Default correction allowance is one; freeze it and the absolute deadline first.
-For unfinished tasks covered by the 2026-11-17 owner reset, use the renewed
+For unfinished tasks covered by the latest owner reset, use the renewed
 allowance above rather than carrying forward an exhausted historical count.
 
 Stop dependent checks at the first unexpected failure and retain its actual

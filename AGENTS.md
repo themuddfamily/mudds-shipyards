@@ -24,8 +24,10 @@
 
 - Earlier renewal: **2026-11-17 23:37:41 UTC**. Arrow complete-static LOD
   subsequently consumed **1/1** and remains unfinished; its current allowance
-  is now **0/1**. Prior failures, actual costs and the concrete geometry
-  reopening condition remain binding. Completed Cinder Loadmaster receipt
+  was **0/1** at the latest reset. It subsequently consumed **1/1** for the
+  directed-extrema correction and remains parked at shared audio re-entry.
+  Prior failures, actual costs and the current causal reopening conditions
+  remain binding. Completed Cinder Loadmaster receipt
   captions and Zenith modern-airframe LOD are excluded from the latest reset.
 
 - Earlier renewal: **2026-11-17 21:35:22 UTC**. Utopia card7 subsequently

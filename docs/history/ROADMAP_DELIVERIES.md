@@ -35339,6 +35339,33 @@ branch/worktree/process remains. Reuse this closed source scope;ordinary/active-
 role/network/restart/LOD/final-package requirements remain open at their owners.
 
 
+<a id="arrow-lod-directed-extrema-reentry-stop-20261118"></a>
+## Arrow whole static LOD — geometry passes, shared audio re-entry fails,2026-11-18
+
+PARKED/unmerged712259ad4e22a7a33c71397b4610a069ce50c163; no new playable build.
+Directed-extrema correctionb79e594263a4c75fc2492221607200615d0fd12d reduces actualfar
+15,004→12,374 with unchangedclose50,496 and8≤119submissions. Original25%limit
+passes250triangles under12,624. Exactextremalcoordinate preservation keeps all
+other boundary/feature/manifold/error guards; existing open-grid and new closed-
+facet/corner/bounds/winding checks pass. Complete epoch0 runtime prefix passes.
+Fullfocused52.026s and failure-only diagnostic52.020s both stop exit143/marker0
+at retainedMainreentry; all source/cache/HEAD/clean guards pass, original300cap.
+Actual missing ShipAudioRig parentdamagecallback confirmed; separate accepted
+BoardingSeatAudioBinding replacement changes callback identity. All other node/
+mesh/material and Player/world/berth/source1102/claim operands unchanged. No
+identity waiver or sharedbehavior fix made after renewed1/1spent. Independent
+FINAL_GO/PACKAGE_GO withheld; remaining source4/render12/PCK5/release NOT_RUN.
+Latestaccepted09e0ece/Main runtime unchanged. Full original gates retained.
+
+[Current scope, exact causes and reopening](../../ROADMAP.md#arrow-whole-lod-renewal-current).
+Window01:40→03:10UTC90minutes ALL-IN closed early; prior61.08108871666666minutes
+retained. Verified88member/16,710,009byte archive
+`/srv/mudds-work/arrow-whole-lod-renewal-20261118/records.tar.gz`, SHA256
+`35d5904062a7e9b9b77ccde4a27daa523e6874d07e0cfd6dbe25e695771441f5`.
+Sourcebundle and every member rehashed before exact-tip ownedworktree/branch/
+process/scratch cleanup; only archive+closeout remain. ProtectedParadoxc743 stays.
+Native/human/ordinary/fullcraft/fullgame gates remain open; hostedCI disabled.
+
 <a id="halyard-lod-capture-viewport-stop-20261105"></a>
 ## Halyard whole-craft LOD runtime candidate — parked at capture assembly, 2026-11-05
 
