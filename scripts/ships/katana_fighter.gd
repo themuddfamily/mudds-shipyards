@@ -11,6 +11,7 @@ const RESERVED_RECESS := AABB(Vector3(-1.5, 0.6, -2), Vector3(3, 2.9, 4.5))
 var _access_leaves: Array[Dictionary] = []
 var _access_fraction := 0.0
 var _original_shell: Node3D
+var lifecycle_reset_guard: Callable
 var _primary_emission_pending := false
 var _primary_emission_origin := Vector3.INF
 var _primary_emission_direction := Vector3.ZERO
@@ -248,6 +249,71 @@ func _uses_inherited_primary_weapon() -> bool:
 
 func get_variant_visual_root() -> Node3D:
 	return _original_shell
+
+
+## The solid shell deliberately does not bank with the cockpit readout rig.
+## Retain the shared delayed-hide serial fence for both presentation roots.
+func _hide_destroyed_hull(destruction_serial: int) -> void:
+	super._hide_destroyed_hull(destruction_serial)
+	if destruction_serial == _destruction_serial and _destroyed and is_instance_valid(_original_shell):
+		_original_shell.visible = false
+
+
+## Landing deliberately ignores disabled shapes. Recovery instead needs the
+## real retained destination envelope while the destroyed body's shapes are off.
+func get_reset_collision_bounds() -> AABB:
+	var bounds := AABB()
+	var first := true
+	for child in get_children():
+		if not child is CollisionShape3D or (child as CollisionShape3D).shape == null:
+			continue
+		var collision := child as CollisionShape3D
+		var shape_bounds := _transformed_local_aabb(collision.transform, _shape_local_bounds(collision.shape))
+		bounds = shape_bounds if first else bounds.merge(shape_bounds)
+		first = false
+	return bounds
+
+
+func _end_landing_for_lifecycle(reason: StringName) -> void:
+	# A healthy home reset retires the completed landing snapshot, while Main
+	# continues to own the same occupied lease. Preserve it before any public
+	# reset signal; destruction and every other lifecycle boundary still release.
+	if reason == &"reset_for_reuse" and _reset_for_reuse_dispatch_active \
+			and not _destroyed and not _landing_active and _landed \
+			and _engine_state == ENGINE_OFFLINE:
+		var berth := _get_landing_berth()
+		if berth != null and berth.get_berth_id() == get_home_berth_id() \
+				and _landing_transforms_match(global_transform, berth.get_dock_transform()) \
+				and berth.get_occupant() == self \
+				and berth.has_valid_lease(self, _landing_reservation_token, get_ship_id()):
+			return
+	super._end_landing_for_lifecycle(reason)
+
+
+func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
+	var area := get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if _piloted or _remote_piloted or (area != null and area.is_reserved()):
+		return {"accepted": false, "reason": &"katana_occupied"}
+	if _landing_active or is_access_motion_active():
+		return {"accepted": false, "reason": &"katana_transition_active"}
+	if lifecycle_reset_guard.is_valid() and not lifecycle_reset_guard.call(spawn_transform):
+		return {"accepted": false, "reason": &"katana_lifecycle_changed"}
+	# Terminal damage queues collision retirement. A same-frame reset must not
+	# restore a new hull while those older disable writes are still pending.
+	if _destroyed:
+		for child in get_children():
+			if child is CollisionShape3D:
+				var collision := child as CollisionShape3D
+				if collision.shape != null and not collision.disabled:
+					return {"accepted": false, "reason": &"katana_terminal_transition_active"}
+	return {"accepted": true, "reason": &"variant_ready"}
+
+
+func _commit_variant_reset_for_reuse(_context: Dictionary) -> void:
+	# HeroShip has already closed access and reset its own rig under the one
+	# accepted transaction. Restore the separate solid frame without reparenting.
+	if is_instance_valid(_original_shell):
+		_original_shell.visible = true
 
 
 func _uses_weapon_component_fallback_emitters() -> bool:
