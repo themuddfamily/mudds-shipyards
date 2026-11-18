@@ -2,7 +2,7 @@
 
 ## Owner-authorized unfinished-task allowance reset — 2026-11-18
 
-- Latest owner renewal: **2026-11-18 01:39:01 UTC**. Reset every task still
+- Latest owner renewal: **2026-11-18 03:44:02 UTC**. Reset every task still
   unfinished at this renewal to **0 used**, including allowances consumed since
   earlier resets. This supersedes earlier current-used counts, not
   their historical records. Apply this renewal once per unfinished task.
@@ -22,12 +22,18 @@
   hardware inputs and acceptance gates remain binding. The reset does not make
   every unfinished task ready or authorize blind retries.
 
+- Earlier renewal: **2026-11-18 01:39:01 UTC**. Arrow complete-static LOD
+  and the active station-panel shader task subsequently consumed **1/1** each;
+  those counts remain historical. Both are unfinished and receive **0/1 used**
+  at the 03:44:02 renewal. Shared fleet audio re-entry repair completed before
+  this renewal and is excluded. All existing causal and acceptance gates remain.
+
 - Earlier renewal: **2026-11-17 23:37:41 UTC**. Arrow complete-static LOD
   subsequently consumed **1/1** and remains unfinished; its current allowance
   was **0/1** at the latest reset. It subsequently consumed **1/1** for the
   directed-extrema correction. The shared audio/re-entry cause was resolved;
   Arrow now remains parked at its original110s no-image rendered-capture
-  timeout after all five source suites pass. Its allowance remains **1/1**.
+  timeout after all five source suites pass. That **1/1** count is historical under the latest renewal.
   Prior failures, actual costs and the current causal reopening conditions
   remain binding. Completed Cinder Loadmaster receipt
   captions and Zenith modern-airframe LOD are excluded from the latest reset.

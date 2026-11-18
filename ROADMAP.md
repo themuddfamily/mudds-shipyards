@@ -130,7 +130,7 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 01:39:01 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-18 03:44:02 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved correction
 limit, or **one** if none was recorded. This includes active, parked, failed,
 blocked and gated tasks, including tasks that consumed allowances since the
@@ -153,18 +153,23 @@ lifecycle card8, Dynamic cold recovery card9, Cinder Light role-choice, Cinder
 Loadmaster receipt captions and Zenith modern-airframe LOD. Older counts below
 and in linked cards are historical where superseded by this renewal.
 
-At this renewal, unfinished Arrow complete-static LOD and Utopia card7 each
-received **0/1 used**. Arrow subsequently consumed **1/1** in the cause-backed
-[directed-extrema correction](#arrow-whole-lod-renewal-current); the re-entry
-failure was preserved and resolved causally, and the same card is now parked
-at its required no-image rendered-capture timeout. Arrow's consumed **1/1** under the 23:37:41 renewal and
-Utopia's older consumed counts remain historical. Arrow now needs the exact
-shared-audio lifecycle and listener-contract repair; Utopia still needs a
-demonstrated execution-cost reduction or
-an explicit cap decision. Original acceptance checks and test caps remain
-unchanged; this reset starts no new work and grants no acceptance credit.
+At this renewal, unfinished Arrow complete-static LOD, Utopia card7 and the
+active station-panel shader cold-five-view task each receive **0/1 used**.
+Arrow and station-panel shader each consumed **1/1** under the 01:39:01 renewal;
+those counts remain historical. Arrow's no-image render failure and Utopia's
+execution-cost gate remain binding. The active station-panel task retains its
+existing **03:22→04:52 UTC** window and all original acceptance checks; this
+reset does not extend an active deadline. Shared fleet audio re-entry repair is
+completed and excluded, alongside the other completed tasks listed above.
 
 Earlier reset history:
+
+The previous renewal was **2026-11-18 01:39:01 UTC**. Arrow subsequently
+consumed **1/1** for the directed-extrema correction and remains parked after
+its original 110-second no-image capture failure. Station-panel shader
+subsequently consumed **1/1** for the mapped material-family correction and is
+still awaiting runtime acceptance. Both counts are historical under the latest
+reset; prior failures, source archives and actual costs remain attached.
 
 The previous renewal was **2026-11-17 23:37:41 UTC**. Arrow subsequently
 consumed **1/1**; that count is historical. Cinder Loadmaster receipt captions
