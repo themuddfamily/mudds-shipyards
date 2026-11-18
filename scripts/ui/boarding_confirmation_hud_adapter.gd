@@ -45,7 +45,7 @@ func apply_view(view: Dictionary) -> Dictionary:
 		"state": str(view.get("shape", "[?]")) + " " + str(view.get("state", "unknown")).to_upper(),
 		"presentation_only": true,
 	}
-	# The validated Cinder choices keeps the exact observed state beside its
+	# The validated Cinder choices keep the exact observed state beside its
 	# instruction so all content fits the unchanged retained card. Other
 	# craft and transitions retain the HUD's ordinary separate state line.
 	var state := StringName(view.get("state", &""))

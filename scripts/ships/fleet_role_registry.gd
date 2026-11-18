@@ -140,7 +140,7 @@ const ROLE_CONTRACTS := {
 		"advantage": "TOUGH HULL & BRAKES",
 		"weakness": "SLOW TURN / FIRE",
 		"choice_source_axes": {"advantage": [&"maximum_hull", &"brake_acceleration"], "weakness": [&"yaw_speed_degrees", &"roll_speed_degrees", &"weapon_cooldown"]},
-		"signature_axes": {"maximum_hull": &"maximum", "brake_acceleration": &"maximum", "yaw_speed_degrees": &"minimum", "roll_speed_degrees": &"minimum", "weapon_cooldown": &"maximum"},
+		"signature_axes": {"maximum_hull": &"maximum", "yaw_speed_degrees": &"minimum", "roll_speed_degrees": &"minimum", "weapon_cooldown": &"maximum"},
 		"signature_scope": &"cinder_siblings",
 		"signature_ship_ids": [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"],
 	},

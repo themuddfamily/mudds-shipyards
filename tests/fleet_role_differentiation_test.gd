@@ -470,6 +470,7 @@ func _run() -> void:
 	for expected_id: StringName in PRODUCTION_FLEET_IDS:
 		_check(by_id.has(expected_id), "Main retains the exact accepted craft " + str(expected_id))
 	_test_role_differentiation(by_id)
+	_test_bomber_choice_sources(by_id)
 	var original_fleet := {}
 	for original_id: StringName in [
 		&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
@@ -1338,3 +1339,17 @@ func _finish() -> void:
 				% [_failures.size(), _assertion_count, "; ".join(_failures)]
 		)
 		quit(1)
+
+
+func _test_bomber_choice_sources(by_id: Dictionary) -> void:
+	var bomber := by_id[&"cinder_long_range_bomber"] as HeroShip
+	var definition := bomber.get_ship_definition()
+	var registry := preload("res://scripts/ships/fleet_role_registry.gd")
+	var facts := registry.get_boarding_choice_facts(definition)
+	_check(facts.get("ship_id") == &"cinder_long_range_bomber" and facts.get("advantage") == "TOUGH HULL & BRAKES" and facts.get("weakness") == "SLOW TURN / FIRE", "live Main Bomber supplies the approved boarding choice contract")
+	for axis in ["maximum_speed", "maximum_hull", "brake_acceleration", "yaw_speed_degrees", "roll_speed_degrees", "weapon_cooldown"]:
+		_check(facts.get(axis) == definition.get(axis), "live Bomber %s choice number matches its actual production definition" % axis)
+	_check(definition.brake_acceleration > (by_id[&"cinder_cargo_hauler"] as HeroShip).get_ship_definition().brake_acceleration and definition.brake_acceleration < (by_id[&"cinder_light_interceptor"] as HeroShip).get_ship_definition().brake_acceleration, "live Bomber braking improves on Hauler while remaining below Light")
+	for sibling_id in [&"cinder_cargo_hauler", &"cinder_light_interceptor"]:
+		var sibling := (by_id[sibling_id] as HeroShip).get_ship_definition()
+		_check(definition.maximum_hull > sibling.maximum_hull and definition.yaw_speed_degrees < sibling.yaw_speed_degrees and definition.roll_speed_degrees < sibling.roll_speed_degrees and definition.weapon_cooldown > sibling.weapon_cooldown, "live Bomber's approved hull versus turn/cadence trade-off holds against %s" % sibling_id)
