@@ -304,9 +304,23 @@ Dependencies cards1–9 accepted. Clean base **60fb8f9e2b8268b36cce5e80884dfe731
 First mapping **2026-11-18 11:21:46UTC** counts in10a. Hard all-in window
 **11:21:46→12:51:46UTC,90minutes** covers mapping/code/review/source/PCK/checkpoint/
 merge/push/archive/process/worktree/branch cleanup/finaldocs and finalverification.
-The entire card10 FAMILY shares the owner11:53:45 renewal **0/1 substantive
+The entire card10 FAMILY shares the owner11:53:45 renewal **1/1 substantive
 corrections used**, limit1; splitting/branches do not replenish it for10b. Keep
 cumulative card10 cost and all failures. No failed10a automatic successor/retry.
+
+First source ground trial **8ad3adff6**, **87.893s**, stopped at host
+`client.admitted`: the new caller started its30s admission wait before the two
+cold remote Main scenes finished. Actual host ready1795003789.39697, client script
+ready1795003809.37271/3809.52583, failure1795003819.53598; neither client had
+`main_ready`. Source/cache/HEAD/clean guards passed; owned abort143 and secondary
+client-B `use_dynamic_gi` abort diagnostic remain retained, no route PASS.
+The one causal correction **6665f42fb** restores the existing legacy60s
+`main_ready` precondition before unchanged30s admission; transition8s,
+actor300s/supervisor360s and every physical route/assertion remain unchanged.
+Independent causal/static review approves that ordering repair. Corrected
+candidate remains UNACCEPTED until the original source8/PCK6/package gates pass.
+All compiler caller failures and actual elapsed cost remain retained under the
+same11:21:46→12:51:46 window. No fresh allowance is granted to10b by the split.
 
 One HIGH implementer owns ONLY scripts/game/game_flow.gd,
 scripts/interaction/ship_cabin_hatch.gd, scripts/ships/katana_fighter.gd,
