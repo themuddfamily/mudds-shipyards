@@ -587,6 +587,7 @@ var _main_engine_edges: Array[Dictionary] = []
 var _main_shots := 0
 var _main_projectiles := 0
 var _main_bad_shot := false
+var _main_combat_records: Array[Dictionary] = []
 var _main_claims := 0
 var _main_releases := 0
 var _main_recovery_settling: Dictionary = {}
@@ -900,6 +901,7 @@ func _run_main() -> void:
 	_main_ship.projectile_fired.connect(func(_origin: Vector3,_direction: Vector3): _main_projectiles += 1)
 	_main_game.get_combat_authority().authoritative_shot_submitted.connect(func(request: Variant,_result: Dictionary):
 		if request.source_entity == _main_ship:
+			_main_combat_records.append({"request":request,"result":_result.duplicate(true),"tick":Engine.get_physics_frames(),"heat":_main_ship.get("_weapon_heat")})
 			_main_shots += 1
 			_main_bad_shot = _main_bad_shot or request.source_id != 1112 or request.weapon_id != GameFlow.BULWARK_COMBAT_WEAPON_ID or request.range != 360 or request.damage != 50 or _main_ship.to_local(request.origin).distance_to(Vector3(0,0.9,-4.9)) > 0.0001)
 	if "--component-service" in OS.get_cmdline_user_args():
@@ -972,8 +974,10 @@ func _run_main() -> void:
 		return
 	for sortie in 2:
 		if not await _main_board_from_port(sortie,identity,area): return
+		if sortie == 0 and not await _main_stale_combat_refusal(): return
 		if not await _main_sortie_home(sortie,identity,area,berth,dock): return
 		if not await _main_walk_out(sortie): return
+		if not _main_unseated_combat_refusal(): return
 	# A fresh physical third claim proves that the second exit did not strand
 	# the body, reservation, camera, input bank or the generic reboard fence.
 	if not await _main_board_from_port(2,identity,area): return
@@ -1056,6 +1060,7 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 		if frame%180 == 0: print("DYNAMIC_MAIN_FLIGHT: sortie=",sortie," frame=",frame," local=",dock.affine_inverse()*_main_ship.global_position," speed=",_main_ship.velocity.length())
 	_main_release_inputs()
 	if not _main_check(arrived and turned and _main_game.phase == GameFlow.Phase.FREE_FLIGHT and (dock.affine_inverse()*_main_ship.global_position).distance_to(Vector3(0,8,-20)) <= 0.6 and _main_ship.velocity.length() <= 0.5 and not berth.contains_oriented_bounds(_main_ship.global_transform,_main_ship.get_landing_collision_report().local_bounds),"actual ordinary pitch/throttle/brake flight reaches finite own-home acquisition endpoint"): return false
+	if sortie == 0 and not await _main_actual_combat(): return false
 	var shots := _main_shots
 	var projectiles := _main_projectiles
 	Input.action_press(&"fire")
@@ -1294,6 +1299,7 @@ var _component_service_repairs := 0
 func _run_components() -> void:
 	var crafts: Array[HeroShip] = []
 	var sources: Array[FixtureCommands] = []
+	var pilots: Array[PlayerController] = []
 	for index in ShipComponentDamage.COMPONENT_ORDER.size():
 		var craft := DYNAMIC.instantiate() as HeroShip
 		craft.position = Vector3(1000+index*200,100,0)
@@ -1302,6 +1308,9 @@ func _run_components() -> void:
 		source.brake = true
 		craft.add_child(source)
 		craft.set_command_source(source)
+		var pilot := _component_fixture_pilot(craft)
+		if not _check(pilot != null,"component controller has actual reserved seated pilot"): return
+		pilots.append(pilot)
 		craft.set_piloted(true)
 		craft.request_engine_start()
 		crafts.append(craft)
@@ -1389,6 +1398,7 @@ func _run_components() -> void:
 			and not craft.is_canopy_open(),str(id)+" pilot release/reclaim and refused unsupported access never heal damage"): return
 		craft.set_piloted(false)
 		craft.queue_free()
+		pilots[index].queue_free()
 		await _frames(2)
 	await _component_paired_engines()
 	if _failed: return
@@ -1857,3 +1867,183 @@ func _lifecycle_shapes_enabled(ship: HeroShip) -> bool:
 			count += 1
 			if (child as CollisionShape3D).disabled: return false
 	return count > 0
+
+
+func _component_fixture_pilot(craft: HeroShip) -> PlayerController:
+	var pilot := PLAYER.instantiate() as PlayerController
+	pilot.transform = craft.get_boarding_entry_transform()
+	root.add_child(pilot)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	if not area.try_reserve(pilot) or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
+		pilot.queue_free()
+		return null
+	return pilot
+
+
+func _main_new_combat_target(position: Vector3, index: int) -> StaticBody3D:
+	var world := _main_game.world
+	world.call("_create_target",world,index,world.to_local(position))
+	_main_game.get_combat_authority().attach_range_targets(world)
+	return world.get_node("TargetDrone%02d" % index) as StaticBody3D
+
+
+func _main_retire_combat_target(target: StaticBody3D) -> void:
+	var targets: Array = _main_game.world.get("_targets")
+	targets.erase(target)
+	target.queue_free()
+
+
+func _main_stale_combat_refusal() -> bool:
+	# Deliberately precedes every new Dynamic API call: exact old Main reaches a
+	# real registered resolution and fails this damage/ownership assertion.
+	var origin := _main_ship.to_global(Vector3(0,0.9,-4.9))
+	var target := _main_new_combat_target(origin+Vector3.UP*30,8001)
+	await _main_frames(2)
+	var before := _main_shots
+	var health := float(target.get_meta("health"))
+	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat")]
+	_main_game._on_projectile_fired(origin,(target.global_position-origin).normalized(),_main_ship)
+	var result: Dictionary = _main_game.get("_last_player_shot_result")
+	print("DYNAMIC_STALE_CALLBACK: result=",result," shot_delta=",_main_shots-before," health_before=",health," health_after=",target.get_meta("health"))
+	if not _main_check(_main_shots == before and not bool(result.get("accepted",false))
+		and float(target.get_meta("health")) == health
+		and [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat")] == state,
+		"stale callback without synchronous pilot emission cannot resolve or damage actual production target"): return false
+	_main_retire_combat_target(target)
+	await _main_frames(2)
+	return true
+
+
+func _main_unseated_combat_refusal() -> bool:
+	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles]
+	_main_ship.call("_fire_weapon")
+	_main_ship.call("_fire_weapon_with_aim",_main_ship.global_position,Vector3.FORWARD)
+	_main_game._on_projectile_fired(_main_ship.to_global(Vector3(0,0.9,-4.9)),Vector3.FORWARD,_main_ship)
+	return _main_check(not _main_player.is_seated() and not _main_ship.is_piloted()
+		and [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,
+		"ordinary released unseated pilot cannot emit, resolve, consume heat or cooldown")
+
+
+func _main_pulse_once() -> Dictionary:
+	var count := _main_combat_records.size()
+	Input.action_press(&"fire")
+	await _main_frames(2)
+	Input.action_release(&"fire")
+	if not _main_check(_main_combat_records.size() == count+1,"one ordinary pilot trigger resolves exactly once"): return {}
+	return _main_combat_records.back()
+
+
+func _main_actual_combat() -> bool:
+	Input.action_press(&"brake")
+	await _main_frames(90)
+	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles]
+	_main_ship.call("_fire_weapon_with_aim",_main_ship.global_position,Vector3.FORWARD)
+	if not _main_check([_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,"explicit crew aim cannot consume Dynamic pilot heat, cooldown or damage"): return false
+	var foreign := RefCounted.new()
+	if not _main_check(area.release_reservation(_main_player) and area.try_reserve(foreign),"public reservation owner establishes foreign-token refusal fixture"): return false
+	_main_ship.call("_fire_weapon")
+	_main_game._on_projectile_fired(_main_ship.to_global(Vector3(0,0.9,-4.9)),Vector3.FORWARD,_main_ship)
+	if not _main_check([_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,"foreign reserved token cannot emit or mint authoritative damage"): return false
+	if not _main_check(area.release_reservation(foreign) and area.try_reserve(_main_player),"same actual seated pilot legitimately reacquires reservation"): return false
+	var camera := _main_ship.get_camera()
+	var direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size*0.5).normalized()
+	var target := _main_new_combat_target(camera.global_position+direction*40,8002)
+	var damageable := target.get_node("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	var hits: Array[float] = []
+	damageable.damage_applied.connect(func(amount: float,_health: float,_maximum: float,_position: Vector3,_normal: Vector3,_context: Dictionary): hits.append(amount))
+	await _main_frames(2)
+	var health := damageable.get_health()
+	var replay := func(origin: Vector3,aim: Vector3): _main_game._on_projectile_fired(origin,aim,_main_ship)
+	_main_ship.projectile_fired.connect(replay)
+	var event := await _main_pulse_once()
+	_main_ship.projectile_fired.disconnect(replay)
+	if _failed: return false
+	var result: Dictionary = event.result
+	if not _main_check(bool(result.get("damaged",false)) and result.get("target_entity") == target
+		and float(result.get("applied_damage",0)) == 50 and damageable.get_health() == health-50
+		and hits == [50.0] and float(_main_ship.get("_weapon_heat")) > 0
+		and not bool((_main_game.get("_last_player_shot_result") as Dictionary).get("accepted",false)),
+		"real center pulse source1112 damages production target once; same synchronous callback cannot duplicate health mutation"): return false
+	await _main_frames(25)
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = PhysicsLayers.WORLD
+	blocker.collision_mask = 0
+	blocker.position = camera.global_position+direction*15
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3.ONE*6
+	shape.shape = box
+	blocker.add_child(shape)
+	root.add_child(blocker)
+	await _main_frames(2)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(event.result.get("status") == &"world_blocked" and damageable.get_health() == health-50 and hits.size() == 1,"physical world obstruction preserves actual production target health"): return false
+	blocker.queue_free()
+	_main_retire_combat_target(target)
+	await _main_frames(25)
+	# The shared resolver sees a physical friendly behind the source hull. Its
+	# own collision tree is excluded; the friendly body blocks without damage.
+	var friendly := StaticBody3D.new()
+	friendly.collision_layer = PhysicsLayers.TARGET
+	friendly.collision_mask = 0
+	friendly.position = camera.global_position+direction*25
+	var collision := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 3
+	collision.shape = sphere
+	friendly.add_child(collision)
+	var friendly_health := Damageable.new()
+	friendly_health.faction_id = GameFlow.PLAYER_FACTION
+	friendly.add_child(friendly_health)
+	root.add_child(friendly)
+	await _main_frames(2)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(event.result.get("status") == &"friendly_fire_blocked" and friendly_health.get_health() == 100,"actual pilot friendly hit blocks without changing friendly health"): return false
+	var resolver := _main_game.get_combat_resolver()
+	var self_health := float(_main_ship.get_telemetry().hull)
+	var inside := _main_ship.to_global(Vector3(0,3.5,0))
+	var request := ShotRequest.new(_main_ship,1112,GameFlow.PLAYER_FACTION,GameFlow.BULWARK_COMBAT_WEAPON_ID,
+		resolver.get_last_sequence(_main_ship,1112)+1,inside,(friendly.global_position-inside).normalized(),360,50)
+	result = resolver.resolve_hitscan(request)
+	if not _main_check(result.get("status") == &"friendly_fire_blocked" and result.get("collider") == friendly
+		and float(_main_ship.get_telemetry().hull) == self_health and friendly_health.get_health() == 100,
+		"registered Dynamic compound self collision is excluded while friendly policy preserves both real health owners"): return false
+	friendly.queue_free()
+	await _main_frames(90)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(not bool(event.result.get("hit",false)) and not bool(event.result.get("damaged",false)),"ordinary pilot empty-space miss has no target damage"): return false
+	await _main_frames(90)
+	var first := _main_combat_records.size()
+	Input.action_press(&"fire")
+	for frame in 240:
+		await _main_frames(1)
+		if bool(_main_ship.get_telemetry().weapon_overheated): break
+	if not _main_check(bool(_main_ship.get_telemetry().weapon_overheated),"held actual Dynamic fire reaches inherited heat lockout"): return false
+	var burst := _main_combat_records.slice(first)
+	var exact := burst.size() >= 5 and is_equal_approx(float(burst[0].heat),0.28)
+	for index in range(1,burst.size()):
+		var interval := int(burst[index].tick)-int(burst[index-1].tick)
+		exact = exact and interval >= 18 and interval <= 19
+		exact = exact and absf(float(burst[index].heat)-minf(1.0,float(burst[index-1].heat)+0.28-0.50*interval/60.0)) < 0.0001
+	var count := _main_combat_records.size()
+	var locked_tick := Engine.get_physics_frames()
+	while float(_main_ship.get_telemetry().weapon_recovery_remaining) > 0.05:
+		await _main_frames(1)
+		if not _main_check(_main_combat_records.size() == count,"inherited heat lockout admits no held-fire shot",false): return false
+	Input.action_release(&"fire")
+	for frame in 10:
+		if not bool(_main_ship.get_telemetry().weapon_overheated): break
+		await _main_frames(1)
+	exact = exact and Engine.get_physics_frames()-locked_tick >= 59 and Engine.get_physics_frames()-locked_tick <= 61
+	exact = exact and float(_main_ship.get_telemetry().weapon_heat) <= 0.35
+	print("DYNAMIC_ACTUAL_COMBAT: burst=",burst," lockout_ticks=",Engine.get_physics_frames()-locked_tick)
+	if not _main_check(exact,"actual .30 cadence preserves .28/shot, .50/s cooling, 1s lockout and .35 recovery"): return false
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(bool(event.result.get("accepted",false)),"current actual pilot resumes usable pulse after normal recovery"): return false
+	Input.action_release(&"brake")
+	return true

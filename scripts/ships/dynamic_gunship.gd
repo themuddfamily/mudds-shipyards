@@ -12,6 +12,9 @@ var _original_shell: Node3D
 var _access_leaves: Array[Dictionary] = []
 var _access_fraction := 0.0
 var lifecycle_reset_guard: Callable
+var _primary_emission_pending := false
+var _primary_emission_origin := Vector3.INF
+var _primary_emission_direction := Vector3.ZERO
 
 
 ## One existing five-section ledger, placed on real candidate solids rather
@@ -178,6 +181,91 @@ func _wake_engine_for_automatic_demand(_release_dock_latch: bool = true) -> void
 func _get_weapon_targeting_distance() -> float:
 	return 360.0 * lerpf(FAILED_SENSOR_MANUAL_AIM_DISTANCE_FACTOR, 1.0,
 		_get_damage_targeting_multiplier())
+
+
+## Pilot fire belongs to the actual physical seat reservation, independently
+## of the active craft pointer or a caller setting the piloted flag.
+func get_primary_pilot_claim_is_current() -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() or _destroyed or _hull <= 0.0 \
+			or not _piloted or _remote_piloted or _canopy_open or _access_fraction > 0.0001:
+		return false
+	var area := get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var actor := area.get_reservation_token() as PlayerController if area != null else null
+	return is_instance_valid(actor) and actor.is_inside_tree() and not actor.is_queued_for_deletion() \
+		and actor.is_seated_at(get_pilot_seat_anchor()) and not actor.is_station_seated() \
+		and not actor.has_meta(SOLO_CREW_ROLE_OCCUPANT_META)
+
+
+func _get_weapon_unavailable_reason(modifiers: Dictionary = {}) -> StringName:
+	if not get_primary_pilot_claim_is_current():
+		return &"primary_pilot_required"
+	return super._get_weapon_unavailable_reason(modifiers)
+
+
+## Keep HeroShip's exact cooldown, inherited heat and camera convergence. The
+## only new capability is one synchronous, single-use current-pilot emission.
+func _fire_weapon_with_aim(crew_origin: Vector3 = Vector3.INF, crew_direction: Vector3 = Vector3.ZERO) -> void:
+	# Crew aiming and synthetic callbacks cannot mint a pilot emission.
+	if crew_origin != Vector3.INF or crew_direction != Vector3.ZERO or _primary_emission_pending \
+			or not get_primary_pilot_claim_is_current():
+		return
+	var modifiers := get_operational_modifiers()
+	var fire_power := _get_damage_weapon_multiplier()
+	if not bool(get_weapon_fire_status().get("ready", false)):
+		return
+	_weapon_timer = weapon_cooldown / fire_power
+	_weapon_heat = clampf(_weapon_heat + WEAPON_HEAT_PER_SHOT, 0.0, 1.0)
+	if _weapon_heat >= 1.0:
+		_weapon_overheated = true
+		_weapon_overheat_remaining = WEAPON_OVERHEAT_DURATION
+	var muzzle := _muzzle_left if _fire_from_left else _muzzle_right
+	_fire_from_left = not _fire_from_left
+	var aiming_camera := get_camera()
+	var screen_center := aiming_camera.get_viewport().get_visible_rect().size * 0.5
+	var camera_direction := aiming_camera.project_ray_normal(screen_center).normalized()
+	var ray_origin := aiming_camera.global_position
+	if crew_origin.is_finite() and crew_direction.is_finite() and not crew_direction.is_zero_approx():
+		ray_origin = crew_origin
+		camera_direction = crew_direction.normalized()
+	var targeting_distance := _get_weapon_targeting_distance()
+	var ray_end := ray_origin + camera_direction * targeting_distance
+	var convergence_point := ray_end
+	# Resolve the reticle ray first so both offset cannons converge exactly on
+	# nearby geometry and range drones. Damage remains owned by game_flow.gd;
+	# this query only corrects the emitted direction.
+	if is_inside_tree() and not bool(modifiers.get("targeting_disabled", false)):
+		var exclusions: Array[RID] = [get_rid()]
+		if crew_origin.is_finite():
+			for child in find_children("*", "CollisionObject3D", true, false):
+				exclusions.append((child as CollisionObject3D).get_rid())
+		var query := PhysicsRayQueryParameters3D.create(
+			ray_origin,
+			ray_end,
+			WEAPON_AIM_MASK,
+			exclusions
+		)
+		query.collide_with_areas = true
+		query.collide_with_bodies = true
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty():
+			convergence_point = hit.get("position", ray_end)
+	var aimed_direction := (convergence_point - muzzle.global_position).normalized()
+	_primary_emission_origin = muzzle.global_position
+	_primary_emission_direction = aimed_direction
+	_primary_emission_pending = true
+	projectile_fired.emit(_primary_emission_origin, _primary_emission_direction)
+	_primary_emission_pending = false
+	_primary_emission_origin = Vector3.INF
+	_primary_emission_direction = Vector3.ZERO
+
+
+
+func consume_primary_emission(origin: Vector3, direction: Vector3) -> bool:
+	if not _primary_emission_pending or not get_primary_pilot_claim_is_current() \
+			or origin != _primary_emission_origin or direction != _primary_emission_direction:
+		return false
+	_primary_emission_pending = false
+	return true
 
 
 func _build_ship() -> void:
