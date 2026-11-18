@@ -384,6 +384,11 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 			candidate.rows[0].rated_budget.footprint.local_bounds[bounds_key] = replacement
 			cases.append(candidate)
 	for axis: String in ["span", "height", "length"]:
+		for metadata: String in ["unit", "direction", "source"]:
+			for malformed_value: Variant in [[], ["nested"], {}, null, 17, false]:
+				var candidate := source.duplicate(true)
+				candidate.rows[0].rated_budget.footprint.fields[axis][metadata] = malformed_value
+				cases.append(candidate)
 		for patch: Dictionary in [{"raw": 0.0}, {"raw": -1.0}, {"raw": NAN}, {"raw": INF}, {"raw": []}, {"normalized": 0.5}, {"normalized": INF}, {"normalized": []}, {"direction": "benefit"}, {"unit": "km"}, {"unit_scale": 1000.0}, {"source": "authored_size_class"}]:
 			var candidate := source.duplicate(true)
 			candidate.rows[0].rated_budget.footprint.fields[axis].merge(patch, true)

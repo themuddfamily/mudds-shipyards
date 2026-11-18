@@ -249,6 +249,9 @@ func _valid_footprint(value: Variant, ship_id: String) -> bool:
 		var field: Variant = fields.get(FleetRatedBudget.FOOTPRINT_AXES[index])
 		if not field is Dictionary or field.size() != 6:
 			return false
+		for key: String in ["unit", "direction", "source"]:
+			if not field.get(key) is String:
+				return false
 		if field.get("unit") != "m" or field.get("direction") != "cost" or field.get("source") != FleetRatedBudget.FOOTPRINT_SOURCE:
 			return false
 		for key: String in ["raw", "unit_scale", "normalized"]:
