@@ -222,8 +222,10 @@ Same unfinished production task, selected **2026-11-18 03:22→04:52 UTC**,
 and cleanup. Actual consumer mapping identified the floor material family and
 CabinetStatus scalar material; this candidate preserves native PBR outputs while
 removing redundant constant texture reads for explicitly eligible station sources.
-Source `5f11a7d4d` is implemented and statically reviewed; runtime acceptance is
-pending. Latest owner **03:44:02 renewal: 0/1 used**; prior 01:39:01-renewal
+Source `5f11a7d4d` passed focused binding and import but failed the original
+triplanar roster checks. The current causal correction preserves dressing merges
+and exact canonical-source module audits under early proxies; original geometry
+and courier expectations remain binding. Runtime acceptance is pending. Latest owner **03:44:02 renewal: 1/1 used**; prior 01:39:01-renewal
 **1/1 used**, old failed candidate and **68.187 minutes** remain historical.
 
 Prove the original focused binding test, seven station suites and full default
