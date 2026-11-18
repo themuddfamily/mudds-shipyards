@@ -14,6 +14,7 @@ const DEFINITIONS := [
 	preload("res://assets/ships/bulwark_new_design.tres"),
 	preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
 	preload("res://assets/ships/cinder_long_range_bomber_new_design.tres"),
+	preload("res://assets/ships/cinder_cargo_hauler_new_design.tres"),
 ]
 
 var _failures := 0
@@ -23,9 +24,9 @@ var _checks := 0
 func _initialize() -> void:
 	var original_resources := _definition_snapshots()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
-	_check(bool(report.get("valid", false)), "the eight production definitions satisfy the role registry")
-	_check(int(report.get("craft_count", 0)) == 8, "the role registry audits all eight supported craft")
-	_check(int(report.get("role_count", 0)) == 8, "each current craft owns a distinct stable role ID")
+	_check(bool(report.get("valid", false)), "the nine production definitions satisfy the role registry")
+	_check(int(report.get("craft_count", 0)) == 9, "the role registry audits all nine supported craft")
+	_check(int(report.get("role_count", 0)) == 9, "each current craft owns a distinct stable role ID")
 	_check(int(report.get("schema_version", 0)) == Registry.SCHEMA_VERSION, "role audit exposes its schema version")
 	var jovian_engineer := Registry.get_crew_role_contract(&"jovian_provisional", &"engineer")
 	_check(not jovian_engineer.is_empty(), "Jovian engineer capability is discoverable without constructing the ship")
@@ -74,6 +75,7 @@ func _initialize() -> void:
 		&"bulwark_heavy_gunship": "durable sustained fire",
 		&"cinder_light_interceptor": "fast-response interceptor",
 		&"cinder_long_range_bomber": "trades turn rate and weapon cadence",
+		&"cinder_cargo_hauler": "trades speed and thrust",
 	}
 	for definition in DEFINITIONS:
 		var contract: Dictionary = Registry.get_role_contract(definition.get_ship_id())
@@ -88,6 +90,7 @@ func _initialize() -> void:
 		)
 
 	_check_bomber_contract()
+	_check_hauler_contract()
 	_check_light_contract()
 	_check(_definition_snapshots() == original_resources, "all stored definition properties survive registry reads and detached policy mutation")
 	print("FLEET_ROLE_REGISTRY: %d checks, %d failures" % [_checks, _failures])
@@ -106,8 +109,8 @@ func _check(condition: bool, message: String) -> void:
 func _check_light_contract() -> void:
 	var light := DEFINITIONS[6] as ShipDefinition
 	var contract := Registry.get_role_contract(light.get_ship_id())
-	_check(Registry.get_supported_ship_ids().size() == 8, "eight supported contracts leave Hauler outside this bounded delivery")
-	_check(Registry.get_role_contract(&"cinder_cargo_hauler").is_empty(), "the remaining Hauler contract stays open")
+	_check(Registry.get_supported_ship_ids().size() == 9, "all nine approved original/Cinder craft now have supported contracts")
+	_check(not Registry.get_role_contract(&"cinder_cargo_hauler").is_empty(), "Hauler now has the remaining approved Cinder contract")
 	_check(contract.role_id == &"cinder_light_interceptor" and contract.role_name == "Light interceptor"
 		and contract.scale_band == &"small" and not contract.interior_expected,
 		"Light preserves stable identity, role and small-craft band")
@@ -207,3 +210,31 @@ func _check_bomber_contract() -> void:
 	var tied: Array = DEFINITIONS.duplicate()
 	tied[7] = tied_bomber
 	_check(str(Registry.audit_definitions(tied).errors).contains("cinder_long_range_bomber no longer owns the contracted maximum of maximum_hull"), "Bomber sibling signature tie is rejected without weakening original signatures")
+
+
+func _check_hauler_contract() -> void:
+	var hauler := DEFINITIONS[8] as ShipDefinition
+	var contract := Registry.get_role_contract(hauler.get_ship_id())
+	_check(not contract.is_empty(), "Hauler has its approved role contract")
+	if contract.is_empty():
+		return
+	_check(contract.role_id == &"cinder_cargo_hauler" and contract.role_name == "Cargo hauler" and contract.scale_band == &"medium" and not contract.interior_expected, "Hauler preserves actual identity and medium single-cockpit role")
+	_check(contract.required_tags == [&"medium_craft", &"cargo_hauler", &"freight"], "Hauler uses its existing exact tags")
+	_check(contract.signature_scope == &"cinder_siblings" and contract.signature_axes == {"passive_drag": &"minimum"} and contract.signature_ship_ids == [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"], "Hauler minimum drag compares only its exact approved Cinder siblings")
+	var facts := Registry.get_boarding_choice_facts(hauler)
+	_check(facts.get("advantage") == "HULL & LOW DRAG" and facts.get("weakness") == "SLOW SPEED / THRUST", "Hauler publishes its exact approved trade-off")
+	for axis in ["maximum_speed", "maximum_hull", "thrust_acceleration", "passive_drag"]:
+		_check(facts.get(axis) == hauler.get(axis), "Hauler %s choice fact comes from its existing definition" % axis)
+	_check(facts.get("source_axes") == {"advantage": [&"maximum_hull", &"passive_drag"], "weakness": [&"maximum_speed", &"thrust_acceleration"]} and facts.size() == 9 and not contract.has("crew_role_capabilities"), "Hauler advertises exactly approved source axes without invented cargo, crew or authority capabilities")
+	facts.source_axes.advantage.clear()
+	facts.passive_drag = 999.0
+	_check(Registry.get_boarding_choice_facts(hauler).passive_drag == 1.5 and Registry.get_boarding_choice_facts(hauler).source_axes.advantage.size() == 2, "Hauler nested facts remain detached")
+	for sibling in [DEFINITIONS[6], DEFINITIONS[7]]:
+		_check(hauler.passive_drag < sibling.passive_drag and hauler.maximum_speed < sibling.maximum_speed and hauler.thrust_acceleration < sibling.thrust_acceleration, "Hauler low drag versus slow speed/thrust holds against each actual Cinder sibling")
+	_check(hauler.maximum_hull > DEFINITIONS[6].maximum_hull and hauler.maximum_hull < DEFINITIONS[7].maximum_hull, "Hauler hull margin exceeds Light while remaining below Bomber")
+	_check(DEFINITIONS[2].maximum_speed == 56.0 and DEFINITIONS[2].maximum_speed < hauler.maximum_speed, "Jovian keeps its actual global minimum speed below Hauler")
+	var tied_hauler := hauler.duplicate(true) as ShipDefinition
+	tied_hauler.passive_drag = DEFINITIONS[7].passive_drag
+	var tied: Array = DEFINITIONS.duplicate()
+	tied[8] = tied_hauler
+	_check(str(Registry.audit_definitions(tied).errors).contains("cinder_cargo_hauler no longer owns the contracted minimum of passive_drag"), "Hauler sibling drag tie is rejected without weakening any previous signature")

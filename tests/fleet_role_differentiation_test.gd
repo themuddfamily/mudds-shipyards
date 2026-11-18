@@ -471,6 +471,7 @@ func _run() -> void:
 		_check(by_id.has(expected_id), "Main retains the exact accepted craft " + str(expected_id))
 	_test_role_differentiation(by_id)
 	_test_bomber_choice_sources(by_id)
+	_test_hauler_choice_sources(by_id)
 	var original_fleet := {}
 	for original_id: StringName in [
 		&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
@@ -1353,3 +1354,17 @@ func _test_bomber_choice_sources(by_id: Dictionary) -> void:
 	for sibling_id in [&"cinder_cargo_hauler", &"cinder_light_interceptor"]:
 		var sibling := (by_id[sibling_id] as HeroShip).get_ship_definition()
 		_check(definition.maximum_hull > sibling.maximum_hull and definition.yaw_speed_degrees < sibling.yaw_speed_degrees and definition.roll_speed_degrees < sibling.roll_speed_degrees and definition.weapon_cooldown > sibling.weapon_cooldown, "live Bomber's approved hull versus turn/cadence trade-off holds against %s" % sibling_id)
+
+
+func _test_hauler_choice_sources(by_id: Dictionary) -> void:
+	var hauler := by_id[&"cinder_cargo_hauler"] as HeroShip
+	var definition := hauler.get_ship_definition()
+	var registry := preload("res://scripts/ships/fleet_role_registry.gd")
+	var facts := registry.get_boarding_choice_facts(definition)
+	_check(facts.get("ship_id") == &"cinder_cargo_hauler" and facts.get("advantage") == "HULL & LOW DRAG" and facts.get("weakness") == "SLOW SPEED / THRUST", "live Main Hauler supplies the approved boarding choice contract")
+	for axis in ["maximum_speed", "maximum_hull", "thrust_acceleration", "passive_drag"]:
+		_check(facts.get(axis) == definition.get(axis), "live Hauler %s choice number matches its actual production definition" % axis)
+	for sibling_id in [&"cinder_long_range_bomber", &"cinder_light_interceptor"]:
+		var sibling := (by_id[sibling_id] as HeroShip).get_ship_definition()
+		_check(definition.passive_drag < sibling.passive_drag and definition.maximum_speed < sibling.maximum_speed and definition.thrust_acceleration < sibling.thrust_acceleration, "live Hauler low drag versus speed/thrust holds against %s" % sibling_id)
+	_check(definition.maximum_hull > (by_id[&"cinder_light_interceptor"] as HeroShip).get_ship_definition().maximum_hull and definition.maximum_hull < (by_id[&"cinder_long_range_bomber"] as HeroShip).get_ship_definition().maximum_hull, "live Hauler hull margin exceeds Light while remaining below Bomber")
