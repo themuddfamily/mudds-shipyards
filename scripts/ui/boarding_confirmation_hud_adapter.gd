@@ -51,7 +51,8 @@ func apply_view(view: Dictionary) -> Dictionary:
 	var state := StringName(view.get("state", &""))
 	var expected_shape := "[>]" if state == &"approach" else "[+]"
 	if (view.get("light_choice_ship_id") == &"cinder_light_interceptor" \
-			or view.get("bomber_choice_ship_id") == &"cinder_long_range_bomber") \
+			or view.get("bomber_choice_ship_id") == &"cinder_long_range_bomber" \
+			or view.get("hauler_choice_ship_id") == &"cinder_cargo_hauler") \
 			and state in [&"approach", &"available"] \
 			and str(view.get("shape", "")) == expected_shape:
 		card.message = str(card.message) + " | STATE // " + str(card.state)

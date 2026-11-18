@@ -144,6 +144,20 @@ const ROLE_CONTRACTS := {
 		"signature_scope": &"cinder_siblings",
 		"signature_ship_ids": [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"],
 	},
+	&"cinder_cargo_hauler": {
+		"role_id": &"cinder_cargo_hauler",
+		"role_name": "Cargo hauler",
+		"required_tags": [&"medium_craft", &"cargo_hauler", &"freight"],
+		"scale_band": &"medium",
+		"interior_expected": false,
+		"crew_story": "A sturdy hauler that trades speed and thrust for hull margin over Light and the Cinder siblings' lowest passive drag.",
+		"advantage": "HULL & LOW DRAG",
+		"weakness": "SLOW SPEED / THRUST",
+		"choice_source_axes": {"advantage": [&"maximum_hull", &"passive_drag"], "weakness": [&"maximum_speed", &"thrust_acceleration"]},
+		"signature_axes": {"passive_drag": &"minimum"},
+		"signature_scope": &"cinder_siblings",
+		"signature_ship_ids": [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"],
+	},
 }
 
 
@@ -152,7 +166,7 @@ static func get_role_contract(ship_id: StringName) -> Dictionary:
 
 
 ## Rated choice facts only; no instance, seat, weapon, or save authority.
-## The Hauler contract and the full normalized role budget remain open.
+## The full normalized role budget remains open.
 static func get_boarding_choice_facts(definition: ShipDefinition) -> Dictionary:
 	if definition == null:
 		return {}
@@ -160,6 +174,16 @@ static func get_boarding_choice_facts(definition: ShipDefinition) -> Dictionary:
 	if not contract.has("choice_source_axes"):
 		return {}
 	var profile := definition.get_flight_profile()
+	if definition.get_ship_id() == &"cinder_cargo_hauler":
+		return {
+			"ship_id": definition.get_ship_id(), "role_id": contract.role_id,
+			"advantage": contract.advantage, "weakness": contract.weakness,
+			"source_axes": contract.choice_source_axes,
+			"maximum_speed": profile.maximum_speed,
+			"maximum_hull": definition.get_systems_profile().maximum_hull,
+			"thrust_acceleration": profile.thrust_acceleration,
+			"passive_drag": profile.passive_drag,
+		}.duplicate(true)
 	if definition.get_ship_id() == &"cinder_long_range_bomber":
 		return {
 			"ship_id": definition.get_ship_id(), "role_id": contract.role_id,
