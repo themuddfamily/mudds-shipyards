@@ -16,9 +16,15 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **09e0ece** — [Windows ZIP](builds/windows/MuddsShipyards-09e0ece-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-09e0ece-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-09e0ece-linux-x86_64.tar.gz).
+Latest playable checkpoint: **7801f6b** — [Windows ZIP](builds/windows/MuddsShipyards-7801f6b-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-7801f6b-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-7801f6b-linux-x86_64.tar.gz).
+Damage audio now restores its current listener after a whole retained hero ship
+leaves and re-enters the tree. Real damage/repair cues remain once-only through
+the same rig. Full six-source/five-packaged suites, strict startups and package
+gates pass under Dummy audio. [Delivery and retained failures](#fleet-audio-reentry-current).
+Native listening/device/fullgame qualification stays open.
+
 Zenith's complete modern hull/fittings now follow its existing53m/43m LOD switch,
 with shared canopy and cockpit retained. Actual static geometry drops from25,472
 to9,360triangles and38to34submissions. The full source/PCK component suite, all10
@@ -269,39 +275,65 @@ Paradox gunnerc743 remains protected. No next card selected.
 
 <a id="fleet-audio-reentry-current"></a>
 
-### Shared hero damage-audio re-entry — implementation selected
+### Shared hero damage-audio re-entry — DONE,7801f6b
 
-Existing AUDIO-CONTENT[one identified cue/transition gap], originalparent30.
-Main1bffcf250/checkpoint09e0ece has a confirmed shared production defect:
-ShipAudioRig disconnects its parent damage callback on detach, then retained
-re-entry restores runtime state without restoring the callback. Repair the
-shared rig so damage/degraded/critical/recovery cues keep reaching the same
-current rig once after each whole-hero re-entry. Ship/component/repair authority,
-profile/mix/cue identities and boarding-audio lifecycle stay unchanged.
+Accepted source **7801f6b9fce7afcdf95e9cd4ca5b883b3f288906**, merged/pushed
+**445987b17ca928d6173fc6808422e7247f9486bc**. Existing AUDIO-CONTENT[identified shared
+transition gap]/parent30, scoped repair complete. One production line restores
+_hero_fleet_audio binding through the existing terminal/current-tree-guarded
+restore path. After whole-hero re-entry, exactlyone parent damage callback
+returns to the same rig. Genuine impaired/failed/repaired component edges drive
+existing degradation/alarm and once-only cues; within-band changes add no replay.
+Detached production mutation is refused; retired bindings cannot affect the new
+current binding. Gameplay/repair authority, cue/profile/mix/voice owners remain.
 
-Window **2026-11-18 01:59→03:14UTC**,75minutes ALL-IN including checks/checkpoint/
-integration/push/cleanup; defaultone correction **0/1 used** until applied.
-Implementer owns only shared rig and existing hero-fleet-audio fixture; independent
-lifecycle review, root execution/release. Test-only old-negative first; then real
-parent damage/repair through two whole-hero detach/re-entry cycles, exactcurrent
-listener/no staleconsumer/oncecues, full6source/5actualPCK fixtures300s each and
-pairedcheckpoint/startup3/maps/audit9/eightfiles. Complete frozen commands/cases
-are in `/srv/mudds-work/fleet-audio-reentry-20261118/frozen-card.md`. Source-only
-GameFlow fixture contains raw-source wiring checks; it is not a PCK claim.
-No new rendered or audible test selected; reference preview is explicitly the
-existing09e0ece capture. Native/listening/fullgame gates remain open; hostedCI off.
+The exact strengthened existing hero fixture fails OLD6beb0085c production in
+6.116s:58assertions reached,16expected callback/cue failures, marker1 but exit143
+from first-diagnostic owned abort/reap. It is retained as a failure, not exit1 or
+acceptance. Final same fixture passes61assertions in source and actual WindowsPCK.
+Existing full Main fixture had stale10craft/9player/13source expectations; strict
+current15craft/14literal source identities/18sources replace them. Original six
+combat craft/all three whole-Main cycles/component cuts/LOD/audio/replay/terminal
+cases stay intact. First census failure36.371s and StringName-order assertion
+failure35.112s remain archived; explicit String lexical comparison repairs the
+latter without weakening exact identity. No extra substantive allowance used.
 
-This independently fixes shipped shared audio. Arrow's unmerged geometry and
-all-listener contract remain PARKED1/1 under their existing owner; its prior
-79.68100311666666minutes/source/failures stay attached. This selection grants
-no Arrow reset, listener waiver, automatic successor or partial LOD delivery.
+| Frozen complete gate | Actual result |
+| --- | --- |
+| Source6: hero61/rig172/degradation13/component17/semantic27/Main311 | All exit0/marker1/raw0/all4guards,601assertions; Main95.661s |
+| Actual WindowsPCK5: identical runtime fixtures except entry isolation guard | All exit0/marker1/raw0/isolation1/all4guards,574assertions; Main87.342s |
+| Clean paired safe exports | Windows27.608s/Linux25.600s,exit0/raw0; actual private trusted template preflight |
+| Strict startup3 | Windows29.959s/Linux25.550s/extracted25.547s; exit0/exactoneSTARTUP_MENU_READY_OK/raw0 |
+| Complete maps/delta/package | Equal1611entries,one intended audioGDC+82typednode_ids-onlyscenes,noUID/class drift; audit9/eightartifacts PASS |
+
+GameFlow semantic fixture's raw-source wiring checks remain SOURCEONLY; it is
+not claimed as a PCK case. All six/five complete cases keep original300s caps;
+source/cache/HEAD/clean guards pass. Linux archive retains exact sixmembers/modes/
+UID0/extractedELF identity. Preview is the accepted09e0ece reference byte-for-byte,
+explicitly no new render or listening capture. NativeWindows/GPU/device/audible/
+human/fullcraft/fullgame and parent30 AUDIO-MIX remain OPEN/NOT_RUN; hostedCI off.
+
+Window **2026-11-18 01:59→03:14UTC**,75minutes ALL-IN; scoped substantive repair
+**1/1 used**, completed within it. Originating Arrow discovery/source/cumulative
+79.68100311666666minutes remain with that parked card. This repair grants no
+Arrow allowance reset, identity waiver, automatic retry or LOD delivery.
+
+Verified archive `/srv/mudds-work/fleet-audio-reentry-20261118/records.tar.gz`:
+**30,123,400bytes/262members**, SHA256
+`955615703aa981af569c8255187b278146778668e233708d95accefeccce10a9`.
+All members/source bundle/eightpublishedhashes verified. Accepted source was
+contained in pushedmain before exact-tip branch/worktree/process/scratch cleanup;
+owned root only archive+closeout with actual elapsed cost. ProtectedParadox gunner
+c743 remains. [Full delivery record](docs/history/ROADMAP_DELIVERIES.md#shared-hero-damage-audio-reentry-delivered-20261118).
 
 <a id="arrow-whole-lod-renewal-current"></a>
 
 ### Arrow complete static LOD — PARKED at shared audio re-entry,712259ad4
 
-Same unfinished card; no runtime merge/checkpoint/delivery credit. Latest accepted
-playable remains09e0ece, Main runtime unchanged. Source b79e59426 fixes the measured
+Same unfinished card; no Arrow runtime merge/checkpoint/delivery credit. At this
+failed run, accepted playable remained09e0ece and Main runtime was unchanged;
+the shared-audio dependency has since delivered7801f6b as noted below.
+Source b79e59426 fixes the measured
 blanket AABB-extrema lock using exact directed coordinate constraints. Final
 712259ad4 adds failure-only operands; every original predicate remains intact.
 
@@ -332,8 +364,9 @@ those estimates never supplied acceptance credit. Remaining four source suites,
 all12rendered images, PCK5, exports/startup3/maps/audit9/eight checkpoint artifacts
 are **NOT_RUN**. Ordinary/native/human/fullcraft/fullgame gates stay open; CI off.
 
-Reopening requires a cause-backed accepted shared-audio restoration and explicit
-listener-contract reconciliation under authorized scope/allowance, retaining all
+Shared-audio restoration is now accepted as7801f6b ([delivery](#fleet-audio-reentry-current)).
+Arrow reopening still requires explicit listener-contract reconciliation under
+authorized scope/allowance, retaining all
 original cases/caps/cumulative cost. No automatic geometry tuning, silent signal
 filter, partial runtime merge or renamed allowance successor is authorized.
 Verified archive `/srv/mudds-work/arrow-whole-lod-renewal-20261118/records.tar.gz`:

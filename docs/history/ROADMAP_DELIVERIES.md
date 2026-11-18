@@ -36342,3 +36342,41 @@ branch deleted using exact-tip compare-and-swap. Private profiles/cache/recovery
 repository and all other owned scratch removed; no source merged to delete a
 branch. Only main/original worktree remain, with the two verified retained
 record files as explicit exceptions. No pending process or candidate build.
+
+
+<a id="shared-hero-damage-audio-reentry-delivered-20261118"></a>
+## Shared hero damage audio after retained whole-hero re-entry — delivered,2026-11-18
+
+Accepted7801f6b9fce7afcdf95e9cd4ca5b883b3f288906/merge445987b17ca928d6173fc6808422e7247f9486bc,
+checkpoint7801f6b. One guarded restore-path attach call returns the same rig's
+parent damage callback after whole-hero/Main detach/reentry. Genuine production
+component damage/repair produces existing degraded/critical/recovered cues once;
+retired consumers cannot reset or present against the current rig. No authority,
+profile/mix/voice/cue identity change. Two wholehero cycles and full Main three
+cycles prove selected runtime scope. Source6/PCK5 complete cases pass601/574
+assertions with exactmarkers/raw0/isolatedprofiles/300scaps/allfourguards, Main
+95.661/87.342s. GameFlow source-wiring fixture remains source-only; five PCK
+fixtures are exact committed cases plus only entry isolation guard. Clean paired
+exports/three strict menu startups/equal1611maps/oneaudioGDC+82typednode_ids-only
+metadata/noUIDclasschanges/existingaudit9/eightfiles pass independent review.
+
+Exact old production negative6beb0085c fails16new callback/cue labels after58
+assertions, marker1 but143firstdiagnostic abort/reap in6.116s. Legacy Main10/9/13
+census failuref286(36.371s) and newStringName ordering failure019(35.112s) remain
+failures in archive. Strict15IDs/14literal source map/18total and explicitString
+lexical comparison repair incorrect expectations; originalsixcombatcraft/all3
+cycles/fullcomponent/LOD/audio/replay/terminal cases remain. Sharedproductionfix
+stays one line; scoped allowance1/1/window01:59→03:14UTC75minallin retained.
+
+Actual Windows/Linux files are in repository builds. Preview is byte-identical
+accepted09e0ece reference, no newrender/audibleclaim. NativeWindows/GPU/device/
+listening/human/fullcraft/fullgame/parent30mix remainOPEN/NOT_RUN. Arrow candidate
+staysPARKED1/1unmerged; no automatic retry, listenerwaiver or reset. Originating
+Arrow costs remain attached separately. HostedCI staysdisabled.
+Verified262member/30,123,400byte archive
+`/srv/mudds-work/fleet-audio-reentry-20261118/records.tar.gz`, SHA256
+`955615703aa981af569c8255187b278146778668e233708d95accefeccce10a9`.
+All source/raw/failedattempts/actualproof/sourcebundle and eightpublishedhashes
+verified; acceptedsourcecontainedinpushedmain before exact-tip ownedbranch/
+worktree/process/scratch cleanup. Rootonlyarchive+closeout; protectedParadoxc743
+retained. [Current scope and artifacts](../../ROADMAP.md#fleet-audio-reentry-current).
