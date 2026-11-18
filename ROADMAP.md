@@ -275,6 +275,14 @@ reset. Historical records below and in archives remain unchanged.
 
 ### Katana card9 — committed/refused/interrupted cold continuation, ACTIVE
 
+**Validation checkpoint:** clean candidate9694a3310110f32e1337b52bb709dd385d7c185b
+passes import/syntax/static review and all eight actual Katana source cold cases,
+including committed/legacy/refused and owned killed-partial/readback. Old73eec
+control fails actual physical-claim persistedpilot mode in82.178s with all four
+guards stable. Dynamic committed source writer also passes. Remaining Dynamic
+reader, ordinary source regressions and actual PCK/checkpoint gates are pending;
+no scoped delivery is claimed yet. Owner08:57:09 allowance remains0/1 used.
+
 Existing BUILD-SPLIT-KATANA/card9. Result: saving after ordinary Katana use retains
 its named home preference; a fresh process offers honest recovery and starts the
 same player supported on foot at the station, with normal Katana availability.
