@@ -4,6 +4,22 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 
 const REENTRY_CYCLE_COUNT := 3
+const EXPECTED_FLEET_IDS: Array[StringName] = [
+	&"arrow_provisional", &"bulwark_heavy_gunship", &"cinder_cargo_hauler",
+	&"cinder_light_interceptor", &"cinder_long_range_bomber", &"dynamic_provisional",
+	&"halyard_new_design", &"jovian_provisional", &"katana_provisional",
+	&"paradox_provisional", &"predator_provisional", &"titan_provisional",
+	&"torrent_provisional", &"utopia_provisional", &"zenith_b7_observed",
+]
+const EXPECTED_PLAYER_SOURCE_IDS := {
+	&"torrent_provisional": 1101, &"arrow_provisional": 1102,
+	&"jovian_provisional": 1103, &"zenith_b7_observed": 1104,
+	&"halyard_new_design": 1105, &"cinder_long_range_bomber": 1106,
+	&"bulwark_heavy_gunship": 1107, &"cinder_light_interceptor": 1108,
+	&"cinder_cargo_hauler": 1109, &"titan_provisional": 1110,
+	&"paradox_provisional": 1111, &"dynamic_provisional": 1112,
+	&"utopia_provisional": 1113, &"katana_provisional": 1114,
+}
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -203,9 +219,26 @@ func _test_whole_main_reentry_paused(
 	# independently, after the accepted replay target/request setup above.
 	var all_craft: Array[HeroShip] = game.get_flyable_ships()
 	var roster: Dictionary = game.get_live_combat_source_roster_audit()
-	var census_valid: bool = all_craft.size() == 10 and bool(roster.get("valid", false)) \
-		and int(roster.get("actual_source_count", 0)) == 13
-	_check(census_valid, "component cut uses the settled ten-craft/thirteen-source composition")
+	var all_craft_ids: Array[StringName] = []
+	for craft: HeroShip in all_craft:
+		all_craft_ids.append(craft.get_ship_id())
+	all_craft_ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
+	print("MAIN_REENTRY_FLEET_CENSUS: craft_ids=", all_craft_ids,
+		" player_rows=", roster.get("player_sources", []),
+		" actual_source_count=", roster.get("actual_source_count", 0))
+	var census_valid: bool = all_craft.size() == 15 and all_craft_ids == EXPECTED_FLEET_IDS \
+		and _settled_roster_is_exact(roster)
+	if not census_valid:
+		print("MAIN_REENTRY_FLEET_CENSUS_FAILURE: craft_count=", all_craft.size(),
+			" craft_count_exact=", all_craft.size() == 15,
+			" craft_ids_exact=", all_craft_ids == EXPECTED_FLEET_IDS,
+			" player_count=", roster.get("expected_player_source_count", 0),
+			" expected_source_count=", roster.get("expected_source_count", 0),
+			" actual_source_count=", roster.get("actual_source_count", 0),
+			" roster_valid=", roster.get("valid", false),
+			" roster_errors=", roster.get("errors", PackedStringArray()),
+			" settled_roster_exact=", _settled_roster_is_exact(roster))
+	_check(census_valid, "component cut uses the exact fifteen-craft/fourteen-player/eighteen-source composition")
 	if not census_valid:
 		return
 	paused = true
@@ -398,8 +431,8 @@ func _test_whole_main_reentry_paused(
 		for instance_id in restored_resource_ids.values():
 			unique_resource_ids[int(instance_id)] = true
 		_check(
-			resolver.get_registered_source_count() == 13
-			and int(authority.get("_registrations_by_instance").size()) == 13
+			resolver.get_registered_source_count() == 18
+			and int(authority.get("_registrations_by_instance").size()) == 18
 			and authority.get_source_id(torrent) == 1101
 			and authority.get_source_id(arrow) == 1102
 			and authority.get_source_id(jovian) == 1103
@@ -407,8 +440,8 @@ func _test_whole_main_reentry_paused(
 			and authority.get_source_id(halyard) == 1105
 			and authority.get_source_id(bulwark) == 1107
 			and authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID
-			and bool(game.get_live_combat_source_roster_audit().get("valid", false)),
-			"re-entry cycle %d restores the settled exact thirteen-source production roster" % (cycle + 1)
+			and _settled_roster_is_exact(game.get_live_combat_source_roster_audit()),
+			"re-entry cycle %d restores the settled exact eighteen-source production roster" % (cycle + 1)
 		)
 		_check(
 			bool(restored_audio.resources_ready)
@@ -555,7 +588,7 @@ func _prepare_component_cut(
 			and ship.get("_pilot_seat_anchor") != null and ship.get_rid().is_valid() \
 			and not ship.find_children("*", "CollisionShape3D", true, false).is_empty() \
 			and not identities.has(ship.get_ship_id()) \
-			and (int(entry["source_id"]) == 0 if ship.get_ship_id() == &"titan_provisional" else int(entry["source_id"]) > 0) \
+			and (int(entry["source_id"]) == 0 if ship.get_ship_id() == &"predator_provisional" else int(entry["source_id"]) > 0) \
 			and _connection_count(model, &"component_state_changed", Callable(ship, "_on_component_state_changed")) == 1 \
 			and _connection_count(model, &"component_repair_committed", Callable(ship, "_on_component_repair_committed")) == 1
 		_check(valid, "component cut resolves unique existing model/home/boarding/source: %s" % ship.get_ship_id())
@@ -814,8 +847,9 @@ func _test_queued_main_reentry_restore() -> void:
 	var resolver := game.get_combat_resolver() as CombatResolver
 	var parent := game.get_parent()
 	_check(
-		resolver != null and resolver.get_registered_source_count() == 13,
-		"queued-reentry fixture begins with the settled thirteen-source combat registry"
+		resolver != null and resolver.get_registered_source_count() == 18
+		and _settled_roster_is_exact(game.get_live_combat_source_roster_audit()),
+		"queued-reentry fixture begins with the settled eighteen-source combat registry"
 	)
 	if resolver == null or parent == null:
 		await _clean_up(game)
@@ -1110,14 +1144,29 @@ func _direct_combat_fleet(fleet: Array[HeroShip]) -> Array[HeroShip]:
 	return result
 
 
+func _settled_roster_is_exact(audit: Dictionary) -> bool:
+	if not bool(audit.get("valid", false)) \
+			or int(audit.get("expected_player_source_count", 0)) != 14 \
+			or int(audit.get("expected_source_count", 0)) != 18 \
+			or int(audit.get("actual_source_count", 0)) != 18:
+		return false
+	var rows: Array = audit.get("player_sources", []) as Array
+	if rows.size() != 14:
+		return false
+	var actual_player_source_ids: Dictionary = {}
+	for row: Dictionary in rows:
+		var ship_id := StringName(row.get("ship_id", &""))
+		if actual_player_source_ids.has(ship_id) or not bool(row.get("exact", false)):
+			return false
+		actual_player_source_ids[ship_id] = int(row.get("source_id", 0))
+	return actual_player_source_ids == EXPECTED_PLAYER_SOURCE_IDS
+
+
 func _await_settled_roster(game: GameFlow) -> Dictionary:
 	var audit: Dictionary = {}
 	for _attempt in 120:
 		audit = game.get_live_combat_source_roster_audit()
-		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 9 \
-				and int(audit.get("expected_source_count", 0)) == 13 \
-				and int(audit.get("actual_source_count", 0)) == 13:
+		if _settled_roster_is_exact(audit):
 			return audit
 		await process_frame
 	return audit
