@@ -16,18 +16,21 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **51a2a98** — [Windows ZIP](builds/windows/MuddsShipyards-51a2a98-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-51a2a98-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-51a2a98-linux-x86_64.tar.gz).
-The Hauler now exposes its existing hull/coasting-drag versus speed/thrust
-trade-off before boarding. Its complete identity, instructions, ratings and
-observed state fit the existing card; Light and Bomber remain unchanged.
-This completes the three Cinder choice/registry members and all nine original/
-Cinder role contracts, while the full seventeen-craft role-budget stays open.
-Fullsource4/PCK4/capture2/strictstartup3/maps/audit9 pass.
-[Scoped delivery](#cinder-hauler-choice-current) and
-[actual HUD preview](builds/windows/MuddsShipyards-51a2a98-cinder-hauler-choice-preview.png).
-Component capture only; no new ordinary-world/native qualification is claimed.
+Latest playable checkpoint: **0c429cb** — [Windows ZIP](builds/windows/MuddsShipyards-0c429cb-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-0c429cb-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-0c429cb-linux-x86_64.tar.gz).
+The physical fleet terminal now shows definition-backed rated speed and maximum
+hull, with raw units and separate per-field indices, beside all15 current names
+and availability states. Normal walking/interaction, the original screen/font
+and all16 lines are retained. Fullsource5/PCK5, two inspected terminal captures,
+strictstartup3, complete package maps and audit9 pass.
+[Scoped delivery](#fleet-rated-budget-current) and
+[actual terminal preview](builds/windows/MuddsShipyards-0c429cb-fleet-rated-budget-preview.png).
+The typed Resource supports this two-field subset for all17 definitions; full
+role qualification stays NOT_QUALIFIED. Other role dimensions and final balance
+remain unfinished. This component capture does not qualify whole-world rendering.
+The completed Light/Bomber/Hauler choice cards and all nine original/Cinder role
+contracts remain included.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
 lifecycle remain included. [Card9 delivery](#katana-cold-recovery-current).
@@ -322,27 +325,64 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="fleet-rated-budget-current"></a>
 
-### Typed rated speed/hull budget and live fleet-terminal columns — ACTIVE
+### Typed rated speed/hull budget and live fleet-terminal columns — DONE,0c429cb
 
-Before-code initial function slice of the [normalized role-budget resource/consumer](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract). This creates an actual Resource used by the running game and visible fleet-terminal columns, not a hidden dictionary/validator. It does NOT replace the full remaining vector, function, footprint, boarding-time or skill-floor requirements. Every returned full-role qualification remains NOT_QUALIFIED until those missing dimensions exist; never fill missing data with zero or claim balance acceptance.
+Source **0c429cbed6667cdabc3e424a667af5ae5415e155**, integrated and pushed through
+**1991ee85044754ee81581f881aafd1abc7b14851**. This delivers the initial real Resource
+and live consumer in the [normalized full-role contract](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract),
+not the complete role vector or balance qualification.
 
-Base **0ef8c7bbb673a0a575b57407ad0f9d826fba3354**. First mapping **13:38:01UTC**, hard all-in **13:38:01→15:08:01UTC,90minutes**, includes mapping/code/review/all checks/component capture/exports/startups/package/integration/push/archive/worktree/ref/process cleanup/finalverification. Owner13:57:23 renewal applies once to this unfinished function member: **0/1 substantive corrections used**, default1. Its earlier11:53:45 allowance was also0/1 and remains historical. Branch/retry/split does not replenish it. Parked Katana/dock/shader tasks unchanged.
+FleetRatedBudget copies actual ShipDefinition maximum_speed/maximum_hull into
+typed finite positive fields. Public snapshots are detached and retain identity,
+raw m/s/hull-point values, benefit direction, unit1 and full-precision n=x/(1+x).
+Null/invalid definitions are explicitly invalid. All17 authored definitions
+support the subset. GameFlow supplies its actual15 rows to the existing physical
+FleetRegistryConsole, which displays raw values and three-decimal indices beside
+every inherited name/state. Legacy all-budget-absent snapshots keep their exact
+old presentation; mixed/malformed/object-bearing/foreign-ID/wrong-unit/nonfinite/
+raw-index mismatches refuse atomically. No handling, weapons, geometry, saves,
+stock, berth, regeneration or network authority changes.
 
-One implementation owner; root owns all engine/import/render/export commands and UID generation. Independent source/layout/package review. No nested delegation or engines in mutable candidate. Preserve all completed Cinder cards and raw role contracts.
+Every full-role status remains **NOT_QUALIFIED**, with all11 missing-dimension
+categories explicit. No zero substitutes, overall score, pair qualification or
+registration of Vortex/Salyut in Main. All nine existing role contracts, original
+six global signatures, non-dominance, minimum14of16 and Cinder cards remain intact.
 
-| Frozen outcome | Acceptance and stop |
+| Required observation | Actual accepted result |
 | --- | --- |
-| Typed real resource | New scripts/ships/fleet_rated_budget.gd, extends Resource (stable class, root-generated .gd.uid); existing FleetRoleRegistry factory derives rated maximum_speed and maximum_hull directly from actual ShipDefinition accessors. Typed finite positive values, stable definition identity, units m/s and hull point, benefit direction/unit1, normalized n=x/(1+x) at full precision. Object is read-only by public API and serialized only to detached scalar/collection snapshots. No duplicated authored stat assets, weights, scalar overall score, tuning or version/validator family. Null/invalid source is explicitly invalid, not guessed zero. |
-| Honest qualification | Publish only these two supported rated fields. Full role status NOT_QUALIFIED and explicit remaining dimensions/metadata missing, never unsupported or zero by inference. All17 actual definitions can produce the sourced two-field subset; that does not register Vortex/Salyut in Main or qualify full17 pairs. Preserve all nine role contracts/original signatures/non-dominance/min14of16 and all existing raw/current values. No pair qualification from two axes. |
-| Actual live consumer | GameFlow's existing fleet-registry refresh creates detached resource-backed data for current15real ships. FleetRegistryConsole uses it to append readable rated speed/hull raw+per-field0..1 indices to each existing availability row. Same normal E/proximity guards, all15names/states/header, same physical screen/font40/pixel.0016/16lines; no new modal, keybind, reach or rank gate. Header labels units/index range/rated-only meaning. No berth/crew/regen/stock/ship/save authority mutation. Raw data remains primary; comparisons cannot rely on rounded display indices. |
-| Legacy/schema refusal | Legacy snapshots without budget fields retain old status-only view. New object-bearing/malformed/wrong-identity/wrong-unit/nonfinite/mismatched raw-normalized values refuse atomically before presentation changes. Definition and detached snapshot mutation do not mutate authored resources or retained state. No ScriptError from heterogeneous types. Missing fields remain unknown, no fabricated ratings. |
-| Physical/layout proof | Extend the SAME full fleet_registry_console_production_test: original outside-reach staging/normalwalk/E, all15states and identity/source/berth/regen guards, actual Label3D glyph AABB inside existing3.76×1.46screen, unchanged40font/.0016pixel/16lines. New budget raw/norm must match actual Main definitions and have no live object. All old source/state/cleanup assertions remain. |
-| Component images without weakened world gates | Full ordinary component test remains HEADLESS300 and can write its first actual detached accepted15-row snapshot to explicit --write-rated-snapshot=/abs after successful case completion. Separate opt-in --capture-rated-registry --snapshot=/abs --output-dir=/abs in same fixture renders ONLY a production terminal instance from that exact pinned snapshot on a private isolated Forward+/X11 viewport, no Main/world scene instantiation in capture branch. Two1280/1920 images at same physical font/screen/camera recipe and8postdraw, both inspected. No claim of whole-Main/native/parkedshader qualification; neither capture replaces any original test. Root pins source-commit/snapshot/image bytes. |
-| Ownership | ONLY new fleet_rated_budget.gd (root-owned UID metadata), scripts/ships/fleet_role_registry.gd, scripts/game/game_flow.gd, scripts/interaction/fleet_registry_console.gd; tests/fleet_role_registry_test.gd, tests/fleet_role_differentiation_test.gd, tests/fleet_registry_console_production_test.gd. No other runtime/geometry/fonts/handling/weapons/saves/network or test files. Existing boarding HUD/GameFlow suites run unchanged as regressions. |
-| Exact old control | Exact FINAL console fixture on clean old0ef8 base must compile using existing APIs and fail first new actual missing budget snapshot/visible data after normal E. Do not preload/reference candidate-only Resource APIs/classes in this control fixture; use detached dictionary observations and guard absence before further reads. No missingmethod/parser substitution. Source/cache/HEAD/clean guards and original300cap. |
-| Source5 and PCK5 | Full existing registry, fleet-registry-console production, HUD, live differentiation and boarding GameFlow suites, each original300s, all old cases/markers/caps preserved. Source console writes actual snapshot; PCK console default full cases. Actual newWindowsPCK from empty production-source paths, exact committed external graph only literal test-path relocation+entryguards, all original/adapted SHA pinned, no inlining. Each exit0/originalmarkeronce/raw0/fourguards. Separate source terminal-render command300 also required and inspected, source/image GO before exports. |
-| Release/cleanup | Every Godot Dummy; headless/privateXvfb explicitx11, independent abort/reap and input release; Main/render invocations alone. After all source/image GO clean paired exports300internal/360outer, trusted privateWindows template, strictstartup3(exit0/exactoneSTARTUP_MENU_READY_OK), equal complete maps with intendedfour runtime scripts/newUID+reviewedmetadata only, exactLinux6members/modes/extractedELF/ZIPbytes/audit9/eight repo-local artifacts/newterminalpreview. Independent source/image/package review before merge/push; every archive member rehashed before exact-tip refs/worktrees/process cleanup. Protect Paradox. NoDownloads/CI activation. |
-| Open gates | Full normalized role vector, actual firepower/utility/crew/footprint/boarding/demand and final17/ordinary/fullcraft/network/game/all36parents/10phaseexits OPEN. NativeWindows/mandatoryhuman retain OWNER-EXCLUDED/NOT_RUN; applicableGPU/device/listening/readability/wholeworldrender open. No parked shader/capture waiver or Katana allowance reset. |
+| Full source5, original300s caps | Registry2.774s; physical console35.436s; HUD28.411s; differentiation45.088s; boarding42.072s. Each exit0/original marker once/raw0/source-cache-HEAD-clean guards. |
+| Ordinary physical terminal | Same outside-reach stage, actual walk/normal E, all15 current states and definition-backed values, berth/regen conservation and all original cases. Actual glyph1.8448×1.408 fits unchanged3.76×1.46screen, font40/pixel.0016/16lines. |
+| Exact old control | Exact final console fixture on clean0ef8 baseline fails actual missing rated data after ordinary E in35.312s; no parser/missing-API substitute. Four guards pass. Reused only after proving final fixture bytes and baseline identical. |
+| Separate component images | Full console case writes its first actual accepted15-row snapshot after passing. Snapshot SHA7655dd118f17faeaa5c8291d301a988075b331fd8328d5e6aabf28e73939ae1a is pinned before/after a separate30.867s capture. Production terminal only, privateX11/Forward+/llvmpipe,1280/1920/eightpostdraw; both images inspected without clipping. No Main/world/native claim. |
+| Actual Windows-PCK5 | Registry2.720s; console29.324s; HUD22.210s; differentiation38.649s; boarding34.787s. All original300caps/cases/markers, raw0/fourguards/source-isolation1. Exact committed external fixture graphs; only literal test-path relocation and entry guards, every original/adapted hash checked. |
+| Playable checkpoint | Clean Windows27.710s/Linux25.858s exports; owned300s export supervision/outer360 preserved. Trusted private template. Strict startup Windows30.409s/Linux25.593s/extracted25.848s each exit0/exact-one STARTUP_MENU_READY_OK/raw0. Complete1613-entry maps equal: new Resource GDC/remap, three existing GDC changes, one UID/class addition and82 typed-node_ids-only scene changes. ExactLinux6members/modes/extractedELF, ZIP EXE+notes, audit9 and eight published files reviewed. |
+
+The initial3938568 registry run failed in **2.713s** because its fixture referenced
+nonexistent vortex_new_design/salyut_new_design resource paths. Dependents stopped;
+0c429cb corrects only those references to the actual provisional definitions,
+retaining coverage of all17 definitions and every prior case. This routine
+fixture repair changes no production
+behavior and consumes no substantive correction. All raw failures remain archived.
+Seven changed scripts pass syntax checks; unchanged-script reuse is tied to exact
+committed blobs. Independent source/image and package review both accepted final0c429cb.
+
+First mapping **13:38:01UTC**, original hard all-in window
+**13:38:01→15:08:01UTC,90minutes** unchanged. Latest owner13:57:23 renewal ends
+**0/1 substantive corrections used**; earlier11:53:45 count0/1 remains historical.
+Actual through verified archive/worktree/ref/process cleanup **36.258094minutes**;
+final documentation/push/verification remain billed to that same window and are
+recorded in the task closeout. Verified archive:
+`/srv/mudds-work/fleet-rated-budget-20261118/records.tar.gz`, **29,955,036bytes/713members**, SHA256
+`5d8de31363ae7a34a856afa1e3cc49eea04ce3a80f014b215af5eebaf6ad4efb`. Every member was rehashed before owned cleanup.
+Task branch local/remote absent; both worktrees and owned processes removed.
+Only protected unaccepted Paradox gunner c743f585d remains as a branch exception.
+
+**Still OPEN:** full normalized role vector, actual function/utility/firepower/
+crew/footprint/boarding-time/skill-demand consumers, final17 role/balance pairs,
+ordinary full-craft/network/game, all36 parents and10 phase exits. NativeWindows/
+mandatoryhuman remain OWNER-EXCLUDED/NOT_RUN; applicable GPU/device/listening/
+readability/whole-world rendering remain open. Latest allowance renewal does not
+waive any parked task's causal reopening conditions.
 
 <a id="cinder-hauler-choice-current"></a>
 

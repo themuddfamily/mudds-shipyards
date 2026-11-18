@@ -710,9 +710,15 @@ ordinary boarding instruction.
 The live differentiation suite covers all fifteen current Main definitions.
 FleetRoleRegistry contracts cover Torrent/Arrow/Jovian/Zenith/Halyard/Bulwark,
 Cinder Light, Cinder Bomber and Cinder Hauler: all nine original/Cinder role
-contracts are now implemented. The full normalized seventeen-craft resource/
-vector and actual function/utility/demand consumers remain implementation work. Raw role contracts
-and a boarding choice card do not close full-craft or final balance acceptance.
+contracts are now implemented. The initial typed speed/hull Resource and live
+fleet-terminal consumer are
+[delivered on0c429cb](../../ROADMAP.md#fleet-rated-budget-current): all17 definitions
+supply the sourced subset, while all15 Main rows show raw ratings and separate
+indices through ordinary interaction. Full source5/PCK5 and both1280/1920 terminal
+images pass with the unchanged screen/font/16lines. Full-role status remains
+NOT_QUALIFIED with missing dimensions explicit. The remaining normalized
+seventeen-craft vector and actual function/utility/demand consumers remain
+implementation work. Raw role contracts and a boarding choice card do not close full-craft or final balance acceptance.
 
 The earlier [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
 failed73px-inside63px and remains historical. The later accepted [Light6e15126
