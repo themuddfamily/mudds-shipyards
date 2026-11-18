@@ -16,9 +16,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **2cf0a3f** — [Windows ZIP](builds/windows/MuddsShipyards-2cf0a3f-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-2cf0a3f-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-2cf0a3f-linux-x86_64.tar.gz).
+Latest playable checkpoint: **09e0ece** — [Windows ZIP](builds/windows/MuddsShipyards-09e0ece-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-09e0ece-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-09e0ece-linux-x86_64.tar.gz).
+Zenith's complete modern hull/fittings now follow its existing53m/43m LOD switch,
+with shared canopy and cockpit retained. Actual static geometry drops from25,472
+to9,360triangles and38to34submissions. The full source/PCK component suite, all10
+original rendered views and package gates pass. [Actual preview](builds/windows/MuddsShipyards-09e0ece-zenith-modern-lod-preview.png)
+and [scope/failure history](#zenith-modern-lod-current). Full native/ordinary
+flight, Player/Main and human/full-craft qualification remain open.
+
 Accepted Cinder Loadmaster manifests now reach the existing seat-occupied and
 manifest-ready captions through their authoritative seat receipt. Duplicate
 receipts add no replay; normal role release emits once. Both complete source
@@ -187,62 +194,67 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="zenith-modern-lod-current"></a>
 
-### Selected — Zenith modern-airframe LOD integration
+### Zenith modern-airframe LOD integration — DONE,09e0ece
 
-Existing **CRAFT-ACCEPT-ZENITH / [current-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)**,
-same unfinished994d1a8 member. Player result: actual modern hull/fittings switch
-atomically with the existing48±5m presentation owner, preserving shared canopy,
-functional cockpit, nav/plume/damage state. No duplicate selector. Original Zenith
-budget is strictly fewer visible static far triangles and no greater submissions;
-the initial25% target belongs to the seven other missing representations, not
-existing Torrent/Zenith. Full craft/art/ordinary/native qualification stays open.
+Accepted **09e0ecef06343b59ae0a023f91d0a009636dae07**, merged/pushed as
+**cf3c8d7746c28d0f32785865fca58e2782d0c537**. Existing
+[CRAFT-ACCEPT-ZENITH/current-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)
+runtime member now registers complete modern near/far roots with the original
+48±5 selector. Far>53m/close<43m, exact bounds/dead band/nonfinite holds; both
+roots switch before the existing signal. Shared modern canopy, functional
+cockpit, navigation/plumes/damage, near geometry and all gameplay authorities
+remain. No second selector, collider or authority inside presentation roots.
 
-**2026-11-18 00:54→02:24UTC,90minutes ALL-IN**, definition before01:09,
-source-ready by01:24. Owner23:37:41 renewal **0/1 substantive used**; historical
-old1/1 and15.6837546667minutes retained. Known ArrayMesh-only primitive query on
-BoxMesh is a mechanical API repair. Root-relative internal-hidden visibility
-census/bounds fixes are passive measurement maintenance, not rendering changes.
-No original threshold, camera, view, geometry or scope relaxation.
+Actual static modern cost **25,472triangles/38submissions/29meshes close** versus
+**9,360/34/25 far** meets the original Zenith strictly-fewer/no-extra-submission
+contract. This is geometry-cost reduction, not measured native frame rate.
+Every macroform and outer bounds pass. Original current-craft25% initial budget
+for the seven other missing representations was not applied or relaxed here.
 
-Baseline9d40567dc/current checkpoint2cf0a3f; branchwork/zenith-modern-lod-1118,
-ownedroot/worktree `/srv/mudds-work/zenith-modern-lod-20261118`.
-MEDIUM implementer owns only `scripts/ships/zenith_interceptor.gd`,
-`scenes/ships/presentation/zenith_authored_presentation.gd`,
-`tests/zenith_interceptor_test.gd`. HIGH independent source/release reviewer;
-root engines/capture/export/docs/Git/cleanup; no nested agents. Preserve all later
-accepted code and original editable asset/B7 source limits. No parked Arrow,
-Predator, gunner or shader changes, authority/physics/save/schema/validator work.
+Complete default source and actual Windows-PCK interceptor fixtures each pass
+**234assertions**, source36.084s/PCK29.295s under unchanged300s limits, exact
+original marker1/exit0/raw0 and all source-cache-HEAD-clean guards. Packaged fixture
+is byte-identical committed test plus entry isolation guard, blank source path.
+All old asset/collision/camera/canopy/anchor/weapon/cue/strict component berth/
+reset/resource/reentry cases remain. Quiet component/ShipyardWorld occupied-berth
+identities and atomic modern roots are exercised; literal fixture has no Player
+and records absence. No full GameFlow Main or ordinary pilot result is inferred.
 
-The complete existing default `tests/zenith_interceptor_test.gd` runs alone under
-its300s cap: actual exit0/exactoneZENITH_INTERCEPTOR_TEST_OK/raw0 and source-cache-
-HEAD-clean guards. Preserve every original asset/hull/24shape collision/anchor/
-canopy/cue/weapon/clearance/reentry case. Complete modern-root checks cover both
-actual representations and bounds, visible Mesh/MultiMesh costs, exact53/43
-boundaries/dead band/nonfinite holds, atomic registered-root visibility before
-signal, shared canopy pose/cues, quiet collision/anchor/ledger/weapon/berth and
-resource identities across retained epochs. Literal fixture has no Player and
-records that absence; occupied berth is actual ShipyardWorld component landing,
-not full GameFlow Main/ordinary pilot proof. Same exact committed full fixture
-runs against actual Windows PCK from a blank source-isolated directory, only an
-entry isolation guard added, same300s/all cases/guards. Syntax/import90s each.
+All10 original1920×1080/FOV45/four-frame Forward+/lavapipe/private-Xvfb images
+pass in **99.689s/120s**, all inspected independently: forward/aft close-far,
+actual controlled camera53/53.1/43/42.9 gives[0,1,1,0], open canopy close-far
+retains shared pose/interior. Full modern hull remains visible, no blank/double
+root; service/grille detail coarsens in far. Capture script changes only its
+output path. Original rendering/camera/settle/silhouette gates stay intact.
 
-Original external capture is byte-identical except owned output path: private
-Xvfb/x11/Forward+/lavapipe/Dummy,120s,1920×1080/FOV45/four settling frames+postdraw,
-original lights/environment/cameras and ten full-size images. Forward/aft close/
-far, controlled actual camera distances53/53.1/43/42.9 with LOD[0,1,1,0], and
-open-canopy close/far must produce all10 observations/PNGs with atomic roots;
-root inspects all10. Paused/staged component scope, not native ordinary flight.
+Clean safe paired exports, trusted private template preflight, strictstartup3
+(each0/oneSTARTUP_MENU_READY_OK/raw0), exact Linux6members/modes/UIDs/extractedELF,
+equal1611entry complete maps, reviewed two-script delta+82 node_ids-only scenes/
+unchanged UID/class maps, existing audit9 and eight actual files pass independent
+source/release review. Preview is actual inspected forward-close. Main retains
+15usablecraft/15occupiedhomes. NativeWindows/GPU/device/human/audible, ordinary
+flight/Player/Main/fullZenith/fullcraft/fullgame gates remain open; CI disabled;
+all36 parent outcomes/ten phase gates stay open.
 
-Clean paired safe exports300s internal/360s outer with trusted4.7.1 private
-template preflight; strict startup3(exit0/oneSTARTUP_MENU_READY_OK/raw0), exact
-Linux6members/modes/extractedELF, complete equal Windows/Linux maps/reviewed
-runtime delta vs2cf0a3f, existing audit9 and eight actual repository checkpoint
-files. Independent FINAL_GO/PACKAGE_GO before integration/push; verified prior/
-failed/raw/source bundle archive and exact owned process/worktree/ref/scratch
-cleanup. Preserve unaccepted Paradox branch. Stop dependents at first failure;
-one cause-bound substantive correction maximum, no blind retry/partial merge/
-waiver/deadline extension. Every Godot Dummy and isolated, CI disabled. All native/
-human/audible/fullcraft/fullgame gates remain NOT_RUN/open.
+Original null-index/BoxMesh failures remain historical. Two new fixture errors
+are retained:580 assumed12covertriangles;85 inferred108fromHeroShip while missing
+Zenith's virtual rounded-box override. Actual cover44triangles was measured;
+final test uses independent native face extraction, preserving the ancestor-
+visibility regression/all predicates/flag restoration. Neither error changed
+production geometry, original cases, budgets or limits. Source/release review
+acknowledges the incorrect intermediate inference rather than rewriting it.
+
+Window **2026-11-18 00:54→02:24UTC**,90minutes ALL-IN; owner23:37:41 renewal
+**0/1 substantive used**, historical1/1 and15.6837546667minutes retained. Current/
+cumulative actual cost in adjacent closeout. Verified archive
+`/srv/mudds-work/zenith-modern-lod-20261118/records.tar.gz`:
+**14,358,565bytes**,162members,
+SHA256 `ee7de8fd84dba4a0e95da1a0cad532be0315e89489c94bd7421cbd465f1f2368`.
+Includes prior240member archive, all raw/failures/capture10 and verified complete
+source bundle. Eight published artifact hashes verified. Accepted source was
+in pushedmain before exact-tip branch deletion. Owned process/worktree/branch/
+scratch removed; remote task ref absent; root only archive+closeout. Unaccepted
+Paradox gunnerc743 remains protected. No next card selected.
 
 <a id="arrow-whole-lod-current"></a>
 
@@ -4090,7 +4102,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 | [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
 | [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
 | [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED7a33796: actual far15,004/50,496triangles(29.713%) exceeds25% | Fresh substantive allowance and a cause-backed reduction of at least2,380fartriangles; full original visual/runtime/package gates and prior cost retained |
-| [Zenith whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105) | PARKED: ArrayMesh-only method called on BoxMesh | Concrete mesh-type correction and explicit reprioritization retaining exhausted allowance |
+| [Zenith modern-airframe LOD](#zenith-modern-lod-current) | DONE09e0ece: complete modern roots/source+PCK234each/render10/package gates pass | Scoped runtime/component member closed; ordinary/native/Player/Main/fullcraft gates remain open; original failures/cost retained |
 | [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
 | [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
 | [Landed-crew browser entry](docs/history/ROADMAP_DELIVERIES.md#landed-crew-admission-ui-entry-stop-20261105) | PARKED: failed before admission; no joining feature accepted | Satisfy its recorded reopening conditions; no subset pass |

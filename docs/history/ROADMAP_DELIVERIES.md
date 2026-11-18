@@ -34246,6 +34246,64 @@ records and complete table cells remain unchanged. No product/parent/phase
 completion advances; accepted runtime and d525554 checkpoint remain unchanged.
 
 
+<a id="zenith-modern-lod-delivered-20261118"></a>
+## Zenith modern-airframe LOD — runtime/component member delivered
+
+Accepted09e0ecef06343b59ae0a023f91d0a009636dae07, merged/pushed
+cf3c8d7746c28d0f32785865fca58e2782d0c537. Complete modern hull/fittings now
+register with the existing48±5 presentation owner; far>53/close<43, exact
+boundaries/dead band/nonfinite holds. Both roots flip before existing signal.
+Shared modern canopy, functional cockpit, nav/plume/damage policy, close shape
+and all gameplay authorities stay intact. B7-limited interpretation retained.
+
+Actual static close25,472triangles/38submissions/29meshes; far9,360/34/25 meets
+Zenith's original strictly-fewer/no-extra-submissions contract. This is not the
+25%initial budget for seven other missing representations and not a frame-rate
+measurement. Complete macroforms and5cm outer-bound envelope check pass.
+Full default source36.084s and actual Windows-PCK29.295s each234assertions,
+unchanged300s/originalmarker1/exit0/raw0/source-cache-HEAD-clean. Exact committed
+external fixture plus only entry source-isolation guard independently byte-
+verified. All original asset/collision/camera/canopy/anchor/weapon/cue/strict
+component landing/reset/resource/reentry cases remain. Quiet component/occupied
+ShipyardWorld berth state is covered; fixture explicitly has no Player and
+cannot qualify fullMain or ordinary pilot/flight behavior.
+
+All10 exact originalForward+/lavapipe/privateXvfb/x11/Dummy images complete in
+99.689s/120s,1920×1080/FOV45/four settling frames+postdraw. Both root and reviewer
+viewed every image: forward/aft close-far, actual camera53/53.1/43/42.9 states
+[0,1,1,0], open canopy close-far shared pose/interior. Hull/wings/nacelles/nozzle
+openings/cannons/landing forms complete; far coarsens service/grille detail,
+no blank/double hull. Capture source byte-matches original except output path.
+
+Paired clean safe exports27.612/25.458s, pinned actual private Windows template,
+strict Windows-PCK/Linux-direct/Linux-extracted startup30.363/26.250/25.700s,
+each0/oneSTARTUP_MENU_READY_OK/raw0. Exact Linux6members/modes/UIDs/extracted
+ELF identity, equal1611entry Win/Linux/approved maps, reviewed two changedgdc
+plus82decompressed typednode_ids-only scenes/UID-class bytes unchanged, audit9,
+exact EXE+notes ZIP and all8artifact sizes/SHA256 pass independent release GO.
+Latest checkpoint09e0ece in repository builds; preview actual forward-close.
+
+Original null-index/BoxMesh errors/source/partial capture remain archived.
+New580 query fixture wrongly expected12cooling-cover triangles;85 inferred108
+fromHeroShip, missing Zenith's virtual rounded-box override. Actual cover44 was
+measured;09 uses independent native face extraction to prove hidden ancestor
+excludes that mesh, preserving all predicates/restoration. Both failed143 raw
+runs/operands remain; neither production geometry nor original acceptance was
+changed. The wrong static inference is retained explicitly as an error.
+
+Window2026-11-18 00:54→02:24UTC90minutes all-in. Owner23:37:41 renewal0/1
+substantive used, original1/1 and15.6837546667minutes retained; actual current/
+cumulative cost in adjacent closeout. Archive:
+/srv/mudds-work/zenith-modern-lod-20261118/records.tar.gz,
+14,358,565bytes/162members, SHA256
+ee7de8fd84dba4a0e95da1a0cad532be0315e89489c94bd7421cbd465f1f2368.
+All members/source bundle and8published artifacts verified. Pushedmain contains
+accepted source before exact-tip branch removal; worktree/processes/remote task
+ref/scratch clean, owned root only records.tar.gz+closeout.json. Separate
+unaccepted Paradoxgunnerc743 protected. NativeWindows/GPU/device/human/audible,
+fullZenith/fullcraft/fullgame/ordinary Player/Main qualification remain open;
+all36parents/tenphases open; hosted CI disabled.
+
 <a id="zenith-modern-lod-census-stop-20261105"></a>
 ## Zenith modern LOD — census failure, parked 2026-11-05
 
