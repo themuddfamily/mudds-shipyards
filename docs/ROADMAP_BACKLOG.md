@@ -25,6 +25,22 @@ Utopia card7 physical Cinder destination candidate **127cc2b26** is PARKED/unmer
 
 Previous Cinder Light role-choice candidate **1ef02d4** remains historically PARKED/unmerged after the owner-renewed title-packing attempt: exacttitle369px exceeds365–366px and approachbody73px exceeds63px in all six size/scale cells. Sole renewed correction1/1 used; no source/runtime subset, screenshot or checkpoint accepted. [Current stop and retained source](../ROADMAP.md#cinder-light-choice-current).
 
+**Latest owner allowance reset, 2026-11-18 01:39:01 UTC:** every task unfinished at
+this renewal has **0 used** against its last positive approved correction limit,
+or one if none was recorded. This applies once per unfinished task, including
+parked, failed, blocked and gated work, and supersedes older current-used counts
+and allowance-only approval requirements throughout this backlog and linked
+cards. Arrow complete-static LOD is now **0/1**; its prior **1/1** remains
+historical. Completed tasks, including Cinder Loadmaster receipt captions and
+Zenith modern-airframe LOD, receive no reset. Preserve failures, source archives,
+actual cumulative costs, causal reopening conditions, dependencies, external
+gates and original test/journey caps. Record the renewed count when selecting
+a card into a fresh bounded window; retries, branches and splits do not renew
+it again. This reset starts no work or tests and grants no acceptance credit.
+[Authoritative reset and history](../ROADMAP.md#owner-allowance-reset).
+
+Historical renewal (superseded by the latest reset above):
+
 **Owner allowance reset, 2026-11-17 21:35:22 UTC:** all unfinished tasks receive a renewed
 correction allowance of **0 used** against their last positive approved limit,
 or **one** if none was recorded. Completed tasks are excluded. The reset applies

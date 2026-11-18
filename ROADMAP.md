@@ -122,9 +122,9 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 <a id="owner-allowance-reset"></a>
 
-### Owner allowance reset — 2026-11-17
+### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-17 23:37:41 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-18 01:39:01 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved correction
 limit, or **one** if none was recorded. This includes active, parked, failed,
 blocked and gated tasks, including tasks that consumed allowances since the
@@ -142,15 +142,23 @@ or expired historical window.
 This renewal applies globally to all unfinished tasks, including parked, failed,
 blocked and gated tasks. Their effective current count is **0 used**, regardless
 of older task-card counts; their last positive approved limit is retained, or
-one if none was recorded. Completed Dynamic lifecycle card8, Dynamic cold
-recovery card9 and Cinder Light role-choice are excluded.
+one if none was recorded. All completed tasks are excluded, including Dynamic
+lifecycle card8, Dynamic cold recovery card9, Cinder Light role-choice, Cinder
+Loadmaster receipt captions and Zenith modern-airframe LOD. Older counts below
+and in linked cards are historical where superseded by this renewal.
 
-Selected Utopia card7 receives **0/1 used** under this renewal. Its consumed
-**1/1** under the 21:35:22 renewal remains historical. Its current all-in deadline,
-original acceptance checks and test caps remain unchanged; this reset alone
-starts no new work and grants no acceptance credit.
+Unfinished Arrow complete-static LOD and Utopia card7 each receive **0/1 used**
+under this renewal. Arrow's consumed **1/1** under the 23:37:41 renewal and
+Utopia's older consumed counts remain historical. Arrow still needs a concrete
+geometry plan; Utopia still needs a demonstrated execution-cost reduction or
+an explicit cap decision. Original acceptance checks and test caps remain
+unchanged; this reset starts no new work and grants no acceptance credit.
 
 Earlier reset history:
+
+The previous renewal was **2026-11-17 23:37:41 UTC**. Arrow subsequently
+consumed **1/1**; that count is historical. Cinder Loadmaster receipt captions
+and Zenith modern-airframe LOD subsequently completed and remain closed.
 
 The previous renewal was **2026-11-17 21:35:22 UTC**. Utopia card7 consumed
 **1/1** before this reset. Dynamic cold recovery card9 and Light role-choice

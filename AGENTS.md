@@ -1,8 +1,8 @@
 # Agent collaboration policy
 
-## Owner-authorized unfinished-task allowance reset — 2026-11-17
+## Owner-authorized unfinished-task allowance reset — 2026-11-18
 
-- Latest owner renewal: **2026-11-17 23:37:41 UTC**. Reset every task still
+- Latest owner renewal: **2026-11-18 01:39:01 UTC**. Reset every task still
   unfinished at this renewal to **0 used**, including allowances consumed since
   earlier resets. This supersedes earlier current-used counts, not
   their historical records. Apply this renewal once per unfinished task.
@@ -21,6 +21,12 @@
 - Actual causal reopening conditions, dependencies, missing product decisions,
   hardware inputs and acceptance gates remain binding. The reset does not make
   every unfinished task ready or authorize blind retries.
+
+- Earlier renewal: **2026-11-17 23:37:41 UTC**. Arrow complete-static LOD
+  subsequently consumed **1/1** and remains unfinished; its current allowance
+  is now **0/1**. Prior failures, actual costs and the concrete geometry
+  reopening condition remain binding. Completed Cinder Loadmaster receipt
+  captions and Zenith modern-airframe LOD are excluded from the latest reset.
 
 - Earlier renewal: **2026-11-17 21:35:22 UTC**. Utopia card7 subsequently
   consumed **1/1** before the latest reset; that count remains historical.
