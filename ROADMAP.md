@@ -328,6 +328,30 @@ c743 remains. [Full delivery record](docs/history/ROADMAP_DELIVERIES.md#shared-h
 
 <a id="arrow-whole-lod-renewal-current"></a>
 
+### Arrow whole static LOD — causal validation resumed in SAME window
+
+Shared audio dependency is accepted7801f6b. Independent contract reconciliation
+confirms the canonical [LOD contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)
+compares quiet snapshots within each lifecycle epoch; accepted ShipBoardingArea
+retirement deliberately replaces its presentation-only RefCounted binding.
+Fixture6c5fef4ed permits ONLY that actual callback replacement after verifying
+old detach/disconnect/stale refusal, exact current replacement/no authority and
+exact method/flags/arguments. Every other cross-epoch node/mesh/material/child/
+listener record stays exact; sameShipAudioRig callback must return; all raw
+identities stay exact within both epochs. No production code changed on resumption.
+
+**Original01:40→03:10UTC90minute ALL-IN window remains**, including intervening
+audio dependency work, resumption and cleanup. **1/1 substantive remains used**;
+this is a cause-proven incorrect assertion repair, no new allowance/deadline.
+Five full source300s/12original images110s/PCK5×300s/pairedcheckpoint/startup3/
+maps/audit9/eightfiles and original ordinary/native/fullcraft limitations remain.
+Root-owned `/srv/mudds-work/arrow-whole-lod-epoch-20261118/frozen-card.md` pins all
+commands/gates. Import first overlapped editing (OS0/raw0/clean=false, rejected
+as validation); fresh clean import6.486sPASS. Independent sourceGO; execution
+still unproved. First real failure stops; no geometry tuning or partial merge.
+Earlier failed stop and all source/raw/costs below remain historical.
+
+
 ### Arrow complete static LOD — PARKED at shared audio re-entry,712259ad4
 
 Same unfinished card; no Arrow runtime merge/checkpoint/delivery credit. At this
