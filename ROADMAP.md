@@ -1662,7 +1662,23 @@ locally/remotely at c743f585d0a70beb0e6100b34a47147d16280e08. Adjacent
 `closeout.json` records final all-in closure and pushed Main; parked Salyut berth
 and cold Main graphics gates remain unchanged/open.
 
-### Main cold first-frame blocker — bounded definition stopped
+### Main cold first-frame blocker — exact consumer probe selected
+
+Bounded causal definition **2026-11-18 02:59→03:19UTC**,20minutes allin. Accepted
+main567233084/runtime7801f6b, one original fixedOperations90s coldGLES capture,
+privateXvfb/explicitx11/Dummy; originalworld/camera/FOV/physical960×540/eightframes/
+quality unchanged. New readonly bridge records actual native texture handles,
+active sampler bindings, world transform, materialUBO3 bytes and draw counts
+against pre-firstdraw actualnode/surface/material census, includingacceptedEGL
+context transitions. Earlier family/timing trace lacked those fields.
+Unique actual owner is required; ambiguous or failed hooks stop without a warm
+retry or production proposal. Timings are instrumented, not native performance.
+No source/renderer completion credit, production edit or Arrow reopening. Owner
+01:39:01 renewal0/1 remainsunused; all old source/failures/costs retained. Full
+frozen card under `/srv/mudds-work/main-render-owner-20261118/frozen-card.md`.
+
+### Earlier Main cold first-frame definition — stopped, historical
+
 
 **2026-11-17 causal trace update:** accepted Main ee1b48e68, unchanged
 Operations camera(43,3,18)→(43,1,24.8), FOV52, actual physical/content960×540,
