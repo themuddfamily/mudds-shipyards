@@ -16,24 +16,24 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **167aee6** — [Windows ZIP](builds/windows/MuddsShipyards-167aee6-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-167aee6-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-167aee6-linux-x86_64.tar.gz).
-The physical fleet terminal now cycles five pages through normal interaction:
-the existing16 rated handling fields plus actual collision span, height and
-length for all15 live craft. Dimensions use the complete enabled root-shape
-union in metres, with per-field cost indices; collider counts/bounds stay
-metadata. All15 names/states remain visible at the unchanged screen/font/16lines.
-Full source5/PCK5, ten inspected page/resolution images, strictstartup3, complete
-package maps and audit9 pass. [Scoped delivery](#fleet-collision-footprint-current)
-and [actual collision-page preview](builds/windows/MuddsShipyards-167aee6-fleet-collision-footprint-preview.png).
-All17 definitions support rated handling; definition-only geometry remains
-UNKNOWN. Valid live15 footprints are MEASURED, leaving7 missing role categories
-instead of8; every full-role status remains NOT_QUALIFIED. Actual functions,
-firepower, cargo/crew, timing, skill demand and final balance remain unfinished.
-No physics geometry, handling, weapon tuning, access gate or whole-world/native
-qualification changes. Earlier accepted Cinder cards, all nine role contracts
-and gameplay remain included.
+Latest playable checkpoint: **070ed59** — [Windows ZIP](builds/windows/MuddsShipyards-070ed59-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-070ed59-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-070ed59-linux-x86_64.tar.gz).
+The physical fleet terminal now cycles eight pages through normal E: the retained
+16 handling fields and actual collision dimensions, plus pilot weapon damage,
+resolver range, firing cooldown, warmup, heat lockout, required operators and
+ammunition capacity/refill. All15 names/states fit the original screen/font.
+Every current Main pilot configuration is sourced, including both Torrent
+contexts, Bomber's four-round payload and Paradox's no-heat exception; Predator
+is explicitly unarmed. Configured capacity is distinct from current stock or
+readiness. [Scoped delivery](#fleet-pilot-budget-current) and
+[actual pilot-page preview](builds/windows/MuddsShipyards-070ed59-fleet-pilot-budget-preview.png).
+Full source9/PCK9, sixteen inspected component images, strictstartup3, complete
+package maps and audit9 pass. Full-role status remains NOT_QUALIFIED with
+7 live-footprint or8 definition-only missing categories. Crew weapons/full
+firepower, actual utility, boarding time, skill demand, full metadata and final
+balance remain unfinished. No firing, tuning, registration, authority, collision
+or pose changes. Main remains15 craft/15homes; Vortex/Salyut remain outsideMain.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
 lifecycle remain included. [Card9 delivery](#katana-cold-recovery-current).
@@ -182,6 +182,10 @@ Preserve prior failures, archives, elapsed costs, dependencies, causal reopening
 conditions and acceptance gates. Active deadlines and original test/journey caps
 remain unchanged. Resumed parked work requires a fresh bounded all-in window.
 This reset starts no automatic tests or retries and declares no task passed.
+
+Subsequent shared normalized-role family use: the pilot-budget96→070 production
+validation repair consumed **1/1** under this renewal. Earlier unused counts
+remain historical; see [the accepted pilot delivery](#fleet-pilot-budget-current).
 
 Earlier reset history (superseded current counts remain historical):
 
@@ -352,32 +356,64 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="fleet-pilot-budget-current"></a>
 
-### Actual pilot-weapon budget and live fleet pages — ACTIVE
+### Actual pilot-weapon budget and live fleet pages — DONE,070ed59
 
-Goal/contract: existing [normalized role firepower/range requirement](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract), complete currentMain PILOT member. All15 actual craft, both Torrent tutorial-range/combat contexts, Bomber payload-only, fitted MainKatana, Paradox no inheritedheat and explicit Predator UNARMED. Crew weapons/full firepower group remain unfinished; do not remove firepower_and_range or any of the7 remaining categories. Keep NOT_QUALIFIED.
+Source **070ed5950468f6ad5a09203667789fcb874e130f** delivers the complete currentMain PILOT
+reporting member of the existing [normalized role contract](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract).
+Exactly10 existingGDs changed:7 runtime owners (HeroShip, Paradox, Bomber,
+FleetRatedBudget, Registry, GameFlow, Console) and3 existing fixtures. Changes
+are additive read APIs/report construction/consumer only; no fire, registration,
+combat authority, tuning, collision, pose, claims, UID/class/newfile/schema changes.
+Normal physical E cycles the retained5 pages plus3 pilot pages and wraps. All15
+names/states fit the unchanged3.76×1.46screen/font40/.0016/16lines. The new
+[preview](builds/windows/MuddsShipyards-070ed59-fleet-pilot-budget-preview.png)
+is the reviewed actual page06/1280.
 
-Result: normal fleet-terminal E cycles existing5 pages plus3 pilot pages: damage/range/cooldown; warmup/heatlockout/minimumoperators; finite or explicitly unbounded ammunition/refill rule. All15 inherited names/states, original screen/font40/.0016/16lines, raw units/directed indices/range0..1/interaction hint retained. No invented weapon fitout, ammunition, warming, hull or damage tuning.
+GameFlow reads the actual registered weapon profile only after current sourceID,
+faction and exact production registration match. Both Torrent combat34 and
+tutorial50 trigger budgets are retained, with the existing phase rule selecting
+which is displayed. Range is resolver range, not aiming convergence; scatter
+uses trigger damage. HeroShip supplies healthy firing constraints from existing
+runtime values; native heat retains.28/1/.50/1/.35 provenance. Paradox has no
+inherited heat. Bomber is payload-only:80damage/900m/1s/four-round initialcapacity,
+refill only on pilot retake, never the unrelated.85s rated cooldown. MainKatana
+stays fitted; Predator is explicitlyUNARMED without fabricated numeric weapon.
+Warmup is distinct from engine spool. Ordinary ammunition is explicitly
+unbounded/normalized1 with no Infinity/fakezero; finite4 normalizes4/5. Required
+operators1 is a cost axis. This is configured capacity, not current stock,
+readiness or guaranteed-hit information.
 
-Candidate/start: clean8344c615e62acee22a745365f254cee450db59bf; freshhealthyMain15/15homes. First mapping16:10:36UTC, absolute all-in **16:10:36→17:40:36UTC,90minutes** includes mapping/code/checks/images/export/reviews/merge/push/archive/cleanup/docs/finalaudit. Existing owner16:00:18 family allowance0/1 retained, shared; no branch/split reset. Prior ratedbudget-family actual118.49901433333334minutes retained/cumulative.
+| Fixed acceptance | Actual result |
+| --- | --- |
+| Static preflight | First96 import passed20.596s; independent review caught early heterogeneous comparisons, two incorrect Bulwark oracle keys and exact normalized float equality. All records retained. Corrected clean070 guards types/adds direct and nested negatives, uses actual stable IDs and the existing1e-12 normalized-only JSON tolerance. No thresholds/caps or source fields rounded. Independent STATIC_GO. |
+| Exact old control | Exact final console fixture on old8344 compiles old APIs and fails actual missing pilot budget after normalE in35.072s, not parser/missingAPI; four guards retained. |
+| Source9 | registry 5.276s, console 80.34s, hud 28.369s, differentiation 45.453s, boarding 41.766s, heat 8.936s, migration 18.252s, paradox-primary 19.751s, bomber 5.576s. Syntax10 and all9 full suites pass original outer300s/innercases (including Paradox180), original markers, exit0/raw0/fourguards. Independent literal15/current registered-profile/thermal/ammo/context/JSON/free/legacy/atomic checks retain all earlier routes and invariants. |
+| Component16 | First accepted15-row sequence1 snapshot SHA702df90c8e02bb1e89ede79130b73a98244d552a97f544caee9f54b0ce9f1c26. Separate39.305s capture uses that unchanged exact input and productionConsole only beforeMainload, privateX11/Forward+/softwareVulkan/Dummy/originalcamera/eightpostdraw. All16 actual8page×1280/1920 images root+independently viewed and byte/hash/dimension pinned. |
+| Actual WindowsPCK9 | registry 4.287s, console 73.035s, hud 22.354s, differentiation 44.065s, boarding 39.47s, heat 8.813s, migration 14.268s, paradox-primary 19.029s, bomber 5.424s. Same full exact fixture graphs, literal path relocation+entryguard only, all source/adapted SHAs pinned; original outer300/innercases/markers, exit0/raw0/fourguards/isolation1, no inlining or raw production fallback. |
+| Fresh checkpoint | windows-export 28.665s, linux-export 26.498s, windows-payload-startup 30.513s, linux-direct-startup 25.748s, linux-archive-startup 25.489s. Trusted privateWindows template, strictstartup3 each exit0/exactoneSTARTUP_MENU_READY_OK/raw0. Complete equal1613maps, exactly7 runtimeGDC changes/82 typednode_ids-only scenes, zero added/removed/UID/class changes. ExactLinux6members/modes/extractedELF/ZIPbytes/audit9/eightlocalfiles and independentPACKAGE_GO. |
 
-Owner/files: one HIGH implementer in isolated work/fleet-pilot-budget-1118, exactly10 existingGDs: scripts/ships/hero_ship.gd,paradox_cruiser.gd,cinder_long_range_bomber.gd,fleet_rated_budget.gd,fleet_role_registry.gd; scripts/game/game_flow.gd; scripts/interaction/fleet_registry_console.gd; tests/fleet_role_registry_test.gd,fleet_role_differentiation_test.gd,fleet_registry_console_production_test.gd. Independent HIGH source/image/package reviewer; root only all engines/release/integration. Read-only APIs/consumer only, no firing/registration/authority/claim/collision/pose mutation/refactor. No new class/UID/file/schema/version/validator family.
+Accepted work merged/pushed before cleanup. Every archive member was byte/hash
+verified before ownedworktree/ref/process cleanup. Archive `/srv/mudds-work/fleet-pilot-budget-20261118/records.tar.gz`:
+**45946953bytes/769members**, SHA**7f72a743148d3ada66175aec2993af43dd34fccfca4a42648b99da4ac3411418**.
+Actual through verifiedcleanup **41.76615432minutes**,
+plus prior family118.49901433333334 => **160.26516865minutes**
+cumulative. Finaldocs/push/audit cost is retained in closeout.json. Original
+**16:10:36→17:40:36UTC,90minutes** all-in window remained fixed. Shared owner16:00:18
+allowance ends **1/1 used**: the combined96→070 production validation repair
+consumed one allowance; the Bulwark oracle correction was routine fixture work.
+No unexpected runtime test failure occurred. The initial cleanup draft classified
+this as0/1; closeout.json preserves that historical classification and corrects
+the final count separately. Archive/history/cost are unchanged; no branch/split reset.
 
-Dependencies: accepted current15 actualMain weapon registrations, existing native/payload firing owners, accepted handling/footprint/console and existing full source/PCK suites. No product decision or native resource needed for this bounded report. Katana120→180 completion-wait proposal remains pending/unapplied; unaccepted Paradox gunner source excluded.
-
-| Case | Initial state/action | Fixed expected result |
-| --- | --- | --- |
-| Production source | Refresh actual Main fleet snapshot | Read actual LiveCombatAuthority registered chosen weapon profile and exact HeroShip firing-cost descriptor, narrow Paradox/Bomber overrides. Trigger damage uses trigger_damage for scatter; range is resolver range, not convergence. No parallel ship-ID/definition weapon lookup in Resource. No mutation or registration caused by report. |
-| Complete pilot membership | Inspect all15 actual current craft plus both Torrent contexts | All supported pilot configs sourced, current Torrent selection follows existing LAUNCH/TARGET_PRACTICE rule and combat otherwise; both detached configs retained. Bomber80/900/1s/4 initial rounds/refill only pilot retake; no inherited cannon/.85 definition substitution. Paradox70/650/.62/zero inheritedheat. Predator explicitunarmed with no invented numeric weapon. MainKatana fitted; no guessed non-Main weapon. |
-| Actual constraints | Inspect raw/directed fields plus exact thermal/payload metadata | Damage/range/ammo benefit, cooldown/warmup/heatlockout/operators cost with fixed existing unit1 indices. Unbounded ammunition explicitly flagged with normalized1, no Infinity/fake zero; finite4 normalized4/5. Native heat .28/1/.50/1/.35 provenance retained, Paradox/Bomber no nativeheat. Engine spool distinct from weapon warmup. No current-readiness or guaranteed-hit claim. |
-| Honest failure/detachment | Definition-only17, wrong/destroyed/missing authority/profile/craft; mutate/free source; JSON roundtrip | UNKNOWN/UNAVAILABLE without invented weapon quantities; live-source identity required. Snapshot detached and immutable, finite scalars only. Every fullrole NOT_QUALIFIED/missing7 livefootprint or8 unknownfootprint, including firepower_and_range because crew budgets remain open. |
-| Normal UI and atomic refusal | Full existing normalwalk/E/proximity sequence, all8pages+wrap/defaultrefresh and malformed nested/offpage fields | All15 names/states fit originalscreen/font/16lines on every page, retained5pages unchanged values. Validate all contexts/fields/raw-index/ammo/refill/identity/type consistency before page/text/sequence/snapshot commit. Allbudgetabsentlegacy exact. |
-| Exact old control | Run exact finalconsolefixture onold8344 | Compile old APIs, fail first actual missing pilot budget after normalE, no parser/missingAPI substitute. Original300s and source/cache/HEAD/clean guards. |
-| Source | Full registry/console/HUD/differentiation/boarding plus nativeheat/migration/Paradoxprimary/Bomberintegration | Nine full existing suites, each300s maximum/original innercases/markers; exit0/exactmarkeronce/raw0/fourguards. Fresh syntax all10 editedGDs. Extend existing3fixtures only; literal independent all15 expectations plus productionauthority comparisons and negative/legacy/atomic/JSON cases. |
-| Images | First fullsuccessful console snapshot, separate productionConsole-only branch beforeMainload; privateX11/Forward+/Dummy, originalcamera/eightpostdraw | 8pages×1280/1920 =16 actual inspected images with bytes/SHA/dim/page pins; exact snapshot unchanged before/after. Preview new pilot page06/1280. Component scope only, no world/native qualification. Capture original300s. |
-| PCK and checkpoint | Independent source/imageGO then existing clean pairedexports/strictstartup3; same9 full exactfixture graphs from actualWindowsPCK | Each existing fixture300/markers/raw0/fourguards/isolation1, literal testpath relocation+entryguard only/no inlining/rawproductionfallback. Safeexports300internal/360outer/trustedprivateWin template, strictstartup exit0/exactoneSTARTUP_MENU_READY_OK, complete equal inventories/intended7runtimeGDCchanges/reviewedtypedmetadata/zeroUIDclass additions, exactLinux6members/modes/ELF/ZIPbytes/audit9/eightrepo-localartifacts, independentPACKAGE_GO. |
-| Closure | Merge/push acceptedsource, verifyarchive allmembers then exactowned cleanup | Fresh remote tips and exactCAS, all owned worktrees/branch/processes removed, sourcebytes/eightartifacthashes/mainremote/archive verified. Protect Paradox c743f585d0a70beb0e6100b34a47147d16280e08. Original90min all-in/finalcost retained. |
-
-Proof location /srv/mudds-work/fleet-pilot-budget-20261118. Root runs every engine alone with Dummy, headless or privateX11; independent abort/reap/input release. Firstunexpectedfailure stops dependents; measured cause and cumulative-cost decision before sole substantive correction. Routine caller/compiler/assertion fixes retain endpoints/caps/deadline. No cap relaxation or blind parked retries. Current15/15homes/all9contracts/all17handling/actualfootprints retained. Fullcrew/firepower/function/role/final17/fullcraft/network/game/36parents/10phasegates OPEN; nativeWindows/mandatoryhuman OWNER-EXCLUDED/NOT_RUN, applicableGPU/device/listening/readability/worldrender OPEN. CI disabled/no Downloads.
+Every fullrole status staysNOT_QUALIFIED: 7 live-footprint or8 definition-only missing categories; firepower_and_range remains missing because crew weapons are unsourced.
+Handling16/13indices/3feel, complete live15 footprints/all9contracts/current15homes
+are retained. Fullcrew/firepower/utility/vector/boarding/skill/metadata/final17
+balance/fullcraft/network/game/all36parents/10phaseexits remainOPEN. NativeWindows/
+mandatoryhuman OWNER-EXCLUDED/NOT_RUN; applicableGPU/device/listening/readability/
+worldrender OPEN. CI disabled/noDownloads. Katana120→180proposal pending/unapplied;
+no unaccepted Katana source merged. Retained exception work/paradox-gunner-1116,
+exactc743f585d0a70beb0e6100b34a47147d16280e08: unique unaccepted gunner source,
+no worktree, preserved.
 
 <a id="fleet-collision-footprint-current"></a>
 

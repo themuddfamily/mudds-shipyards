@@ -724,6 +724,18 @@ missing8. Counts and JSON-safe bounds are metadata, not extra UI columns. Actual
 function/utility/demand consumers and the remaining full-role vector still need work. Raw
 handling and a boarding choice card do not close full-craft or final balance.
 
+[070ed59](../../ROADMAP.md#fleet-pilot-budget-current) adds complete currentMain
+pilot-weapon reporting from actual registered combat profiles and real firing
+constraints, with three more normal-E pages (eight total). Both Torrent contexts,
+Bomber's four-round payload/refill-on-retake, Paradox no inheritedheat, MainKatana
+fit and Predator explicitunarmed remain distinct. Damage/range/cooldown/warmup/
+heatlockout/operators/ammo capacity keep units/directed indices; unbounded ammo
+is explicit, never Infinity or zero. Metadata retains actual thermal provenance.
+All15 names/states fit unchanged; source9/PCK9/16images/checkpoint gates pass.
+This is healthy configuration rather than current stock/readiness or guaranteed
+hits. Crew weapons remain unsourced, so firepower_and_range and all7 live/8
+unknown-footprint missing groups stay open; every fullrole remainsNOT_QUALIFIED.
+
 The earlier [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
 failed73px-inside63px and remains historical. The later accepted [Light6e15126
 packing delivery](../../ROADMAP.md#cinder-light-choice-current) retains its raw
@@ -884,8 +896,10 @@ rigid root and matching live healthy craft are required; disabled shapes are
 ignored and invalid geometry yields unavailable, never guessed zero or partial
 bounds. This measures current collision geometry rather than art or landing
 clearance. Valid measured footprints remove only the collision_footprint missing
-category; definition-only geometry stays unknown. The remaining actual function/
-utility/timing/demand budget remains incomplete. This section defines that
+category; definition-only geometry stays unknown. The current Main pilot-weapon
+member is now sourced through actual registrations and firing constraints, but
+crew weapons keep the full firepower group open. The remaining actual function,
+utility, timing and demand budget is incomplete. This section defines that
 remaining production contract; it does not claim a new balance result or tune
 any craft.
 
@@ -978,9 +992,10 @@ SPECs, not an inferred unlock or invented progression system.
 **Missing work and limits.** Codex implements the production role-budget
 resource/consumer and selected existing observer/test extensions. All three
 Cinder registry/choice members and the complete16-field rated-handling Resource/
-consumer and actual live15 collision-footprint/fifth-page member are scoped
-delivered above. Actual function metrics and the remaining
-full-role vector are not implemented merely because this definition exists.
+consumer, actual live15 collision-footprint and complete currentMain pilot-weapon
+reporting members are scoped delivered above. Remaining crew, utility, timing,
+demand and full-role metrics are not implemented merely because this definition
+exists.
 Use one selected craft/function slice within the existing90min all-in/one-
 correction limit, source suites300s, ordinary craft900/outer960s and tighter
 accepted/parked member limits. Freeze source/resource/profile/absolute deadline
