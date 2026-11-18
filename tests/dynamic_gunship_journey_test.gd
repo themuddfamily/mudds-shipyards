@@ -588,6 +588,8 @@ var _main_shots := 0
 var _main_projectiles := 0
 var _main_bad_shot := false
 var _main_combat_records: Array[Dictionary] = []
+var _main_heat_probe := false
+var _main_heat_ticks: Array[Dictionary] = []
 var _main_claims := 0
 var _main_releases := 0
 var _main_recovery_settling: Dictionary = {}
@@ -599,6 +601,7 @@ class MainCompletedPlayerTick:
 	var suite: SceneTree
 	func _physics_process(_delta: float) -> void:
 		suite.call("_main_audit_completed_tick")
+		suite.call("_main_observe_heat_tick")
 		completed_tick.emit()
 
 
@@ -2046,6 +2049,8 @@ func _main_actual_combat() -> bool:
 	if not _main_check(not bool(event.result.get("hit",false)) and not bool(event.result.get("damaged",false)),"ordinary pilot empty-space miss has no target damage"): return false
 	await _main_frames(90)
 	var first := _main_combat_records.size()
+	_main_heat_ticks.clear()
+	_main_heat_probe = true
 	Input.action_press(&"fire")
 	for frame in 240:
 		await _main_frames(1)
@@ -2058,21 +2063,29 @@ func _main_actual_combat() -> bool:
 		exact = exact and interval >= 18 and interval <= 19
 		exact = exact and absf(float(burst[index].heat)-minf(1.0,float(burst[index-1].heat)+0.28-0.50*interval/60.0)) < 0.0001
 	var count := _main_combat_records.size()
-	var locked_tick := Engine.get_physics_frames()
-	while float(_main_ship.get_telemetry().weapon_recovery_remaining) > 0.05:
+	# Observe the producer's actual emission tick and the completed physics
+	# state, rather than a later render/process poll which can skip ticks.
+	var locked_tick := int(burst.back().tick)
+	for frame in 90:
+		if _main_combat_records.size() > count: break
 		await _main_frames(1)
-		if not _main_check(_main_combat_records.size() == count,"inherited heat lockout admits no held-fire shot",false): return false
 	Input.action_release(&"fire")
-	for frame in 10:
-		if not bool(_main_ship.get_telemetry().weapon_overheated): break
-		await _main_frames(1)
-	exact = exact and Engine.get_physics_frames()-locked_tick >= 59 and Engine.get_physics_frames()-locked_tick <= 61
-	exact = exact and float(_main_ship.get_telemetry().weapon_heat) <= 0.35
-	print("DYNAMIC_ACTUAL_COMBAT: burst=",burst," lockout_ticks=",Engine.get_physics_frames()-locked_tick)
+	_main_heat_probe = false
+	if not _main_check(_main_combat_records.size() == count+1,"held fire resumes once after actual heat recovery"): return false
+	var resumed: Dictionary = _main_combat_records.back()
+	var lockout_ticks := int(resumed.tick)-locked_tick
+	for sample in _main_heat_ticks:
+		if int(sample.tick) >= locked_tick and bool(sample.overheated):
+			exact = exact and int(sample.shots) == count
+	exact = exact and lockout_ticks >= 59 and lockout_ticks <= 61
+	exact = exact and float(resumed.heat)-0.28 <= 0.350001
+	print("DYNAMIC_ACTUAL_COMBAT: burst=",burst," lockout_ticks=",lockout_ticks," resumed_heat=",resumed.heat," completed_physics_samples=",_main_heat_ticks.size())
 	if not _main_check(exact,"actual .30 cadence preserves .28/shot, .50/s cooling, 1s lockout and .35 recovery"): return false
+	if not _main_check(bool(resumed.result.get("accepted",false)),"current actual pilot resumes usable pulse after normal recovery"): return false
+	await _main_frames(25)
 	event = await _main_pulse_once()
 	if _failed: return false
-	if not _main_check(bool(event.result.get("accepted",false)),"current actual pilot resumes usable pulse after normal recovery"): return false
+	if not _main_check(bool(event.result.get("accepted",false)),"fresh ordinary trigger remains usable after recovered held fire"): return false
 	Input.action_release(&"brake")
 	return true
 
@@ -2093,3 +2106,10 @@ func _component_fixture_canopy(craft: HeroShip, opened: bool) -> bool:
 			return true
 		await _frames(1)
 	return _check(false,"actual public component canopy completion: "+str(_component_fixture_state(craft)))
+
+
+func _main_observe_heat_tick() -> void:
+	if not _main_heat_probe or not is_instance_valid(_main_ship): return
+	_main_heat_ticks.append({"tick":Engine.get_physics_frames(),
+		"overheated":_main_ship.get("_weapon_overheated"),
+		"heat":_main_ship.get("_weapon_heat"),"shots":_main_combat_records.size()})
