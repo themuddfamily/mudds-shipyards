@@ -149,7 +149,23 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 08:57:09 UTC.** Every task unfinished at this
+**Latest owner renewal: 2026-11-18 11:53:45 UTC.** Every task unfinished at this
+renewal receives **0 corrections used** against its last positive approved limit,
+or **one** if none was recorded. This globally supersedes older current counts
+in this roadmap and linked task cards, including active, parked, failed, blocked
+and gated tasks. Completed tasks are excluded. Apply once per unfinished task;
+branch changes, retries and splitting tasks do not grant another reset.
+
+Historical counts, failures, archives, actual costs, acceptance gates,
+dependencies and causal reopening conditions remain unchanged. Active deadlines
+and original test/journey caps remain fixed. This reset starts no automatic retry.
+The active Katana card10 family receives **0/1 used**, shared across10a/10b;
+its **11:21:46→12:51:46 UTC** window remains unchanged. Completed Katana cards8
+and9 are excluded. All other unfinished tasks receive this global renewal.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 08:57:09 UTC.** Every task unfinished at this
 renewal receives **0 corrections used** against its last positive approved limit,
 or **one** if none was recorded. This globally overrides older current counts
 in this roadmap and linked task cards, including active, parked, failed, blocked
@@ -288,7 +304,7 @@ Dependencies cards1–9 accepted. Clean base **60fb8f9e2b8268b36cce5e80884dfe731
 First mapping **2026-11-18 11:21:46UTC** counts in10a. Hard all-in window
 **11:21:46→12:51:46UTC,90minutes** covers mapping/code/review/source/PCK/checkpoint/
 merge/push/archive/process/worktree/branch cleanup/finaldocs and finalverification.
-The entire card10 FAMILY shares the owner08:57:09 renewal **0/1 substantive
+The entire card10 FAMILY shares the owner11:53:45 renewal **0/1 substantive
 corrections used**, limit1; splitting/branches do not replenish it for10b. Keep
 cumulative card10 cost and all failures. No failed10a automatic successor/retry.
 
