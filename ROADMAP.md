@@ -185,6 +185,65 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="zenith-modern-lod-current"></a>
+
+### Selected — Zenith modern-airframe LOD integration
+
+Existing **CRAFT-ACCEPT-ZENITH / [current-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)**,
+same unfinished994d1a8 member. Player result: actual modern hull/fittings switch
+atomically with the existing48±5m presentation owner, preserving shared canopy,
+functional cockpit, nav/plume/damage state. No duplicate selector. Original Zenith
+budget is strictly fewer visible static far triangles and no greater submissions;
+the initial25% target belongs to the seven other missing representations, not
+existing Torrent/Zenith. Full craft/art/ordinary/native qualification stays open.
+
+**2026-11-18 00:54→02:24UTC,90minutes ALL-IN**, definition before01:09,
+source-ready by01:24. Owner23:37:41 renewal **0/1 substantive used**; historical
+old1/1 and15.6837546667minutes retained. Known ArrayMesh-only primitive query on
+BoxMesh is a mechanical API repair. Root-relative internal-hidden visibility
+census/bounds fixes are passive measurement maintenance, not rendering changes.
+No original threshold, camera, view, geometry or scope relaxation.
+
+Baseline9d40567dc/current checkpoint2cf0a3f; branchwork/zenith-modern-lod-1118,
+ownedroot/worktree `/srv/mudds-work/zenith-modern-lod-20261118`.
+MEDIUM implementer owns only `scripts/ships/zenith_interceptor.gd`,
+`scenes/ships/presentation/zenith_authored_presentation.gd`,
+`tests/zenith_interceptor_test.gd`. HIGH independent source/release reviewer;
+root engines/capture/export/docs/Git/cleanup; no nested agents. Preserve all later
+accepted code and original editable asset/B7 source limits. No parked Arrow,
+Predator, gunner or shader changes, authority/physics/save/schema/validator work.
+
+The complete existing default `tests/zenith_interceptor_test.gd` runs alone under
+its300s cap: actual exit0/exactoneZENITH_INTERCEPTOR_TEST_OK/raw0 and source-cache-
+HEAD-clean guards. Preserve every original asset/hull/24shape collision/anchor/
+canopy/cue/weapon/clearance/reentry case. Complete modern-root checks cover both
+actual representations and bounds, visible Mesh/MultiMesh costs, exact53/43
+boundaries/dead band/nonfinite holds, atomic registered-root visibility before
+signal, shared canopy pose/cues, quiet collision/anchor/ledger/weapon/berth and
+resource identities across retained epochs. Literal fixture has no Player and
+records that absence; occupied berth is actual ShipyardWorld component landing,
+not full GameFlow Main/ordinary pilot proof. Same exact committed full fixture
+runs against actual Windows PCK from a blank source-isolated directory, only an
+entry isolation guard added, same300s/all cases/guards. Syntax/import90s each.
+
+Original external capture is byte-identical except owned output path: private
+Xvfb/x11/Forward+/lavapipe/Dummy,120s,1920×1080/FOV45/four settling frames+postdraw,
+original lights/environment/cameras and ten full-size images. Forward/aft close/
+far, controlled actual camera distances53/53.1/43/42.9 with LOD[0,1,1,0], and
+open-canopy close/far must produce all10 observations/PNGs with atomic roots;
+root inspects all10. Paused/staged component scope, not native ordinary flight.
+
+Clean paired safe exports300s internal/360s outer with trusted4.7.1 private
+template preflight; strict startup3(exit0/oneSTARTUP_MENU_READY_OK/raw0), exact
+Linux6members/modes/extractedELF, complete equal Windows/Linux maps/reviewed
+runtime delta vs2cf0a3f, existing audit9 and eight actual repository checkpoint
+files. Independent FINAL_GO/PACKAGE_GO before integration/push; verified prior/
+failed/raw/source bundle archive and exact owned process/worktree/ref/scratch
+cleanup. Preserve unaccepted Paradox branch. Stop dependents at first failure;
+one cause-bound substantive correction maximum, no blind retry/partial merge/
+waiver/deadline extension. Every Godot Dummy and isolated, CI disabled. All native/
+human/audible/fullcraft/fullgame gates remain NOT_RUN/open.
+
 <a id="arrow-whole-lod-current"></a>
 
 ### Arrow complete static exterior LOD — PARKED,unmerged
