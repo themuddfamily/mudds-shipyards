@@ -3883,8 +3883,8 @@ func _solo_safe_recovery_craft() -> HeroShip:
 			or berth.get_reservation_owner() != craft:
 		return null
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	if craft.get_ship_id() == &"dynamic_provisional":
-		# A sealed Dynamic at its supported home is a recovery preference,
+	if craft.get_ship_id() in [&"dynamic_provisional", &"katana_provisional"]:
+		# A sealed Dynamic or Katana at its supported home is a recovery preference,
 		# not boarding permission. Actual entry still requires open access.
 		if context.mode not in ["pilot", "on_foot"] or not is_ancestor_of(craft) \
 				or craft.is_destroyed() or craft.is_piloted() \
@@ -3950,7 +3950,7 @@ func _solo_safe_recovery_description() -> String:
 		return ""
 	var craft := _solo_safe_recovery_craft()
 	if is_instance_valid(craft) and not _network_session_is_live() and not _planetary_visit_blocks_network_session():
-		if craft.get_ship_id() == &"dynamic_provisional":
+		if craft.get_ship_id() in [&"dynamic_provisional", &"katana_provisional"]:
 			return " Safe recovery returns you on foot at the shipyard. %s remains available at its home berth; saved helm authority and flight position are not restored. Saved activity progress is kept." % craft.get_display_name()
 		if _solo_safe_recovery_context.mode == "pilot":
 			return " Safe recovery boards %s at its home berth; the previous flight position is not restored. Saved activity progress is kept." % craft.get_display_name()
@@ -4057,14 +4057,14 @@ func _capture_solo_safe_recovery_context() -> void:
 				# Cold Main's default Torrent must not replace the last settled
 				# exterior preference merely because the Player is beside its berth.
 				if _solo_safe_recovery_context.get("mode") == "on_foot" \
-						or (_solo_safe_recovery_context.get("craft_id") == "dynamic_provisional" \
+						or (_solo_safe_recovery_context.get("craft_id") in ["dynamic_provisional", "katana_provisional"] \
 							and _solo_safe_recovery_context.get("mode") == "pilot"):
 					var preferred := _solo_safe_recovery_craft()
 					if is_instance_valid(preferred):
 						context_ship = preferred
 		if not mode.is_empty():
-			# Dynamic saves only a home-craft preference, never helm authority.
-			if context_ship.get_ship_id() == &"dynamic_provisional":
+			# Dynamic and Katana save only a home-craft preference, never helm authority.
+			if context_ship.get_ship_id() in [&"dynamic_provisional", &"katana_provisional"]:
 				mode = "on_foot"
 			context = {"location": "mudds_home_berth", "mode": mode,
 				"craft_id": String(context_ship.get_ship_id()),
@@ -4081,9 +4081,9 @@ func _apply_solo_safe_recovery() -> void:
 			or _planetary_visit_blocks_network_session() or _transition_busy:
 		return
 	# Both old pilot records and current on-foot preferences use the supported
-	# station spawn established by normal startup. Dynamic's exterior exit
-	# marker lies inside its closed hull and is not a cold recovery location.
-	if craft.get_ship_id() == &"dynamic_provisional":
+	# station spawn established by normal startup. Their exterior exit
+	# markers lie inside their closed hulls and is not a cold recovery location.
+	if craft.get_ship_id() in [&"dynamic_provisional", &"katana_provisional"]:
 		return
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
