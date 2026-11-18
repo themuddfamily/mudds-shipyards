@@ -174,7 +174,8 @@ for an exhausted allowance. It starts no tests or automatic retries.
 
 The active typed rated speed/hull budget task receives **0/1 used**; its
 **13:38:01→15:08:01 UTC** window stays unchanged. The parked Katana card10 family
-receives **0/1 used**, shared across10a/10b; its prior **1/1** remains historical,
+received **0/1 used**, shared across10a/10b, then consumed **1/1** in the resumed
+attempt below; its prior **1/1** remains historical,
 and the initial-home landing/dock repair and full acceptance gates remain.
 Completed Cinder Bomber/Hauler role-choice deliveries and Katana cards8/9 are
 excluded. Every other unfinished task receives this global renewal under its
@@ -507,41 +508,78 @@ unchanged; no source from that unaccepted candidate is merged.
 
 <a id="katana-network-ground-current"></a>
 
-### Katana card10a — network ground access and physical pilot handoff, RESUMED / unaccepted
+### Katana card10a — network ground access and physical pilot handoff, PARKED / completion-limit decision
 
-**Current bounded resumption — 2026-11-18 14:17:08UTC.** Same original task;
-accepted base81cde865399322f86e7110a1b88a1f555ec204d5, restored candidatebea461c1a
-from the verified archived source using a clean three-way application of the
-original eight-path diff. Current rated terminal and accepted Cinder cards stay
-included. Original90minute all-in window is freshly selected as
-**14:17:08→15:47:08UTC**, including mapping, diagnostics, production, full checks,
-checkpoint, review, merge/push/archive/ref-worktree-process cleanup and finaldocs/
-verification. Latest13:57:23 allowance **1/1 used**, shared across the entire
-card10 family; prior1/1 and **70.31434235minutes** remain historical/cumulative.
+**Latest candidate82e21e1a57f45e659255d5d79f946771faeeed3f is NOT merged.**
+The complete source ground run fails its canonical coordinator wait in236.873s,
+exit143/marker0, despite all three actual game actors finishing their routes,
+recording no failures and exiting0. Their PIDs978952/979129/979148 are absent.
+Source/cache/HEAD/clean guards all pass. This is partial runtime evidence,
+not an accepted source suite or playable checkpoint.
 
-PhaseA61c43ada3 completed the ONE planned diagnostic in146.213s: actual initial
-publication refused landing_state_not_committed, authority stayed flying with
-no committed record, and the actual incoming operation had landed=true/docked=false/
-OFFLINE. Ordinary Interact retained the same pilot claim/seated Player and showed
-EXIT LOCKED/no pressurised cabin. Four source/cache/HEAD/clean guards pass;
-owned abort143 and all three actual actor PIDs absent. Raw and exact operands
-are retained. Independent causal review approved one combined repair.
-PhaseB **e965286cb33338be48a737d974263b231e91c2a1** applies that repair: Katana-local
-exact initial-home berth/current lease+occupant/fit/current dock/support/unpiloted-
-OFFLINE proof, dock latch only, and initial LANDED registration through the
-existing owner. Wrong-token/actual foreign-home calls test atomic refusal. Final fixture82e21e1
-uses dynamic observations so exact old60fb still compiles. An overlapping
-fixture edit made the e965 syntax run fail its HEAD guard; it is retained as
-rejected and excluded, with fresh current-pin checks required. No fake
-LandingContract/cabin or HeroShip change. Candidate remains UNACCEPTED until
-the unchanged full gates below pass.
-The same eight original paths and all original source8/PCK6/300actor/360supervisor/
-8s-transition/package gates below remain binding. Current checkpoint0c429cb stays
-accepted until a full candidate passes; no10b successor is selected. Full10b,
-flight/fire, network capacity/adversity/endurance, fullcraft and all parent/phase
-exits stay OPEN. The historical parked record below is preserved unchanged;
-this selection supersedes only its prior no-retry-selected status.
+Actual playing host and both remote pilots completed the required physical
+station/port/ramp/helm approach, opening/claiming/sealing, supported inside release,
+full walkout and outside closure, reciprocal peer observations, ownership
+refusals and exact other14craft/homes conservation. Actor check counts51/66/69
+are recorded only to identify those receipts. The coordinator begins its inherited
+**120s client.done wait after both clients reach Main-ready**. Client A's actual
+ready1795012599.160284→done1795012739.882210 is **140.721926s**: A retains its actor
+until B's sequential turn and reciprocal observations finish. The actual gate
+fails; no clock shift, input/speed/waypoint reduction or delayed precondition
+is accepted. Independent review explicitly rejects those as a routine caller fix.
 
+The single production correction fixes the prior measured initial-home defect.
+PhaseA61c43ada3,146.213s, retained actual rejected startup publication
+landing_state_not_committed, authorityflying/no committed record, incoming
+landed=true/docked=false/OFFLINE and EXIT LOCKED/no pressurised cabin on ordinary
+Interact. The new Katana-only exact occupied-home/token/fit/current dock/support/
+unpiloted-OFFLINE proof sets only its inherited dock latch; existing initial-state
+registration/publication now succeeds. Actual client receives the committed
+landed record and both inside exits pass. No HeroShip, cabin, LandingContract,
+pose/velocity/flight/fire or physics changes. Wrong-token/actual foreign-home
+refusals preserve contract, pose, lease, ledger and all14neighbors.
+
+Current base81cde865399322f86e7110a1b88a1f555ec204d5. First mapping14:17:08UTC,
+original selected **14:17:08→15:47:08UTC,90minutes all-in** unchanged. Latest
+owner13:57:23 allowance ends **1/1 used**, shared across the entire card10family;
+prior11:53:45 **1/1** and **70.31434235minutes** stay historical. Actual through
+verified cleanup **29.430580minutes**, cumulative
+**99.744922minutes**; final docs/push/verification remain
+billed to this same window and are recorded in the closeout.
+
+Exact final fixture on old60fb fails the real missing Katana/pilot registration
+in56.049s, with no parser/missing-API substitute and all four guards. Valid final
+syntax covers all8scripts; the raced e965 check was rejected by its HEAD guard
+and excluded. The three changed scripts were rechecked against frozen82; five
+unchanged rows are tied to valid61PhaseA blobs, with the trailing receipt-row
+completion explicitly recorded. Remaining **source7, all PCK6, exports/startups/
+delta/audit/new artifact publication are NOT_RUN** after the first suite failure.
+Accepted runtime and checkpoint **0c429cb** remain unchanged.
+
+Unique unaccepted source is preserved in **resumed-unaccepted-source.bundle**,
+actually restored into an independent81cde-only repository, strict-connectivity
+checked and matched against its full tree/all8changed files before cleanup.
+Archive `/srv/mudds-work/katana-network-ground-resume-20261118/records.tar.gz`,
+**11,194,170bytes/254members**, SHA256
+`661093b62fa7063bdf712c5dcd3a5fd06e10141077b114bdac3b29616da718a1`. Every archived member was rehashed before exact-tip
+local/remote task-ref and both worktree cleanup. All owned processes are gone;
+only protected unaccepted Paradox gunner c743f585d remains as a branch exception.
+The original restoration bundle, diagnostic data, both failed coordinator runs,
+rejected syntax run, source proof and unapplied proposed patch remain archived.
+
+**Owner decision pending:** permit only Katana's first coordinator completion
+wait to be180s instead of120s, retaining every route/assertion/input/waypoint,
+actor300/coordinator300/supervisor360, full source8/PCK6/release gates, current
+15:47:08deadline and no extra production correction. The exact proposed patch
+is prepared but **NOT APPLIED**. The allowance reset does not authorize changing
+frozen test limits. No automatic retry/clock shift/10b successor is selected;
+without that explicit approval this task remains parked. Any later resumption
+must also fit a valid bounded all-in window and retain all costs/failures.
+Full10/10b/11–13/fullcraft/network capacity/adversity/endurance/all36parents/
+10phase exits remain OPEN; nativeWindows/mandatoryhuman OWNER-EXCLUDED/NOT_RUN,
+applicableGPU/device/listening/readability/world-render gates unchanged. CI OFF.
+
+#### Prior attempt — historical11:21:46→12:51:46UTC record
 
 **Terminal source candidate0d61feae36b61146258044afb922ba78ead77fab is NOT merged.**
 Latest complete source ground profile failed after **146.536s**, at the first
@@ -588,7 +626,7 @@ Every archive member was rehashed before ref/worktree deletion. Archive:
 final docs/push/verification remain billed to the same12:51:46 deadline.
 Only protected Paradox gunner c743f585d remains as an unaccepted branch exception.
 
-**Current allowance renewal — 2026-11-18 13:57:23 UTC:** **0/1 used**, shared across the entire card10 family. The former11:53:45 **1/1** remains historical. This satisfies the allowance prerequisite only; all causal and acceptance conditions below remain binding.
+**Renewal initial state — 2026-11-18 13:57:23 UTC:** **0/1 used**, shared across the entire card10 family. The resumed attempt above subsequently consumed1/1. The former11:53:45 **1/1** remains historical. This satisfies the allowance prerequisite only; all causal and acceptance conditions below remain binding.
 
 **Reopening:** a fresh bounded
 all-in window; restore the archived candidate, establish valid initial-home
