@@ -130,7 +130,28 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 03:44:02 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-18 05:27:05 UTC.** Every task unfinished at this
+renewal has **0 corrections used** against its last positive approved limit,
+or **one** if none was recorded. This applies globally to active, parked,
+failed, blocked and gated tasks, overriding earlier current-used counts in
+this roadmap and linked task cards. Completed tasks are excluded. Apply once
+per unfinished task; branch changes, retries and task splitting grant no
+additional reset.
+
+Preserve all previous counts, failures, source archives and actual elapsed
+cost. Original acceptance checks, per-test/journey caps, causal reopening
+conditions, dependencies and external inputs remain binding. Active deadlines
+are unchanged; resumed parked work still needs a fresh bounded all-in window.
+This renewal starts no tests and declares no task passed or ready.
+
+Current Dynamic card6 receives **0/1 used** under this renewal; its existing
+**05:19:32→06:34:32 UTC** window remains unchanged. Parked station-panel shader,
+Arrow complete-static LOD and Utopia card7 each receive **0/1 used**. This is
+an allowance update only; historical closeouts below remain unchanged.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 03:44:02 UTC.** Every task still unfinished
 at this renewal receives **0 used** against its last positive approved correction
 limit, or **one** if none was recorded. This includes active, parked, failed,
 blocked and gated tasks, including tasks that consumed allowances since the
@@ -232,8 +253,10 @@ retains process progression for the real heat owner.
 Window **2026-11-18 05:19:32→06:34:32UTC,75minutes ALL-IN**, including restored
 source, implementation/review, one negative control, every focused/full source and
 PCK gate, fresh checkpoint, integration/push and verified archive/cleanup.
-Same owner03:44:02-renewal **0/1 used carried forward**; changing folder or
-restoring a branch grants no allowance. Prior failures and costs stay historical.
+Current allowance: owner **2026-11-18 05:27:05 UTC** renewal, **0/1 used**.
+Before this renewal, owner03:44:02-renewal **0/1 used** was carried forward;
+that count is historical. Changing folder or restoring a branch grants no
+allowance. Prior failures and costs stay historical.
 No clock/physics-rate/pose/velocity/weapon/heat/geometry/route/camera/cap override.
 
 Start verified archivef180bbae, base accepted1d920d1f0/runtime7801f6b; latestmain
