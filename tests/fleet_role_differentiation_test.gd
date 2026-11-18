@@ -1400,12 +1400,15 @@ func _test_live_rated_budget_sources(by_id: Dictionary) -> void:
 	for ship_id: StringName in by_id:
 		var definition := (by_id[ship_id] as HeroShip).get_ship_definition()
 		var before := {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}
-		var budget := registry.create_rated_budget(definition)
+		var budget := registry.create_rated_budget(definition, by_id[ship_id] as HeroShip)
 		var snapshot := budget.get_snapshot()
 		_check(budget.is_valid() and snapshot.ship_id == ship_id and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.fields.maximum_speed.raw == definition.maximum_speed and snapshot.fields.maximum_hull.raw == definition.maximum_hull, "live %s uses actual definition speed/hull without full-role qualification" % ship_id)
 		_check(snapshot.fields.maximum_speed.normalized == definition.maximum_speed / (1.0 + definition.maximum_speed) and snapshot.fields.maximum_hull.normalized == definition.maximum_hull / (1.0 + definition.maximum_hull) and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "live rated indices retain full precision and do not mutate %s" % ship_id)
 
-		_check(snapshot.fields.size() == 16 and snapshot.missing_dimensions == EXPECTED_MISSING_DIMENSIONS, "live handling sources all sixteen fields but leaves actual-role dimensions missing")
+		var missing := EXPECTED_MISSING_DIMENSIONS.duplicate()
+		missing.erase("collision_footprint")
+		_check(snapshot.fields.size() == 16 and snapshot.missing_dimensions == missing, "live handling preserves sixteen fields and removes only measured collision from missing dimensions")
+		_check_footprint_geometry(by_id[ship_id] as HeroShip, snapshot)
 		for axis: String in EXPECTED_RATED_FIELDS:
 			var spec: Array = EXPECTED_RATED_FIELDS[axis]
 			var field: Dictionary = snapshot.fields[axis]
@@ -1416,3 +1419,64 @@ func _test_live_rated_budget_sources(by_id: Dictionary) -> void:
 				_check(not field.has("normalized"), "live feel field is unscored")
 			else:
 				_check(field.normalized == (raw / (1.0 + raw) if spec[1] == "benefit" else 1.0 / (1.0 + raw)), "live directed field has exact normalized value")
+
+
+## Independent support-point oracle: query each shape in six root-axis directions.
+## This does not consume the production footprint Resource or landing clearance.
+func _expected_root_geometry(craft: HeroShip) -> Dictionary:
+	var bounds := AABB()
+	var first := true
+	var count := 0
+	for child in craft.get_children():
+		if not child is CollisionShape3D or (child as CollisionShape3D).disabled:
+			continue
+		var collision := child as CollisionShape3D
+		var shape := collision.shape
+		if shape == null:
+			return {}
+		count += 1
+		for direction: Vector3 in [Vector3.LEFT, Vector3.RIGHT, Vector3.UP, Vector3.DOWN, Vector3.FORWARD, Vector3.BACK]:
+			var local_direction := collision.basis.transposed() * direction
+			var support := Vector3.ZERO
+			if shape is BoxShape3D:
+				var half := (shape as BoxShape3D).size * 0.5
+				support = Vector3(half.x if local_direction.x >= 0 else -half.x, half.y if local_direction.y >= 0 else -half.y, half.z if local_direction.z >= 0 else -half.z)
+			elif shape is ConvexPolygonShape3D:
+				var points := (shape as ConvexPolygonShape3D).points
+				if points.is_empty():
+					return {}
+				support = points[0]
+				for point in points:
+					if point.dot(local_direction) > support.dot(local_direction):
+						support = point
+			elif shape is CylinderShape3D:
+				var cylinder := shape as CylinderShape3D
+				var radial := Vector3(local_direction.x, 0, local_direction.z).normalized() * cylinder.radius
+				support = radial + Vector3.UP * cylinder.height * (0.5 if local_direction.y >= 0 else -0.5)
+			elif shape is SphereShape3D:
+				support = local_direction.normalized() * (shape as SphereShape3D).radius
+			elif shape is CapsuleShape3D:
+				var capsule := shape as CapsuleShape3D
+				support = local_direction.normalized() * capsule.radius + Vector3.UP * (capsule.height * 0.5 - capsule.radius) * (1.0 if local_direction.y >= 0 else -1.0)
+			else:
+				return {}
+			var actual := collision.transform * support
+			bounds = AABB(actual, Vector3.ZERO) if first else bounds.expand(actual)
+			first = false
+	return {"bounds": bounds, "count": count} if not first else {}
+
+
+func _check_footprint_geometry(craft: HeroShip, budget: Dictionary) -> void:
+	var expected := _expected_root_geometry(craft)
+	var footprint: Dictionary = budget.get("footprint", {})
+	_check(not expected.is_empty() and footprint.get("status") == "MEASURED", "actual enabled direct root geometry is measured for %s" % craft.get_ship_id())
+	if expected.is_empty() or footprint.get("status") != "MEASURED":
+		return
+	var bounds: AABB = expected.bounds
+	_check(footprint.ship_id == str(craft.get_ship_id()) and footprint.source == "actual_enabled_direct_root_collision_shapes" and footprint.shape_count == expected.count, "footprint identifies actual complete root union and shape count")
+	var components := ["x", "y", "z"]
+	var axes := ["span", "height", "length"]
+	for index in 3:
+		_check(is_equal_approx(float(footprint.local_bounds.position[components[index]]), bounds.position[index]) and is_equal_approx(float(footprint.local_bounds.size[components[index]]), bounds.size[index]), "complete union position and size match independent support points")
+		var field: Dictionary = footprint.fields[axes[index]]
+		_check(is_equal_approx(float(field.raw), bounds.size[index]) and field.unit == "m" and field.unit_scale == 1.0 and field.direction == "cost" and field.source == "actual_enabled_direct_root_collision_shapes" and field.normalized == 1.0 / (1.0 + field.raw), "physical dimension keeps exact metre cost normalization")

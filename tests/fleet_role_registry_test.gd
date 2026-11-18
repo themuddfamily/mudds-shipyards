@@ -25,8 +25,8 @@ const EXPECTED_MISSING_DIMENSIONS := [
 ]
 
 ## Focused resource-level regression for the Phase 4/7 fleet role contract.
-## This intentionally does not boot Main or exercise boarding, landing, combat,
-## audio, rendering, or lifecycle; those authorities have their own suites.
+## This does not boot Main. Literal inert HeroShip nodes test collision snapshots;
+## boarding, flight, audio and rendering remain in their focused suites.
 
 const RatedBudgetType := preload("res://scripts/ships/fleet_rated_budget.gd")
 const Registry := preload("res://scripts/ships/fleet_role_registry.gd")
@@ -42,13 +42,26 @@ const DEFINITIONS := [
 	preload("res://assets/ships/cinder_cargo_hauler_new_design.tres"),
 ]
 
+class LiteralHull extends HeroShip:
+	func _ready() -> void:
+		pass
+	func _physics_process(_delta: float) -> void:
+		pass
+	func _process(_delta: float) -> void:
+		pass
+
 var _failures := 0
 var _checks := 0
 
 
 func _initialize() -> void:
+	call_deferred(&"_run")
+
+
+func _run() -> void:
 	var original_resources := _definition_snapshots()
 	_check_rated_budgets()
+	_check_literal_footprint()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
 	_check(bool(report.get("valid", false)), "the nine production definitions satisfy the role registry")
 	_check(int(report.get("craft_count", 0)) == 9, "the role registry audits all nine supported craft")
@@ -277,6 +290,7 @@ func _check_rated_budgets() -> void:
 		_check(budget is Resource and budget is RatedBudgetType and budget.is_valid() and budget.get_ship_id() == definition.get_ship_id(), "rated budget is a real valid typed Resource for %s" % definition.get_ship_id())
 		var snapshot := budget.get_snapshot()
 		_check(snapshot.valid and snapshot.ship_id == definition.get_ship_id() and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.missing_dimensions == EXPECTED_MISSING_DIMENSIONS and snapshot.fields.size() == 16, "rated subset retains identity and explicitly leaves full-role dimensions unqualified")
+		_check(snapshot.footprint == {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": "actual_enabled_direct_root_collision_shapes"}, "definition-only footprints are explicitly unmeasured without numeric geometry")
 		for axis: String in EXPECTED_RATED_FIELDS:
 			var field: Dictionary = snapshot.fields[axis]
 			var spec: Array = EXPECTED_RATED_FIELDS[axis]
@@ -314,3 +328,104 @@ func _check_rated_budgets() -> void:
 	zero_bank.visual_bank_degrees = 0.0
 	var zero_snapshot := Registry.create_rated_budget(zero_bank).get_snapshot()
 	_check(zero_snapshot.valid and zero_snapshot.fields.visual_bank_degrees.raw == 0.0 and not zero_snapshot.fields.visual_bank_degrees.has("normalized"), "allowed zero bank is honest undirected feel")
+
+
+func _literal_shape(craft: HeroShip, shape: Shape3D, pose: Transform3D = Transform3D.IDENTITY, disabled: bool = false) -> CollisionShape3D:
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	collision.transform = pose
+	collision.disabled = disabled
+	craft.add_child(collision)
+	return collision
+
+
+func _check_literal_footprint() -> void:
+	var definition := DEFINITIONS[0].duplicate(true) as ShipDefinition
+	var craft := LiteralHull.new()
+	craft.ship_definition = definition
+	craft.ship_id = definition.get_ship_id()
+	root.add_child(craft)
+	var box := BoxShape3D.new()
+	box.size = Vector3(2, 4, 6)
+	var first := _literal_shape(craft, box, Transform3D(Basis.IDENTITY, Vector3(-4, 0, 0)))
+	var convex := ConvexPolygonShape3D.new()
+	convex.points = PackedVector3Array([Vector3(0,0,0), Vector3(2,0,0), Vector3(0,2,0), Vector3(0,0,4)])
+	var second := _literal_shape(craft, convex, Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(4,1,0)))
+	var huge := BoxShape3D.new()
+	huge.size = Vector3.ONE * 1000
+	_literal_shape(craft, huge, Transform3D.IDENTITY, true)
+	var resource := Registry.create_rated_budget(definition, craft)
+	var snapshot := resource.get_snapshot()
+	var measured: Dictionary = snapshot.footprint
+	_check(measured.status == "MEASURED", "literal live root geometry is measured")
+	if measured.status != "MEASURED":
+		craft.free()
+		return
+	# Box [-5,-2,-3]..[-3,2,3], rotated tetrahedron [4,1,-2]..[8,3,0].
+	_check(measured.local_bounds == {"position": {"x": -5.0, "y": -2.0, "z": -3.0}, "size": {"x": 13.0, "y": 5.0, "z": 6.0}} and measured.shape_count == 2, "complete literal union includes offset rotated actual vertices and ignores disabled geometry")
+	var missing := EXPECTED_MISSING_DIMENSIONS.duplicate()
+	missing.erase("collision_footprint")
+	_check(snapshot.missing_dimensions == missing and snapshot.qualification == &"NOT_QUALIFIED", "only measured collision dimension leaves the missing set")
+	for axis: String in ["span", "height", "length"]:
+		var field: Dictionary = measured.fields[axis]
+		_check(field.unit == "m" and field.direction == "cost" and field.unit_scale == 1.0 and field.normalized == 1.0 / (1.0 + field.raw), "literal footprint uses fixed metre cost normalization")
+	craft.transform = Transform3D(Basis.from_euler(Vector3(0.2,0.6,0.1)), Vector3(20,30,40))
+	_check(Registry.create_rated_budget(definition, craft).get_snapshot().footprint == measured, "root rigid rotation and translation preserve local physical dimensions")
+	craft.scale = Vector3.ONE * 2.0
+	_check_unavailable_footprint(definition, craft, "root_transform_not_proper_rigid")
+	craft.transform = Transform3D.IDENTITY
+	_check(not resource._valid_root_transform(Transform3D(Basis(Vector3(-1,0,0), Vector3.UP, Vector3.BACK), Vector3.ZERO)), "reflected root basis cannot produce physical metre measurements")
+	var wrong := definition.duplicate(true) as ShipDefinition
+	_check_unavailable_footprint(wrong, craft, "live_definition_identity_mismatch")
+	var unsupported := _literal_shape(craft, SeparationRayShape3D.new())
+	_check_unavailable_footprint(definition, craft, "enabled_shape_unsupported_or_empty")
+	unsupported.shape = null
+	_check_unavailable_footprint(definition, craft, "enabled_shape_unavailable")
+	unsupported.free()
+	# Invalid empty/singular inputs stay outside the live PhysicsServer owner.
+	_check(not resource._shape_bounds(ConvexPolygonShape3D.new(), Transform3D.IDENTITY).has_volume(), "empty convex geometry is explicitly unmeasurable before union")
+	_check(not resource._valid_shape_transform(Transform3D(Basis(Vector3.ZERO, Vector3.UP, Vector3.BACK), Vector3.ZERO)), "singular child transform is rejected by the production transform gate")
+	_check(not resource._valid_shape_transform(Transform3D(Basis.IDENTITY, Vector3(INF, 0, 0))), "nonfinite child transform is rejected by the production transform gate")
+	second.free()
+	first.disabled = true
+	_check_unavailable_footprint(definition, craft, "no_enabled_root_shapes")
+	craft.set("_destroyed", true)
+	_check_unavailable_footprint(definition, craft, "live_craft_unavailable")
+	craft.free()
+	_check(resource.get_snapshot() == snapshot, "resource retains no live geometry and survives source node mutation and destruction")
+	var roundtrip: Dictionary = JSON.parse_string(JSON.stringify(snapshot))
+	_check(roundtrip.footprint.local_bounds == measured.local_bounds and roundtrip.footprint.shape_count == 2, "JSON round-trip retains numeric full bounds and count")
+	roundtrip.footprint.local_bounds.size.x = 999.0
+	_check(resource.get_snapshot().footprint.local_bounds.size.x == 13.0, "nested detached geometry mutations cannot alter resource")
+	_check_literal_round_shapes(definition)
+
+
+func _check_unavailable_footprint(definition: ShipDefinition, craft: HeroShip, reason: String) -> void:
+	var snapshot := Registry.create_rated_budget(definition, craft).get_snapshot()
+	_check(snapshot.valid and snapshot.footprint == {"status": "UNAVAILABLE", "reason": reason, "source": "actual_enabled_direct_root_collision_shapes"} and snapshot.missing_dimensions == EXPECTED_MISSING_DIMENSIONS, "unavailable footprint preserves missing data without invented zero: %s" % reason)
+
+
+func _check_literal_round_shapes(definition: ShipDefinition) -> void:
+	var craft := LiteralHull.new()
+	craft.ship_definition = definition
+	craft.ship_id = definition.get_ship_id()
+	root.add_child(craft)
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = 2.0
+	cylinder.height = 6.0
+	var collision := _literal_shape(craft, cylinder, Transform3D(Basis(Vector3.FORWARD, PI / 4.0), Vector3(1,2,3)))
+	var footprint: Dictionary = Registry.create_rated_budget(definition, craft).get_snapshot().footprint
+	var side := 5.0 * sqrt(0.5)
+	_check(footprint.status == "MEASURED" and is_equal_approx(footprint.local_bounds.size.x, side * 2.0) and is_equal_approx(footprint.local_bounds.size.y, side * 2.0) and is_equal_approx(footprint.local_bounds.size.z, 4.0), "rotated cylinder uses circular support extent rather than enclosing box corners")
+	var sphere := SphereShape3D.new()
+	sphere.radius = 2.0
+	collision.shape = sphere
+	footprint = Registry.create_rated_budget(definition, craft).get_snapshot().footprint
+	_check(footprint.status == "MEASURED" and is_equal_approx(footprint.local_bounds.size.x, 4.0) and is_equal_approx(footprint.local_bounds.size.y, 4.0), "rotated sphere remains exact four-metre diameter")
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 1.0
+	capsule.height = 6.0
+	collision.shape = capsule
+	footprint = Registry.create_rated_budget(definition, craft).get_snapshot().footprint
+	_check(footprint.status == "MEASURED" and is_equal_approx(footprint.local_bounds.size.x, 2.0 + 4.0 * sqrt(0.5)) and is_equal_approx(footprint.local_bounds.size.z, 2.0), "rotated capsule uses sphere plus segment support extent")
+	craft.free()

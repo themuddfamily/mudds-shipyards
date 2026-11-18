@@ -123,8 +123,17 @@ func _run() -> void:
 	if not complete_handling:
 		await _finish(game)
 		return
+	# Must compile against the old runtime and fail on actual first-E missing data.
+	var complete_footprint := rows.size() == 15
+	for row: Dictionary in rows:
+		var footprint: Variant = (row.get("rated_budget", {}) as Dictionary).get("footprint")
+		complete_footprint = complete_footprint and footprint is Dictionary and footprint.get("status") == "MEASURED" and footprint.get("fields") is Dictionary and footprint.fields.size() == 3
+	_check(complete_footprint, "ordinary E must publish actual complete enabled-root collision footprint for all fifteen live craft")
+	if not complete_footprint:
+		await _finish(game)
+		return
 	var first_accepted_snapshot := live_snapshot.duplicate(true)
-	for page in 4:
+	for page in 5:
 		if page > 0:
 			game.call(&"_on_interact_requested")
 			await process_frame
@@ -137,7 +146,7 @@ func _run() -> void:
 		_check(default_receipt.get("accepted", false) and (console.call(&"get_presentation_snapshot") as Dictionary).screen_text == text, "default snapshot refresh preserves the current page")
 	game.call(&"_on_interact_requested")
 	await process_frame
-	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/4"), "fifth ordinary E wraps back to page one")
+	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/5"), "sixth ordinary E wraps back to page one")
 	_check(
 		_berth_snapshot(game.world) == berths_before
 			and _regeneration_snapshot(game) == regeneration_before,
@@ -277,7 +286,7 @@ func _finish(game: GameFlow) -> void:
 
 func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page: int) -> void:
 	var rows := snapshot.get("rows", []) as Array
-	_check(rows.size() == 15 and text.begins_with("RATED %d/4" % [page + 1]) and text.contains("INTERACT:NEXT"), "physical page labels rated data and ordinary next interaction")
+	_check(rows.size() == 15 and text.begins_with(("RATED %d/5" % [page + 1]) if page < 4 else "COLLISION 5/5") and text.contains("INTERACT:NEXT"), "physical page labels rated data and ordinary next interaction")
 	var pages := [
 		["maximum_speed", "maximum_hull", "boost_speed", "thrust_acceleration"],
 		["yaw_speed_degrees", "roll_speed_degrees", "brake_acceleration", "passive_drag"],
@@ -292,7 +301,10 @@ func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page:
 			continue
 		var definition := craft.get_ship_definition()
 		var budget: Dictionary = row.rated_budget
-		_check(budget.ship_id == row.ship_id and budget.qualification == &"NOT_QUALIFIED" and budget.missing_dimensions == EXPECTED_MISSING_DIMENSIONS and not _contains_object(budget), "rated row retains identity and honest eight missing actual-role dimensions")
+		var missing := EXPECTED_MISSING_DIMENSIONS.duplicate()
+		missing.erase("collision_footprint")
+		_check(budget.ship_id == row.ship_id and budget.qualification == &"NOT_QUALIFIED" and budget.missing_dimensions == missing and not _contains_object(budget), "rated row retains identity and seven still-missing actual-role dimensions")
+		_check_footprint_geometry(craft, budget)
 		var cells := PackedStringArray()
 		for axis: String in EXPECTED_RATED_FIELDS:
 			var spec: Array = EXPECTED_RATED_FIELDS[axis]
@@ -304,9 +316,14 @@ func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page:
 				_check(not field.has("normalized"), "terminal feel remains raw only")
 			else:
 				_check(field.normalized == (raw / (1.0 + raw) if spec[1] == "benefit" else 1.0 / (1.0 + raw)), "terminal directed index retains exact full precision")
-		for axis: String in pages[page]:
-			var field: Dictionary = budget.fields[axis]
-			cells.append(str(field.raw) if field.direction == "undirected" else "%s/%.3f" % [str(field.raw), field.normalized])
+		if page == 4:
+			for axis: String in ["span", "height", "length"]:
+				var field: Dictionary = budget.footprint.fields[axis]
+				cells.append("%.3f/%.3f" % [field.raw, field.normalized])
+		else:
+			for axis: String in pages[page]:
+				var field: Dictionary = budget.fields[axis]
+				cells.append(str(field.raw) if field.direction == "undirected" else "%s/%.3f" % [str(field.raw), field.normalized])
 		var expected := "%-18s %-12s %s" % [str(row.display_name).strip_edges().replace("_", " ").to_upper().left(18), str(row.state).to_upper(), "  ".join(cells)]
 		_check(text.split("\n")[row_index + 1] == expected, "page retains each current name/state and four correctly ordered raw/index or feel cells")
 
@@ -353,12 +370,66 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 		var wrong_index := source.duplicate(true)
 		wrong_index.rows[0].rated_budget.fields[axis]["normalized"] = 0.123
 		cases.append(wrong_index)
+	for replacement: Variant in [null, [], {}, {"status": "MEASURED"}, "geometry"]:
+		var candidate := source.duplicate(true)
+		candidate.rows[0].rated_budget.footprint = replacement
+		cases.append(candidate)
+	for patch: Dictionary in [{"status": "UNKNOWN"}, {"status": []}, {"reason": "invented"}, {"source": "landing_clearance"}, {"source": []}, {"ship_id": "foreign"}, {"ship_id": []}, {"shape_count": 0}, {"shape_count": -1}, {"shape_count": 1.5}, {"shape_count": INF}, {"shape_count": []}, {"local_bounds": []}, {"fields": []}]:
+		var candidate := source.duplicate(true)
+		candidate.rows[0].rated_budget.footprint.merge(patch, true)
+		cases.append(candidate)
+	for bounds_key: String in ["position", "size"]:
+		for replacement: Variant in [null, [], {}, {"x": INF, "y": 1.0, "z": 1.0}, {"x": [], "y": 1.0, "z": 1.0}, {"x": 1.0, "y": 1.0, "z": 1.0, "w": 1.0}]:
+			var candidate := source.duplicate(true)
+			candidate.rows[0].rated_budget.footprint.local_bounds[bounds_key] = replacement
+			cases.append(candidate)
+	for axis: String in ["span", "height", "length"]:
+		for metadata: String in ["unit", "direction", "source"]:
+			for malformed_value: Variant in [[], ["nested"], {}, null, 17, false]:
+				var candidate := source.duplicate(true)
+				candidate.rows[0].rated_budget.footprint.fields[axis][metadata] = malformed_value
+				cases.append(candidate)
+		for patch: Dictionary in [{"raw": 0.0}, {"raw": -1.0}, {"raw": NAN}, {"raw": INF}, {"raw": []}, {"normalized": 0.5}, {"normalized": INF}, {"normalized": []}, {"direction": "benefit"}, {"unit": "km"}, {"unit_scale": 1000.0}, {"source": "authored_size_class"}]:
+			var candidate := source.duplicate(true)
+			candidate.rows[0].rated_budget.footprint.fields[axis].merge(patch, true)
+			cases.append(candidate)
+		var missing_axis := source.duplicate(true)
+		missing_axis.rows[0].rated_budget.footprint.fields.erase(axis)
+		cases.append(missing_axis)
+	var inconsistent_bounds := source.duplicate(true)
+	inconsistent_bounds.rows[0].rated_budget.footprint.local_bounds.size.x += 1.0
+	cases.append(inconsistent_bounds)
+	var missing_geometry := source.duplicate(true)
+	missing_geometry.rows[0].rated_budget.footprint.erase("local_bounds")
+	cases.append(missing_geometry)
+	var missing_flag := source.duplicate(true)
+	missing_flag.rows[0].rated_budget.missing_dimensions.append("collision_footprint")
+	cases.append(missing_flag)
 	var mixed := source.duplicate(true)
 	mixed.rows[0].erase("rated_budget")
 	cases.append(mixed)
 	for candidate: Dictionary in cases:
 		receipt = console.call(&"present_fleet_snapshot", candidate, true) as Dictionary
 		_check(not bool(receipt.get("accepted", true)) and (console.call(&"get_presentation_snapshot") as Dictionary) == retained, "malformed rated payload refuses atomically without changing text, sequence or retained data")
+	# Unknown and unavailable data remain readable, with no zero-metre benefit.
+	for status: String in ["UNKNOWN", "UNAVAILABLE"]:
+		var unavailable := source.duplicate(true)
+		unavailable.rows[0].rated_budget.footprint = {"status": status, "reason": "live_craft_not_supplied" if status == "UNKNOWN" else "no_enabled_root_shapes", "source": "actual_enabled_direct_root_collision_shapes"}
+		unavailable.rows[0].rated_budget.missing_dimensions = EXPECTED_MISSING_DIMENSIONS.duplicate()
+		receipt = console.call(&"present_fleet_snapshot", unavailable) as Dictionary
+		_check(bool(receipt.get("accepted", false)), "explicit missing geometry remains presentable without pretending qualification")
+		for step in 5:
+			var presentation := console.call(&"get_presentation_snapshot") as Dictionary
+			if int(presentation.get("rated_page", -1)) == 4:
+				break
+			console.call(&"present_fleet_snapshot", unavailable, true)
+		var unavailable_text := str((console.call(&"get_presentation_snapshot") as Dictionary).screen_text)
+		_check(unavailable_text.begins_with("COLLISION 5/5") and unavailable_text.split("\n")[1].contains("%s  %s  %s" % [status, status, status]), "missing footprint prints explicit unknown cells without numeric zeros")
+		var malformed := unavailable.duplicate(true)
+		malformed.rows[0].rated_budget.footprint["shape_count"] = 0
+		var before := console.call(&"get_presentation_snapshot") as Dictionary
+		receipt = console.call(&"present_fleet_snapshot", malformed, true) as Dictionary
+		_check(not bool(receipt.get("accepted", true)) and (console.call(&"get_presentation_snapshot") as Dictionary) == before, "unmeasured footprint cannot acquire invented geometry or zero counts")
 	var legacy := source.duplicate(true)
 	var expected := PackedStringArray(["FLEET STATUS // LIVE"])
 	for row: Dictionary in legacy.rows:
@@ -424,7 +495,7 @@ func _capture_rated_registry() -> void:
 	var receipt := console.call(&"present_fleet_snapshot", snapshot) as Dictionary
 	_check(bool(receipt.get("accepted", false)), "production component accepts the exact real captured snapshot")
 	_check(DirAccess.make_dir_recursive_absolute(output) == OK, "component capture output directory is available")
-	for page in 4:
+	for page in 5:
 		if page > 0:
 			receipt = console.call(&"present_fleet_snapshot", snapshot, true) as Dictionary
 			_check(bool(receipt.get("accepted", false)), "component advances the exact pinned snapshot")
@@ -434,10 +505,71 @@ func _capture_rated_registry() -> void:
 				await process_frame
 				await RenderingServer.frame_post_draw
 			_check_console_bounds(console, page)
-			_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED %d/4" % [page + 1]), "component captures the requested real page")
+			_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with(("RATED %d/5" % [page + 1]) if page < 4 else "COLLISION 5/5"), "component captures the requested real page")
 			var image := root.get_texture().get_image()
 			_check(image.get_size() == viewport, "component capture has exact requested native dimensions")
 			if _failures.is_empty():
-				_check(image.save_png(output.path_join("fleet_handling_page_%02d_%dx%d.png" % [page + 1, viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
+				_check(image.save_png(output.path_join("fleet_footprint_page_%02d_%dx%d.png" % [page + 1, viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
 	component.queue_free()
 	await _finish(null)
+
+
+## Independent support-point oracle: query each shape in six root-axis directions.
+## This does not consume the production footprint Resource or landing clearance.
+func _expected_root_geometry(craft: HeroShip) -> Dictionary:
+	var bounds := AABB()
+	var first := true
+	var count := 0
+	for child in craft.get_children():
+		if not child is CollisionShape3D or (child as CollisionShape3D).disabled:
+			continue
+		var collision := child as CollisionShape3D
+		var shape := collision.shape
+		if shape == null:
+			return {}
+		count += 1
+		for direction: Vector3 in [Vector3.LEFT, Vector3.RIGHT, Vector3.UP, Vector3.DOWN, Vector3.FORWARD, Vector3.BACK]:
+			var local_direction := collision.basis.transposed() * direction
+			var support := Vector3.ZERO
+			if shape is BoxShape3D:
+				var half := (shape as BoxShape3D).size * 0.5
+				support = Vector3(half.x if local_direction.x >= 0 else -half.x, half.y if local_direction.y >= 0 else -half.y, half.z if local_direction.z >= 0 else -half.z)
+			elif shape is ConvexPolygonShape3D:
+				var points := (shape as ConvexPolygonShape3D).points
+				if points.is_empty():
+					return {}
+				support = points[0]
+				for point in points:
+					if point.dot(local_direction) > support.dot(local_direction):
+						support = point
+			elif shape is CylinderShape3D:
+				var cylinder := shape as CylinderShape3D
+				var radial := Vector3(local_direction.x, 0, local_direction.z).normalized() * cylinder.radius
+				support = radial + Vector3.UP * cylinder.height * (0.5 if local_direction.y >= 0 else -0.5)
+			elif shape is SphereShape3D:
+				support = local_direction.normalized() * (shape as SphereShape3D).radius
+			elif shape is CapsuleShape3D:
+				var capsule := shape as CapsuleShape3D
+				support = local_direction.normalized() * capsule.radius + Vector3.UP * (capsule.height * 0.5 - capsule.radius) * (1.0 if local_direction.y >= 0 else -1.0)
+			else:
+				return {}
+			var actual := collision.transform * support
+			bounds = AABB(actual, Vector3.ZERO) if first else bounds.expand(actual)
+			first = false
+	return {"bounds": bounds, "count": count} if not first else {}
+
+
+func _check_footprint_geometry(craft: HeroShip, budget: Dictionary) -> void:
+	var expected := _expected_root_geometry(craft)
+	var footprint: Dictionary = budget.get("footprint", {})
+	_check(not expected.is_empty() and footprint.get("status") == "MEASURED", "actual enabled direct root geometry is measured for %s" % craft.get_ship_id())
+	if expected.is_empty() or footprint.get("status") != "MEASURED":
+		return
+	var bounds: AABB = expected.bounds
+	_check(footprint.ship_id == str(craft.get_ship_id()) and footprint.source == "actual_enabled_direct_root_collision_shapes" and footprint.shape_count == expected.count, "footprint identifies actual complete root union and shape count")
+	var components := ["x", "y", "z"]
+	var axes := ["span", "height", "length"]
+	for index in 3:
+		_check(is_equal_approx(float(footprint.local_bounds.position[components[index]]), bounds.position[index]) and is_equal_approx(float(footprint.local_bounds.size[components[index]]), bounds.size[index]), "complete union position and size match independent support points")
+		var field: Dictionary = footprint.fields[axes[index]]
+		_check(is_equal_approx(float(field.raw), bounds.size[index]) and field.unit == "m" and field.unit_scale == 1.0 and field.direction == "cost" and field.source == "actual_enabled_direct_root_collision_shapes" and field.normalized == 1.0 / (1.0 + field.raw), "physical dimension keeps exact metre cost normalization")

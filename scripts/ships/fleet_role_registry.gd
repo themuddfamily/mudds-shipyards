@@ -163,9 +163,9 @@ const ROLE_CONTRACTS := {
 }
 
 
-## Initial two-field resource, independent of the nine accepted role contracts.
-static func create_rated_budget(definition: ShipDefinition) -> FleetRatedBudget:
-	return RatedBudgetType.new(definition)
+## Detached handling and optional actual root footprint; role contracts remain independent.
+static func create_rated_budget(definition: ShipDefinition, actual_craft: HeroShip = null) -> FleetRatedBudget:
+	return RatedBudgetType.new(definition, actual_craft)
 
 
 static func get_role_contract(ship_id: StringName) -> Dictionary:
