@@ -324,6 +324,49 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="fleet-handling-pages-current"></a>
+
+### Complete authored handling and four-page fleet terminal — ACTIVE
+
+Complete remaining ratedhandling function: all16 authored ShipDefinition fields,
+13 directed per-field indices and3undirected feel raws, consumed by the existing
+physical terminal on four pages through normal Interact(defaultE). This completes
+the rated handling display, while actual firepower/cargo/crew/function/footprint/
+boarding-time/skill/full-role metadata and finalbalance remain NOT_QUALIFIED.
+No new craft, stats, key, modal, font, screen, authority or validator family.
+
+Basea9063341547422dc50ebc388d5f08c3ef3bf6806. Firstmapping **14:50:04UTC**, hard
+all-in **14:50:04→16:20:04UTC,90minutes** includes implementation, full source5/
+PCK5, eight inspected four-page1280/1920 component images, release/startup/package/
+review, merge/push/archive/worktree-ref-process cleanup/docs/finalverification.
+Retain latest13:57:23 unused **0/1** correction allowance; no newreset from branch
+or split. Prior initialResource delivery cost **38.74157571666667minutes** retained
+and cumulative. Katana's separate completion-limit decision remains pending;
+no approval, resumed engine or changed cap is inferred from continuation.
+
+Six owned existing scripts: FleetRatedBudget, FleetRegistryConsole, GameFlow and
+the existing registry/differentiation/console fixtures. No UID or Registry policy
+change. Pages speed/hull/boost/thrust; yaw/roll/brake/drag; thrustmult/landinglimit/
+spool/ratedcooldown; throttle plus3feelraws. Every15-row16-line page must fit the
+original3.76×1.46 screen/font40/pixel.0016. All16 off-page fields validate before
+page/text/sequence/snapshot commits; invalid data cannot advance. Directrefresh
+is stable, normalE cycles+wraps, all-budget-absent legacy remains exact. All17
+actual definitions source the values; all nine role contracts, original signatures/
+non-dominance/min14of16/Cinder cards remain. Remove only3completed rated missing
+categories; retain8actualrole categories and explicit NOT_QUALIFIED.
+
+Original full source5/PCK5 each300s/oldcases/markers/raw0/fourguards; exactfinal
+consolefixture on olda906 must fail actual missing14fields after physical E with
+no parse/missingAPI substitute. Capture onlyproductionConsole from fullsuccessful
+case's pinned actual15rows, samecamera/eightpostdraw at everypage/resolution,
+beforeMainload/instantiation, no world-render/native waiver. Source/imageGO before
+cleanpairedexports300/outer360, trustedprivate template, strictstartup3, complete
+map equality/intended3GDC+reviewedmetadata/noUID-class additions, exactarchives/
+ZIPbytes/audit9/eight repo-local artifacts, PCK5/packageGO and exactcleanup.
+Every Godot Dummy/headless or privateX11; CI OFF. Firstunexpectedfailure stops
+dependents and preserves operands/costs. Full-role/final17/fullcraft/network/game/
+all36parents/10phase exits and applicableexternal gates remain OPEN.
+
 <a id="fleet-rated-budget-current"></a>
 
 ### Typed rated speed/hull budget and live fleet-terminal columns — DONE,0c429cb
