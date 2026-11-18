@@ -250,6 +250,48 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Katana card7 — mapped component damage and real home service, ACTIVE
+
+Existing BUILD-SPLIT-KATANA/card7, adopted damage/service contract. Observable
+result: real nose/outrigger/core/engine contacts impair the intended existing
+section, shared localized cues follow that state, damaged engine braking worsens,
+and ordinary authorized home service restores components/function without seat/
+access healing the damaged hull. Cards1–6 are accepted; no lifecycle/save/network
+capability is selected here. Main remains15usablecraft/15occupiedhomes.
+
+Base accepted4c7832871/runtime614abb0. First mapping07:25:30UTC is included.
+Window **2026-11-18 07:25:30→08:55:30UTC,90minutes ALL-IN**, including mapping,
+code/review, negative/import/syntax, every complete source/PCK/cold-cue capture,
+clean checkpoint, integration/push, verified archive/owned cleanup and finaldocs.
+Freeze before code. Owner05:27:05 reset applies once: **0/1 substantive corrections
+used**, approvedlimit1. Routine caller/compiler repairs stay in this same window;
+a real failure stops dependent cases until measured cause. Original caps/cases,
+route/physics/geometry/health/weapon/role acceptance cannot be relaxed for a pass.
+
+One HIGH implementer owns ONLY scripts/ships/katana_fighter.gd and
+ tests/katana_fighter_journey_test.gd. Production uses candidate-local
+ShipComponentDamage subclass/anchors and actual paired-engine routing plus
+existing install_shared_damage_presentation. Retain one ledger, inherited five
+IDs/radii/health/stages/repair/consequence owners. Shared HeroShip, GameFlow,
+models, service/visual/audio owners, all17profiles, meshes/colliders/cameras/
+weapons/registry/berths and standaloneunarmed/Maincurrentpilot bindings are read-only.
+One HIGH independent source/fixture reviewer; root owns engines, isolated renders,
+release/docs/integration/cleanup. No nested agents.
+
+| Case | Fixed action and expected endpoint |
+| --- | --- |
+| Actual solid mapping | Five existing IDs forward_hull/port_wing/starboard_wing/core_systems/engine_bay have exact anchors inside actual BluntNose/PortAftOutrigger/StarboardAftOutrigger/AftCockpitWall/EngineHousing solids. Real physics rays hit named collision owners; actual health damage selects correct region and shared nominal/impaired/failed stages. Inherited bounds/radii remain; no new component/mobility model. |
+| Paired engines | Both housing and narrower exhaust route only actual union xabs[2.4,4.4],y[1.4,2.1],z[3.2,5.8] OR xabs[2.5,4.3],y[1.4,2.1],z[5.8,6] to existing engine channel, preserving inherited candidate filter/nearest rule elsewhere. Actual front/exhaust/inner/outer/top contacts on fresh hulls at identity and transformed placement, no bounds expansion/air volume. |
+| Consequences and cues | Forward hull impairment adds no mobility effect; weaker wing governs actual pilot cadence/failure refusal; core changes actual emitted convergence; engine nominal/impaired/failed changes actual thrust/turn/brake. Five independently hit hulls retain exact ledger/hull and localized shared stage cues/audio. One initial fixture placement only; current physical reserved/seated Player for armed fixture; no pose/velocity/engine/clock/heat/ledger forcing after setup. Standalone defaultunarmed remains. |
+| Matched engine braking | Normal throttle feedback reaches common30m/s±.01; actual existing brake input measures stopping distance/time nominal vsimpaired vsfailed with monotonic degradation. Inherited impairedenginepower.62/manualbrakefactor.753 and failed.35 emergencybrake retained, not values-only proof. Do NOT copy old Dynamic _component_motion pose/velocity writes; reuse normal feedback from accepted Katana card6. |
+| Full service journey | --main --component-service retains complete original300s Boot/BeginShift/station/ramp/helm/two2.3s-start/flight/strictownhome/OFFLINE/insideexit/fullportwalks/thirdclaim/reverse-to-spawn/normalQuit. Real airborne damage, refused airborne access preserves ledger/hull; real landedoccupiedhome passive authorized service repairs components/cues and regains function, while hull remains damaged through exit/reboard. Same Player/source1114/480m24/.38 currentpilot and all14oldercraft/leases remain. Actual persisted clean_shutdown/clean/lastsession_ended. |
+| Baseline control | Exact committed new --components fixture on accepted4c783 baseline120s fails a specific real missing localized-presentation or wrong physical-anchor/attribution assertion before calling any new API. Print real model/solid/hit operands. No compile/missingmethod failure, synthetic dictionary or direct stage assignment qualifies; all4source/cache/HEAD/clean guards. Preserve control/raw; repeat only for justified finalsource changes. |
+| Source14 | newKatana components120 markerKATANA_COMPONENTS_TEST_OK; newfullMainservice300 markerKATANA_COMPONENT_SERVICE_TEST_OK; foundation90; accessidentity/transformed180each; fullKatanaMaincombat300; Dynamiccomponents120/fullDynamicMainservice300; definitions120; registry180; differentiation300; defaultTitan300; audio_binding180; sharedheat120. Every original assertion/marker/cap retained; exit0/marker1/raw0/all4guards; allMain alone with actualcleanprimaries. |
+| Actual PCK10 | Exact committed fixtures for Katana components120/Mainservice300/foundation90/access2×180/Maincombat300, Dynamiccomponents120/Mainservice300, defaultTitan300 and audio_binding180. Entry source-isolation guard/necessary immutableTitan test constants only. Actual Windows EXE from source-empty path/cwd; original inputs/caps/markers/guards and cleanMain endpoints, allMain alone. |
+| Three cold cue views | New standalone nominal/impaired/failed actual post-hit states, each cold invocation90s,960×540/FOV52/eight renderedframes. Fixed camera(18,13,20) looking(0,1.7,0); actual state/cue snapshot then only craft physics paused for still image. Owned Xvfb/exactx11, Dummy audio, independent suite_process abort/reap/inputrelease. Root inspects actualPNG. No Main cold/render/GPU/fullcraft qualification. |
+| Fresh checkpoint | SourceGO then clean paired safe exports300internal/360outer, actualprivate trustedWindows template preflight, strict startupWindows-payload60/Linuxdirect300/extracted300 exit0/exactoneSTARTUP_MENU_READY_OK/raw0. Completeequalmaps/intendedKatana-only productiondelta+typedmetadata, exactLinux6members/modes/extractedELF/ZIPbytes, existingaudit9 and eight repo-local EXE/ZIP/notes/newcuepreview plusLinuxELF/TAR/exportJSON/notes. NoDownloads. |
+| Close | Allrequiredcase/view/packageGO then merge/push, eightactualpublishedfiles, independently SHA-verify every ownedraw/source archive member before exacttipbranch/worktree/process cleanup. Preserve failures/cost; retain separateunacceptedParadoxgunnerc743. Katana8–13/fullnormalizedroles/fullcraft/network/fullgame/36parents/10phasegates remainopen. NativeWindowsexecution/mandatoryhumanreview retainownerexcluded/NOT_RUN; applicableGPU/device/listening/readabilityopen. CIstaysOFF. |
+
 <a id="katana-combat-current"></a>
 
 ### Katana measured handling and current-pilot combat — card6 DONE,614abb0
