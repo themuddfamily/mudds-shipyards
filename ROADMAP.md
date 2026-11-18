@@ -27,6 +27,8 @@ Source18/PCK14/strictstartup3/maps/audit9 pass. Main stays15craft/15homes.
 [Reference preview](builds/windows/MuddsShipyards-9694a33-katana-reference-preview.png)
 is copied unchanged from accepted5fc94ca; no new rendering qualification.
 
+The latest Katana network-ground attempt is [PARKED at the first remote inside exit](#katana-network-ground-current). Its unaccepted source is archived; no new gameplay checkpoint or full handoff acceptance is claimed.
+
 Katana's accepted current-pilot/once-only480m24/.38 pulse, measured braking
 advantage and weaker turning/boost remain included. [Card6 delivery](#katana-combat-current).
 
@@ -290,7 +292,65 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Katana card10a — network ground access and physical pilot handoff, ACTIVE
+<a id="katana-network-ground-current"></a>
+
+### Katana card10a — network ground access and physical pilot handoff, PARKED / unaccepted
+
+**Terminal source candidate0d61feae36b61146258044afb922ba78ead77fab is NOT merged.**
+Latest complete source ground profile failed after **146.536s**, at the first
+remote pilot's supported inside exit. The same real Player remains seated,
+piloting, with its exact authenticated claim and host ledger occupancy; transition
+is idle. Host playing/walking, both real remote browser admissions, A's complete
+station/port/ramp/helm approach, authoritative opening/duplicate refusal/pilot
+claim/sealing and all-three-peer open/sealed agreement were observed. Neither
+A's full exit/walkout/closure nor B's pilot handoff completed. No source suite
+PASS is claimed. All four source/cache/HEAD/clean guards pass; owned abort143,
+actual three Godot actors absent, first-failure snapshots and secondary abort
+engine diagnostics remain retained.
+
+Read-only source diagnosis finds two concrete missing initial-home semantics:
+`_publish_network_landing_state(landed)` registers without an initial state,
+which defaults to flying and makes the different-state publication refuse with
+`landing_state_not_committed`; startup ignores that return. Fresh HeroShip also
+starts landed=true/docked_latch=false and publishes docked from that latch, which
+only actual reset or completed landing sets. The network exit guard needs both
+operational landed+docked and committed landing; its alternative cabin route is
+correctly unavailable on Katana. **The actual failing operation sample,
+publication return and toast were not captured**, so the precise executed exit
+guard remains UNMEASURED; the two source defects are not a manufactured live
+operand. No additional engine trial or production correction followed.
+
+Renewal11:53:45 remains **1/1 used**, shared across the whole card10 family.
+The source startup-order correction and routine compiler/type/cast caller fixes
+retain their actual failed costs:87.893s first startup failure,131.667s null-craft
+caller failure,2.588s isolated precedence proof, final146.536s exit failure.
+Exact final fixture on old60fb base fails the actual missing Katana registration
+and sole-seat assertion in56.085s, with no parser/missing-API substitute and all
+four guards. Eight changed scripts pass syntax; remaining seven source cases,
+all six PCK cases, exports/startups/delta/audit/new artifact publication are
+**NOT_RUN** after the first failure. Latest accepted checkpoint stays9694a33.
+
+Owned worktrees/processes and exact-tip local/remote task refs are cleaned;
+unique unaccepted source is preserved in `unaccepted-source.bundle`, actually
+restored into an independent baseline-only repository, strict-connectivity
+checked and matched against the full tree/eight changed files before cleanup.
+Every archive member was rehashed before ref/worktree deletion. Archive:
+`/srv/mudds-work/katana-network-ground-20261118/records.tar.gz`, **34,423,813bytes/374members**, SHA256
+`98e7198ed785ce0c51b13f4c1ed77b3819f604951aec0d6bd70a977ff6ab800b`. Actual through verified cleanup
+**67.744558minutes** from11:21:46UTC;
+final docs/push/verification remain billed to the same12:51:46 deadline.
+Only protected Paradox gunner c743f585d remains as an unaccepted branch exception.
+
+**Reopening:** renewed substantive correction allowance and a fresh bounded
+all-in window; restore the archived candidate, establish valid initial-home
+landing registration and operational dock semantics through the existing exact
+occupied-home/fit/support owners (no fake completed LandingContract or cabin),
+capture the actual exit publication/operation/refusal operands, and pass the
+unchanged full source8/PCK6/checkpoint/integration/cleanup contract below.
+Preserve all prior cost/failures. No automatic retry or10b successor is selected;
+full10/10b/11–13/fullcraft/network/all36parents/10phase exits remain OPEN.
+
+**Frozen before-code contract retained below:**
 
 Before-code split of the adopted card10 into two genuine runtime dependencies.
 10a delivers authoritative ground access/one pilot/inside exit/handoff. 10b adds
