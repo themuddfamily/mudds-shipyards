@@ -19,6 +19,7 @@ var _shots = 0
 var _bad_origin = false
 var _edges: Array[Dictionary] = []
 var _solid_poses: Dictionary = {}
+var _fixture_decks: Array[StaticBody3D] = []
 
 class FixtureCommands:
 	extends ShipCommandSource
@@ -28,8 +29,9 @@ class FixtureCommands:
 	var pitch = 0.0
 	var roll = 0.0
 	var fire = false
+	var boost = false
 	func _sample_controls() -> Dictionary:
-		return {"throttle":throttle,"brake":brake,"yaw":yaw,"pitch":pitch,"roll":roll,"fire":fire}
+		return {"throttle":throttle,"brake":brake,"yaw":yaw,"pitch":pitch,"roll":roll,"fire":fire,"boost":boost}
 
 func _init() -> void:
 	call_deferred("_run")
@@ -58,7 +60,7 @@ func _run() -> void:
 	Registry._validate_pairwise_separation(profiles,errors)
 	Registry._validate_non_dominance(profiles,errors)
 	Registry._validate_signatures(profiles,errors)
-	if not _check(profiles.size()==17 and registered.size()==6 and Registry.audit_definitions(registered).valid and errors.is_empty(),"all17 actual profiles retain14 axes/non-dominance/signatures and registered-six policy: "+str(errors)): return
+	if not _check(profiles.size()==17 and registered.size()==7 and Registry.audit_definitions(registered).valid and errors.is_empty(),"all17 actual profiles retain14 axes/non-dominance/signatures and registered-seven policy: "+str(errors)): return
 	_ship = (load("res://scenes/ships/"+str(data.scene)+".tscn") as PackedScene).instantiate() as HeroShip
 	root.add_child(_ship)
 	await _frames(3)
@@ -70,6 +72,10 @@ func _run() -> void:
 	var command = FixtureCommands.new()
 	_ship.add_child(command)
 	_ship.set_command_source(command)
+	var pilot: PlayerController = null
+	if _name == "dynamic":
+		pilot = await _fixture_pilot(_ship)
+		if not _check(pilot != null and pilot.is_seated_at(_ship.get_pilot_seat_anchor()),"Dynamic fixture owns actual reserved and physically seated Player"): return
 	_ship.set_piloted(true)
 	_ship.engine_state_changed.connect(func(state: StringName): _edges.append({"state":state,"tick":Engine.get_physics_frames(),"remaining":_ship.get("_engine_timer")}))
 	_ship.projectile_fired.connect(func(origin: Vector3,direction: Vector3):
@@ -77,8 +83,11 @@ func _run() -> void:
 		if not data.has("muzzle") or _ship.to_local(origin).distance_to(data.muzzle)>.0001 or not direction.is_finite() or direction.is_zero_approx(): _bad_origin = true)
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_OFFLINE,"initial real OFFLINE"): return
 	var ticks = int(round(float(VALUES[_name].engine_start_time)*60))
+	print("FLEET_FIXTURE_ENGINE_BEFORE: ",_fixture_access_snapshot(_ship))
 	_ship.request_engine_start()
+	print("FLEET_FIXTURE_ENGINE_AFTER: ",_fixture_access_snapshot(_ship))
 	await _frames(ticks-2)
+	print("FLEET_FIXTURE_ENGINE_PREDEADLINE: ",_fixture_access_snapshot(_ship)," edges=",_edges)
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_STARTING,"real approved spool remains STARTING before deadline"): return
 	await _frames(5)
 	if not _check(_edges.size()==2 and _edges[0].state==HeroShip.ENGINE_STARTING and _edges[1].state==HeroShip.ENGINE_ONLINE
@@ -149,7 +158,11 @@ func _run() -> void:
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_OFFLINE and _ship.velocity.length()<.001 and not _ship.get_ship_audio_rig().is_engine_running(),"second cycle cleanly retires propulsion/audio"): return
 	_ship.set_piloted(false)
 	_ship.queue_free()
+	if pilot != null: pilot.queue_free()
 	await _frames(3)
+	if _name == "dynamic" and not await _compare_dynamic_arrow(): return
+	for deck in _fixture_decks: deck.queue_free()
+	await _frames(2)
 	print("FLEET_CANDIDATE_FOUNDATION_TEST_OK: ship=",_name," checks=",_checks," shots=",_shots)
 	quit(0)
 
@@ -317,3 +330,119 @@ func _root_pose(value: Node3D) -> Transform3D:
 		pose = current.transform * pose
 		current = current.get_parent() as Node3D
 	return pose
+
+
+func _fixture_deck(pose: Transform3D) -> void:
+	var deck := StaticBody3D.new()
+	deck.name = "ControllerSupportDeck"
+	deck.transform = pose
+	deck.collision_layer = PhysicsLayers.WORLD
+	deck.collision_mask = 0
+	var collision := CollisionShape3D.new()
+	var slab := BoxShape3D.new()
+	slab.size = Vector3(24,0.5,20)
+	collision.shape = slab
+	collision.position.y = -0.25
+	deck.add_child(collision)
+	root.add_child(deck)
+	_fixture_decks.append(deck)
+
+
+func _fixture_pilot(craft: HeroShip) -> PlayerController:
+	_fixture_deck(craft.global_transform)
+	await _frames(2)
+	if not await _fixture_canopy(craft,true): return null
+	var pilot := PLAYER.instantiate() as PlayerController
+	pilot.transform = craft.get_boarding_entry_transform()
+	root.add_child(pilot)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	if not craft.is_boardable() or not area.try_reserve(pilot) \
+			or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
+		pilot.queue_free()
+		return null
+	if not await _fixture_canopy(craft,false):
+		pilot.queue_free()
+		return null
+	return pilot
+
+
+func _compare_dynamic_arrow() -> bool:
+	var dynamic := (load("res://scenes/ships/dynamic_gunship.tscn") as PackedScene).instantiate() as HeroShip
+	var arrow := (load("res://scenes/ships/arrow_recon_ship.tscn") as PackedScene).instantiate() as HeroShip
+	var crafts: Array[HeroShip] = [dynamic,arrow]
+	var commands: Array[FixtureCommands] = []
+	for index in crafts.size():
+		var craft := crafts[index]
+		craft.position = Vector3(3000+1000*index,100,0)
+		root.add_child(craft)
+		var command := FixtureCommands.new()
+		command.brake = true
+		craft.add_child(command)
+		craft.set_command_source(command)
+		commands.append(command)
+	_fixture_deck(arrow.global_transform)
+	var pilot := await _fixture_pilot(dynamic)
+	if not _check(pilot != null,"matched Dynamic controller has actual physical pilot claim"): return false
+	for craft in crafts:
+		craft.set_piloted(true)
+		craft.request_engine_start()
+	await _frames(135)
+	if not _check(dynamic.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and arrow.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE,"both unchanged controller clocks complete under real brake demand"): return false
+	for command in commands:
+		command.brake = false
+		command.throttle = 1.0
+	await _frames(120)
+	var launch := Vector2(dynamic.velocity.length(),arrow.velocity.length())
+	await _frames(300)
+	var cruise := Vector2(dynamic.velocity.length(),arrow.velocity.length())
+	for command in commands: command.boost = true
+	await _frames(180)
+	var boost := Vector2(dynamic.velocity.length(),arrow.velocity.length())
+	for command in commands:
+		command.boost = false
+		command.throttle = 0.0
+		command.brake = true
+	await _frames(210)
+	if not _check(dynamic.velocity.length() < 0.001 and arrow.velocity.length() < 0.001,"actual held brakes arrest both matched craft without velocity writes"): return false
+	var initial := [dynamic.global_basis,arrow.global_basis]
+	for command in commands: command.yaw = 1.0
+	await _frames(60)
+	var yaw := Vector2(initial[0].get_rotation_quaternion().angle_to(dynamic.global_basis.get_rotation_quaternion()),initial[1].get_rotation_quaternion().angle_to(arrow.global_basis.get_rotation_quaternion()))
+	for command in commands: command.yaw = 0.0
+	initial = [dynamic.global_basis,arrow.global_basis]
+	for command in commands: command.roll = 1.0
+	await _frames(60)
+	var roll := Vector2(initial[0].get_rotation_quaternion().angle_to(dynamic.global_basis.get_rotation_quaternion()),initial[1].get_rotation_quaternion().angle_to(arrow.global_basis.get_rotation_quaternion()))
+	for command in commands:
+		command.roll = 0.0
+		command.brake = false
+	await _frames(100)
+	print("DYNAMIC_ARROW_CONTROLLER_TRADEOFF: launch=",launch," cruise=",cruise," boost=",boost," yaw=",yaw," roll=",roll)
+	var accepted := _check(launch.x > launch.y and absf(cruise.x-90.0)<0.02 and absf(cruise.y-94.0)<0.02
+		and absf(boost.x-121.0)<0.02 and absf(boost.y-132.0)<0.02
+		and absf(rad_to_deg(yaw.x)-57.0)<0.1 and absf(rad_to_deg(yaw.y)-62.0)<0.1
+		and absf(rad_to_deg(roll.x)-91.0)<0.1 and absf(rad_to_deg(roll.y)-128.0)<0.1
+		and dynamic.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE and arrow.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE,
+		"actual controllers trade Dynamic stronger launch against Arrow cruise/boost/yaw/roll and both neutralize normally")
+	pilot.queue_free()
+	for craft in crafts: craft.queue_free()
+	await _frames(3)
+	return accepted
+
+
+func _fixture_access_snapshot(craft: HeroShip) -> Dictionary:
+	return {"state":craft.get_telemetry().engine_state,"timer":craft.get("_engine_timer"),
+		"canopy_open":craft.is_canopy_open(),"fraction":craft.get("_access_fraction"),
+		"motion":craft.call("is_access_motion_active") if craft.has_method("is_access_motion_active") else false,
+		"physics_hz":Engine.physics_ticks_per_second,"tick":Engine.get_physics_frames()}
+
+
+func _fixture_canopy(craft: HeroShip, opened: bool) -> bool:
+	craft.set_canopy_open(opened,0.05)
+	for frame in 60:
+		if craft.is_canopy_open() == opened and not bool(craft.call("is_access_motion_active")) \
+				and is_equal_approx(float(craft.get("_access_fraction")),1.0 if opened else 0.0):
+			print("FLEET_FIXTURE_ACCESS_COMPLETE: ",_fixture_access_snapshot(craft))
+			return true
+		await _frames(1)
+	return _check(false,"actual public canopy completion before fixture handoff: "+str(_fixture_access_snapshot(craft)))
