@@ -185,6 +185,68 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="arrow-whole-lod-current"></a>
+
+### Selected — Arrow complete static exterior LOD
+
+Existing **CRAFT-ACCEPT-ARROW / [whole-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)**.
+Restore the same unfinished75a413ec member with the demonstrated typed ancestor
+membership correction. Player result: complete cheaper static Arrow exterior
+beyond120m, close below100m; preserve canopy, pods, sensor, damage cues, boarding,
+interior and cockpit. Actual far solid triangles≤25%close, submissions≤close;
+exactly one complete exterior, synchronous switch. Original near paths and every
+modern static addition remain in renderer membership, shared dynamic policy intact.
+
+**2026-11-18 00:20→01:50 UTC,90minutes ALL-IN**, definition before00:35.
+Latest owner23:37:41 renewal **1/1 used** for the measured typed Array[MeshInstance3D]
+ancestor cause; historical1/1 and26.8626971minutes retained. Independent review
+also found passive close-cost inflation by a hidden160-triangle/one-submission
+mast. A measurement-only correction excludes originally hidden geometry and
+independently checks actual visible surface costs; no geometry, selection or
+budget change. No additional substantive behavior correction is available.
+
+Baseline5dc4aa1c2, checkpoint2cf0a3f; branchwork/arrow-whole-lod-1118, owned root
+`/srv/mudds-work/arrow-whole-lod-20261118`. MEDIUM implementer owns only
+`scripts/ships/arrow_recon_ship.gd`, `tests/arrow_recon_ship_test.gd`,
+`tests/capture_arrow_recon_crown.gd` and Arrow-only passive fields in
+`scripts/diagnostics/native_sortie_observer.gd`, `tools/release/run_native_sortie.py`.
+HIGH independent review, root engines/release/Git/docs/cleanup; no nested agents.
+Later accepted observer/driver/Light/Dynamic/Cinder changes stay intact. No shared
+Player/HeroShip, physics, authority, handling, weapon, save, schema or validator work.
+Current baseline Arrow controller is byte-identical to original old-RED source;
+its archived missing-capability failure is retained without an unchanged replay.
+
+Complete existing source fixtures, each300s/originalmarker1/exit0/raw0 and
+source-cache-HEAD-clean guards; focused/default alone, other isolated pairs:
+
+| Case | Fixed action / required endpoint | Actual |
+| --- | --- | --- |
+| `tests/arrow_recon_ship_test.gd --whole-craft-lod-only` | Actual mesh census,0→100→120→121→110→100→99/invalid holds, actual camera/cockpit/real Main-player transition overrides, quiet authority/resources/retained re-entry; `ARROW_RECON_SHIP_TEST_OK` | NOT_RUN |
+| Same complete default fixture | All original Arrow canopy/crown/sensor/damage/weapon/selection cases plus the full new member; same marker | NOT_RUN |
+| `tests/arrow_component_damage_cue_test.gd` | All existing damage-cue cases; `ARROW_COMPONENT_DAMAGE_CUE_TEST_OK` | NOT_RUN |
+| `tests/arrow_recon_crown_visual_test.gd` | All existing crown presentation cases; `ARROW_RECON_CROWN_VISUAL_TEST_OK` | NOT_RUN |
+| `tests/arrow_core_systems_damage_silhouette_test.gd` | All existing core/silhouette cases; `ARROW_CORE_SYSTEMS_DAMAGE_SILHOUETTE_TEST_OK` | NOT_RUN |
+
+Repeat five exact committed fixtures against actual Windows PCK from blank
+source-isolated directories, only an entry isolation guard added, same300s caps.
+Changed GDScript syntax90s and Python compilation remain bounded. Original crown
+capture default2views1600×900/FOV54/10+8frames and opt-in whole10views1920×1080/
+FOV54/twoframes per stage retain exact cameras, lights, TAA/MSAA, open canopy and
+close/far/return cases. Each capture110s outer; original whole mode90s internal.
+Private Xvfb/x11/Forward+/lavapipe/Dummy; root inspects all12images. Staging proves
+visual scope only. Existing ordinary route does not cross120m; ordinary threshold
+traversal/native performance remains NOT_RUN and its900s/outer960s bounds unchanged.
+
+Clean paired safe exports retain300s internal/360s outer, trusted private template
+preflight; strict WindowsPCKstartup60s/Linuxdirect-extracted300s each exit0/one
+STARTUP_MENU_READY_OK/raw0, exact Linux6members/modes/extractedELF, full equal
+package maps/reviewed delta against2cf0a3f, existing audit9 and eight actual build
+files. Independent FINAL_GO/PACKAGE_GO before accepted integration/push, verified
+source/raw archive and exact owned process/worktree/ref/scratch cleanup. Preserve
+unaccepted Paradox branch. Stop dependents at first unexpected failure; no partial
+merge, threshold/viewport/route cut or blind retry. Every Godot Dummy and isolated;
+hosted CI disabled. Native/human/full-craft/full-game gates remain open.
+
 <a id="cinder-loadmaster-receipt-current"></a>
 
 ### Cinder accepted Loadmaster receipt captions — DONE,2cf0a3f
@@ -2770,6 +2832,12 @@ but its saved diagnostic ring ended at sequence3/tick5082/84.69999999999648s,
 Existing GameFlow3427–3472 can close the marker while diagnostic persistence
 fails; HUD25073–25077 quits regardless. The actual rejection is not in the first
 run's log, and no cause in the Predator changes has been demonstrated.
+
+A bounded2026-11-18 readiness check confirms save fix213a2d8 used the different
+Paradox gunner primary (ring tick5090/84.8333333333298), not this Predator failure
+(tick5082/84.69999999999648). Shared writer applicability does not recover the
+missing original rejected write/status. That causal reopening condition remains;
+no Predator replay, restoration or new branch was selected.
 
 One separate full read-only diagnostic replay passed155.632s and showed normal
 observation_persisted/clean close. That does not resolve the original155.069s
