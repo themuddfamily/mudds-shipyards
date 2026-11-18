@@ -198,12 +198,16 @@ exactly one complete exterior, synchronous switch. Original near paths and every
 modern static addition remain in renderer membership, shared dynamic policy intact.
 
 **2026-11-18 00:20→01:50 UTC,90minutes ALL-IN**, definition before00:35.
-Latest owner23:37:41 renewal **1/1 used** for the measured typed Array[MeshInstance3D]
-ancestor cause; historical1/1 and26.8626971minutes retained. Independent review
-also found passive close-cost inflation by a hidden160-triangle/one-submission
-mast. A measurement-only correction excludes originally hidden geometry and
-independently checks actual visible surface costs; no geometry, selection or
-budget change. No additional substantive behavior correction is available.
+Latest owner23:37:41 renewal **0/1 substantive corrections used**; historical1/1
+and26.8626971minutes retained. Root initially charged the mechanical typed-API
+guard as1/1; independent review corrected that accounting under the existing
+routine-repair policy, preserving both records without another reset or deadline
+change. Passive hidden-mast cost inflation was also corrected without changing
+rendering. Actual first focused run fails the real cost gate: close50496/far29416
+triangles (58.25%, maximum12624), submissions119→8. Exit143/34.846s includes
+first-error abort/reap; all4 integrity guards pass. Dependent checks stopped.
+One genuine geometry correction remains, only after actual contributor mapping;
+no threshold, silhouette, cutout, close-geometry or deadline relaxation.
 
 Baseline5dc4aa1c2, checkpoint2cf0a3f; branchwork/arrow-whole-lod-1118, owned root
 `/srv/mudds-work/arrow-whole-lod-20261118`. MEDIUM implementer owns only
