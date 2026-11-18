@@ -527,7 +527,7 @@ func _check_boarding_budget() -> void:
 		malformed.context[key] = false
 		_check(Registry.create_rated_budget(definition, craft, {}, malformed).get_snapshot().boarding_time.status == "UNAVAILABLE", "boarding context requires exact typed qualification: %s" % key)
 	for patch: Dictionary in [{"raw": true}, {"raw": NAN}, {"unit": "ms"}, {"direction": "benefit"}, {"source": "tooltip"}, {"normalized": 0.1}, {"unit_scale": 1000.0}]:
-		var malformed := budget.boarding_time.duplicate(true)
+		var malformed: Dictionary = budget.boarding_time.duplicate(true)
 		malformed.field.merge(patch, true)
 		_check(not RatedBudgetType.valid_boarding_time(malformed, "torrent_provisional"), "whole boarding payload validates raw/index/units/source before presentation")
 	var frozen := resource.get_snapshot()
