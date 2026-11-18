@@ -51,6 +51,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--lifecycle-fixture" in OS.get_cmdline_user_args():
+		await _run_lifecycle_fixture()
+		return
 	if "--components" in OS.get_cmdline_user_args():
 		await _run_components()
 		return
@@ -774,6 +777,8 @@ var _main_audio_offline := false
 var _main_rig: ShipAudioRig
 var _main_rig_cues: Array[Dictionary] = []
 var _main_fire_cues: Array[Dictionary] = []
+var _main_recovery_settling: Dictionary = {}
+var _main_recovery_ticks := 0
 var _main_claims := 0
 var _main_releases := 0
 
@@ -879,6 +884,9 @@ func _run_main() -> void:
 	if not _trajectory_contract(): return
 	for index in MAIN_STATION_ROUTE.size():
 		if not await _main_walk_to(MAIN_STATION_ROUTE[index],index): return
+	if "--lifecycle" in OS.get_cmdline_user_args():
+		await _run_main_lifecycle(identity,area,berth,dock,spawn)
+		return
 	for sortie in 2:
 		if not await _main_board_from_port(sortie,identity,area): return
 		if sortie == 0 and "--combat" in OS.get_cmdline_user_args() and not await _main_stale_combat_refusal(): return
@@ -1004,6 +1012,11 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 	var capture := _main_game._get_active_landing_assist_report()
 	if not _main_check(bool(capture.get("assist_capture_accepted",false)) and StringName(capture.get("selected_berth_id",&"")) == &"katana_home_berth","normal capture selects exact own compatible home"): return false
 	await _main_tap(&"landing_assist")
+	if "--lifecycle" in OS.get_cmdline_user_args() and _main_ship.get("_landing_active"):
+		var moving_before := _main_reset_snapshot(berth)
+		var moving_reset := _main_ship.preflight_reset_for_reuse(dock)
+		if not _main_check(not moving_reset.accepted and moving_reset.reason in [&"katana_occupied",&"katana_transition_active"]
+			and _main_reset_snapshot(berth) == moving_before,"active occupied landing refuses reset without authority or lease mutation"): return false
 	for frame in 600:
 		if _main_game.phase == GameFlow.Phase.SHUT_DOWN: break
 		await _main_frames(1)
@@ -1070,6 +1083,34 @@ func _main_audit_completed_tick() -> void:
 	var support := PhysicsRayQueryParameters3D.create(point+Vector3.UP*0.12,point-Vector3.UP*0.18,_main_mask)
 	support.exclude = [_main_player.get_rid()]
 	var hit := state.intersect_ray(support)
+	if not _main_recovery_settling.is_empty():
+		if not _main_player.is_on_floor():
+			_main_recovery_ticks += 1
+			var spawn: Vector3 = _main_recovery_settling.spawn
+			var plane: Dictionary = _main_recovery_settling.support
+			var settling_ray: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(point+Vector3.UP*0.12,
+				(plane.position as Vector3)-Vector3.UP*_main_player.safe_margin,_main_mask)
+			settling_ray.exclude = [_main_player.get_rid()]
+			var below: Dictionary = state.intersect_ray(settling_ray)
+			var neutral: bool = true
+			for action in [&"move_forward",&"move_back",&"move_left",&"move_right",&"jump",&"sprint_boost",&"interact",&"fire",&"brake"]:
+				neutral = neutral and is_zero_approx(Input.get_action_strength(action))
+			if not _main_check(_main_recovery_ticks <= 20 and neutral and hits.is_empty()
+				and _main_player.get_instance_id() == int(_main_recovery_settling.identity)
+				and is_equal_approx(point.x,spawn.x) and is_equal_approx(point.z,spawn.z)
+				and point.y <= float(_main_recovery_settling.last_y) and point.y >= (plane.position as Vector3).y
+				and point.y <= spawn.y and _main_player.velocity.y <= 0.0
+				and _main_player.velocity.y <= float(_main_recovery_settling.last_velocity_y)
+				and is_zero_approx(_main_player.velocity.x) and is_zero_approx(_main_player.velocity.z)
+				and not below.is_empty() and below.collider == plane.collider
+				and (below.normal as Vector3).dot(Vector3.UP) >= cos(_main_player.floor_max_angle),
+				"each ordinary recall settling tick stays neutral/current/clear and falls vertically toward measured supported spawn plane: "+str(point),false): return
+			_main_recovery_settling.last_y = point.y
+			_main_recovery_settling.last_velocity_y = _main_player.velocity.y
+			_main_last_frame = frame
+			_main_last_point = point
+			return
+		_main_recovery_settling.clear()
 	if not _main_check(_main_player.is_on_floor() and hits.is_empty() and not hit.is_empty() and (hit.normal as Vector3).dot(Vector3.UP) >= cos(_main_player.floor_max_angle),"every completed walking tick has actual capsule/head clearance and physical support position="+str(point)+" overlaps="+str(hits)+" support="+str(hit),false): return
 	_main_last_frame = frame
 	_main_last_point = point
@@ -1166,6 +1207,8 @@ func _main_quit_normally() -> void:
 		if root.gui_get_focus_owner() == exit_button: break
 		await _main_key(KEY_TAB)
 	if not _main_check(is_instance_valid(exit_button) and root.gui_get_focus_owner() == exit_button,"normal pause Tab reaches actual Exit to desktop"): return
+	if "--lifecycle" in OS.get_cmdline_user_args():
+		print("KATANA_LIFECYCLE_MAIN_TEST_OK: claims=",_main_claims," releases=",_main_releases," generation=",_main_ship.get_component_damage().get_ledger_generation())
 	if "--component-service" in OS.get_cmdline_user_args():
 		print("KATANA_COMPONENT_SERVICE_TEST_OK: repairs=",_component_service_repairs," hull=",_component_service_hull," repair_cues=",_component_service_repair_cues)
 	print("KATANA_MAIN_USER_DATA_DIR: ",OS.get_user_data_dir())
@@ -1929,3 +1972,431 @@ func _main_component_recovered_fire() -> bool:
 	print("KATANA_COMPONENT_SERVICE_FIRE: events=",events," hull=",_main_ship.get_telemetry().hull)
 	return _main_check(exact and float(_main_ship.get_telemetry().hull) == _component_service_hull,
 		"second ordinary sortie fires actual restored23-tick pilot cadence while hull remains damaged")
+
+
+func _lifecycle_snapshot(ship: HeroShip) -> Dictionary:
+	var collision_states: Array = []
+	for child in ship.get_children():
+		if child is CollisionShape3D:
+			collision_states.append([child.name,(child as CollisionShape3D).disabled])
+	var area := ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	return {"pose":ship.global_transform,"velocity":ship.velocity,"hull":ship.get_telemetry().hull,
+		"engine":ship.get_telemetry().engine_state,"landed":ship.get_telemetry().landed,
+		"piloted":ship.is_piloted(),"destroyed":ship.is_destroyed(),
+		"ledger":ship.get_component_damage().get_ledger_snapshot(),
+		"access":ship.get("_access_fraction"),"canopy":ship.is_canopy_open(),
+		"shell":(ship.call("get_variant_visual_root") as Node3D).visible,
+		"rig":(ship.get("_visual_root") as Node3D).visible,
+		"camera":ship.get_camera().current,"layer":ship.collision_layer,"mask":ship.collision_mask,
+		"shapes":collision_states,"reserved":area.is_reserved(),"owner":area.get_reservation_token(),
+		"remote":ship.is_remote_piloted(),"stream":ship.get_command_source().get_stream_id(),
+		"engine_timer":ship.get("_engine_timer"),"heat":ship.get("_weapon_heat"),"cooldown":ship.get("_weapon_timer")}.duplicate(true)
+
+
+func _lifecycle_healthy(ship: HeroShip, home: Transform3D) -> bool:
+	return not ship.is_destroyed() and not ship.is_piloted() and ship.global_position.distance_to(home.origin) <= 0.05 and ship.global_basis.is_equal_approx(home.basis) \
+		and ship.velocity == Vector3.ZERO and float(ship.get_telemetry().hull) == ship.maximum_hull \
+		and StringName(ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE \
+		and ship.get_component_damage().get_worst_integrity() == 1.0 \
+		and ship.get_damage_presentation().get_active_component_effect_count() == 0 \
+		and (ship.call("get_variant_visual_root") as Node3D).visible \
+		and (ship.get("_visual_root") as Node3D).visible \
+		and not ship.is_canopy_open() and is_zero_approx(float(ship.get("_access_fraction"))) \
+		and ship.collision_layer == PhysicsLayers.SHIP_BODY_LAYER \
+		and _lifecycle_shapes_enabled(ship) \
+		and not ship.get_camera().current
+
+
+func _main_reset_snapshot(berth: ShipBerth) -> Dictionary:
+	return {"ship":_lifecycle_snapshot(_main_ship),"berth":berth.get_audit_report(),
+		"pending":_main_game._regeneration_pending.duplicate(true),
+		"player_pose":_main_player.global_transform,"seated":_main_player.is_seated(),
+		"player_layer":_main_player.collision_layer,"player_mask":_main_player.collision_mask,
+		"player_camera":(_main_player.get_node("%PlayerCamera") as Camera3D).current,
+		"transition":_main_game._transition_generation,"piloting":_main_game._piloting,
+		"stream":_main_ship.get_command_source().get_stream_id()}.duplicate(true)
+
+
+func _main_incoming_cadence(ticks: int, index: int) -> bool:
+	var started_tick := Engine.get_physics_frames()
+	var started_process := Engine.get_process_frames()
+	var started_usec := Time.get_ticks_usec()
+	var deadline := started_tick + ticks
+	# Count completed physics ticks directly. A paired physics/process await
+	# counts process resumptions and can multiply the intended cadence interval
+	# when the engine catches up several physics steps in one process frame.
+	while Engine.get_physics_frames() < deadline:
+		await _main_observer.completed_tick
+		if _failed: return false
+	# Keep the resolver's ordinary process-delta heat advancement. Only this
+	# final process boundary may add physics catch-up beyond the deadline.
+	await process_frame
+	var elapsed_ticks := Engine.get_physics_frames() - started_tick
+	var maximum_overshoot := Engine.max_physics_steps_per_frame
+	print("KATANA_LIFECYCLE_CADENCE: index=",index," requested_ticks=",ticks,
+		" started_tick=",started_tick," ended_tick=",Engine.get_physics_frames(),
+		" elapsed_ticks=",elapsed_ticks," maximum_overshoot=",maximum_overshoot,
+		" started_process=",started_process," ended_process=",Engine.get_process_frames(),
+		" elapsed_usec=",Time.get_ticks_usec()-started_usec)
+	return _main_check(elapsed_ticks >= ticks and elapsed_ticks <= ticks+maximum_overshoot
+		and Engine.get_process_frames() > started_process,
+		"incoming cadence actual-physics deadline and single-process-boundary overshoot")
+
+
+func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth, dock: Transform3D, original_spawn: Vector3) -> void:
+	var neighbors := _main_lifecycle_neighbors()
+	if not await _main_board_from_port(0,identity,area): return
+	var before := _main_reset_snapshot(berth)
+	var refusal := _main_ship.reset_for_reuse(dock)
+	if not _main_check(not refusal.accepted and refusal.reason == &"katana_occupied" and _main_reset_snapshot(berth) == before,"actual seated occupied reset refuses with unchanged Player/helm/lease/generations"): return
+	_main_engine_edges.clear()
+	Input.action_press(&"move_forward")
+	for frame in 500:
+		if not bool(_main_ship.get_telemetry().landed) and not _main_ship.get("_departure_lift_active"): break
+		await _main_frames(1)
+	_main_release_inputs()
+	if not _main_check(_main_engine_edges.size() == 2 and _main_engine_edges[0].state == HeroShip.ENGINE_STARTING and _main_engine_edges[1].state == HeroShip.ENGINE_ONLINE and int(_main_engine_edges[1].tick)-int(_main_engine_edges[0].tick) >= 137 and int(_main_engine_edges[1].tick)-int(_main_engine_edges[0].tick) <= 139 and berth.get_occupant() == null and berth.get_reservation_owner() == null,"actual first ordinary2.3s startup and departure release own home"): return
+	Input.action_press(&"fire")
+	await _main_frames(20)
+	_main_release_inputs()
+	var old_command := _main_ship.get_last_ship_command().detached_copy()
+	var old_stream := _main_ship.get_command_source().get_stream_id()
+	var old_generation := _main_ship.get_component_damage().get_ledger_generation()
+	var authority := _main_game.get_combat_authority()
+	var opponent := _main_game.get_node("RangeOpponent") as RangeOpponent
+	opponent.set_physics_process(false)
+	if not _main_check(opponent.activate(Transform3D(_main_ship.global_basis,_main_ship.to_global(Vector3(20,1.75,4.5)))).accepted,"actual registered production opponent stages incoming fire"): return
+	await _main_frames(2)
+	var weapon := load("res://assets/weapons/range_defence_pulse.tres") as WeaponDefinition
+	var cadence_ticks := ceili(60.0/weapon.cadence_shots_per_second)
+	if not _main_check(weapon.damage_per_hit == 11.0 and cadence_ticks == 131 and ceili(_main_ship.maximum_hull/weapon.damage_per_hit) == 14,"unchanged actual incoming resource requires fourteen11damage hits at native131tick cadence"): return
+	var hits := 0
+	for index in ceili(_main_ship.maximum_hull/weapon.damage_per_hit):
+		var incoming_started_tick := Engine.get_physics_frames()
+		var incoming_started_process := Engine.get_process_frames()
+		var incoming_started_usec := Time.get_ticks_usec()
+		if index > 0 and not await _main_incoming_cadence(cadence_ticks,index): return
+		var vent_polls := 0
+		for vent in 240:
+			if not authority.is_weapon_heat_locked(opponent,GameFlow.OPPONENT_WEAPON_ID): break
+			vent_polls += 1
+			await _main_frames(1)
+		if float(_main_ship.get_telemetry().hull) <= weapon.damage_per_hit:
+			var spawn: Vector3 = (_main_game.world.get_player_spawn() as Transform3D).origin
+			var spawn_ray: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(spawn+Vector3.UP*0.12,
+				spawn-Vector3.UP*_main_player.floor_snap_length,_main_mask)
+			spawn_ray.exclude = [_main_player.get_rid()]
+			var plane: Dictionary = _main_player.get_world_3d().direct_space_state.intersect_ray(spawn_ray)
+			if not _main_check(not plane.is_empty() and (plane.position as Vector3).y < spawn.y
+				and spawn.y-(plane.position as Vector3).y <= _main_player.floor_snap_length
+				and (plane.normal as Vector3).dot(Vector3.UP) >= cos(_main_player.floor_max_angle),
+				"authored ordinary recovery spawn has real supported plane within unchanged floor-snap clearance"): return
+			_main_recovery_settling = {"identity":identity,"spawn":spawn,"support":plane,"last_y":spawn.y,"last_velocity_y":0.0}
+		var aim := _main_ship.to_global(Vector3(3.4,1.75,4.5))
+		var remaining_hull := float(_main_ship.get_telemetry().hull)
+		var result := authority.submit_hitscan(opponent,GameFlow.OPPONENT_WEAPON_ID,opponent.global_position,(aim-opponent.global_position).normalized())
+		print("KATANA_LIFECYCLE_INCOMING: index=",index," status=",result.get("status")," damage=",result.get("applied_damage")," target=",result.get("target_entity"),
+			" started_tick=",incoming_started_tick," hit_tick=",Engine.get_physics_frames(),
+			" started_process=",incoming_started_process," hit_process=",Engine.get_process_frames(),
+			" elapsed_usec=",Time.get_ticks_usec()-incoming_started_usec," vent_polls=",vent_polls)
+		if not _main_check(bool(result.get("damaged",false)) and result.get("target_entity") == _main_ship and float(result.get("applied_damage",0)) == minf(11.0,remaining_hull),"actual cadence/heat-authorized incoming ray damages physical Katana engine by11, final remaining2"): return
+		hits += 1
+	if not _main_check(_main_ship.is_destroyed() and not _main_game._piloting and not _main_ship.is_piloted() and not area.is_reserved() and not _main_player.is_seated() and _main_game._regeneration_pending.has(_main_ship.get_instance_id()),"actual terminal damage releases pilot/body/helm and queues ordinary regeneration"): return
+	_main_releases += 1 # Observed actual terminal pilot release above.
+	if not _main_check(not area.release_reservation(_main_player),"old destroyed pilot claim refuses before fresh physical reboard"): return
+	before = _main_reset_snapshot(berth)
+	refusal = _main_ship.reset_for_reuse(dock)
+	if not _main_check(not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" and _main_reset_snapshot(berth) == before,"public premature reset cannot bypass actual due recovery and lease"): return
+	var dead_request := authority.submit_hitscan(_main_ship,GameFlow.ARROW_COMBAT_WEAPON_ID,_main_ship.to_global(Vector3(0,1,-6.2)),-_main_ship.global_basis.z)
+	if not _main_check(not dead_request.accepted and dead_request.status == &"source_destroyed","dead actual Katana source cannot fire and consumes stale shot sequence"): return
+	var stale_shot: ShotRequest = dead_request.request
+	await _main_frames(20)
+	if not _main_check(not (_main_ship.call("get_variant_visual_root") as Node3D).visible and not (_main_ship.get("_visual_root") as Node3D).visible and _main_player.get_instance_id() == identity and _main_player.is_on_floor() and _main_player.is_control_enabled() and _main_player.global_position.distance_to(_main_game.world.get_player_spawn().origin) < 0.25 and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and not bool(_main_player.get_cabin_containment_report().get("active",false)) and _main_ship.get_command_source().get_stream_id() > old_stream and not _main_ship.consume_sampled_camera_edges(old_command),"dead separate shell hides; same supported Player recovers with fresh input stream and old command refused"): return
+	# A competing real lease delays the real timer, without substituting a new
+	# hull or manually calling the regeneration coordinator.
+	var pending := _main_game._regeneration_pending.get(_main_ship.get_instance_id(),{}) as Dictionary
+	var ready_at := int(pending.ready_at_msec)
+	var foreign := berth.try_reserve(_main_game,_main_ship.get_ship_definition())
+	if not _main_check(not foreign.is_empty() and berth.occupy(_main_game,foreign),"actual competing compatible home lease stages occupied recovery refusal"): return
+	for frame in 600:
+		var current := _main_game._regeneration_pending.get(_main_ship.get_instance_id(),{}) as Dictionary
+		if int(current.get("ready_at_msec",0)) > ready_at: break
+		await _main_frames(1)
+	if not _main_check(_main_ship.is_destroyed() and berth.get_occupant() == _main_game and berth.get_reservation_token(_main_game) == foreign and not (_main_ship.call("get_variant_visual_root") as Node3D).visible and _main_ship.get_component_damage().get_ledger_generation() == old_generation,"ordinary due timer leaves dead craft/competing lease/generation intact while home occupied"): return
+	if not _main_check(berth.release(_main_game,foreign),"exact competing lease releases without touching craft"): return
+	for frame in 600:
+		if not _main_ship.is_destroyed(): break
+		await _main_frames(1)
+	var count := 0
+	for craft in _main_game.get_flyable_ships():
+		if craft.get_ship_id() == &"katana_provisional": count += 1
+	var replay := authority.resolver.resolve_hitscan(stale_shot)
+	if not _main_check(count == 1 and _lifecycle_healthy(_main_ship,dock) and _main_game._ship_owns_exact_occupied_berth(_main_ship,&"katana_home_berth") and _main_ship.get_component_damage().get_ledger_generation() > old_generation and not _main_game._regeneration_pending.has(_main_ship.get_instance_id()) and authority.get_source_id(_main_ship) == 1114 and not replay.accepted and replay.status in [&"duplicate_sequence",&"out_of_order_sequence"] and not _main_ship.consume_sampled_camera_edges(old_command),"ordinary timer restores exactly same one healthy home Katana; old shot/control epochs remain refused"): return
+	for index in MAIN_STATION_ROUTE.size():
+		if not await _main_walk_to(MAIN_STATION_ROUTE[index],60+index): return
+	if not await _main_board_from_port(1,identity,area): return
+	var usable_shots := _main_projectiles
+	if not await _main_sortie_home(1,identity,area,berth,dock): return
+	if not _main_check(_main_projectiles > usable_shots,"regenerated same physical Player starts/departs/fires/lands/OFFLINE/exits usable fighter"): return
+	before = _main_reset_snapshot(berth)
+	refusal = _main_ship.reset_for_reuse(dock)
+	if not _main_check(not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" and _main_reset_snapshot(berth) == before,"standing real unreserved Player inside recess blocks unsafe healthy reset"): return
+	if not await _main_walk_out(1): return
+	before = _main_reset_snapshot(berth)
+	var wrong_home := dock
+	wrong_home.origin.x += 1.0
+	refusal = _main_ship.preflight_reset_for_reuse(wrong_home)
+	if not _main_check(not refusal.accepted and _main_reset_snapshot(berth) == before,"wrong reset transform refuses before hull/Player/lease mutation"): return
+	var receipt := _main_ship.preflight_reset_for_reuse(dock)
+	if not _main_check(receipt.accepted and _main_ship.cancel_reset_for_reuse(receipt).accepted,"safe ordinary return reserves and cancels exact home receipt"): return
+	before = _main_reset_snapshot(berth)
+	if not _main_check(not _main_ship.commit_reset_for_reuse(receipt).accepted and _main_reset_snapshot(berth) == before,"cancelled stale receipt cannot act on ordinary home craft"): return
+	old_generation = _main_ship.get_component_damage().get_ledger_generation()
+	var home_token := berth.get_reservation_token(_main_ship)
+	if not _main_check(not home_token.is_empty() and StringName(_main_ship.get("_landing_reservation_token")) == home_token,
+		"ordinary return retains actual completed landing's exact occupied token before healthy reset"): return
+	var lease_callbacks: Array[bool] = []
+	var nested_reset_callbacks: Array[bool] = []
+	var lease_events: Array[StringName] = []
+	var observe_lease := func() -> void:
+		lease_callbacks.append(berth.get_reservation_token(_main_ship) == home_token
+			and berth.get_reservation_owner() == _main_ship and berth.get_occupant() == _main_ship
+			and berth.has_valid_lease(_main_ship,home_token,_main_ship.get_ship_id())
+			and _main_game._ship_owns_exact_occupied_berth(_main_ship,&"katana_home_berth"))
+		var callback_before := _main_reset_snapshot(berth)
+		var nested_reset := _main_ship.reset_for_reuse(dock)
+		nested_reset_callbacks.append(not nested_reset.accepted and nested_reset.reason == &"reentrant_call"
+			and _main_reset_snapshot(berth) == callback_before)
+	var observe_engine := func(_state: StringName) -> void: observe_lease.call()
+	var observe_hull := func(_current: float,_maximum: float) -> void: observe_lease.call()
+	var observe_reservation := func(_owner: Node,_token: StringName) -> void: lease_events.append(&"reservation")
+	var observe_occupancy := func(_occupant: Node) -> void: lease_events.append(&"occupancy")
+	_main_ship.engine_state_changed.connect(observe_engine)
+	_main_ship.hull_changed.connect(observe_hull)
+	berth.reservation_changed.connect(observe_reservation)
+	berth.occupancy_changed.connect(observe_occupancy)
+	var reset := _main_ship.reset_for_reuse(dock)
+	_main_ship.engine_state_changed.disconnect(observe_engine)
+	_main_ship.hull_changed.disconnect(observe_hull)
+	berth.reservation_changed.disconnect(observe_reservation)
+	berth.occupancy_changed.disconnect(observe_occupancy)
+	if not _main_check(lease_callbacks == [true,true] and nested_reset_callbacks == [true,true] and lease_events.is_empty()
+		and berth.get_reservation_token(_main_ship) == home_token,
+		"healthy reset preserves same exact occupied token through both public signals; nested reset refuses atomically and no berth release/reacquisition occurs"): return
+	print("KATANA_LIFECYCLE_HEALTHY_HOME_RESET_OPERANDS: receipt=",reset," snapshot=",_lifecycle_snapshot(_main_ship)," home=",dock,
+		" generation_before=",old_generation," generation_after=",_main_ship.get_component_damage().get_ledger_generation(),
+		" flags=",{"not_destroyed":not _main_ship.is_destroyed(),"not_piloted":not _main_ship.is_piloted(),
+		"home_position":_main_ship.global_position.distance_to(dock.origin) <= 0.05,"home_basis":_main_ship.global_basis.is_equal_approx(dock.basis),
+		"zero_velocity":_main_ship.velocity == Vector3.ZERO,"full_hull":float(_main_ship.get_telemetry().hull) == _main_ship.maximum_hull,
+		"offline":StringName(_main_ship.get_telemetry().engine_state) == HeroShip.ENGINE_OFFLINE,
+		"nominal_components":_main_ship.get_component_damage().get_worst_integrity() == 1.0,
+		"effects_clear":_main_ship.get_damage_presentation().get_active_component_effect_count() == 0,
+		"shell_visible":(_main_ship.call("get_variant_visual_root") as Node3D).visible,
+		"rig_visible":(_main_ship.get("_visual_root") as Node3D).visible,
+		"canopy_closed":not _main_ship.is_canopy_open(),"access_closed":is_zero_approx(float(_main_ship.get("_access_fraction"))),
+		"body_layer":_main_ship.collision_layer == PhysicsLayers.SHIP_BODY_LAYER,"all_root_shapes_enabled":_lifecycle_shapes_enabled(_main_ship),
+		"ship_camera_not_current":not _main_ship.get_camera().current,"fresh_generation":_main_ship.get_component_damage().get_ledger_generation() > old_generation},
+		" exact_occupied_lease=",_main_game._ship_owns_exact_occupied_berth(_main_ship,&"katana_home_berth"),
+		" berth=",berth.get_audit_report()," berth_tokens=",_main_game._berth_tokens," reserved_berth_ids=",_main_game._reserved_berth_ids,
+		" actual_home_token=",berth.get_reservation_token(_main_ship)," player_camera_current=",(_main_player.get_node("%PlayerCamera") as Camera3D).current,
+		" viewport_camera=",root.get_camera_3d().get_path() if root.get_camera_3d() != null else NodePath())
+	if not _main_check(reset.accepted and _lifecycle_healthy(_main_ship,dock) and _main_ship.get_component_damage().get_ledger_generation() > old_generation and _main_game._ship_owns_exact_occupied_berth(_main_ship,&"katana_home_berth"),"safe actual healthy ordinary return resets same owned home craft with fresh generation"): return
+	await _main_frames(20)
+	if not await _main_board_from_port(2,identity,area): return
+	usable_shots = _main_projectiles
+	if not await _main_sortie_home(2,identity,area,berth,dock): return
+	if not _main_check(_main_projectiles > usable_shots and not _main_bad_shot
+		and (_main_ship.call("get_variant_visual_root") as Node3D).visible
+		and not berth.has_valid_lease(_main_ship,home_token,_main_ship.get_ship_id())
+		and berth.get_reservation_token(_main_ship) != home_token
+		and _main_game._ship_owns_exact_occupied_berth(_main_ship,&"katana_home_berth"),
+		"healthy-return reset physically reboards/starts/departs/fires/lands/exits; Main releases preserved old token and owns fresh home lease"): return
+	if not await _main_walk_out(2): return
+	if not _main_check(_main_lifecycle_neighbors() == neighbors,"both lifecycle forms preserve all fourteen other craft poses/sources/settings/exact home leases"): return
+	if not _main_check(hits == 14 and _main_claims == 3 and _main_releases == 3 and _main_ticks > 1000,
+		"fourteen actual native incoming hits and three observed physical claims/releases complete both reuse forms"): return
+	for index in range(MAIN_STATION_ROUTE.size()-2,-1,-1):
+		if not await _main_walk_to(MAIN_STATION_ROUTE[index],100+index): return
+	if not await _main_walk_to(original_spawn,199): return
+	if not _main_check(_main_player.get_instance_id() == identity and _main_player.global_position.distance_to(original_spawn)<0.12
+		and _main_player.is_on_floor() and not _main_player.is_seated(),"same physical Player finishes full reverse route to original station spawn after both lifecycle forms"): return
+	await _main_quit_normally()
+
+
+func _main_lifecycle_neighbors() -> Dictionary:
+	var result := {}
+	for craft in _main_game.get_flyable_ships():
+		if craft == _main_ship: continue
+		var home := _main_game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		result[craft.get_ship_id()] = {"pose":craft.global_transform,
+			"source":_main_game.get_combat_authority().get_source_id(craft),
+			"settings":[craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees],
+			"home":home.get_dock_transform(),"center":home.landing_volume_center,
+			"audit":home.audit(),"occupant":home.get_occupant(),"owner":home.get_reservation_owner(),"token":home.get_reservation_token(craft)}
+	return result
+
+
+func _lifecycle_shapes_enabled(ship: HeroShip) -> bool:
+	var count := 0
+	for child in ship.get_children():
+		if child is CollisionShape3D:
+			count += 1
+			if (child as CollisionShape3D).disabled: return false
+	return count > 0
+
+
+func _run_lifecycle_fixture() -> void:
+	var watchdog := create_timer(120.0)
+	watchdog.timeout.connect(func(): _check(false,"fixed120s lifecycle fixture cap"))
+	var fixture := Node3D.new()
+	root.add_child(fixture)
+	var deck := StaticBody3D.new()
+	deck.collision_layer = PhysicsLayers.WORLD
+	deck.collision_mask = 0
+	fixture.add_child(deck)
+	var slab := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(30,0.5,30)
+	slab.shape = shape
+	slab.position.y = -0.25
+	deck.add_child(slab)
+	var ship := KATANA.instantiate() as HeroShip
+	fixture.add_child(ship)
+	var actor := PLAYER.instantiate() as PlayerController
+	actor.transform = ship.get_boarding_entry_transform()
+	fixture.add_child(actor)
+	await _frames(4)
+	var home := ship.global_transform
+	var area := ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	ship.set_canopy_open(true,0.0)
+	await _frames(2)
+	if not _check(ship.is_boardable() and actor.is_on_floor() and area.try_reserve(actor)
+		and actor.begin_boarding(ship.get_boarding_entry_transform(),ship.get_pilot_seat_anchor(),0.0,ship),
+		"actual supported fixture actor reserves open helm and physically boards real pilot anchor"): return
+	ship.set_piloted(true)
+	await _frames(2)
+	var before := _lifecycle_snapshot(ship)
+	var actor_before := [actor.global_transform,actor.is_seated_at(ship.get_pilot_seat_anchor()),
+		actor.collision_layer,actor.collision_mask,(actor.get_node("PlayerCollision") as CollisionShape3D).disabled,
+		(actor.get_node("%PlayerCamera") as Camera3D).current]
+	# This is the first reset attempt and uses only APIs on the accepted base.
+	# Old source reaches its real erroneously accepted receipt, not an API error.
+	var occupied := ship.preflight_reset_for_reuse(home)
+	print("KATANA_LIFECYCLE_OCCUPIED_CONTROL: receipt=",occupied," actor=",actor," seated_at_actual_anchor=",actor.is_seated_at(ship.get_pilot_seat_anchor()),
+		" area=",area," owner=",area.get_reservation_token()," actual_ledger=",ship.get_component_damage().get_ledger_snapshot()," before=",before)
+	if not _check(not occupied.accepted and occupied.reason == &"katana_occupied"
+		and actor.is_seated_at(ship.get_pilot_seat_anchor()) and area.get_reservation_token() == actor
+		and _lifecycle_snapshot(ship) == before
+		and [actor.global_transform,actor.is_seated_at(ship.get_pilot_seat_anchor()),actor.collision_layer,actor.collision_mask,
+			(actor.get_node("PlayerCollision") as CollisionShape3D).disabled,(actor.get_node("%PlayerCamera") as Camera3D).current] == actor_before,
+		"actual supported reserved seated pilot reset preflight refuses atomically"): return
+	ship.set_piloted(false)
+	before = _lifecycle_snapshot(ship)
+	occupied = ship.preflight_reset_for_reuse(home)
+	if not _check(not occupied.accepted and occupied.reason == &"katana_occupied" and _lifecycle_snapshot(ship) == before,
+		"actual reservation-only seated claim still refuses reset atomically"): return
+	ship.set_remote_piloted(true)
+	before = _lifecycle_snapshot(ship)
+	occupied = ship.preflight_reset_for_reuse(home)
+	if not _check(not occupied.accepted and occupied.reason == &"katana_occupied" and _lifecycle_snapshot(ship) == before,
+		"remote helm also refuses reset without changing real current reservation"): return
+	ship.set_remote_piloted(false)
+	if not _check(actor.begin_disembark(ship.get_exit_transform(),0.0,ship),"real seated actor uses supported physical inside disembark"): return
+	await _frames(3)
+	actor.set_control_enabled(true)
+	actor.set_camera_active(true)
+	if not _check(not actor.is_seated() and actor.is_on_floor() and area.release_reservation(actor),"supported inside release retires actual pilot claim"): return
+	if not await _lifecycle_fixture_walk(actor,ship.to_global(Vector3(-6.6,0,0))): return
+	if not await _lifecycle_fixture_walk(actor,ship.to_global(Vector3(-8,0,0))): return
+	ship.set_canopy_open(false,0.2)
+	before = _lifecycle_snapshot(ship)
+	var moving := ship.preflight_reset_for_reuse(home)
+	if not _check(not moving.accepted and moving.reason == &"katana_transition_active" and _lifecycle_snapshot(ship) == before,
+		"actual moving access refuses reset before mutation"): return
+	await _frames(20)
+	var allow := {"current":true}
+	ship.set("lifecycle_reset_guard",func(_pose: Transform3D) -> bool: return bool(allow.current))
+	var receipt := ship.preflight_reset_for_reuse(home)
+	if not _check(receipt.accepted,"current safe fixture preflight reserves exactly one actual receipt"): return
+	before = _lifecycle_snapshot(ship)
+	var mismatched := receipt.duplicate(true)
+	mismatched["receipt_id"] = int(mismatched.get("receipt_id",0))+1
+	if not _check(not ship.commit_reset_for_reuse(mismatched).accepted and _lifecycle_snapshot(ship) == before,
+		"mismatched receipt cannot mutate actual reserved transaction"): return
+	allow.current = false
+	var stale := ship.commit_reset_for_reuse(receipt)
+	if not _check(not stale.accepted and stale.reason == &"katana_lifecycle_changed" and _lifecycle_snapshot(ship) == before,
+		"changed live guard refuses accepted receipt before every mutation"): return
+	allow.current = true
+	receipt = ship.preflight_reset_for_reuse(home)
+	if not _check(receipt.accepted and ship.cancel_reset_for_reuse(receipt).accepted,"exact safe receipt cancels through public owner"): return
+	before = _lifecycle_snapshot(ship)
+	if not _check(not ship.commit_reset_for_reuse(receipt).accepted and _lifecycle_snapshot(ship) == before,
+		"cancelled receipt cannot commit or alter actual craft"): return
+	var generation := ship.get_component_damage().get_ledger_generation()
+	var old_stream := ship.get_command_source().get_stream_id()
+	var old_command := ship.get_last_ship_command().detached_copy()
+	var hit := _component_contact(ship,4)
+	if _failed: return
+	ship.apply_damage(ship.maximum_hull+1.0,hit.position,hit.normal)
+	var dead_serial := int(ship.get("_destruction_serial"))
+	before = _lifecycle_snapshot(ship)
+	var immediate := ship.reset_for_reuse(home)
+	if not _check(not immediate.accepted and immediate.reason == &"katana_terminal_transition_active" and _lifecycle_snapshot(ship) == before,
+		"same-frame terminal collider retirement blocks reset atomically"): return
+	await _frames(20)
+	if not _check(ship.is_destroyed() and not (ship.call("get_variant_visual_root") as Node3D).visible
+		and not (ship.get("_visual_root") as Node3D).visible and ship.collision_layer == 0
+		and (ship.call("get_reset_collision_bounds") as AABB).size.is_equal_approx(Vector3(11,3.8,12)),
+		"actual terminal retirement hides both roots and retains disabled real collision bounds"): return
+	var restored := ship.reset_for_reuse(home)
+	print("KATANA_LIFECYCLE_RESTORED: receipt=",restored," actual=",_lifecycle_snapshot(ship)," generation_before=",generation)
+	if not _check(restored.accepted and _lifecycle_healthy(ship,home)
+		and ship.get_component_damage().get_ledger_generation()>generation and ship.get_command_source().get_stream_id()>old_stream
+		and not ship.consume_sampled_camera_edges(old_command),"same actual instance restores145hull/five nominal sections/clear cues/closed Offline and fresh input epochs"): return
+	before = _lifecycle_snapshot(ship)
+	ship.call("_hide_destroyed_hull",dead_serial)
+	if not _check(_lifecycle_snapshot(ship) == before and not ship.commit_reset_for_reuse(receipt).accepted,
+		"stale hide serial and old cancelled receipt cannot act on fresh hull"): return
+	hit = _component_contact(ship,4)
+	if _failed: return
+	ship.apply_damage(ship.maximum_hull+1.0,hit.position,hit.normal)
+	before = _lifecycle_snapshot(ship)
+	immediate = ship.reset_for_reuse(home)
+	if not _check(not immediate.accepted and immediate.reason == &"katana_terminal_transition_active" and _lifecycle_snapshot(ship) == before,
+		"second actual queued terminal transition also refuses immediate reuse"): return
+	await _frames(2)
+	if not _check(ship.reset_for_reuse(home).accepted,"public fast reuse succeeds after actual collider retirement"): return
+	await _frames(20)
+	if not _check(_lifecycle_healthy(ship,home),"old delayed destruction callback cannot hide or disable fresh same-instance hull"): return
+	ship.set_canopy_open(true,0.0)
+	await _frames(2)
+	if not _check(ship.is_boardable() and area.try_reserve(actor) and area.release_reservation(actor),"fresh physical access supports a new claim and release"): return
+	ship.set_canopy_open(false,0.0)
+	await _frames(2)
+	generation = ship.get_component_damage().get_ledger_generation()
+	if not _check(ship.reset_for_reuse(home).accepted and _lifecycle_healthy(ship,home)
+		and ship.get_component_damage().get_ledger_generation()>generation,"ordinary healthy same-instance reset retains coherent fresh home state"): return
+	fixture.queue_free()
+	await _frames(2)
+	print("KATANA_LIFECYCLE_FIXTURE_TEST_OK: checks=",_checks)
+	quit(0)
+
+
+func _lifecycle_fixture_walk(actor: PlayerController,target: Vector3) -> bool:
+	var reached := false
+	for frame in 500:
+		var offset := target-actor.global_position
+		offset.y = 0
+		if offset.length()<0.025:
+			reached = true
+			break
+		var direction := (actor.get_node("%CameraYaw") as Node3D).global_basis.inverse()*offset.normalized()
+		_main_release_inputs()
+		var strength := 0.25 if offset.length()<0.15 else (0.4 if offset.length()<0.7 else 1.0)
+		Input.action_press(&"move_right" if direction.x>0 else &"move_left",absf(direction.x)*strength)
+		Input.action_press(&"move_back" if direction.z>0 else &"move_forward",absf(direction.z)*strength)
+		await _frames(1)
+	_main_release_inputs()
+	await _frames(12)
+	return _check(reached and actor.is_on_floor() and not actor.is_seated(),"same actual fixture Player walks continuously down supported port ramp to outside reset context")
