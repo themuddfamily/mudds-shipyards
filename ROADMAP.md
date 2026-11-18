@@ -381,6 +381,23 @@ reset. Historical records below and in archives remain unchanged.
 
 ### Torrent default home boarding interval — ACTIVE
 
+Current source candidate **9e908cbde6299f038494a84ac87908bed33edbd2** passes
+all9changed-script syntax checks and the complete actual E-input Boot/authored
+Torrent sortie/normal home exit/ground walk/physical fleet-console9pages+wrap in
+**79.074s** (55assertions, exit0/one marker/raw0/fourguards). The first actual
+handoff observation is **2.460511s**, positive monotonic ticks39354317→41814828;
+this is one software-route observation, not human/native-device timing. Actual
+post-exit detached snapshot SHA256
+**3edb26444036f8f2c75388abf4a97f2f5c422ae9c7e1b359c92d074ff7947349**.
+The exact final console fixture fails accepted117c specifically on missing
+boarding data after its normal dispatch (35.089s/allguards), with no parser or
+missing-API surrogate; its unchanged fixture bytes are reused transparently.
+Earlier compiler/local-caller failures are retained; only typing/new-caller node/
+threshold route repairs occurred, no production semantic correction. Latest
+17:44:42 shared-family allowance remains0/1. Original JoyX full route, remaining
+source suites,18component images and all package/export gates remain pending.
+No new playable build or Main source integration is claimed.
+
 Goal/contract: existing normalized-role boarding_time requirement in docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract. One Torrent craft/function member, not all15 boarding qualification or final role balance.
 Result: after the first qualifying ordinary default physical-E home handoff and normal exit, fleet terminal's normal Interact cycle exposes a ninth page with observed seconds and cost index1/(1+seconds). Other craft/unobserved/default-definition-only rows remain explicit UNKNOWN/unscored; no guessed zero/authoring-duration sum. Eight existing pages/15names/states/font/geometry/legacy data/normal remapped input hint retained; all9pages wrap. Raw observation is not a guarantee of human boarding speed.
 Candidate/start: clean117c7e207203c19b2e5de37a54c73a6367ad7e84, freshprofile healthyTorrent OFFLINE at authoritative occupied home, closedcanopy/unpiloted/realplayeronfoot/defaultcontrols/defaultauthored.65open+1.1boarding+.65close. FIRSTMAPPING18:10:15UTC; definition18:25:15; hardALLIN18:10:15→19:40:15UTC90minutes includes allcode/checks/images/exports/review/push/archive/cleanup/docs/finalaudit. Owner17:44:42 sharedunfinishednormalizedrolefamily0/1, completedpilot16:00usage1historical, priorfamily163.1675074minutes retained. No newallowance/deadline fromsplit.
