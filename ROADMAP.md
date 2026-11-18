@@ -362,6 +362,14 @@ Goal: SAME unfinished station-panel shader task, full original Main cold-five-vi
 
 Firstmapping16:55:58UTC, definition deadline17:10:58; hard ALL-IN **16:55:58→18:25:58UTC,90minutes** including restore/mapping/diagnostic/code/allgates/export/reviews/mergepush/archive/ownedcleanup/docs/finalaudit. Base9e3fb349bb013f06e6d64b7e9bb8920838821350. Restore exact33 archivedpaths af5a29888f755b8f96bad14b14ac55a79cf3a84d against70b0301902fe03d052244733607e96503727bed6 using verifiedbundle/diff; no overlap with later accepted Main paths (checked). Preserve all currentgameplay/pilotbudget8pages/current15craft/homes/source authority and all accepted changes.
 
+Causal prerequisite now measured on5dbf: Aft observed49 materialIDs resolve to
+frozen38 native sources with13 proxies; Habitat39 resolves to frozen34 with8
+proxies. All34 actual Habitat rejected matches have equal recipes/room/LOD/layers
+and canonical sources; only live native/proxy equality fails. Independent causal
+GO authorizes the one strict identity repair, preserving physical/allocation
+truth and old constants. Current renewed allowance **1/1 used** for this repair;
+all source/render/package acceptance remains pending. No deadline/cap change.
+
 Owner/files: root restores33exactpaths (owned-restoration-paths.json), ownsallengines/release/integration. OneHIGH implementer owns diagnostic-only scripts/world/station_route_registry.gd plus production allocation/binding correction within restored world files and existing station_panel_material_binding_test.gd; no other runtime scope. Diagnostic route-registry print is removed/reverted before accepted candidate. Root may own exactdisjointintegrationfiles after actualcause if required. OneHIGH independent review protects original allocation semantics, PBRmath, lifecycle, complete gates. No recursiveagents/no agentengines. Original2newshader/2newscript/focusedtest UIDs restoredexact, not regenerated or invented. No newvalidators/schema/version/testfamilies.
 
 | Case | Setup/action | Required endpoint |
