@@ -36463,4 +36463,3 @@ Source bundle/all members independently verified before exact-tip local branch
 and both worktrees were removed; remote candidate branch was absent. Owned root
 contains only archive+closeout; no owned engine remains. Protected Paradox gunner
 local/remote c743 remains retained. No automatic successor selected; CI stays off.
-
