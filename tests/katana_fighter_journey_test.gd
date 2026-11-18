@@ -2374,9 +2374,28 @@ func _run_lifecycle_fixture() -> void:
 		"actual terminal retirement hides both roots and retains disabled real collision bounds"): return
 	var restored := ship.reset_for_reuse(home)
 	print("KATANA_LIFECYCLE_RESTORED: receipt=",restored," actual=",_lifecycle_snapshot(ship)," generation_before=",generation)
+	var old_command_refused: bool = false
+	if restored.accepted and _lifecycle_healthy(ship,home) and ship.get_component_damage().get_ledger_generation()>generation \
+			and ship.get_command_source().get_stream_id()>old_stream:
+		old_command_refused = not ship.consume_sampled_camera_edges(old_command)
+	print("KATANA_LIFECYCLE_RESTORED_FLAGS: ",{
+		"accepted":restored.accepted,"healthy_helper":_lifecycle_healthy(ship,home),
+		"not_destroyed":not ship.is_destroyed(),"not_piloted":not ship.is_piloted(),
+		"position_distance":ship.global_position.distance_to(home.origin),"basis_matches":ship.global_basis.is_equal_approx(home.basis),
+		"zero_velocity":ship.velocity == Vector3.ZERO,"hull":ship.get_telemetry().hull,"maximum_hull":ship.maximum_hull,
+		"engine":ship.get_telemetry().engine_state,"worst_integrity":ship.get_component_damage().get_worst_integrity(),
+		"active_effect_count":ship.get_damage_presentation().get_active_component_effect_count(),
+		"shell_visible":(ship.call("get_variant_visual_root") as Node3D).visible,"rig_visible":(ship.get("_visual_root") as Node3D).visible,
+		"canopy_closed":not ship.is_canopy_open(),"access_fraction":ship.get("_access_fraction"),
+		"layer":ship.collision_layer,"expected_layer":PhysicsLayers.SHIP_BODY_LAYER,"mask":ship.collision_mask,
+		"all_shapes_enabled":_lifecycle_shapes_enabled(ship),"ship_camera_current":ship.get_camera().current,
+		"generation_before":generation,"generation_after":ship.get_component_damage().get_ledger_generation(),
+		"stream_before":old_stream,"stream_after":ship.get_command_source().get_stream_id(),
+		"old_command_refused":old_command_refused,"old_command":old_command.to_dictionary(),
+		"current_command":ship.get_last_ship_command().to_dictionary()})
 	if not _check(restored.accepted and _lifecycle_healthy(ship,home)
 		and ship.get_component_damage().get_ledger_generation()>generation and ship.get_command_source().get_stream_id()>old_stream
-		and not ship.consume_sampled_camera_edges(old_command),"same actual instance restores145hull/five nominal sections/clear cues/closed Offline and fresh input epochs"): return
+		and old_command_refused,"same actual instance restores145hull/five nominal sections/clear cues/closed Offline and fresh input epochs"): return
 	before = _lifecycle_snapshot(ship)
 	ship.call("_hide_destroyed_hull",dead_serial)
 	if not _check(_lifecycle_snapshot(ship) == before and not ship.commit_reset_for_reuse(receipt).accepted,
