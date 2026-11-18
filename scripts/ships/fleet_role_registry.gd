@@ -9,6 +9,8 @@ extends RefCounted
 ## craft owns as its signature. It deliberately has no scene, berth, landing,
 ## combat or lifecycle authority.
 
+const RatedBudgetType := preload("res://scripts/ships/fleet_rated_budget.gd")
+
 const SCHEMA_VERSION := 1
 const MINIMUM_DIFFERING_HANDLING_AXES := 14
 
@@ -159,6 +161,11 @@ const ROLE_CONTRACTS := {
 		"signature_ship_ids": [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"],
 	},
 }
+
+
+## Initial two-field resource, independent of the nine accepted role contracts.
+static func create_rated_budget(definition: ShipDefinition) -> FleetRatedBudget:
+	return RatedBudgetType.new(definition)
 
 
 static func get_role_contract(ship_id: StringName) -> Dictionary:

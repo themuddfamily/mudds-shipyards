@@ -62,7 +62,14 @@ func present_fleet_snapshot(snapshot: Dictionary) -> Dictionary:
 	var rows_raw: Variant = snapshot.get("rows", null)
 	if not rows_raw is Array or (rows_raw as Array).size() > MAX_ROWS:
 		return {"accepted": false, "reason": &"invalid_registry_rows"}
-	var lines := PackedStringArray(["FLEET STATUS // LIVE"])
+	var rated_rows := 0
+	for row_raw: Variant in rows_raw as Array:
+		if row_raw is Dictionary and row_raw.has("rated_budget"):
+			rated_rows += 1
+	if rated_rows != 0 and rated_rows != rows_raw.size():
+		return {"accepted": false, "reason": &"incomplete_rated_budget_rows"}
+	var rated := rated_rows > 0
+	var lines := PackedStringArray(["FLEET LIVE | RATED M/S,HULL | RAW/INDEX 0..1" if rated else "FLEET STATUS // LIVE"])
 	for row_raw: Variant in rows_raw as Array:
 		if not row_raw is Dictionary:
 			return {"accepted": false, "reason": &"invalid_registry_row"}
@@ -79,9 +86,18 @@ func present_fleet_snapshot(snapshot: Dictionary) -> Dictionary:
 		var state := StringName(state_raw)
 		if state not in VALID_STATES:
 			return {"accepted": false, "reason": &"invalid_registry_state"}
-		lines.append("%-18s  %s" % [
-			_display_name(String(display_name_raw)), String(state).to_upper(),
-		])
+		var line := "%-18s  %s" % [_display_name(String(display_name_raw)), String(state).to_upper()]
+		if rated:
+			var budget: Variant = row.get("rated_budget")
+			if not _valid_rated_budget(budget, String(ship_id_raw)):
+				return {"accepted": false, "reason": &"invalid_rated_budget"}
+			var fields: Dictionary = budget.fields
+			line = "%-18s %-12s %s/%.3f %s/%.3f" % [
+				_display_name(String(display_name_raw)), String(state).to_upper(),
+				str(fields.maximum_speed.raw), fields.maximum_speed.normalized,
+				str(fields.maximum_hull.raw), fields.maximum_hull.normalized,
+			]
+		lines.append(line)
 	_presentation_sequence += 1
 	_last_snapshot = snapshot.duplicate(true)
 	_screen_text = "\n".join(lines)
@@ -108,6 +124,50 @@ func get_presentation_snapshot() -> Dictionary:
 			"fleet_membership": false,
 		},
 	}.duplicate(true)
+
+
+func _valid_rated_budget(value: Variant, ship_id: String) -> bool:
+	if not value is Dictionary:
+		return false
+	var budget: Dictionary = value
+	if not budget.get("valid") is bool or not budget.valid:
+		return false
+	for key: String in ["ship_id", "qualification"]:
+		if not (budget.get(key) is String or budget.get(key) is StringName):
+			return false
+	if str(budget.ship_id) != ship_id or str(budget.qualification) != "NOT_QUALIFIED":
+		return false
+	var missing: Variant = budget.get("missing_dimensions")
+	if not missing is Array or missing.is_empty():
+		return false
+	for dimension: Variant in missing:
+		if not dimension is String or dimension.is_empty():
+			return false
+	var fields: Variant = budget.get("fields")
+	if not fields is Dictionary or fields.size() != 2:
+		return false
+	for axis: String in ["maximum_speed", "maximum_hull"]:
+		var field: Variant = fields.get(axis)
+		if not field is Dictionary:
+			return false
+		var unit := "m/s" if axis == "maximum_speed" else "hull point"
+		var source := "ShipDefinition.get_flight_profile.maximum_speed" if axis == "maximum_speed" else "ShipDefinition.get_systems_profile.maximum_hull"
+		for key: String in ["unit", "direction", "source"]:
+			if not field.get(key) is String:
+				return false
+		if field.unit != unit or field.direction != "benefit" or field.source != source:
+			return false
+		for key: String in ["raw", "normalized", "unit_scale"]:
+			var number: Variant = field.get(key)
+			if not (number is float or number is int):
+				return false
+			if not is_finite(float(number)):
+				return false
+		var raw := float(field.raw)
+		if raw <= 0.0 or float(field.unit_scale) != 1.0 \
+				or absf(float(field.normalized) - raw / (1.0 + raw)) > 0.000000000001:
+			return false
+	return true
 
 
 func _display_name(value: String) -> String:
