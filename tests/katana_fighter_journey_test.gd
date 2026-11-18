@@ -2159,10 +2159,10 @@ func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth
 	if not _main_check(not incompatible_tag.is_empty(),"actual accepted cargo definition supplies a tag absent from actual Katana definition"): return
 	berth.compatibility_tags = PackedStringArray([incompatible_tag])
 	before = _main_reset_snapshot(berth)
-	var incompatible_home := not berth.is_compatible_with(_main_ship.get_ship_definition()) \
+	var incompatible_home: bool = not berth.is_compatible_with(_main_ship.get_ship_definition()) \
 		and not berth.can_accept(_main_ship.get_ship_definition(),_main_ship)
 	refusal = _main_ship.preflight_reset_for_reuse(dock)
-	var incompatible_atomic := not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" \
+	var incompatible_atomic: bool = not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" \
 		and _main_reset_snapshot(berth) == before
 	print("KATANA_LIFECYCLE_INCOMPATIBLE_HOME: actual_home=",berth.get_berth_id()," tag=",incompatible_tag,
 		" actual_definition_tags=",_main_ship.get_ship_definition().get_compatibility_tags()," receipt=",refusal," atomic=",incompatible_atomic)
