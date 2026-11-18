@@ -16,24 +16,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **070ed59** — [Windows ZIP](builds/windows/MuddsShipyards-070ed59-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-070ed59-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-070ed59-linux-x86_64.tar.gz).
-The physical fleet terminal now cycles eight pages through normal E: the retained
-16 handling fields and actual collision dimensions, plus pilot weapon damage,
-resolver range, firing cooldown, warmup, heat lockout, required operators and
-ammunition capacity/refill. All15 names/states fit the original screen/font.
-Every current Main pilot configuration is sourced, including both Torrent
-contexts, Bomber's four-round payload and Paradox's no-heat exception; Predator
-is explicitly unarmed. Configured capacity is distinct from current stock or
-readiness. [Scoped delivery](#fleet-pilot-budget-current) and
-[actual pilot-page preview](builds/windows/MuddsShipyards-070ed59-fleet-pilot-budget-preview.png).
-Full source9/PCK9, sixteen inspected component images, strictstartup3, complete
-package maps and audit9 pass. Full-role status remains NOT_QUALIFIED with
-7 live-footprint or8 definition-only missing categories. Crew weapons/full
-firepower, actual utility, boarding time, skill demand, full metadata and final
-balance remain unfinished. No firing, tuning, registration, authority, collision
-or pose changes. Main remains15 craft/15homes; Vortex/Salyut remain outsideMain.
+Latest playable checkpoint: **3a5ae0e** — [Windows ZIP](builds/windows/MuddsShipyards-3a5ae0e-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-3a5ae0e-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-3a5ae0e-linux-x86_64.tar.gz).
+After the first qualifying ordinary physical-E Torrent handoff and normal exit,
+the fleet terminal exposes observed boarding seconds on page09. Other craft
+remain UNKNOWN; the prior eight pages are retained. Complete source11/PCK11,
+18 inspected component images and fresh paired checkpoint gates pass.
+[Scoped delivery](#torrent-boarding-budget-delivered) and
+[actual preview](builds/windows/MuddsShipyards-3a5ae0e-torrent-boarding-budget-preview.png).
+Main remains15craft/15homes; fullrole/finalgame/all36parents/10phases remainOPEN.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
 lifecycle remain included. [Card9 delivery](#katana-cold-recovery-current).
@@ -377,9 +369,52 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="torrent-boarding-budget-delivered"></a>
+
+### Torrent default home physical-E boarding observation — DONE,3a5ae0e
+
+Accepted source **3a5ae0ed7e791905fa93bfaa13c85e8522c261cf**, merged via **f4673df2758155c4710b54f957045064ed95aa20**, is in pushed Main.
+The first qualifying fresh healthy OFFLINE/default closed-canopy Torrent home
+handoff records actual consumed physicalE→final settled-pilot monotonic time.
+Source observed **2.447813s**; actualWindowsPCK observed
+**2.446412s**. These are software-route observations,
+not hardware/human speed guarantees or authored-duration sums. Normal exit
+retains the valid receipt for fleet terminal page09; other14craft/unobserved/
+definition-only rows stay UNKNOWN/unscored. Reset/lifetime/currentness fencing
+and detached JSON-safe rawseconds/cost1/(1+s) remain explicit.
+
+Complete source11/PCK11 pass exact markers/exit0/raw0/fourguards: nine retained
+suites300s each plus both complete original productioninput sorties900inner/
+960outer. JoyX remains unmeasured; physicalE follows the full ordinary flight/
+home/exit route and actual console interaction/pages. Source/PCK snapshots are
+separate; packaged output does not overwrite pinned source capture input.
+Durations(seconds): `{"packed": {"packed-boarding": 35.135, "packed-boarding-observer": 71.848, "packed-bomber": 4.76, "packed-console": 77.268, "packed-controller-production": 58.892, "packed-differentiation": 38.727, "packed-heat": 8.023, "packed-hud": 22.631, "packed-migration": 12.716, "packed-paradox-primary": 18.652, "packed-registry": 4.25}, "source": {"boarding": 41.921, "boarding-observer": 78.763, "bomber": 5.931, "console": 84.615, "controller-production": 67.201, "differentiation": 45.231, "heat": 9.027, "hud": 28.396, "migration": 18.246, "paradox-primary": 19.902, "registry": 5.334}}`.
+All18 actual9page×1280/1920 component images were viewed, using unchanged
+pinned post-exit input/eightpostdraw/privateX11/Forward+/Dummy. Page09/1280
+is the [actual preview](builds/windows/MuddsShipyards-3a5ae0e-torrent-boarding-budget-preview.png).
+No whole-world/native/device/human qualification is claimed.
+
+Fresh paired exports, strictstartup3, equal1613maps/fourruntimechanges/noUIDclass,
+exactLinux6members/modes/extractedELF/ZIPbytes/audit9/eightpublished artifacts
+pass independent review. Main15craft/15homes/all17handling/nine role contracts
+and prior8pages remain. Fullrole staysNOT_QUALIFIED; otherboarding/function/
+crew/firepower/utility/skill/final17/fullcraft/network/game/all36parents/10phases
+remainOPEN. NativeWindows/mandatoryhuman OWNER-EXCLUDED/NOT_RUN; applicable
+GPU/device/listening/readability remainOPEN. CI off. Parked station and pending
+Katana120→180 gate are unchanged.
+
+Window18:10:15→19:40:15UTC90minutes remains fixed. Actual through cleanup
+80.38409207minutes; prior family
+163.16750740minutes preserved. Final docs/push/audit cost is
+recorded afterward, not assumed on budget. Owner17:44:42 allowance ends
+0/1; historical counts/failures remain retained.
+Archive `/srv/mudds-work/torrent-boarding-budget-20261118/records.tar.gz`: **73480373bytes/1025members**,
+SHA256 **ac303662adbc9584c9ed98b60c4b54a9107f0ed8170df7ab7b5b737921467792**. Every member and all eight published hashes are
+verified before cleanup; unique unaccepted Paradoxgunnerc743 remains protected.
+
 <a id="torrent-boarding-budget-current"></a>
 
-### Torrent default home boarding interval — ACTIVE
+#### Historical frozen Torrent card and interim observations — closed by delivery above
 
 Current source candidate **9e908cbde6299f038494a84ac87908bed33edbd2** passes
 all9changed-script syntax checks and the complete actual E-input Boot/authored
