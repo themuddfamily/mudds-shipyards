@@ -16,16 +16,15 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **4ad278b** — [Windows ZIP](builds/windows/MuddsShipyards-4ad278b-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-4ad278b-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-4ad278b-linux-x86_64.tar.gz).
-Katana damage now follows its real nose, outriggers, systems wall and paired
-engine solids, with localized shared cues. From the same30m/s, stopping distance
-rises from6.78m healthy to9.09m impaired and19.84m with a failed engine. Ordinary
-home component service restores function/cues while retaining damaged hull through
-exit/reboarding. Full source14/PCK10, three actual cold cue views, startup3 and
-package audit pass. [Card7 delivery and capture timing history](#katana-components-current).
-[Actual impaired cue preview](builds/windows/MuddsShipyards-4ad278b-katana-components-preview.png).
+Latest playable checkpoint: **5fc94ca** — [Windows ZIP](builds/windows/MuddsShipyards-5fc94ca-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-5fc94ca-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-5fc94ca-linux-x86_64.tar.gz).
+Katana now safely releases its pilot after destruction, waits for a clear owned
+home and returns one healthy same-instance craft with fresh input. Physical
+reboarding/fire/home/exit and healthy return reuse pass; prior mapped damage,
+service and handling remain included. Source16/PCK12/cold3/startup3/maps/audit9
+pass. [Delivery and retained failures](#katana-lifecycle-current).
+[Actual regenerated preview](builds/windows/MuddsShipyards-5fc94ca-katana-lifecycle-preview.png).
 
 Katana's accepted current-pilot/once-only480m24/.38 pulse, measured braking
 advantage and weaker turning/boost remain included. [Card6 delivery](#katana-combat-current).
@@ -274,7 +273,82 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Katana card8 — destruction, guarded home recall and physical reuse, ACTIVE
+<a id="katana-lifecycle-current"></a>
+
+### Katana destruction, guarded home recall and physical reuse — card8 DONE,5fc94ca
+
+Accepted source **5fc94caf21f485fb9014ed4f057809f336f60f9f**, merged and pushed as **d21da281633b2743bd794a7fbf12b5800c788ec9**.
+Katana-only hooks and its new GameFlow guard use the existing shared receipt,
+lease, component and regeneration owners. Shared HeroShip, Dynamic/Titan guards,
+geometry, weapons and profiles remain unchanged. Main retains15craft/15homes.
+
+Actual terminal damage releases the same pilot to supported walking, retires
+colliders and both visual roots, then ordinary mature recovery waits for a
+competing real home lease before restoring one same-instance145-hull Katana.
+All five components are nominal, cues clear, access sealed, propulsion OFFLINE
+and input/component generations fresh. Old commands, shot replay, receipts and
+hide callbacks cannot act on the new life. Physical reboarding,2.3s startup,
+fire, strict-home landing and inside release remain usable.
+
+Occupied/remote/reservation-only, moving access, active landing, queued collider
+retirement, premature/cancelled/mismatched/stale authorization, changed guard,
+wrong pose, incompatible home, foreign lease and a real standing destination
+capsule refuse atomically. Safe healthy return reset retains the identical
+occupied token through both public callbacks and refuses nested reset. Another
+full sortie retires that old token on departure and lands with a fresh lease.
+All14 neighbours retain their original poses/settings/sources/home owners/tokens;
+the full reverse station walk ends through normal UI Quit and clean saves.
+
+Complete source16 and actual Windows-PCK12 pass at the exact accepted commit,
+exit0/exact markers/raw0/source-cache-HEAD-clean. Main profiles run alone and all
+ten source/PCK Main primaries persist clean_shutdown/clean/session_ended. New
+lifecycle source: focused22.346s, full256.451s under original120/300s caps.
+Exact committed fixture on old555c879 fails the actual seated occupied-reset
+assertion in18.933s, with real accepted receipt/actor/area/ledger and all four
+guards stable; no compiler or missing-method substitute.
+
+Three fresh cold nominal/dead/regenerated standalone views pass original90s
+caps at960×540/FOV52/camera(18,13,20)→(0,1.7,0), eight unique post-draw events,
+privateXvfb/explicitx11/OpenGL software/Dummy. Real terminal retirement/public
+reset and normal scene-timer stale-hide survival are observed before freezing
+only the completed capture snapshot. [Actual regenerated preview](builds/windows/MuddsShipyards-5fc94ca-katana-lifecycle-preview.png).
+This does not qualify Main rendering or native GPU performance.
+
+Paired clean exports, trusted private Windows template, strict startup3,
+complete equal1611-entry Windows/Linux maps, intended Katana+GameFlow
+script delta and reviewed metadata, exact archive/ZIP bytes, existing audit9
+and eight published repository-local artifacts pass. Build notes record actual
+validation and open gates. Source/PCK durations: {"packed": {"count": 12, "seconds": {"packed-access-identity": 58.889, "packed-access-transformed": 58.731, "packed-audio-binding": 5.375, "packed-components": 83.874, "packed-foundation": 51.326, "packed-hero-reset": 7.441, "packed-lifecycle-fixture": 16.802, "packed-main-combat": 195.701, "packed-main-dynamic-lifecycle": 230.944, "packed-main-lifecycle": 244.021, "packed-main-service": 187.422, "packed-main-titan": 159.111}}, "source": {"count": 16, "seconds": {"access-identity": 64.563, "access-transformed": 64.602, "audio-binding": 6.348, "components": 90.638, "definitions": 2.99, "differentiation": 45.184, "dynamic-lifecycle-fixture": 19.198, "foundation": 57.191, "hero-reset": 8.617, "lifecycle-fixture": 22.346, "main-combat": 208.404, "main-dynamic-lifecycle": 238.707, "main-lifecycle": 256.451, "main-service": 195.727, "main-titan": 166.62, "registry": 2.682}}}.
+Cold-view seconds: {"dead": 11.577, "nominal": 9.33, "regenerated": 12.543}.
+Checkpoint seconds: {"linux-archive-startup": 25.748, "linux-direct-startup": 25.549, "linux-export": 25.505, "windows-export": 27.61, "windows-payload-startup": 30.213}.
+
+Owner08:57:09 renewal ends **1/1 substantive corrections used**. Preserve the
+21.570s original focused failure and21.598s diagnostic: every healthy flag passed,
+ledger1→2, but unpiloted reset retained stream8→8. The sole production repair
+invalidates commands through the existing owner in Katana's accepted commit.
+The missing incompatible-home caller check and6.337s explicit-bool parse failure
+remain historical. Main163.389s observer failure and142.473s cause diagnostic
+also remain: intentional rejected dead fire contaminated the live-shot counter.
+A narrow synchronous negative observer now asserts that exact event separately;
+all normal fire checks remain strict and no extra product allowance was granted.
+
+Original all-in window08:39:13→10:09:13UTC. Actual through verified cleanup:
+**89.371minutes**; documentation cost is
+recorded in closeout.json after this commit/push. Verified archive
+`/srv/mudds-work/katana-lifecycle-20261118/records.tar.gz`: **79652827bytes/1248members**,
+SHA256 **05e624930f1ccc583e5b9dd734ec1ca6dacb9fd5e63a74d0bca0c40cc011a84f**; all members rehashed before removing owned
+processes/worktrees and the completed branch. Exact artifacts/hashes remain in
+its artifact-publication.json. Unaccepted Paradox gunnerc743f585 remains protected.
+
+Only card8 closes. Cards9–13, full normalized roles/hull-service/craft/network/game,
+all36 parent outcomes and ten phase exits stay OPEN. Actual native Windows and
+mandatory human review remain OWNER-EXCLUDED/NOT_RUN; applicable GPU/device/
+listening/readability gates stay open. CI remains disabled.
+
+<details>
+<summary>Frozen contract and retained intermediate history</summary>
+
+#### Frozen card8 assignment and intermediate validation history (historical)
 
 Existing BUILD-SPLIT-KATANA/card8, adopted destruction/reset/recall contract.
 Result: actual terminal damage releases pilot/body/control/camera/claim to safe
@@ -330,6 +404,9 @@ owns engines/captures/release/docs/integration/cleanup. No nested agents.
 | Three cold views | Separatefreshstandalone nominal/dead/regenerated invocations90each atactual960×540/FOV52/camera(18,13,20)→(0,1.7,0), eightuniquepostdraw events. Realterminalray/damage, actualcollider retirement/delayedshellhide; publicguardedreset and healthyfreshstate/stalehide survival. Onlyphysicspaused afteractualcompletedstagedsnapshot. PrivateXvfb/explicitx11/GLcompat/Dummy/independentabort/reap/inputrelease. RootinspectsallactualPNGs; no Main/nativeGPU/human qualification. |
 | Fresh checkpoint | SourceGO then safe cleanpairedexports300internal/360outer, actualprivate trustedWindows preflight, strictWindows-payload60/Linuxdirect300/extracted300 exit0/exactoneSTARTUP_MENU_READY_OK/raw0, completeequalmaps/intendedKatana+GameFlow-onlyscriptdelta+reviewedmetadata, exactLinux6members/modes/extractedELF/ZIPbytes/existingaudit9/eightrepo-localEXE/ZIP/notes/newregeneratedpreview+LinuxELF/TAR/exportJSON/notes. NoDownloads. |
 | Close | Scopedsource/view/packageGO thenacceptedmerge/push,8actualpublishedhashes, everyretainedraw/sourcearchivememberrehashed before exacttipbranch/ownedWT/processcleanup. Allfailures/elapsedcost/history retained; Paradoxgunnerc743 staysprotected. Katana cold9/network10–11/integrated12/final13/fullnormalizedroles/hull-service/craft/game/36parents/10phasegates remainopen; actualnativeWindows/mandatoryhuman retainowner-excludedNOT_RUN, applicableGPU/device/listening/readabilityopen. CIstaysOFF. |
+
+
+</details>
 
 <a id="katana-components-current"></a>
 
