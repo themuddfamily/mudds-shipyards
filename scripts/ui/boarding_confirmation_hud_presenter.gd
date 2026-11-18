@@ -52,15 +52,18 @@ func present(snapshot: Dictionary) -> Dictionary:
 				if " — " in craft:
 					choice_name += " // " + craft.get_slice(" — ", 1).replace("-OBSERVED", "")
 			reading = _reading_for(state, choice_name, reason)
-			var tradeoff := _choice_reading(facts, role, speed)
+			var tradeoff := _choice_reading(facts, role, speed, hull)
 			var rated_facts := "%s | %.0f M/S BASE | MAX HULL %.0f" % [role, speed, hull]
 			if not tradeoff.is_empty():
 				# Distribute the complete instruction across the existing heading
-				# and body. Only this validated Light choice uses an inline state.
+				# and body. Only validated Cinder choices use an inline state.
 				reading.title = "[>] MOVE TO %s" % choice_name if state == &"approach" else "[+] %s" % choice_name
 				var instruction := "LOOK FOR THE BOARDING PROMPT" if state == &"approach" else "PRESS INTERACT TO BOARD"
 				reading.message = "%s\n%s\n%s" % [tradeoff, rated_facts, instruction]
-				reading.light_choice_ship_id = &"cinder_light_interceptor"
+				if role == "LONG-RANGE BOMBER":
+					reading.bomber_choice_ship_id = &"cinder_long_range_bomber"
+				else:
+					reading.light_choice_ship_id = &"cinder_light_interceptor"
 			else:
 				reading.message += "\n" + rated_facts
 	var view := {
@@ -76,6 +79,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 	}
 	if reading.has("light_choice_ship_id"):
 		view.light_choice_ship_id = reading.light_choice_ship_id
+	if reading.has("bomber_choice_ship_id"):
+		view.bomber_choice_ship_id = reading.bomber_choice_ship_id
 	return view.duplicate(true)
 
 
@@ -105,8 +110,10 @@ func _positive_number(value: Variant) -> float:
 	return number if is_finite(number) and number > 0.0 else 0.0
 
 
-func _choice_reading(facts: Dictionary, role: String, speed: float) -> String:
+func _choice_reading(facts: Dictionary, role: String, speed: float, hull: float) -> String:
 	var choice: Variant = facts.get("role_choice")
+	if choice is Dictionary and role == "LONG-RANGE BOMBER":
+		return _bomber_choice_reading(choice, speed, hull)
 	if not choice is Dictionary or role != "LIGHT INTERCEPTOR":
 		return ""
 	if choice.get("ship_id") != &"cinder_light_interceptor" \
@@ -126,3 +133,19 @@ func _choice_reading(facts: Dictionary, role: String, speed: float) -> String:
 				or text.length() > 48 or "\n" in text or "\r" in text:
 			return ""
 	return "%s // %s" % [advantage, weakness]
+
+
+func _bomber_choice_reading(choice: Dictionary, speed: float, hull: float) -> String:
+	if choice.get("ship_id") != &"cinder_long_range_bomber" or choice.get("role_id") != &"cinder_long_range_bomber":
+		return ""
+	if choice.get("source_axes") != {"advantage": [&"maximum_hull", &"brake_acceleration"], "weakness": [&"yaw_speed_degrees", &"roll_speed_degrees", &"weapon_cooldown"]}:
+		return ""
+	if choice.get("advantage") != "TOUGH HULL & BRAKES" or choice.get("weakness") != "SLOW TURN / FIRE":
+		return ""
+	var expected := {"maximum_speed": 72.0, "maximum_hull": 240.0, "brake_acceleration": 28.0, "yaw_speed_degrees": 28.0, "roll_speed_degrees": 34.0, "weapon_cooldown": 0.85}
+	for axis: String in expected:
+		if not is_equal_approx(_positive_number(choice.get(axis)), expected[axis]):
+			return ""
+	if not is_equal_approx(speed, _positive_number(choice.get("maximum_speed"))) or not is_equal_approx(hull, _positive_number(choice.get("maximum_hull"))):
+		return ""
+	return "TOUGH HULL & BRAKES // SLOW TURN / FIRE"
