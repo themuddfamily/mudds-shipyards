@@ -394,6 +394,20 @@ truth and old constants. The16:00:18-renewal **1/1 used** for this repair is his
 latest owner17:44:42 renewal resets this unfinished task to **0/1 used**;
 all source/render/package acceptance remains pending. No deadline/cap change.
 
+Current clean candidate **8e8e521421eb97e6bd013173b6b25dd5f2d1ee11** has
+passed full playability in **44.512s**, exit0/one marker/raw0/fourguards. Routine
+fixture reconciliation preserves the declared two Titan rail joins and general
+.002m intrusion threshold. Headless MultiMesh readbacks were measured as identity,
+so headless checks explicitly prove authored inputs; both original rendered
+source/PCK captures must separately prove actual post transforms and2.48m opening.
+The old nine-craft/157-shape literal is extended to the accepted fifteen-craft/
+333-shape roster from independent accepted footprint records; all original nine
+counts,7×3 sampling,6993samples and clearance bounds remain. No production geometry
+changed. Earlier failed fixture attempts/raw operands remain retained. Remaining
+source suites, both original cold-five captures and all packaging gates are
+pending; this is not a delivered checkpoint. Latest17:44:42 allowance remains0/1,
+with16:00:18 production repair1/1 historical; original18:25:58 deadline unchanged.
+
 Owner/files: root restores33exactpaths (owned-restoration-paths.json), ownsallengines/release/integration. OneHIGH implementer owns diagnostic-only scripts/world/station_route_registry.gd plus production allocation/binding correction within restored world files and existing station_panel_material_binding_test.gd; no other runtime scope. Diagnostic route-registry print is removed/reverted before accepted candidate. Root may own exactdisjointintegrationfiles after actualcause if required. OneHIGH independent review protects original allocation semantics, PBRmath, lifecycle, complete gates. No recursiveagents/no agentengines. Original2newshader/2newscript/focusedtest UIDs restoredexact, not regenerated or invented. No newvalidators/schema/version/testfamilies.
 
 | Case | Setup/action | Required endpoint |
