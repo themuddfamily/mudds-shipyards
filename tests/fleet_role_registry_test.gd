@@ -4,6 +4,7 @@ extends SceneTree
 ## This intentionally does not boot Main or exercise boarding, landing, combat,
 ## audio, rendering, or lifecycle; those authorities have their own suites.
 
+const RatedBudgetType := preload("res://scripts/ships/fleet_rated_budget.gd")
 const Registry := preload("res://scripts/ships/fleet_role_registry.gd")
 const DEFINITIONS := [
 	preload("res://assets/ships/torrent_provisional.tres"),
@@ -23,6 +24,7 @@ var _checks := 0
 
 func _initialize() -> void:
 	var original_resources := _definition_snapshots()
+	_check_rated_budgets()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
 	_check(bool(report.get("valid", false)), "the nine production definitions satisfy the role registry")
 	_check(int(report.get("craft_count", 0)) == 9, "the role registry audits all nine supported craft")
@@ -238,3 +240,36 @@ func _check_hauler_contract() -> void:
 	var tied: Array = DEFINITIONS.duplicate()
 	tied[8] = tied_hauler
 	_check(str(Registry.audit_definitions(tied).errors).contains("cinder_cargo_hauler no longer owns the contracted minimum of passive_drag"), "Hauler sibling drag tie is rejected without weakening any previous signature")
+
+
+func _check_rated_budgets() -> void:
+	var definitions: Array = DEFINITIONS.duplicate()
+	for path in ["titan_provisional", "predator_provisional", "paradox_provisional", "dynamic_provisional", "utopia_provisional", "katana_provisional", "vortex_provisional", "salyut_provisional"]:
+		definitions.append(load("res://assets/ships/%s.tres" % path))
+	_check(definitions.size() == 17, "all seventeen authored definitions expose the initial rated subset without changing Main membership")
+	for definition: ShipDefinition in definitions:
+		var before := {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}
+		var budget := Registry.create_rated_budget(definition)
+		_check(budget is Resource and budget is RatedBudgetType and budget.is_valid() and budget.get_ship_id() == definition.get_ship_id(), "rated budget is a real valid typed Resource for %s" % definition.get_ship_id())
+		var snapshot := budget.get_snapshot()
+		_check(snapshot.valid and snapshot.ship_id == definition.get_ship_id() and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.missing_dimensions == ["boost_speed_and_thrust", "rotational_response", "braking_and_passive_drag", "component_consequences_and_repair", "firepower_and_range", "cargo", "passenger_and_support", "collision_footprint", "boarding_time", "skill_floor", "complete_role_and_capability_metadata"] and snapshot.fields.size() == 2, "rated subset retains identity and explicitly leaves full-role dimensions unqualified")
+		for axis: String in ["maximum_speed", "maximum_hull"]:
+			var field: Dictionary = snapshot.fields[axis]
+			var raw := float(definition.get(axis))
+			_check(field.raw is float and field.normalized is float and field.raw == raw and field.normalized == raw / (1.0 + raw) and field.direction == "benefit" and field.unit_scale == 1.0 and field.unit == ("m/s" if axis == "maximum_speed" else "hull point"), "%s %s retains exact raw/unit/benefit/normalization without display rounding" % [definition.get_ship_id(), axis])
+		snapshot.fields.maximum_speed.raw = 999.0
+		snapshot.missing_dimensions.clear()
+		_check(budget.get_snapshot().fields.maximum_speed.raw == definition.maximum_speed and budget.get_snapshot().missing_dimensions.size() == 11 and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "detached budget mutation cannot change resource or authored definition")
+	var source := DEFINITIONS[0].duplicate(true) as ShipDefinition
+	var frozen := Registry.create_rated_budget(source)
+	var copied := frozen.get_snapshot()
+	source.maximum_speed += 1.0
+	_check(frozen.get_snapshot() == copied, "later definition mutation cannot alter an already sourced rated Resource")
+	_check(not Registry.create_rated_budget(null).is_valid() and not Registry.create_rated_budget(null).get_snapshot().has("fields"), "null source is explicitly invalid without fabricated zero ratings")
+	for invalid in [0.0, -1.0, INF, NAN]:
+		var bad := DEFINITIONS[0].duplicate(true) as ShipDefinition
+		bad.maximum_speed = invalid
+		_check(not Registry.create_rated_budget(bad).is_valid() and not Registry.create_rated_budget(bad).get_snapshot().has("fields"), "invalid authored rated speed refuses the resource explicitly")
+		var bad_hull := DEFINITIONS[0].duplicate(true) as ShipDefinition
+		bad_hull.maximum_hull = invalid
+		_check(not Registry.create_rated_budget(bad_hull).is_valid() and not Registry.create_rated_budget(bad_hull).get_snapshot().has("fields"), "invalid authored rated hull refuses the resource explicitly")

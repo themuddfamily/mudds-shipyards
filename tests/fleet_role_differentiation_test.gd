@@ -472,6 +472,7 @@ func _run() -> void:
 	_test_role_differentiation(by_id)
 	_test_bomber_choice_sources(by_id)
 	_test_hauler_choice_sources(by_id)
+	_test_live_rated_budget_sources(by_id)
 	var original_fleet := {}
 	for original_id: StringName in [
 		&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
@@ -1368,3 +1369,14 @@ func _test_hauler_choice_sources(by_id: Dictionary) -> void:
 		var sibling := (by_id[sibling_id] as HeroShip).get_ship_definition()
 		_check(definition.passive_drag < sibling.passive_drag and definition.maximum_speed < sibling.maximum_speed and definition.thrust_acceleration < sibling.thrust_acceleration, "live Hauler low drag versus speed/thrust holds against %s" % sibling_id)
 	_check(definition.maximum_hull > (by_id[&"cinder_light_interceptor"] as HeroShip).get_ship_definition().maximum_hull and definition.maximum_hull < (by_id[&"cinder_long_range_bomber"] as HeroShip).get_ship_definition().maximum_hull, "live Hauler hull margin exceeds Light while remaining below Bomber")
+
+
+func _test_live_rated_budget_sources(by_id: Dictionary) -> void:
+	var registry := preload("res://scripts/ships/fleet_role_registry.gd")
+	for ship_id: StringName in by_id:
+		var definition := (by_id[ship_id] as HeroShip).get_ship_definition()
+		var before := {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}
+		var budget := registry.create_rated_budget(definition)
+		var snapshot := budget.get_snapshot()
+		_check(budget.is_valid() and snapshot.ship_id == ship_id and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.fields.maximum_speed.raw == definition.maximum_speed and snapshot.fields.maximum_hull.raw == definition.maximum_hull, "live %s uses actual definition speed/hull without full-role qualification" % ship_id)
+		_check(snapshot.fields.maximum_speed.normalized == definition.maximum_speed / (1.0 + definition.maximum_speed) and snapshot.fields.maximum_hull.normalized == definition.maximum_hull / (1.0 + definition.maximum_hull) and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "live rated indices retain full precision and do not mutate %s" % ship_id)
