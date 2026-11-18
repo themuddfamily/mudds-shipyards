@@ -162,7 +162,30 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 16:00:18 UTC.** Every unfinished task receives
+**Latest owner renewal: 2026-11-18 17:44:42 UTC.** Every task still unfinished
+receives **0 corrections used** against its last positive approved correction
+limit, or **one** if none was recorded. This applies globally to active, parked,
+failed, blocked and gated work, superseding older current counts in this roadmap
+and linked cards. Completed tasks are excluded. Apply once per unfinished task
+or shared family; branches, retries and splits do not replenish it.
+
+The active station shader task receives **0/1 used**; its earlier16:00:18-renewal
+**1/1** is historical. Its **16:55:58→18:25:58 UTC** all-in window remains fixed.
+Parked Katana card10 receives **0/1 used**, shared across10a/10b; its pending
+120→180second completion-wait proposal remains unapproved. All other unfinished
+work, including Arrow, Utopia, Vortex, Salyut and unfinished normalized-role
+family work, receives this renewal under its existing shared limit. Completed
+pilot-budget, collision-footprint and other accepted deliveries stay completed;
+their historical allowance usage is unchanged.
+
+Preserve failures, archives, actual elapsed costs, dependencies, causal reopening
+conditions and acceptance gates. Active deadlines and original test/journey caps
+remain unchanged. Resumed parked work requires a fresh bounded all-in window.
+This reset starts no tests or retries and declares no task passed or ready.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 16:00:18 UTC.** Every unfinished task receives
 **0 corrections used** against its last positive approved correction limit,
 or **one** if none was recorded. This supersedes all older current counts in
 this roadmap and linked cards, including active, parked, failed, blocked and
@@ -358,7 +381,7 @@ reset. Historical records below and in archives remain unchanged.
 
 ### Station panel cold five-view rendering — resumed, causal report first
 
-Goal: SAME unfinished station-panel shader task, full original Main cold-five-view outcome. Resolve construction-time allocation identity rejection, then all original source/PCK/render/checkpoint gates. A diagnostic report or source-only pass does not deliver this card. Latest owner16:00:18 renewal supplies0/1 for this unfinished shader family; historical1/1 counts and105.49452028333333minutes remain. Separate Mainprobe22.5129993minutes stays charged separately. No allowance from newbranch/restore/split. Normalizedrole-family1/1 remains separate/exhausted; no Katana wait-limit approval.
+Goal: SAME unfinished station-panel shader task, full original Main cold-five-view outcome. Resolve construction-time allocation identity rejection, then all original source/PCK/render/checkpoint gates. A diagnostic report or source-only pass does not deliver this card. Latest owner16:00:18 renewal supplies0/1 for this unfinished shader family; historical1/1 counts and105.49452028333333minutes remain. Separate Mainprobe22.5129993minutes stays charged separately. No allowance from newbranch/restore/split. Latest owner17:44:42 renewal gives this unfinished shader task0/1; earlier16:00:18 usage remains historical. Unfinished normalized-role family work receives the same global reset once; completed pilot-budget delivery remains unchanged. No Katana wait-limit approval.
 
 Firstmapping16:55:58UTC, definition deadline17:10:58; hard ALL-IN **16:55:58→18:25:58UTC,90minutes** including restore/mapping/diagnostic/code/allgates/export/reviews/mergepush/archive/ownedcleanup/docs/finalaudit. Base9e3fb349bb013f06e6d64b7e9bb8920838821350. Restore exact33 archivedpaths af5a29888f755b8f96bad14b14ac55a79cf3a84d against70b0301902fe03d052244733607e96503727bed6 using verifiedbundle/diff; no overlap with later accepted Main paths (checked). Preserve all currentgameplay/pilotbudget8pages/current15craft/homes/source authority and all accepted changes.
 
@@ -367,7 +390,8 @@ frozen38 native sources with13 proxies; Habitat39 resolves to frozen34 with8
 proxies. All34 actual Habitat rejected matches have equal recipes/room/LOD/layers
 and canonical sources; only live native/proxy equality fails. Independent causal
 GO authorizes the one strict identity repair, preserving physical/allocation
-truth and old constants. Current renewed allowance **1/1 used** for this repair;
+truth and old constants. The16:00:18-renewal **1/1 used** for this repair is historical;
+latest owner17:44:42 renewal resets this unfinished task to **0/1 used**;
 all source/render/package acceptance remains pending. No deadline/cap change.
 
 Owner/files: root restores33exactpaths (owned-restoration-paths.json), ownsallengines/release/integration. OneHIGH implementer owns diagnostic-only scripts/world/station_route_registry.gd plus production allocation/binding correction within restored world files and existing station_panel_material_binding_test.gd; no other runtime scope. Diagnostic route-registry print is removed/reverted before accepted candidate. Root may own exactdisjointintegrationfiles after actualcause if required. OneHIGH independent review protects original allocation semantics, PBRmath, lifecycle, complete gates. No recursiveagents/no agentengines. Original2newshader/2newscript/focusedtest UIDs restoredexact, not regenerated or invented. No newvalidators/schema/version/testfamilies.
