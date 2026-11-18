@@ -379,7 +379,51 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="station-panel-shader-resume-current"></a>
 
-### Station panel cold five-view rendering — resumed, causal report first
+### Station panel cold five-view rendering — PARKED, unmerged8e8e521
+
+The complete original nine source suites passed on
+**8e8e521421eb97e6bd013173b6b25dd5f2d1ee11**, including full Titan **217.139s** and actual
+clean_shutdown/clean/session_ended. Triplanar1564/45/243/1276,
+7couriers/35bindings/214-134batches and exact allocation contracts pass.
+Full playability44.512s includes15craft/333shapes/6993samples, no Observation or
+Salvage intrusions, and the narrowly declared two Titan rail joins. The rendered
+source capture separately proves the actual2.48m visible Titan opening.
+
+The original fullMain cold-five-view source capture nevertheless **FAILED**:
+exit124 after91.865s at the unchanged90s cap, success marker absent. Only
+berth-overview/spur-approach/default-chase/crew-interior PNGs exist; mount-closeup
+is missing. All source/HEAD/clean/non-shader-cache guards pass. Four images do
+not qualify the five-view gate. Exports, all9 actualPCK fixtures, PCKcold5 and
+checkpoint/package acceptance are **NOT_RUN**. No candidate production changes
+were merged; latest playable remains070ed59. No source-only delivery is claimed.
+
+Both independent source-cost reviews found no demonstrated remaining draw/program/
+shader operand cause. The older CabinetStatus program583 candidate mapping came
+from a different Operations-camera probe, not this mount capture. Reopening
+requires bounded attribution of the current timed draw/program to exact source,
+GLSL and cost through the existing owner instrumentation; another blind cold/warm
+replay, timing-only redistribution or feature/frame/camera/cap cut is insufficient.
+Historical failed captures, all actual source results and prior source are retained.
+
+The renewed17:44:42 allowance ends **0/1 used**;16:00:18 production identity repair
+**1/1** remains historical. Original16:55:58→18:25:58UTC window was not extended.
+Actual through verified cleanup **71.80258552minutes**;
+prior station105.49452028333333minutes, cumulative through cleanup
+**177.29710580minutes**, plus the separately charged
+22.5129993minute historical Main probe. Final docs/push/audit cost is recorded
+separately in closeout.json after actual completion.
+
+Archive `/srv/mudds-work/station-panel-shader-resume-20261118/records.tar.gz`: **251810345bytes/
+1604members**, SHA256
+**63080c0143df8c4b0a403ac3a82246391050ca2b747dd1d676de867807cdb087**. The self-contained candidate bundle was restored
+in an independent bare repository, strict/full fsck passed, and the entire tree
+plus33owned blobs matched. Every archive member was rehashed before exact-tip
+owned branch/import-ref/worktree cleanup; no owned engines remain. Only the
+existing unaccepted Paradox gunner branchc743 is retained. All36parents/10phase
+exits and applicable full-game/native/GPU/device/listening/readability gates stay
+OPEN/NOT_RUN. CI remains disabled.
+
+#### Historical frozen resume card and interim observations
 
 Goal: SAME unfinished station-panel shader task, full original Main cold-five-view outcome. Resolve construction-time allocation identity rejection, then all original source/PCK/render/checkpoint gates. A diagnostic report or source-only pass does not deliver this card. Latest owner16:00:18 renewal supplies0/1 for this unfinished shader family; historical1/1 counts and105.49452028333333minutes remain. Separate Mainprobe22.5129993minutes stays charged separately. No allowance from newbranch/restore/split. Latest owner17:44:42 renewal gives this unfinished shader task0/1; earlier16:00:18 usage remains historical. Unfinished normalized-role family work receives the same global reset once; completed pilot-budget delivery remains unchanged. No Katana wait-limit approval.
 
