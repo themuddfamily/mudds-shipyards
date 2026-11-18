@@ -601,6 +601,15 @@ func advance_payload_cooldown(delta: float) -> Dictionary:
 	return _payload_authority.advance(delta)
 
 
+func get_pilot_weapon_constraints() -> Dictionary:
+	if _payload_authority == null or not _payload_authority.is_configuration_valid():
+		return {}
+	return {"cooldown": float(_payload_authority.get_snapshot().cooldown_seconds),
+		"warmup": 0.0, "minimum_operators": 1.0, "ammo_unbounded": false,
+		"ammo_capacity": float(PAYLOAD_AMMUNITION), "refill_rule": "pilot_retake_only",
+		"thermal": {"model": "none"}}
+
+
 func get_payload_authority_snapshot() -> Dictionary:
 	return _payload_authority.get_snapshot()
 

@@ -164,8 +164,8 @@ const ROLE_CONTRACTS := {
 
 
 ## Detached handling and optional actual root footprint; role contracts remain independent.
-static func create_rated_budget(definition: ShipDefinition, actual_craft: HeroShip = null) -> FleetRatedBudget:
-	return RatedBudgetType.new(definition, actual_craft)
+static func create_rated_budget(definition: ShipDefinition, actual_craft: HeroShip = null, pilot_source: Dictionary = {}) -> FleetRatedBudget:
+	return RatedBudgetType.new(definition, actual_craft, pilot_source)
 
 
 static func get_role_contract(ship_id: StringName) -> Dictionary:

@@ -25,13 +25,19 @@ const PAGE_FIELDS := [
 	["boost_multiplier", "landing_maximum_speed", "engine_start_time", "weapon_cooldown"],
 	["throttle_response", "flight_assist_strength", "visual_bank_degrees", "maximum_mouse_turn_degrees"],
 	[],
+	["damage", "range", "cooldown"],
+	["warmup", "heatlockout", "minimum_operators"],
+	["ammo_capacity"],
 ]
 const PAGE_HEADERS := [
-	"RATED 1/5 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
-	"RATED 2/5 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
-	"RATED 3/5 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
-	"RATED 4/5 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
-	"COLLISION 5/5 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
+	"RATED 1/8 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
+	"RATED 2/8 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
+	"RATED 3/8 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
+	"RATED 4/8 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
+	"COLLISION 5/8 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
+	"PILOT 6/8 RAW/IDX 0..1 | DMG/trigger RANGE m COOLDOWN s | INTERACT:NEXT",
+	"PILOT 7/8 RAW/IDX 0..1 | WARMUP s HEATLOCK s MIN OPS | INTERACT:NEXT",
+	"PILOT 8/8 AMMO CAP rounds/IDX 0..1 | REFILL | INTERACT:NEXT",
 ]
 
 var _rated_page := -1
@@ -120,6 +126,17 @@ func present_fleet_snapshot(snapshot: Dictionary, advance_page: bool = false) ->
 						cells.append("%.3f/%.3f" % [field.raw, field.normalized])
 				else:
 					cells = PackedStringArray([str(footprint.status), str(footprint.status), str(footprint.status)])
+			elif proposed_page >= 5:
+				var pilot: Dictionary = budget.pilot_weapon
+				if pilot.status == "SOURCED":
+					var context: Dictionary = pilot.contexts[pilot.selected_context]
+					for axis: String in PAGE_FIELDS[proposed_page]:
+						var field: Dictionary = context.fields[axis]
+						cells.append("UNBOUNDED/1.000" if axis == "ammo_capacity" and field.unbounded else "%s/%.3f" % [str(field.raw), field.normalized])
+					if proposed_page == 7:
+						cells.append("UNBOUNDED" if context.constraints.ammo_unbounded else "PILOT RETAKE ONLY")
+				else:
+					cells.append(str(pilot.status))
 			else:
 				for axis: String in PAGE_FIELDS[proposed_page]:
 					var field: Dictionary = fields[axis]
@@ -167,6 +184,8 @@ func _valid_rated_budget(value: Variant, ship_id: String) -> bool:
 		if not (budget.get(key) is String or budget.get(key) is StringName):
 			return false
 	if str(budget.ship_id) != ship_id or str(budget.qualification) != "NOT_QUALIFIED":
+		return false
+	if not FleetRatedBudget.valid_pilot_weapon(budget.get("pilot_weapon"), ship_id):
 		return false
 	if not _valid_footprint(budget.get("footprint"), ship_id):
 		return false

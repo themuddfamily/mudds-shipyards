@@ -9837,7 +9837,7 @@ func _build_fleet_registry_snapshot() -> Dictionary:
 			"display_name": candidate.get_display_name(),
 			"berth_id": candidate.get_home_berth_id(),
 			"state": state,
-			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate).get_snapshot(),
+			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate, get_pilot_weapon_budget_source(candidate)).get_snapshot(),
 		})
 	rows.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
 		return String(first.get("ship_id", "")) < String(second.get("ship_id", ""))
@@ -18727,6 +18727,37 @@ func _combat_registration_matches(
 			elif registered_value != expected_value:
 				return false
 	return true
+
+
+## Reads the exact registered resolver envelope without registering or firing.
+func get_pilot_weapon_budget_source(candidate: HeroShip) -> Dictionary:
+	if not is_instance_valid(candidate) or candidate not in ships or not candidate.is_inside_tree() \
+			or candidate.is_queued_for_deletion() or candidate.is_destroyed():
+		return {}
+	if not is_instance_valid(combat_authority):
+		return {}
+	var ship_id := candidate.get_ship_id()
+	if ship_id == &"predator_provisional":
+		return {"ship_id": str(ship_id), "status": "UNARMED"}
+	var combat_id := CINDER_BOMBER_WEAPON_ID if ship_id == CINDER_BOMBER_SHIP_ID else _get_player_combat_weapon_id(candidate)
+	if combat_id.is_empty():
+		return {}
+	var expected := _get_player_weapon_profiles(candidate)
+	if expected.is_empty() or not _combat_registration_matches(candidate, int(PLAYER_SOURCE_IDS.get(ship_id, 0)), PLAYER_FACTION, expected):
+		return {}
+	var context_ids := {"combat": combat_id}
+	if candidate == ship:
+		context_ids["tutorial_range"] = RANGE_WEAPON_ID
+	var profiles := {}
+	for context: String in context_ids:
+		var weapon_id: StringName = context_ids[context]
+		var profile := combat_authority.get_weapon_profile(candidate, weapon_id)
+		if profile.is_empty() or profile != expected.get(weapon_id, {}):
+			return {}
+		profiles[context] = {"weapon_id": str(weapon_id), "resolver_profile": profile}
+	var selected := "tutorial_range" if candidate == ship and phase in [Phase.LAUNCH, Phase.TARGET_PRACTICE] else "combat"
+	return {"ship_id": str(ship_id), "status": "SOURCED", "selected_context": selected,
+		"profiles": profiles, "constraints": candidate.get_pilot_weapon_constraints()}.duplicate(true)
 
 
 func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:

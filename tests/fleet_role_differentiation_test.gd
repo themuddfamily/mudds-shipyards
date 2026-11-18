@@ -496,7 +496,7 @@ func _run() -> void:
 	_test_role_differentiation(by_id)
 	_test_bomber_choice_sources(by_id)
 	_test_hauler_choice_sources(by_id)
-	_test_live_rated_budget_sources(by_id)
+	_test_live_rated_budget_sources(by_id, game)
 	var original_fleet := {}
 	for original_id: StringName in [
 		&"torrent_provisional", &"arrow_provisional", &"jovian_provisional",
@@ -1395,13 +1395,38 @@ func _test_hauler_choice_sources(by_id: Dictionary) -> void:
 	_check(definition.maximum_hull > (by_id[&"cinder_light_interceptor"] as HeroShip).get_ship_definition().maximum_hull and definition.maximum_hull < (by_id[&"cinder_long_range_bomber"] as HeroShip).get_ship_definition().maximum_hull, "live Hauler hull margin exceeds Light while remaining below Bomber")
 
 
-func _test_live_rated_budget_sources(by_id: Dictionary) -> void:
+const EXPECTED_PILOT := {
+	"torrent_provisional": [34.0, 360.0, 0.22],
+	"arrow_provisional": [24.0, 480.0, 0.38],
+	"jovian_provisional": [70.0, 650.0, 0.62],
+	"zenith_b7_observed": [28.0, 420.0, 0.24],
+	"halyard_new_design": [52.0, 560.0, 0.95],
+	"bulwark_heavy_gunship": [50.0, 360.0, 0.30],
+	"cinder_light_interceptor": [18.0, 320.0, 0.28],
+	"cinder_long_range_bomber": [80.0, 900.0, 1.0],
+	"cinder_cargo_hauler": [26.0, 180.0, 0.70],
+	"titan_provisional": [70.0, 650.0, 0.62],
+	"paradox_provisional": [70.0, 650.0, 0.62],
+	"predator_provisional": [],
+	"dynamic_provisional": [50.0, 360.0, 0.30],
+	"katana_provisional": [24.0, 480.0, 0.38],
+	"utopia_provisional": [70.0, 650.0, 0.62],
+}
+
+func _test_live_rated_budget_sources(by_id: Dictionary, game: GameFlow) -> void:
 	var registry := preload("res://scripts/ships/fleet_role_registry.gd")
 	for ship_id: StringName in by_id:
 		var definition := (by_id[ship_id] as HeroShip).get_ship_definition()
 		var before := {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}
-		var budget := registry.create_rated_budget(definition, by_id[ship_id] as HeroShip)
+		var budget := registry.create_rated_budget(definition, by_id[ship_id] as HeroShip, game.call("get_pilot_weapon_budget_source", by_id[ship_id]))
 		var snapshot := budget.get_snapshot()
+		var pilot: Dictionary = snapshot.pilot_weapon
+		var expected: Array = EXPECTED_PILOT[str(ship_id)]
+		_check(pilot.status == ("UNARMED" if expected.is_empty() else "SOURCED"), "live pilot state matches independent all-fifteen literal oracle")
+		if not expected.is_empty() and pilot.status == "SOURCED":
+			var combat: Dictionary = pilot.contexts.combat
+			_check(is_equal_approx(combat.fields.damage.raw, expected[0]) and is_equal_approx(combat.fields.range.raw, expected[1]) and is_equal_approx(combat.fields.cooldown.raw, expected[2]), "live pilot trigger/range/cooldown matches independent all-fifteen literal oracle")
+			_check(combat.resolver_profile == game.get("combat_authority").get_weapon_profile(by_id[ship_id], StringName(combat.weapon_id)), "live pilot uses actual registered combat profile")
 		_check(budget.is_valid() and snapshot.ship_id == ship_id and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.fields.maximum_speed.raw == definition.maximum_speed and snapshot.fields.maximum_hull.raw == definition.maximum_hull, "live %s uses actual definition speed/hull without full-role qualification" % ship_id)
 		_check(snapshot.fields.maximum_speed.normalized == definition.maximum_speed / (1.0 + definition.maximum_speed) and snapshot.fields.maximum_hull.normalized == definition.maximum_hull / (1.0 + definition.maximum_hull) and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "live rated indices retain full precision and do not mutate %s" % ship_id)
 

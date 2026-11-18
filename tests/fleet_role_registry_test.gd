@@ -62,6 +62,7 @@ func _run() -> void:
 	var original_resources := _definition_snapshots()
 	_check_rated_budgets()
 	_check_literal_footprint()
+	_check_pilot_budget_detachment()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
 	_check(bool(report.get("valid", false)), "the nine production definitions satisfy the role registry")
 	_check(int(report.get("craft_count", 0)) == 9, "the role registry audits all nine supported craft")
@@ -290,6 +291,7 @@ func _check_rated_budgets() -> void:
 		_check(budget is Resource and budget is RatedBudgetType and budget.is_valid() and budget.get_ship_id() == definition.get_ship_id(), "rated budget is a real valid typed Resource for %s" % definition.get_ship_id())
 		var snapshot := budget.get_snapshot()
 		_check(snapshot.valid and snapshot.ship_id == definition.get_ship_id() and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.missing_dimensions == EXPECTED_MISSING_DIMENSIONS and snapshot.fields.size() == 16, "rated subset retains identity and explicitly leaves full-role dimensions unqualified")
+		_check(snapshot.pilot_weapon == {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": "actual_registered_pilot_weapon_and_firing_constraints"}, "definition-only pilot weapon remains explicitly UNKNOWN without numeric invention")
 		_check(snapshot.footprint == {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": "actual_enabled_direct_root_collision_shapes"}, "definition-only footprints are explicitly unmeasured without numeric geometry")
 		for axis: String in EXPECTED_RATED_FIELDS:
 			var field: Dictionary = snapshot.fields[axis]
@@ -429,3 +431,61 @@ func _check_literal_round_shapes(definition: ShipDefinition) -> void:
 	footprint = Registry.create_rated_budget(definition, craft).get_snapshot().footprint
 	_check(footprint.status == "MEASURED" and is_equal_approx(footprint.local_bounds.size.x, 2.0 + 4.0 * sqrt(0.5)) and is_equal_approx(footprint.local_bounds.size.z, 2.0), "rotated capsule uses sphere plus segment support extent")
 	craft.free()
+
+
+func _check_pilot_budget_detachment() -> void:
+	var definition := DEFINITIONS[0].duplicate(true) as ShipDefinition
+	var craft := LiteralHull.new()
+	craft.ship_definition = definition
+	craft.ship_id = definition.get_ship_id()
+	root.add_child(craft)
+	var profile := {"damage": 34.0, "range": 360.0, "origin_tolerance": 24.0}
+	var source := {"ship_id": "torrent_provisional", "status": "SOURCED", "selected_context": "combat",
+		"profiles": {"combat": {"weapon_id": "literal_combat", "resolver_profile": profile},
+			"tutorial_range": {"weapon_id": "literal_range", "resolver_profile": {"damage": 50.0, "range": 360.0, "origin_tolerance": 24.0}}},
+		"constraints": craft.get_pilot_weapon_constraints()}
+	var resource := Registry.create_rated_budget(definition, craft, source)
+	var snapshot := resource.get_snapshot()
+	_check(snapshot.pilot_weapon.status == "SOURCED" and snapshot.pilot_weapon.contexts.size() == 2, "literal detached source retains both pilot contexts")
+	_check(RatedBudgetType.valid_pilot_weapon(JSON.parse_string(JSON.stringify(snapshot.pilot_weapon)), "torrent_provisional"), "all pilot quantities survive JSON roundtrip")
+	var fields: Dictionary = snapshot.pilot_weapon.contexts.combat.fields
+	for axis: String in ["damage", "range", "cooldown", "warmup", "heatlockout", "minimum_operators"]:
+		var field: Dictionary = fields[axis]
+		var expected := float(field.raw) / (1.0 + float(field.raw)) if axis in ["damage", "range"] else 1.0 / (1.0 + float(field.raw))
+		_check(field.normalized == expected and field.unit_scale == 1.0, "literal pilot directed indices use fixed unit-one benefit/cost curves")
+	_check(fields.ammo_capacity.unbounded and fields.ammo_capacity.normalized == 1.0 and not fields.ammo_capacity.has("raw"), "unbounded ammo carries explicit flag and no numeric Infinity or fake zero")
+	for patch: Dictionary in [{"ship_id": "wrong"}, {"constraints": {"live": craft}}, {"profiles": []}, {"selected_context": "unknown"}]:
+		var malformed := source.duplicate(true)
+		malformed.merge(patch, true)
+		_check(Registry.create_rated_budget(definition, craft, malformed).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "invalid or object-bearing pilot source fails closed without retaining authority")
+	for metadata: String in ["ship_id", "status", "selected_context"]:
+		for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+			var malformed := source.duplicate(true)
+			malformed[metadata] = bad
+			_check(Registry.create_rated_budget(definition, craft, malformed).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "heterogeneous pilot source metadata refuses before comparison")
+	for metadata: String in ["model", "refill_rule", "weapon_id"]:
+		for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+			var malformed := source.duplicate(true)
+			if metadata == "model":
+				malformed.constraints.thermal.model = bad
+			elif metadata == "refill_rule":
+				malformed.constraints.refill_rule = bad
+			else:
+				malformed.profiles.combat.weapon_id = bad
+			_check(Registry.create_rated_budget(definition, craft, malformed).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "heterogeneous nested pilot source metadata refuses before comparison")
+	_check(Registry.create_rated_budget(definition, craft).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "live craft without authority source is unavailable rather than inferred from definition")
+	var scatter := source.duplicate(true)
+	scatter.profiles.combat.resolver_profile = {"damage": 14.0, "trigger_damage": 42.0, "range": 180.0, "origin_tolerance": 24.0, "spread_degrees": 3.0, "pellet_count": 3}
+	var scatter_pilot: Dictionary = Registry.create_rated_budget(definition, craft, scatter).get_snapshot().pilot_weapon
+	_check(scatter_pilot.contexts.combat.fields.damage.raw == 42.0 and scatter_pilot.contexts.combat.fields.range.raw == 180.0 and scatter_pilot.contexts.combat.fields.damage.source.ends_with("trigger_damage"), "scatter reports actual trigger budget and resolver range rather than one pellet or convergence")
+	var wrong_definition := definition.duplicate(true) as ShipDefinition
+	_check(Registry.create_rated_budget(wrong_definition, craft, source).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "pilot report requires the exact live definition identity")
+	craft.set("_destroyed", true)
+	_check(Registry.create_rated_budget(definition, craft, source).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "destroyed craft cannot publish a usable pilot weapon configuration")
+	craft.set("_destroyed", false)
+	var frozen := resource.get_snapshot()
+	source.constraints.cooldown = 9.0
+	source.profiles.combat.resolver_profile.damage = 999.0
+	snapshot.pilot_weapon.contexts.combat.fields.damage.raw = 999.0
+	craft.free()
+	_check(resource.get_snapshot() == frozen, "pilot snapshot is frozen after input mutation and craft destruction/free")
