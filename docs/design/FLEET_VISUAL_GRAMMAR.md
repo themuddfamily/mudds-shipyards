@@ -707,18 +707,25 @@ are separate choice facts; the card does not infer a universally better craft
 from them. Spool remains in this reference table rather than crowding the
 ordinary boarding instruction.
 
-The current live differentiation suite covers all nine definitions; the
-FleetRoleRegistry's role contracts cover only Torrent/Arrow/Jovian/Zenith/
-Halyard/Bulwark. Extending that production policy to the three Cinder craft is
-still implementation work. Neither scope establishes the eight unbuilt
-originals' approved roles or the final seventeen-craft result.
+The live differentiation suite covers all fifteen current Main definitions.
+FleetRoleRegistry contracts cover Torrent/Arrow/Jovian/Zenith/Halyard/Bulwark,
+Cinder Light and Cinder Bomber. Hauler's registry contract and the full normalized
+seventeen-craft resource/vector remain implementation work. Raw role contracts
+and a boarding choice card do not close full-craft or final balance acceptance.
 
-The [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
-is PARKED/unaccepted: registry/differentiation/Main source checks pass,but the
-added trade-off needs73px inside63px in every existing Light no-scroll fit case.
-Source is archived unmerged;the production registry still has six contracts.
-The sole fixture correction is spent. Exact text,normal fonts,all six cases and
-full checkpoint gates remain binding;no smaller policy/producer subset is accepted.
+The earlier [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
+failed73px-inside63px and remains historical. The later accepted [Light6e15126
+packing delivery](../../ROADMAP.md#cinder-light-choice-current) retains its raw
+failure and complete unchanged layout gates. [Bomber9f88df6](../../ROADMAP.md#cinder-bomber-choice-current)
+now adds TOUGH HULL & BRAKES // SLOW TURN / FIRE to approach/available, with
+complete identity/instructions/rated facts/observed state. All four source/PCK
+suites and both-state six-cell fit pass; actual1280/1920 UI captures are inspected.
+Bomber hull240/yaw28/roll34/cooldown.85 extrema are scoped to the three Cinder
+siblings. Its brake28 exceeds Hauler22 but remains below Light40; no best-brakes
+or overall normalized score is claimed. Original six globals and Light's
+small-band speed signature remain unchanged. Existing396×112card,16/11fonts,
+1px body tolerance and all original cases remain; gameplay/profile/seat/save/
+network authority and15Maincraft/15homes/all17profiles are unchanged.
 
 ### The definition
 
@@ -939,16 +946,18 @@ Future required starter membership is an explicit field of the eight accepted
 SPECs, not an inferred unlock or invented progression system.
 
 **Missing work and limits.** Codex implements the production role-budget
-resource/consumer, three Cinder registry contracts and selected existing
-observer/test extensions. None exists merely because this definition does.
+resource/consumer, the remaining Hauler registry contract and selected existing
+observer/test extensions. Light/Bomber choice members are scoped delivered above;
+the full normalized resource does not exist merely because this definition does.
 Use one selected craft/function slice within the existing90min all-in/one-
 correction limit, source suites300s, ordinary craft900/outer960s and tighter
 accepted/parked member limits. Freeze source/resource/profile/absolute deadline
 and raw existing test/native `--output` location before execution; retain full
 logs, live raw/normalized fields, pair failures and actual action/boarding
 receipts. No new evidence-schema/version family, balance matrix inventory or
-automatic trial is selected. Eight unapproved SPECs remain exact owner inputs;
-runtime resources, tests, final17 balance and starter acceptance remain OPEN.
+automatic trial is selected. The eight modern SPEC baselines were owner-adopted
+2026-11-05; their unimplemented capabilities and actual remaining product inputs
+remain separate. Full role resources, final17 balance and starter acceptance remain OPEN.
 
 ---
 
