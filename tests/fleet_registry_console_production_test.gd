@@ -1,11 +1,34 @@
 extends SceneTree
 
+const EXPECTED_RATED_FIELDS := {
+	"maximum_speed": ["m/s", "benefit", "flight"],
+	"maximum_hull": ["hull point", "benefit", "systems"],
+	"boost_speed": ["m/s", "benefit", "flight"],
+	"thrust_acceleration": ["m/s2", "benefit", "flight"],
+	"yaw_speed_degrees": ["degree/s", "benefit", "flight"],
+	"roll_speed_degrees": ["degree/s", "benefit", "flight"],
+	"brake_acceleration": ["m/s2", "benefit", "flight"],
+	"passive_drag": ["m/s2", "cost", "flight"],
+	"boost_multiplier": ["ratio", "benefit", "flight"],
+	"landing_maximum_speed": ["m/s", "benefit", "systems"],
+	"engine_start_time": ["s", "cost", "systems"],
+	"weapon_cooldown": ["s", "cost", "systems"],
+	"throttle_response": ["1/s", "benefit", "flight"],
+	"flight_assist_strength": ["1/s", "undirected", "flight"],
+	"visual_bank_degrees": ["degree", "undirected", "flight"],
+	"maximum_mouse_turn_degrees": ["degree", "undirected", "flight"],
+}
+const EXPECTED_MISSING_DIMENSIONS := [
+	"component_consequences_and_repair", "firepower_and_range", "cargo",
+	"passenger_and_support", "collision_footprint", "boarding_time", "skill_floor",
+	"complete_role_and_capability_metadata",
+]
+
 ## Focused production proof for the read-only Fleet Registry terminal. The real
 ## PlayerController walks into the shared station candidate, uses the ordinary
 ## interaction dispatch, and receives detached fleet rows without changing any
 ## berth lease or pending-regeneration entry.
 
-const MAIN_SCENE := preload("res://scenes/main.tscn")
 const VALID_STATES: Array[StringName] = [
 	&"available", &"occupied", &"destroyed", &"regenerating",
 ]
@@ -22,7 +45,7 @@ func _run() -> void:
 	if "--capture-rated-registry" in OS.get_cmdline_user_args():
 		await _capture_rated_registry()
 		return
-	var game := MAIN_SCENE.instantiate() as GameFlow
+	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
 	await physics_frame
@@ -90,24 +113,31 @@ func _run() -> void:
 			and not _contains_object(live_snapshot),
 		"one shared interaction paints every retained craft as detached available/occupied/destroyed/regenerating data"
 	)
-	_check_rated_rows(game, live_snapshot, text)
-	# Inspect the actual glyph geometry after the complete live roster is drawn.
-	# Keep the existing font, pixel size and screen until measured otherwise.
+	# First new assertion observes actual E output on the old runtime too.
+	# No new console API is called until all sixteen fields have been observed.
+	var complete_handling := rows.size() == 15
+	for row: Dictionary in rows:
+		var budget: Variant = row.get("rated_budget")
+		complete_handling = complete_handling and budget is Dictionary and budget.get("fields") is Dictionary and budget.fields.size() == 16
+	_check(complete_handling, "ordinary E must publish all sixteen authored handling fields; the old two-field subset is missing fourteen")
+	if not complete_handling:
+		await _finish(game)
+		return
+	var first_accepted_snapshot := live_snapshot.duplicate(true)
+	for page in 4:
+		if page > 0:
+			game.call(&"_on_interact_requested")
+			await process_frame
+		presented = console.call(&"get_presentation_snapshot") as Dictionary
+		live_snapshot = presented.last_snapshot
+		text = presented.screen_text
+		_check_rated_rows(game, live_snapshot, text, page)
+		_check_console_bounds(console, page)
+		var default_receipt := console.call(&"present_fleet_snapshot", live_snapshot) as Dictionary
+		_check(default_receipt.get("accepted", false) and (console.call(&"get_presentation_snapshot") as Dictionary).screen_text == text, "default snapshot refresh preserves the current page")
+	game.call(&"_on_interact_requested")
 	await process_frame
-	var label := console.get_node("FleetRegistryLiveRows") as Label3D
-	var screen := console.get_node("FleetRegistryLiveScreen") as MeshInstance3D
-	var glyph_bounds := label.get_aabb()
-	var screen_bounds := screen.get_aabb()
-	var label_to_screen := screen.global_transform.affine_inverse()*label.global_transform
-	var text_bounds := label_to_screen*glyph_bounds
-	print("FLEET_REGISTRY_ACTUAL_SCREEN_BOUNDS: ", {"rows":rows.size(),"lines":label.text.split("\n").size(),"glyph":glyph_bounds,"in_screen":text_bounds,"screen":screen_bounds,"font_size":label.font_size,"pixel_size":label.pixel_size})
-	_check(rows.size() == 15 and label.text.split("\n").size() == 16
-		and label.font_size == 40 and is_equal_approx(label.pixel_size,0.0016)
-		and text_bounds.position.x >= screen_bounds.position.x
-		and text_bounds.end.x <= screen_bounds.end.x
-		and text_bounds.position.y >= screen_bounds.position.y
-		and text_bounds.end.y <= screen_bounds.end.y,
-		"all fifteen actual production rows plus header fit the unchanged physical screen")
+	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/4"), "fifth ordinary E wraps back to page one")
 	_check(
 		_berth_snapshot(game.world) == berths_before
 			and _regeneration_snapshot(game) == regeneration_before,
@@ -175,7 +205,7 @@ func _run() -> void:
 
 	_check_rated_refusals(console, live_snapshot)
 	if _failures.is_empty():
-		_write_rated_snapshot(live_snapshot)
+		_write_rated_snapshot(first_accepted_snapshot)
 	await _finish(game)
 
 
@@ -245,36 +275,49 @@ func _finish(game: GameFlow) -> void:
 	quit(1)
 
 
-func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String) -> void:
+func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page: int) -> void:
 	var rows := snapshot.get("rows", []) as Array
-	var all_present := rows.size() == 15
-	for row: Dictionary in rows:
-		all_present = all_present and row.get("rated_budget") is Dictionary
-	_check(all_present, "normal E publishes actual rated speed/hull budget snapshots for all fifteen current craft")
-	if not all_present:
-		return
-	_check(text.begins_with("FLEET LIVE | RATED M/S,HULL | RAW/INDEX 0..1"), "physical terminal labels rated units and per-field index range")
-	for row: Dictionary in rows:
-		var craft: HeroShip = game.call(&"_find_flyable_ship_by_id", StringName(row.ship_id)) as HeroShip
+	_check(rows.size() == 15 and text.begins_with("RATED %d/4" % [page + 1]) and text.contains("INTERACT:NEXT"), "physical page labels rated data and ordinary next interaction")
+	var pages := [
+		["maximum_speed", "maximum_hull", "boost_speed", "thrust_acceleration"],
+		["yaw_speed_degrees", "roll_speed_degrees", "brake_acceleration", "passive_drag"],
+		["boost_multiplier", "landing_maximum_speed", "engine_start_time", "weapon_cooldown"],
+		["throttle_response", "flight_assist_strength", "visual_bank_degrees", "maximum_mouse_turn_degrees"],
+	]
+	for row_index in rows.size():
+		var row: Dictionary = rows[row_index]
+		var craft := game.call(&"_find_flyable_ship_by_id", StringName(row.ship_id)) as HeroShip
 		_check(craft != null, "rated row identifies an actual current Main craft")
 		if craft == null:
 			continue
 		var definition := craft.get_ship_definition()
-		var budget := row.rated_budget as Dictionary
-		_check(budget.get("ship_id") == row.ship_id and budget.get("qualification") == &"NOT_QUALIFIED" and budget.get("missing_dimensions") is Array and not _contains_object(budget), "rated row retains detached current identity and honest unqualified status")
-		var fields: Variant = budget.get("fields")
-		_check(fields is Dictionary, "rated row has actual sourced fields")
-		if not fields is Dictionary:
-			continue
-		for axis: String in ["maximum_speed", "maximum_hull"]:
-			var field: Variant = fields.get(axis)
-			_check(field is Dictionary, "rated row contains %s" % axis)
-			if not field is Dictionary:
-				continue
-			var raw := float(definition.get(axis))
-			_check(field.get("raw") == raw and field.get("normalized") == raw / (1.0 + raw) and field.get("unit") == ("m/s" if axis == "maximum_speed" else "hull point") and field.get("direction") == "benefit" and field.get("unit_scale") == 1.0, "terminal %s raw and unrounded normalized values match actual definition" % axis)
-			_check(text.contains("%s/%.3f" % [str(field.raw), field.normalized]), "terminal renders each sourced raw/index pair")
+		var budget: Dictionary = row.rated_budget
+		_check(budget.ship_id == row.ship_id and budget.qualification == &"NOT_QUALIFIED" and budget.missing_dimensions == EXPECTED_MISSING_DIMENSIONS and not _contains_object(budget), "rated row retains identity and honest eight missing actual-role dimensions")
+		var cells := PackedStringArray()
+		for axis: String in EXPECTED_RATED_FIELDS:
+			var spec: Array = EXPECTED_RATED_FIELDS[axis]
+			var field: Dictionary = budget.fields[axis]
+			var profile: Dictionary = definition.get_flight_profile() if spec[2] == "flight" else definition.get_systems_profile()
+			var raw: float = profile[axis]
+			_check(field.raw == raw and field.unit == spec[0] and field.direction == spec[1] and field.unit_scale == 1.0 and field.source == "ShipDefinition.get_%s_profile.%s" % [spec[2], axis], "terminal %s retains actual raw/source/unit/direction" % axis)
+			if spec[1] == "undirected":
+				_check(not field.has("normalized"), "terminal feel remains raw only")
+			else:
+				_check(field.normalized == (raw / (1.0 + raw) if spec[1] == "benefit" else 1.0 / (1.0 + raw)), "terminal directed index retains exact full precision")
+		for axis: String in pages[page]:
+			var field: Dictionary = budget.fields[axis]
+			cells.append(str(field.raw) if field.direction == "undirected" else "%s/%.3f" % [str(field.raw), field.normalized])
+		var expected := "%-18s %-12s %s" % [str(row.display_name).strip_edges().replace("_", " ").to_upper().left(18), str(row.state).to_upper(), "  ".join(cells)]
+		_check(text.split("\n")[row_index + 1] == expected, "page retains each current name/state and four correctly ordered raw/index or feel cells")
 
+
+func _check_console_bounds(console: Area3D, page: int) -> void:
+	var label := console.get_node("FleetRegistryLiveRows") as Label3D
+	var screen := console.get_node("FleetRegistryLiveScreen") as MeshInstance3D
+	var bounds := screen.global_transform.affine_inverse() * label.global_transform * label.get_aabb()
+	var screen_bounds := screen.get_aabb()
+	print("FLEET_REGISTRY_ACTUAL_SCREEN_BOUNDS: ", {"page": page + 1, "lines": label.text.split("\n").size(), "glyph": bounds, "screen": screen_bounds, "font_size": label.font_size, "pixel_size": label.pixel_size})
+	_check(label.text.split("\n").size() == 16 and label.font_size == 40 and is_equal_approx(label.pixel_size, 0.0016) and screen.mesh.size == Vector3(3.76, 1.46, 0.018) and bounds.position.x >= screen_bounds.position.x and bounds.end.x <= screen_bounds.end.x and bounds.position.y >= screen_bounds.position.y and bounds.end.y <= screen_bounds.end.y, "all fifteen names/states plus header fit the unchanged screen on page %d" % [page + 1])
 
 func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 	var rows := source.get("rows", []) as Array
@@ -295,15 +338,26 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 		var candidate := source.duplicate(true)
 		candidate.rows[0].rated_budget.merge(patch, true)
 		cases.append(candidate)
-	for patch in [{"raw": INF}, {"raw": NAN}, {"raw": 0.0}, {"raw": []}, {"normalized": INF}, {"normalized": []}, {"normalized": 0.5}, {"unit": []}, {"unit": "km/h"}, {"unit_scale": []}, {"unit_scale": 2.0}, {"direction": []}, {"direction": "lower"}, {"source": []}, {"source": "invented"}]:
+	for patch in [{"raw": INF}, {"raw": NAN}, {"raw": -1.0}, {"raw": []}, {"normalized": INF}, {"normalized": []}, {"normalized": 0.5}, {"unit": []}, {"unit": "km/h"}, {"unit_scale": []}, {"unit_scale": 2.0}, {"direction": []}, {"direction": "lower"}, {"source": []}, {"source": "invented"}]:
 		var candidate := source.duplicate(true)
 		candidate.rows[0].rated_budget.fields.maximum_speed.merge(patch, true)
 		cases.append(candidate)
+	for axis: String in EXPECTED_RATED_FIELDS:
+		for patch: Dictionary in [{"raw": INF}, {"raw": NAN}, {"raw": -1.0}, {"unit": "wrong"}, {"direction": "wrong"}, {"source": "invented"}, {"unit_scale": 2.0}]:
+			var candidate := source.duplicate(true)
+			candidate.rows[0].rated_budget.fields[axis].merge(patch, true)
+			cases.append(candidate)
+		var missing_field := source.duplicate(true)
+		missing_field.rows[0].rated_budget.fields.erase(axis)
+		cases.append(missing_field)
+		var wrong_index := source.duplicate(true)
+		wrong_index.rows[0].rated_budget.fields[axis]["normalized"] = 0.123
+		cases.append(wrong_index)
 	var mixed := source.duplicate(true)
 	mixed.rows[0].erase("rated_budget")
 	cases.append(mixed)
 	for candidate: Dictionary in cases:
-		receipt = console.call(&"present_fleet_snapshot", candidate) as Dictionary
+		receipt = console.call(&"present_fleet_snapshot", candidate, true) as Dictionary
 		_check(not bool(receipt.get("accepted", true)) and (console.call(&"get_presentation_snapshot") as Dictionary) == retained, "malformed rated payload refuses atomically without changing text, sequence or retained data")
 	var legacy := source.duplicate(true)
 	var expected := PackedStringArray(["FLEET STATUS // LIVE"])
@@ -370,19 +424,20 @@ func _capture_rated_registry() -> void:
 	var receipt := console.call(&"present_fleet_snapshot", snapshot) as Dictionary
 	_check(bool(receipt.get("accepted", false)), "production component accepts the exact real captured snapshot")
 	_check(DirAccess.make_dir_recursive_absolute(output) == OK, "component capture output directory is available")
-	for viewport: Vector2i in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
-		root.size = viewport
-		for frame in 8:
-			await process_frame
-			await RenderingServer.frame_post_draw
-		var label := console.get_node("FleetRegistryLiveRows") as Label3D
-		var screen := console.get_node("FleetRegistryLiveScreen") as MeshInstance3D
-		var bounds := screen.global_transform.affine_inverse() * label.global_transform * label.get_aabb()
-		var screen_bounds := screen.get_aabb()
-		_check(label.font_size == 40 and is_equal_approx(label.pixel_size, 0.0016) and label.text.split("\n").size() == 16 and bounds.position.x >= screen_bounds.position.x and bounds.end.x <= screen_bounds.end.x and bounds.position.y >= screen_bounds.position.y and bounds.end.y <= screen_bounds.end.y, "component captures retain actual glyph bounds, font and all sixteen physical lines")
-		var image := root.get_texture().get_image()
-		_check(image.get_size() == viewport, "component capture has exact requested native dimensions")
-		if _failures.is_empty():
-			_check(image.save_png(output.path_join("fleet_rated_budget_%dx%d.png" % [viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
+	for page in 4:
+		if page > 0:
+			receipt = console.call(&"present_fleet_snapshot", snapshot, true) as Dictionary
+			_check(bool(receipt.get("accepted", false)), "component advances the exact pinned snapshot")
+		for viewport: Vector2i in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+			root.size = viewport
+			for frame in 8:
+				await process_frame
+				await RenderingServer.frame_post_draw
+			_check_console_bounds(console, page)
+			_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED %d/4" % [page + 1]), "component captures the requested real page")
+			var image := root.get_texture().get_image()
+			_check(image.get_size() == viewport, "component capture has exact requested native dimensions")
+			if _failures.is_empty():
+				_check(image.save_png(output.path_join("fleet_handling_page_%02d_%dx%d.png" % [page + 1, viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
 	component.queue_free()
 	await _finish(null)

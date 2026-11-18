@@ -1,10 +1,27 @@
 class_name FleetRatedBudget
 extends Resource
 
-## Initial rated subset only. No overall score or full-role qualification.
-## Values are copied once from the authored definition; public reads detach.
+## Authored rated handling only; no overall score or full-role qualification.
+## Metadata keeps actual profile provenance and never scores undirected feel.
+const FIELD_SPECS := {
+	"maximum_speed": ["m/s", "benefit", "flight"],
+	"maximum_hull": ["hull point", "benefit", "systems"],
+	"boost_speed": ["m/s", "benefit", "flight"],
+	"thrust_acceleration": ["m/s2", "benefit", "flight"],
+	"yaw_speed_degrees": ["degree/s", "benefit", "flight"],
+	"roll_speed_degrees": ["degree/s", "benefit", "flight"],
+	"brake_acceleration": ["m/s2", "benefit", "flight"],
+	"passive_drag": ["m/s2", "cost", "flight"],
+	"boost_multiplier": ["ratio", "benefit", "flight"],
+	"landing_maximum_speed": ["m/s", "benefit", "systems"],
+	"engine_start_time": ["s", "cost", "systems"],
+	"weapon_cooldown": ["s", "cost", "systems"],
+	"throttle_response": ["1/s", "benefit", "flight"],
+	"flight_assist_strength": ["1/s", "undirected", "flight"],
+	"visual_bank_degrees": ["degree", "undirected", "flight"],
+	"maximum_mouse_turn_degrees": ["degree", "undirected", "flight"],
+}
 const MISSING_DIMENSIONS := [
-	"boost_speed_and_thrust", "rotational_response", "braking_and_passive_drag",
 	"component_consequences_and_repair", "firepower_and_range", "cargo",
 	"passenger_and_support", "collision_footprint", "boarding_time", "skill_floor",
 	"complete_role_and_capability_metadata",
@@ -13,8 +30,7 @@ const MISSING_DIMENSIONS := [
 var _valid: bool = false
 var _reason: StringName = &"missing_definition"
 var _ship_id: StringName = &""
-var _maximum_speed: float = 0.0
-var _maximum_hull: float = 0.0
+var _fields: Dictionary = {}
 
 
 func _init(definition: ShipDefinition = null) -> void:
@@ -25,15 +41,18 @@ func _init(definition: ShipDefinition = null) -> void:
 		return
 	var flight := definition.get_flight_profile()
 	var systems := definition.get_systems_profile()
-	var speed: float = flight.maximum_speed
-	var hull: float = systems.maximum_hull
-	if not is_finite(speed) or speed <= 0.0 or not is_finite(hull) or hull <= 0.0:
-		return
+	var sourced: Dictionary = {}
+	for axis: String in FIELD_SPECS:
+		var spec: Array = FIELD_SPECS[axis]
+		var profile: Dictionary = flight if spec[2] == "flight" else systems
+		var raw: float = profile[axis]
+		if not is_finite(raw) or raw < 0.0:
+			return
+		sourced[axis] = _field(raw, spec[0], spec[1], "ShipDefinition.get_%s_profile.%s" % [spec[2], axis])
 	_ship_id = definition.get_ship_id()
-	_maximum_speed = speed
-	_maximum_hull = hull
+	_fields = sourced
 	_valid = true
-	_reason = &"rated_subset_sourced"
+	_reason = &"rated_handling_sourced"
 
 
 func is_valid() -> bool:
@@ -51,13 +70,13 @@ func get_snapshot() -> Dictionary:
 		"missing_dimensions": MISSING_DIMENSIONS.duplicate(),
 	}
 	if _valid:
-		snapshot["fields"] = {
-			"maximum_speed": _field(_maximum_speed, "m/s", "ShipDefinition.get_flight_profile.maximum_speed"),
-			"maximum_hull": _field(_maximum_hull, "hull point", "ShipDefinition.get_systems_profile.maximum_hull"),
-		}
+		snapshot["fields"] = _fields.duplicate(true)
 	return snapshot.duplicate(true)
 
 
-func _field(raw: float, unit: String, source: String) -> Dictionary:
-	return {"raw": raw, "unit": unit, "direction": "benefit", "unit_scale": 1.0,
-		"normalized": raw / (1.0 + raw), "source": source}
+func _field(raw: float, unit: String, direction: String, source: String) -> Dictionary:
+	var field := {"raw": raw, "unit": unit, "direction": direction,
+		"unit_scale": 1.0, "source": source}
+	if direction != "undirected":
+		field["normalized"] = raw / (1.0 + raw) if direction == "benefit" else 1.0 / (1.0 + raw)
+	return field

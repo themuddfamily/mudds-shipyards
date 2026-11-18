@@ -1,5 +1,29 @@
 extends SceneTree
 
+const EXPECTED_RATED_FIELDS := {
+	"maximum_speed": ["m/s", "benefit", "flight"],
+	"maximum_hull": ["hull point", "benefit", "systems"],
+	"boost_speed": ["m/s", "benefit", "flight"],
+	"thrust_acceleration": ["m/s2", "benefit", "flight"],
+	"yaw_speed_degrees": ["degree/s", "benefit", "flight"],
+	"roll_speed_degrees": ["degree/s", "benefit", "flight"],
+	"brake_acceleration": ["m/s2", "benefit", "flight"],
+	"passive_drag": ["m/s2", "cost", "flight"],
+	"boost_multiplier": ["ratio", "benefit", "flight"],
+	"landing_maximum_speed": ["m/s", "benefit", "systems"],
+	"engine_start_time": ["s", "cost", "systems"],
+	"weapon_cooldown": ["s", "cost", "systems"],
+	"throttle_response": ["1/s", "benefit", "flight"],
+	"flight_assist_strength": ["1/s", "undirected", "flight"],
+	"visual_bank_degrees": ["degree", "undirected", "flight"],
+	"maximum_mouse_turn_degrees": ["degree", "undirected", "flight"],
+}
+const EXPECTED_MISSING_DIMENSIONS := [
+	"component_consequences_and_repair", "firepower_and_range", "cargo",
+	"passenger_and_support", "collision_footprint", "boarding_time", "skill_floor",
+	"complete_role_and_capability_metadata",
+]
+
 ## Focused resource-level regression for the Phase 4/7 fleet role contract.
 ## This intentionally does not boot Main or exercise boarding, landing, combat,
 ## audio, rendering, or lifecycle; those authorities have their own suites.
@@ -246,20 +270,27 @@ func _check_rated_budgets() -> void:
 	var definitions: Array = DEFINITIONS.duplicate()
 	for path in ["titan_provisional", "predator_provisional", "paradox_provisional", "dynamic_provisional", "utopia_provisional", "katana_provisional", "vortex_provisional", "salyut_provisional"]:
 		definitions.append(load("res://assets/ships/%s.tres" % path))
-	_check(definitions.size() == 17, "all seventeen authored definitions expose the initial rated subset without changing Main membership")
+	_check(definitions.size() == 17, "all seventeen authored definitions expose the complete authored rated handling without changing Main membership")
 	for definition: ShipDefinition in definitions:
 		var before := {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}
 		var budget := Registry.create_rated_budget(definition)
 		_check(budget is Resource and budget is RatedBudgetType and budget.is_valid() and budget.get_ship_id() == definition.get_ship_id(), "rated budget is a real valid typed Resource for %s" % definition.get_ship_id())
 		var snapshot := budget.get_snapshot()
-		_check(snapshot.valid and snapshot.ship_id == definition.get_ship_id() and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.missing_dimensions == ["boost_speed_and_thrust", "rotational_response", "braking_and_passive_drag", "component_consequences_and_repair", "firepower_and_range", "cargo", "passenger_and_support", "collision_footprint", "boarding_time", "skill_floor", "complete_role_and_capability_metadata"] and snapshot.fields.size() == 2, "rated subset retains identity and explicitly leaves full-role dimensions unqualified")
-		for axis: String in ["maximum_speed", "maximum_hull"]:
+		_check(snapshot.valid and snapshot.ship_id == definition.get_ship_id() and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.missing_dimensions == EXPECTED_MISSING_DIMENSIONS and snapshot.fields.size() == 16, "rated subset retains identity and explicitly leaves full-role dimensions unqualified")
+		for axis: String in EXPECTED_RATED_FIELDS:
 			var field: Dictionary = snapshot.fields[axis]
-			var raw := float(definition.get(axis))
-			_check(field.raw is float and field.normalized is float and field.raw == raw and field.normalized == raw / (1.0 + raw) and field.direction == "benefit" and field.unit_scale == 1.0 and field.unit == ("m/s" if axis == "maximum_speed" else "hull point"), "%s %s retains exact raw/unit/benefit/normalization without display rounding" % [definition.get_ship_id(), axis])
+			var spec: Array = EXPECTED_RATED_FIELDS[axis]
+			var profile: Dictionary = definition.get_flight_profile() if spec[2] == "flight" else definition.get_systems_profile()
+			var raw: float = profile[axis]
+			_check(field.raw is float and field.raw == raw and field.direction == spec[1] and field.unit_scale == 1.0 and field.unit == spec[0] and field.source == "ShipDefinition.get_%s_profile.%s" % [spec[2], axis], "%s %s retains exact raw/unit/direction/profile provenance" % [definition.get_ship_id(), axis])
+			if spec[1] == "undirected":
+				_check(not field.has("normalized"), "feel axes never receive a favorable index")
+			else:
+				var expected := raw / (1.0 + raw) if spec[1] == "benefit" else 1.0 / (1.0 + raw)
+				_check(field.normalized is float and field.normalized == expected, "directed rated field retains full precision")
 		snapshot.fields.maximum_speed.raw = 999.0
 		snapshot.missing_dimensions.clear()
-		_check(budget.get_snapshot().fields.maximum_speed.raw == definition.maximum_speed and budget.get_snapshot().missing_dimensions.size() == 11 and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "detached budget mutation cannot change resource or authored definition")
+		_check(budget.get_snapshot().fields.maximum_speed.raw == definition.maximum_speed and budget.get_snapshot().missing_dimensions.size() == 8 and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "detached budget mutation cannot change resource or authored definition")
 	var source := DEFINITIONS[0].duplicate(true) as ShipDefinition
 	var frozen := Registry.create_rated_budget(source)
 	var copied := frozen.get_snapshot()
@@ -273,3 +304,13 @@ func _check_rated_budgets() -> void:
 		var bad_hull := DEFINITIONS[0].duplicate(true) as ShipDefinition
 		bad_hull.maximum_hull = invalid
 		_check(not Registry.create_rated_budget(bad_hull).is_valid() and not Registry.create_rated_budget(bad_hull).get_snapshot().has("fields"), "invalid authored rated hull refuses the resource explicitly")
+
+	for axis: String in EXPECTED_RATED_FIELDS:
+		for invalid: float in [-1.0, INF, NAN]:
+			var bad := DEFINITIONS[0].duplicate(true) as ShipDefinition
+			bad.set(axis, invalid)
+			_check(not Registry.create_rated_budget(bad).is_valid() and not Registry.create_rated_budget(bad).get_snapshot().has("fields"), "invalid %s refuses all handling fields atomically" % axis)
+	var zero_bank := DEFINITIONS[0].duplicate(true) as ShipDefinition
+	zero_bank.visual_bank_degrees = 0.0
+	var zero_snapshot := Registry.create_rated_budget(zero_bank).get_snapshot()
+	_check(zero_snapshot.valid and zero_snapshot.fields.visual_bank_degrees.raw == 0.0 and not zero_snapshot.fields.visual_bank_degrees.has("normalized"), "allowed zero bank is honest undirected feel")

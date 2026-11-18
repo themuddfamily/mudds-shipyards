@@ -9803,7 +9803,7 @@ func _on_fleet_registry_snapshot_requested(actor: Node) -> void:
 	var snapshot := _build_fleet_registry_snapshot()
 	if is_instance_valid(fleet_registry_console) \
 			and fleet_registry_console.has_method(&"present_fleet_snapshot"):
-		fleet_registry_console.call(&"present_fleet_snapshot", snapshot.duplicate(true))
+		fleet_registry_console.call(&"present_fleet_snapshot", snapshot.duplicate(true), true)
 	if is_instance_valid(hud):
 		var counts := snapshot.get("counts", {}) as Dictionary
 		hud.toast(
