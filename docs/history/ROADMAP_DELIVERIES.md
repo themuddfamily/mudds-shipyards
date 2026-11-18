@@ -33132,6 +33132,51 @@ suite's descriptive terminal (which appends28assertions); corrected prefix read
 matches the catalog. No source adjustment or engine rerun followed that helper.
 
 
+<a id="cinder-loadmaster-receipt-delivered-20261118"></a>
+## Cinder authoritative Loadmaster receipt captions — runtime member delivered
+
+Source2cf0a3fb8b232ca13bea921abd1b3a7b2dbbf8e6, merged/pushed
+as d1f0b7b0f9aecdeb05d2b224b3a724283e8fcdb0. One runtime receipt field now
+uses server-admitted intent.seat_id; the existing producer no longer rejects its
+own accepted Loadmaster manifest as foreign. Actual roster/claim/submit/release
+flows through the unchanged production adapter/router/Director/GameFlow/HUD/one
+caption service. Seat-occupied and manifest-ready captions get fresh stable IDs,
+exact text/HIGH/!/90; same receipt adds none; normal release emits once. Raw client
+seat spoof refuses; existing actor/claim/sequence/navigation/network and cargo/
+reward/movement/helm authorities remain unchanged. Newer Main content retained.
+
+Complete source five and actual Windows-PCK five pass: producer17/router32/
+Main48/networkbridge12/cabin37=146each; unchanged300s caps, every actual exit0/
+originalmarker1/raw0 and source/cache/HEAD/clean guards. Main component alone,
+other focused pairs isolated. All five packaged fixtures independently byte-
+checked against exact committed tests plus only entry source-isolation guard;
+blank source directories and one isolation marker each. No native ordinary FIRE,
+complete physical crew or real multiplayer journey is claimed.
+
+Actual private export path was provisioned and hash-verified to pinned4.7.1
+Windows release template before export. Paired clean safe exports, strict
+Windows-payload/Linux-direct/Linux-extracted startups each0/one
+STARTUP_MENU_READY_OK/raw0, exact six Linux members/modes/UIDs/extracted ELF
+identity, equal complete1611entry maps and existing packageaudit9 pass.
+Independent delta review parses one changed Cinder gdc and82 decompressed
+node_ids-only scenes, unchanged UID/class bytes. All eight published artifact
+hashes and exact Windows EXE+notes ZIP verified. The preview is byte-identical
+6e15126 Cinder Light HUD reference, explicitly not a new caption render.
+
+Latest checkpoint2cf0a3f lives in repository builds/windows and builds/linux.
+Both independent source/release GO obtained before integration. The original
+October candidate/type/export failures and1089seconds/18.15minutes cost remain
+historical below. Renewed00:00→01:00UTC60minute window, owner23:37:41 allowance0/1
+unused. Actual elapsed/cumulative cost is in adjacent closeout.json. Verified
+archive /srv/mudds-work/cinder-loadmaster-receipt-20261118/records.tar.gz:
+12,617,693bytes/130members, SHA256
+6582e7783acb57e41f02b86189f5c9ad5ebc3789913a9bcd6da8d4d0768838cc.
+Verified source bundle and prior archive retained. Pushedmain contains accepted
+source before exact-tip branch removal; worktree/processes/remote branch/scratch
+clean, owned root only records.tar.gz+closeout.json. Unaccepted Paradoxc743 branch
+is protected. NativeWindows/GPU/device/human/audible/fullCOMFORT/fullcraft/fullgame
+gates remain NOT_RUN/open; all36 parents/ten phases open; hosted CI disabled.
+
 <a id="cinder-loadmaster-receipt-checkpoint-parked-20261027"></a>
 ## Cinder Loadmaster receipt — source passes, checkpoint publication PARKED
 

@@ -16,9 +16,15 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **6e15126** — [Windows ZIP](builds/windows/MuddsShipyards-6e15126-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-6e15126-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-6e15126-linux-x86_64.tar.gz).
+Latest playable checkpoint: **2cf0a3f** — [Windows ZIP](builds/windows/MuddsShipyards-2cf0a3f-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-2cf0a3f-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-2cf0a3f-linux-x86_64.tar.gz).
+Accepted Cinder Loadmaster manifests now reach the existing seat-occupied and
+manifest-ready captions through their authoritative seat receipt. Duplicate
+receipts add no replay; normal role release emits once. Both complete source
+and actual Windows-PCK component suites and package gates pass. Ordinary native
+FIRE/full crew/COMFORT qualification remains open. [Delivery](#cinder-loadmaster-receipt-current).
+
 Cinder Light now shows its registry speed/coasting trade-off beside complete
 boarding instructions, rated role/speed/hull and observed state. Both approach
 and available fit the existing card at normal fonts, without clipping. The six
@@ -181,58 +187,49 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="cinder-loadmaster-receipt-current"></a>
 
-### Selected — Cinder accepted Loadmaster receipt captions
+### Cinder accepted Loadmaster receipt captions — DONE,2cf0a3f
 
-Goal: existing **COMFORT-CAPTIONS**, [accepted receipt contract](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract).
-Real admitted Loadmaster manifest receipt must carry its authoritative seat ID,
-so existing seat-occupied/manifest-ready captions reach the same adapter/router/
-Director/GameFlow/HUD/one service. Both fresh captions retain literal text and
-HIGH/!/90; duplicate receipt adds none and normal release emits once. No cargo,
-reward, movement, helm or navigator authority is added. This is runtime/component
-capability; ordinary native FIRE/full crew/full COMFORT remain open.
+Accepted source **2cf0a3fb8b232ca13bea921abd1b3a7b2dbbf8e6**, merged/pushed
+as **d1f0b7b0f9aecdeb05d2b224b3a724283e8fcdb0**. Existing
+[COMFORT-CAPTIONS receipt member](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract)
+now publishes seat ID from the authoritative admitted assignment. Actual
+Loadmaster submit reaches both existing seat-occupied/manifest-ready cues through
+the production adapter/router/Director/GameFlow/HUD/one caption service. Both
+fresh captions retain exact text/HIGH/!/90; duplicate receipt adds none, normal
+release emits once. Client seat spoof still refuses; cargo/reward/movement/helm/
+navigator and network admission authorities are unchanged. Later Light/Dynamic
+content remains included. This closes the runtime component member only.
 
-**2026-11-18 00:00:00→01:00:00 UTC,60minutes ALL-IN**, definition frozen before
-00:15. Latest owner23:37:41 renewal0/1; prior1089seconds/18.15minutes, old typing
-failure and missing-template export failure are preserved. The owner renewal
-supplies the exhausted-attempt authorization; the actual packaging cause is now
-addressed by trusted matching4.7.1 release templates provisioned in the private
-export profile before invocation. No product choice or external device is inferred.
-Baselineae89c4baa, latest checkpoint6e15126; branchwork/cinder-loadmaster-receipt-1118,
-ownedroot/worktree `/srv/mudds-work/cinder-loadmaster-receipt-20261118`.
+All five complete source suites and the same five actual Windows-PCK fixtures
+pass under unchanged300s caps: producer17/router32/realMain48/networkbridge12/
+physicalcabin37 assertions,146each environment. Every actual exit0/original
+marker1/raw0/source-cache-HEAD-clean guard passes. Packaged fixtures are byte-
+verified exact committed tests plus entry source-isolation guard, run from blank
+source directories. No synthetic positive accepted receipt replaces real submit.
 
-HIGH implementer owns only `scripts/ships/cinder_cargo_hauler.gd` and existing
-`tests/audio/cinder_loadmaster_audio_production_test.gd`,
-`tests/audio/cinder_loadmaster_audio_router_integration_test.gd`,
-`tests/caption_production_integration_test.gd`. The admitted intent supplies seat ID;
-raw client payload does not. No adapter change is needed. Independent HIGH review;
-root engines/release/Git/docs/cleanup, no nested agents. Preserve current Main and
-all later accepted Light/Dynamic content. No validator/schema/protocol/save changes.
+Trusted4.7.1 Windows template was hash-verified at the actual private XDG path
+before export, resolving the October failure. Clean paired exports, strict
+startup3(exit0/exactoneSTARTUP_MENU_READY_OK/raw0), exact Linux6members/modes/
+extractedELF identity, equal1611-entry complete maps, reviewed one Cinder gdc
+change plus82 byte-proved node_ids-only scene changes/no UID-class changes,
+existing audit9 and eight actual checkpoint files pass independent source/release
+review. Preview is a byte-identical labelled6e15126 reference, not new caption
+render evidence. Ordinary native FIRE/full crew/network/world/COMFORT and
+nativeWindows/GPU/device/human/audible/fullgame gates remain open/NOT_RUN;
+hosted CI remains disabled. All36 original parents/ten phase gates stay open.
 
-Each complete default source fixture below runs with fresh isolated profile,
-300s existing runner cap, exit0/one exact marker/no unexpected diagnostics and
-source/cache/HEAD/clean guards. Repeat all five exact committed fixtures against
-the actual Windows PCK from blank source-isolated directories with only an entry
-isolation guard added. The Main-caption fixture runs alone; other cases may pair.
-
-| Case | Ordinary component actions / expected endpoint | Actual |
-| --- | --- | --- |
-| `tests/audio/cinder_loadmaster_audio_production_test.gd` | Seal roster, claim, submit actual manifest, reject client seat spoof; both cues, duplicate suppression, release once and reattach/voice ceiling; `CINDER_LOADMASTER_AUDIO_PRODUCTION_TEST:` | NOT_RUN |
-| `tests/audio/cinder_loadmaster_audio_router_integration_test.gd` | Actual Cinder submit through production adapter/router; preserve all priority/budget/teardown cases; `CINDER_LOADMASTER_AUDIO_ROUTER_INTEGRATION_TEST:` | NOT_RUN |
-| `tests/caption_production_integration_test.gd` | Preserve full real-Main/service/settings/queue/OFF/re-entry cases; actual receipt produces two fresh exact captions, duplicate none, normal release once; `CAPTION_PRODUCTION_INTEGRATION_TEST_OK:` | NOT_RUN |
-| `tests/network/network_cinder_loadmaster_manifest_bridge_test.gd` | Preserve all existing receipt bridge compatibility checks; `OK: Cinder loadmaster manifest bridge (` | NOT_RUN |
-| `tests/cinder_loadmaster_cabin_gameplay_test.gd` | Preserve all physical cabin/role/no-authority checks; `CINDER_LOADMASTER_CABIN_GAMEPLAY_TEST_OK:` | NOT_RUN |
-
-Release: existing clean safe paired exporters with private template preflight;
-strict menu startups3(exit0/exactoneSTARTUP_MENU_READY_OK/raw0), exact Linux six
-members/modes/extracted ELF identity, full equal Windows/Linux maps and reviewed
-one-runtime-script delta vs6e15126, existing package audit9 and eight actual
-repository artifacts. Preview is a byte-identical labelled6e15126 reference,
-not new rendered qualification; original receipt contract has no capture gate.
-Independent FINAL_GO/PACKAGE_GO, merge/push and verified archive/owned exact-ref/
-worktree/process/scratch cleanup required. Original300s caps and01:00 deadline
-remain fixed; stop dependents at first unexpected failure, retain raw operands,
-no blind retry/partial merge. Every Godot Dummy/headless or privateXvfb/x11;
-hosted CI disabled. Native/human/audio/full-game gates remain NOT_RUN/open.
+Window **2026-11-18 00:00→01:00 UTC**,60minutes ALL-IN; latest owner23:37:41
+renewal **0/1 used**, prior1089seconds/18.15minutes and historical1/1 retained.
+Actual current/cumulative cost is in adjacent closeout. October typing/export
+failures and source are preserved, not rewritten as passes. Verified archive
+`/srv/mudds-work/cinder-loadmaster-receipt-20261118/records.tar.gz`:
+**12,617,693bytes**,130members,
+SHA256 `6582e7783acb57e41f02b86189f5c9ad5ebc3789913a9bcd6da8d4d0768838cc`.
+Source bundle and eight published artifact hashes verified. Accepted source was
+in pushedmain before exact-tip local branch deletion. Owned worktree/processes/
+branch/scratch removed; remote task branch absent; root contains only archive
+and closeout. Unaccepted Paradox gunnerc743f585d remains the protected branch
+exception. No next card selected.
 
 <a id="dynamic-cold-recovery-current"></a>
 
