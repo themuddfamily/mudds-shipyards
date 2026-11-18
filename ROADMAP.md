@@ -288,7 +288,7 @@ Dependencies cards1–7 accepted, base555c87977/runtime4ad278b. First mapping
 mapping/code/review, exact baseline control/import/syntax, all source/PCK/views,
 fresh checkpoint, integration/push, verified archive/process/worktree/branch
 cleanup and finaldocs. Freeze before code. Owner08:57:09 renewal applied once:
-**0/1 substantive corrections used**, approvedlimit1. Previous05:27:05-renewal
+**1/1 substantive corrections used**, approvedlimit1. Previous05:27:05-renewal
 0/1 remains historical; the new renewal changes no deadline or acceptance check. Preserve original caps;
 real failure stops dependent cases until measured cause; routine caller/compiler
 maintenance stays in this window. No route/cap/physics/geometry/definition/heat/
@@ -297,6 +297,15 @@ health/owner/acceptance waiver, partial source-only delivery or blind retry.
 One HIGH implementer owns ONLY scripts/ships/katana_fighter.gd,
 scripts/game/game_flow.gd (newKatana-only guard/binding, existingcoordinator and
 Dynamic/Titan guards untouched) and tests/katana_fighter_journey_test.gd.
+Current clean candidate **a6e760c663a325c3fd1ae1ecdae62c8baabd615d** is
+under validation, not accepted. First focused source failure at21.570s and
+bounded diagnostic at21.598s proved healthy restored hull/sections/roots/shapes
+and ledger1→2, but retained input stream8→8. The sole substantive correction
+invalidates command delivery through its existing owner at Katana's accepted
+reset hook; no shared Hero/Dynamic/Titan/coordinator change or assertion waiver.
+Earlier missing incompatible-home assertion and explicit-bool caller parse
+failure remain preserved. Full final source16/PCK12/views/release are pending.
+
 Candidate mirrors accepted Dynamic serial-safe separate-shell retirement/restore,
 retained disabled-rootshape bounds, variant reset fence and healthy exact-home
 landing-lease retention. GameFlow authorizes exactKatana1114/katana_home_berth,
