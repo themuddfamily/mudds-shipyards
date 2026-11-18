@@ -325,6 +325,51 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="fleet-collision-footprint-current"></a>
+
+### Actual enabled-root collision footprint and fifth fleet page — ACTIVE
+
+Complete collision-footprint dimension of the existing full-role budget. Read
+actual enabled direct root shapes, exact union span/height/length in metres,
+with per-field cost indices1/(1+x), JSON-safe bounds/count/provenance and no live
+references. Do not use art, one primary box or virtual landing clearance:
+Jovian intentionally includes disabled ramp clearance and convex variants have
+special landing overrides. No physics/shape/resource/pose/authority changes.
+
+Base4487dd8f116b45da0210b4cae4e62baf483d1e8b. Firstmapping **15:24:57UTC**, hard
+all-in **15:24:57→16:54:57UTC,90minutes**, including full implementation/source5/
+PCK5/ten images/exports/review/package/integration/push/archive/worktree-ref-process
+cleanup/docs/finalverification. Retain latest13:57:23 unused **0/1**; no reset from
+newbranch/split. Prior ratedbudget family actual **73.07255108333334minutes**
+retained/cumulative. Katana's completion-limit decision remains pending, untouched.
+
+Exactly7 existingGDs: Resource, Registryfactory, GameFlow, Console and three
+existing registry/differentiation/console fixtures. Actual live matchingdefinition/
+ID/tree/current/healthy craft and proper rigid root required. Box/convex actual
+points and analytic cylinder/sphere/capsule bounds include every enabled root
+shape, disabled ignored; invalid/unsupported/null/empty/singular/nonrigid/identity
+failure yields explicit unavailable, never partial geometry or guessedzero.
+Definition-only17 UNKNOWN/missing8; actualMain15 healthy MEASURED/remove only
+collision_footprint=>missing7; every full-role status stays NOT_QUALIFIED.
+Existing16handlingfields/13indices/3feel/all9rolecontracts/signatures/min14 unchanged.
+Fifth terminal page shows three physical raw/index dimensions; collider count is
+proof metadata, not player-facing. Existing4pages, all15names/states, normalE5+
+wrap/defaultrefresh, exactlegacy and atomic all-field/offpage-geometry validation
+must fit unchanged3.76×1.46screen/font40/.0016/16lines.
+
+Independent literal inert HeroShip geometry and Main15 support-point oracle,
+JSONroundtrip/frozen-after-free, unknown-state/malformed/atomic proofs extend
+existingfixtures; no newvalidator/testfamily. Exact finalconsolefixture onold4487
+must compileoldAPIs and fail actual missingfootprint afterphysicalE. Original full
+source5/PCK5 each300/oldcases/markers/raw0/fourguards remain. Separate production
+Console-only capture beforeMainload from FIRSTfullsuccessfulsnapshot, samecamera/
+8postdraw/privateX11/Forward+/Dummy,5pages×1280/1920 tenactualimages allreviewed.
+Source/imageGO beforecleanpairedexports300/outer360/trustedprivateWin/strictstartup3/
+completeequal1613maps/4intendedGDCs+reviewedmetadata/noUID-class additions/exactarchives/
+ZIPbytes/audit9/eightlocalfiles/PCK5/packageGO/mergepush/exactcleanup. PreserveParadox,
+noDownloads/CI activation. Fullroles/final17/fullcraft/network/game/36parents/10phase
+exits/external gates remain OPEN. No cap relaxation or inferred Katana approval.
+
 <a id="fleet-handling-pages-current"></a>
 
 ### Complete authored handling and four-page fleet terminal — DONE,89b53a8
