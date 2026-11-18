@@ -16,22 +16,24 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **89b53a8** — [Windows ZIP](builds/windows/MuddsShipyards-89b53a8-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-89b53a8-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-89b53a8-linux-x86_64.tar.gz).
-The physical fleet terminal now cycles four rated-handling pages through normal
-interaction. All15 current names/states remain visible while it shows all16
-authored fields:13 per-field indices and3 explicitly unscored feel values.
-Raw values/units, page numbers, index range and interaction hint remain clear
-at the unchanged screen/font/16lines. Full source5/PCK5, all8 inspected page/
-resolution images, strictstartup3, complete package maps and audit9 pass.
-[Scoped delivery](#fleet-handling-pages-current) and
-[actual first-page preview](builds/windows/MuddsShipyards-89b53a8-fleet-handling-pages-preview.png).
-All17 definitions supply the complete rated-handling subset. Full-role status
-stays NOT_QUALIFIED: actual functions, firepower, cargo/crew, footprint, timing,
-skill demand and final balance remain unfinished. No handling or weapon tuning,
-new access gate or whole-world/native qualification is claimed. Earlier accepted
-Cinder cards, all nine role contracts and gameplay remain included.
+Latest playable checkpoint: **167aee6** — [Windows ZIP](builds/windows/MuddsShipyards-167aee6-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-167aee6-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-167aee6-linux-x86_64.tar.gz).
+The physical fleet terminal now cycles five pages through normal interaction:
+the existing16 rated handling fields plus actual collision span, height and
+length for all15 live craft. Dimensions use the complete enabled root-shape
+union in metres, with per-field cost indices; collider counts/bounds stay
+metadata. All15 names/states remain visible at the unchanged screen/font/16lines.
+Full source5/PCK5, ten inspected page/resolution images, strictstartup3, complete
+package maps and audit9 pass. [Scoped delivery](#fleet-collision-footprint-current)
+and [actual collision-page preview](builds/windows/MuddsShipyards-167aee6-fleet-collision-footprint-preview.png).
+All17 definitions support rated handling; definition-only geometry remains
+UNKNOWN. Valid live15 footprints are MEASURED, leaving7 missing role categories
+instead of8; every full-role status remains NOT_QUALIFIED. Actual functions,
+firepower, cargo/crew, timing, skill demand and final balance remain unfinished.
+No physics geometry, handling, weapon tuning, access gate or whole-world/native
+qualification changes. Earlier accepted Cinder cards, all nine role contracts
+and gameplay remain included.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
 lifecycle remain included. [Card9 delivery](#katana-cold-recovery-current).
@@ -350,48 +352,54 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="fleet-collision-footprint-current"></a>
 
-### Actual enabled-root collision footprint and fifth fleet page — ACTIVE
+### Actual enabled-root collision footprint and fifth fleet page — DONE,167aee6
 
-Complete collision-footprint dimension of the existing full-role budget. Read
-actual enabled direct root shapes, exact union span/height/length in metres,
-with per-field cost indices1/(1+x), JSON-safe bounds/count/provenance and no live
-references. Do not use art, one primary box or virtual landing clearance:
-Jovian intentionally includes disabled ramp clearance and convex variants have
-special landing overrides. No physics/shape/resource/pose/authority changes.
+Source **167aee6ca724553ad9150d95cd8afa004f9653b8** extends the existing FleetRatedBudget,
+registry factory, GameFlow and physical console. Exactly7 existingGDs changed:
+4 runtime owners and3 existing fixtures; no UID/class/newfile/physics/shape/
+pose/authority/stat changes. Normal E now cycles the existing4 handling pages
+plus COLLISION span/height/length and wraps, retaining all15 names/states and the
+original screen/font/16lines. New [preview](builds/windows/MuddsShipyards-167aee6-fleet-collision-footprint-preview.png)
+is the independently reviewed actual page05/1280 image.
 
-Base4487dd8f116b45da0210b4cae4e62baf483d1e8b. Firstmapping **15:24:57UTC**, hard
-all-in **15:24:57→16:54:57UTC,90minutes**, including full implementation/source5/
-PCK5/ten images/exports/review/package/integration/push/archive/worktree-ref-process
-cleanup/docs/finalverification. Owner16:00:18 renewal: **0/1 used**; previous
-13:57:23 count0/1 remains historical. No reset from newbranch/split. Prior ratedbudget family actual **73.07255108333334minutes**
-retained/cumulative. Katana's completion-limit decision remains pending, untouched.
+The production report reads every actual enabled direct rootCollisionShape3D:
+box corners, actual convex points and analytic cylinder/sphere/capsule extrema.
+It ignores disabled shapes and rejects invalid/unsupported/null/empty/singular
+geometry as a whole. It does not use art, a primary box or virtual landing
+clearance; Jovian's disabled ramp clearance is excluded. Matching live healthy
+craft and proper rigid root are required. Snapshot bounds/count/identity are
+JSON-safe detached scalars; no live object references. Shape count is metadata,
+not another UI column. Metres use cost indices1/(1+x). Definition-only17 stay
+UNKNOWN/missing8; valid actualMain15 are MEASURED/missing7. Every full-role
+status remains NOT_QUALIFIED.
 
-Exactly7 existingGDs: Resource, Registryfactory, GameFlow, Console and three
-existing registry/differentiation/console fixtures. Actual live matchingdefinition/
-ID/tree/current/healthy craft and proper rigid root required. Box/convex actual
-points and analytic cylinder/sphere/capsule bounds include every enabled root
-shape, disabled ignored; invalid/unsupported/null/empty/singular/nonrigid/identity
-failure yields explicit unavailable, never partial geometry or guessedzero.
-Definition-only17 UNKNOWN/missing8; actualMain15 healthy MEASURED/remove only
-collision_footprint=>missing7; every full-role status stays NOT_QUALIFIED.
-Existing16handlingfields/13indices/3feel/all9rolecontracts/signatures/min14 unchanged.
-Fifth terminal page shows three physical raw/index dimensions; collider count is
-proof metadata, not player-facing. Existing4pages, all15names/states, normalE5+
-wrap/defaultrefresh, exactlegacy and atomic all-field/offpage-geometry validation
-must fit unchanged3.76×1.46screen/font40/.0016/16lines.
+| Fixed acceptance | Actual result |
+| --- | --- |
+| Exact old control | Final console fixture on old4487 compiles old APIs and fails actual missing footprint after normal E in34.735s, not parser/missingAPI; original guard records retained. |
+| Source | Clean167 syntax7 and all5 full suites: registry5.341s, console38.274s, HUD28.468s, differentiation45.084s, boarding41.729s. Original300s caps/markers, exit0/raw0/fourguards. Literal independent geometry, all15 live support-point unions, frozen/JSON states, malformed atomic refusal, legacy, normalE5+wrap and existing routes pass. |
+| Component images | First accepted15-row sequence1 snapshot SHA3abb64cf8089552cd631d28bf9cff47d445680cd9513b8b3c7788b83b2e2804c. Separate35.302s production-console-only capture beforeMainload, privateX11/Forward+/softwareVulkan/Dummy/eightpostdraw. All10 actual5page×1280/1920 images root+independently viewed and byte/hash/dimension pinned; input unchanged. Fifth page2.456×1.408m fits original3.76×1.46m. |
+| Actual Windows PCK | The same5 full fixtures pass original300s caps/markers, exit0/raw0/fourguards plus exact isolation marker. Literal graph path relocation/entryguards only; no inlining or production source fallback. |
+| Fresh checkpoint | Clean paired exports, trusted privateWindows template and strictstartup3 each exit0/exactoneSTARTUP_MENU_READY_OK/raw0. Complete equal1613maps, exactly4 runtimeGDC changes plus reviewed typed-node_ids-only scenes, zero added/removed/UID/class changes. ExactLinux6members/modes/extractedELF, ZIP bytes, audit9/eightlocalfiles and independent PACKAGE_GO. |
 
-Independent literal inert HeroShip geometry and Main15 support-point oracle,
-JSONroundtrip/frozen-after-free, unknown-state/malformed/atomic proofs extend
-existingfixtures; no newvalidator/testfamily. Exact finalconsolefixture onold4487
-must compileoldAPIs and fail actual missingfootprint afterphysicalE. Original full
-source5/PCK5 each300/oldcases/markers/raw0/fourguards remain. Separate production
-Console-only capture beforeMainload from FIRSTfullsuccessfulsnapshot, samecamera/
-8postdraw/privateX11/Forward+/Dummy,5pages×1280/1920 tenactualimages allreviewed.
-Source/imageGO beforecleanpairedexports300/outer360/trustedprivateWin/strictstartup3/
-completeequal1613maps/4intendedGDCs+reviewedmetadata/noUID-class additions/exactarchives/
-ZIPbytes/audit9/eightlocalfiles/PCK5/packageGO/mergepush/exactcleanup. PreserveParadox,
-noDownloads/CI activation. Fullroles/final17/fullcraft/network/game/36parents/10phase
-exits/external gates remain OPEN. No cap relaxation or inferred Katana approval.
+Accepted work merged/pushed before cleanup. Entire record archive verified by
+all-member byte/hash comparison before owned worktrees/local/remote ref/process
+cleanup. Archive `/srv/mudds-work/fleet-collision-footprint-20261118/records.tar.gz`: **31379279bytes/707members**, SHA
+**6f29259b017a11e41d4b3abd2bf8f52a403a6604feb1b59593633f5b618e8089**. Actual through verified cleanup **44.68048410minutes**,
+plus prior family73.07255108333334 => **117.75303518minutes** cumulative;
+final documentation/push/audit cost is retained in closeout.json. The original
+**15:24:57→16:54:57UTC,90minutes** all-in window remained fixed. Owner16:00:18
+renewal ends **0/1 used**; prior13:57:23 count0/1 stays historical. No unexpected
+runtime failure or substantive correction. No test/journey cap relaxation.
+
+CurrentMain15/15homes, handling16/13indices/3feel and all9contracts remain.
+Fullcomponent-consequence/repair/firepower/cargo/crew/support/boardingtime/skill/
+role-capabilitymetadata/final17 balance,
+fullcraft/network/game/all36parents/10phaseexits remain OPEN. NativeWindows/
+mandatoryhuman remain OWNER-EXCLUDED/NOT_RUN; applicableGPU/device/listening/
+readability/wholeworld rendering remain open. CI disabled. Katana's120→180
+completion-limit proposal remains pending/unapplied; no unaccepted Katana code
+merged. Retained branch exception: `work/paradox-gunner-1116`, exactc743f585d0a70beb0e6100b34a47147d16280e08,
+unique unaccepted gunner source, preserved without a worktree.
 
 <a id="fleet-handling-pages-current"></a>
 

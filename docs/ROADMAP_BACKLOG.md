@@ -7,14 +7,16 @@ The [working roadmap](../ROADMAP.md#current-work-and-next-selection) selects exe
 [delivery history](history/ROADMAP_DELIVERIES.md) records accepted and failed attempts.
 This backlog preserves remaining scope, not a ready queue or remaining-job count.
 
-The complete16-field rated-handling Resource and physical four-page fleet terminal
-are delivered on **89b53a8**. All15 Main rows show definition-backed values/units,
-13 per-field indices and3 explicitly unscored feel values through normal
-interaction; all17 definitions support this handling subset. Full source5/PCK5,
-all8 inspected page/resolution images and fresh paired checkpoint gates pass.
-Full-role status stays NOT_QUALIFIED with8 actual-role categories missing.
-Actual functions, utility, footprint, timing, demand and final balance remain
-OPEN. [Delivery](../ROADMAP.md#fleet-handling-pages-current).
+The complete16-field rated-handling Resource/four-page consumer delivered on
+**89b53a8** is retained. **167aee6** now adds actual complete enabled-root collision
+span/height/length and a fifth physical terminal page for all15 live craft.
+Normal E cycles all5pages and wraps at the unchanged screen/font/16lines. Full
+source5/PCK5, ten inspected images and fresh paired checkpoint gates pass.
+Valid live15 footprints are MEASURED/missing7; definition-only17 geometry stays
+UNKNOWN/missing8. Every full-role status stays NOT_QUALIFIED. Actual functions,
+firepower, cargo/crew/support, timing, demand and final balance remain OPEN.
+[Collision delivery](../ROADMAP.md#fleet-collision-footprint-current) and
+[retained handling delivery](../ROADMAP.md#fleet-handling-pages-current).
 
 Cinder Light's role-choice member is delivered on **6e15126**: complete
 instructions/identity/facts/exact trade-off/state fit the unchanged card at

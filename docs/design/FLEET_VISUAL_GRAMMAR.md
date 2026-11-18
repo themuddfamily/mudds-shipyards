@@ -711,13 +711,17 @@ The live differentiation suite covers all fifteen current Main definitions.
 FleetRoleRegistry contracts cover Torrent/Arrow/Jovian/Zenith/Halyard/Bulwark,
 Cinder Light, Cinder Bomber and Cinder Hauler: all nine original/Cinder role
 contracts are now implemented. The complete authored rated-handling Resource and
-four-page terminal consumer are [delivered on89b53a8](../../ROADMAP.md#fleet-handling-pages-current):
+four-page terminal consumer were [delivered on89b53a8](../../ROADMAP.md#fleet-handling-pages-current):
 all17 definitions supply16 sourced fields, while all15 Main rows show them through
 ordinary interaction. Thirteen directed fields have per-field indices; flight
 assist, bank and mouse clamp stay unscored raw feel values. Full source5/PCK5 and
 all8 page/resolution images pass at the unchanged screen/font/16lines. Full-role
-status remains NOT_QUALIFIED with8 actual-role categories missing. Actual function/
-utility/demand consumers and the remaining full-role vector still need work. Raw
+status remains NOT_QUALIFIED. [167aee6](../../ROADMAP.md#fleet-collision-footprint-current)
+adds complete actual enabled-root collision span/height/length and a fifth normal-E
+page, with all10 page/resolution images and full source5/PCK5/checkpoint gates.
+Valid live15 geometry is MEASURED/missing7; definition-only17 remains UNKNOWN/
+missing8. Counts and JSON-safe bounds are metadata, not extra UI columns. Actual
+function/utility/demand consumers and the remaining full-role vector still need work. Raw
 handling and a boarding choice card do not close full-craft or final balance.
 
 The earlier [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
@@ -874,8 +878,14 @@ cheap precisely because they happen before art.
 The original Phase5 requirement also includes firepower/range, utility,
 footprint, boarding time and skill floor. The 16-field comparison above does
 not cover those dimensions. The current FleetRatedBudget Resource implements the complete16 authored
-handling fields and its live four-page consumer. The actual function/utility/
-footprint/timing/demand budget remains incomplete. This section defines that
+handling fields and its live consumer. Its fifth page now reports complete actual
+enabled root-collision union span/height/length for all15 live Main craft. Proper
+rigid root and matching live healthy craft are required; disabled shapes are
+ignored and invalid geometry yields unavailable, never guessed zero or partial
+bounds. This measures current collision geometry rather than art or landing
+clearance. Valid measured footprints remove only the collision_footprint missing
+category; definition-only geometry stays unknown. The remaining actual function/
+utility/timing/demand budget remains incomplete. This section defines that
 remaining production contract; it does not claim a new balance result or tune
 any craft.
 
@@ -968,7 +978,8 @@ SPECs, not an inferred unlock or invented progression system.
 **Missing work and limits.** Codex implements the production role-budget
 resource/consumer and selected existing observer/test extensions. All three
 Cinder registry/choice members and the complete16-field rated-handling Resource/
-consumer are scoped delivered above. Actual function metrics and the remaining
+consumer and actual live15 collision-footprint/fifth-page member are scoped
+delivered above. Actual function metrics and the remaining
 full-role vector are not implemented merely because this definition exists.
 Use one selected craft/function slice within the existing90min all-in/one-
 correction limit, source suites300s, ordinary craft900/outer960s and tighter
