@@ -36380,3 +36380,38 @@ All source/raw/failedattempts/actualproof/sourcebundle and eightpublishedhashes
 verified; acceptedsourcecontainedinpushedmain before exact-tip ownedbranch/
 worktree/process/scratch cleanup. Rootonlyarchive+closeout; protectedParadoxc743
 retained. [Current scope and artifacts](../../ROADMAP.md#fleet-audio-reentry-current).
+
+
+<a id="arrow-lod-epoch-render-timeout-20261118"></a>
+## Arrow whole LOD — source passes, required capture times out,2026-11-18
+
+PARKED/unmerged8337feec17048bf1f0c6202aa3270e97a68580af. No new checkpoint;
+accepted7801f6b/Main runtime unchanged. Acceptedsharedaudio780 restores original
+sameRigdamage callback. Existingcanonicalwithin-epoch contract plus actual
+BoardingSeatAudioBinding retirement/replacement justify narrowtest-onlyexpected
+ONEreservationcallbacktarget migration; olddetached/stalerefusal/newattached/
+exactcurrentonecallback/methodflagsarguments/authority guards hold. Every other
+cross-epoch record and every within-epoch rawidentity remain exact. No production
+or geometry correction on resumption; prior1/1 remainsused, no newwindow.
+All5fullsource gates PASS53.713/86.125/48.730/33.495/32.555s,original300caps,
+exit0/marker1/raw0/source-cache-HEAD-clean. Actual12,374far/50,496close/8≤119draws
+passes unchanged25%; fulltwoepochs/currentcamera/cockpit/realboarding/exits pass.
+
+Firstrequireddefaultcapture2 failsoriginal110s bound,112.028sincludingownedreap,
+exit124/marker0/images0,onlytimeoutdiagnostic. ActualprivateXvfb/explicitx11/
+Forward+/Vulkan1.4.305/llvmpipeLLVM19.1.7/Dummy correct; sourceHEADclean guards
+pass. No blockedinitialization/draw/material/threadcause captured. Whole10/PCK5/
+exports/startup3/maps/audit9/eightartifacts NOT_RUN. Sourcepasses cannotdeliver
+subset; finalGO/packageGOwithheld. No identicalwarmcache replay, materialfeature
+cuts, capextension or nativeperformance claim. Original01:40→03:10UTC90minALLIN
+includes interveningdependency delivery andcleanup; before-window61.0810887 and
+earlierpartial79.6810031 costs preserved, not reset or added twice. Invaliddirty
+import(OS0/raw0/cleanfalse), freshclean6.486import, compilerboolrepair andmissing
+casefile/noengine admission also preserved. Originalfailedsource runs stayfailed.
+Verified115member/26,074,081byte archive
+`/srv/mudds-work/arrow-whole-lod-epoch-20261118/records.tar.gz`, SHA256
+`57971c3fe63d714b70e01fe7324fec4cdddd5efac65e57415b88632b5747a606`.
+Allmembers/sourcebundle verified; actual102filefailedrendercache kept asraw
+notcauseproof. Exact-tipownedbranch/worktree/process/scratchcleanup followsfresh
+remote/ownershipchecks; rootonlyarchive+closeout withcontinuouswindowcost.
+ProtectedParadoxc743 remains. [Current blocker/conditions](../../ROADMAP.md#arrow-whole-lod-renewal-current).

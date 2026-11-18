@@ -25,7 +25,9 @@
 - Earlier renewal: **2026-11-17 23:37:41 UTC**. Arrow complete-static LOD
   subsequently consumed **1/1** and remains unfinished; its current allowance
   was **0/1** at the latest reset. It subsequently consumed **1/1** for the
-  directed-extrema correction and remains parked at shared audio re-entry.
+  directed-extrema correction. The shared audio/re-entry cause was resolved;
+  Arrow now remains parked at its original110s no-image rendered-capture
+  timeout after all five source suites pass. Its allowance remains **1/1**.
   Prior failures, actual costs and the current causal reopening conditions
   remain binding. Completed Cinder Loadmaster receipt
   captions and Zenith modern-airframe LOD are excluded from the latest reset.

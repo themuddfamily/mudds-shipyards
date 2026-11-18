@@ -155,8 +155,9 @@ and in linked cards are historical where superseded by this renewal.
 
 At this renewal, unfinished Arrow complete-static LOD and Utopia card7 each
 received **0/1 used**. Arrow subsequently consumed **1/1** in the cause-backed
-[directed-extrema correction](#arrow-whole-lod-renewal-current); its new re-entry
-failure remains parked. Arrow's consumed **1/1** under the 23:37:41 renewal and
+[directed-extrema correction](#arrow-whole-lod-renewal-current); the re-entry
+failure was preserved and resolved causally, and the same card is now parked
+at its required no-image rendered-capture timeout. Arrow's consumed **1/1** under the 23:37:41 renewal and
 Utopia's older consumed counts remain historical. Arrow now needs the exact
 shared-audio lifecycle and listener-contract repair; Utopia still needs a
 demonstrated execution-cost reduction or
@@ -328,31 +329,58 @@ c743 remains. [Full delivery record](docs/history/ROADMAP_DELIVERIES.md#shared-h
 
 <a id="arrow-whole-lod-renewal-current"></a>
 
-### Arrow whole static LOD — causal validation resumed in SAME window
+### Arrow complete static LOD — PARKED at no-image capture timeout,8337feec1
 
-Shared audio dependency is accepted7801f6b. Independent contract reconciliation
-confirms the canonical [LOD contract](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)
-compares quiet snapshots within each lifecycle epoch; accepted ShipBoardingArea
-retirement deliberately replaces its presentation-only RefCounted binding.
-Fixture6c5fef4ed permits ONLY that actual callback replacement after verifying
-old detach/disconnect/stale refusal, exact current replacement/no authority and
-exact method/flags/arguments. Every other cross-epoch node/mesh/material/child/
-listener record stays exact; sameShipAudioRig callback must return; all raw
-identities stay exact within both epochs. No production code changed on resumption.
+No Arrow runtime merge/checkpoint/delivery credit. Main runtime and latest playable
+**7801f6b** remain unchanged. Accepted shared audio fixed the lost rig callback;
+canonical epoch reconciliation verifies the deliberately replaced boarding-audio
+consumer while keeping every other cross-epoch node/mesh/material/child/listener
+record exact. All raw within-epoch identities and sameRig callback remain exact.
+The old re-entry failure below remains a failed historical run, not a pass.
 
-**Original01:40→03:10UTC90minute ALL-IN window remains**, including intervening
-audio dependency work, resumption and cleanup. **1/1 substantive remains used**;
-this is a cause-proven incorrect assertion repair, no new allowance/deadline.
-Five full source300s/12original images110s/PCK5×300s/pairedcheckpoint/startup3/
-maps/audit9/eightfiles and original ordinary/native/fullcraft limitations remain.
-Root-owned `/srv/mudds-work/arrow-whole-lod-epoch-20261118/frozen-card.md` pins all
-commands/gates. Import first overlapped editing (OS0/raw0/clean=false, rejected
-as validation); fresh clean import6.486sPASS. Independent sourceGO; execution
-still unproved. First real failure stops; no geometry tuning or partial merge.
-Earlier failed stop and all source/raw/costs below remain historical.
+**All five complete source suites now pass** on8337feec17048bf1f0c6202aa3270e97a68580af:
+focused53.713s,fullDEFAULT86.125s,damage-cue48.730s,crown33.495s,core32.555s;
+each exit0/exactone marker/raw0/source-cache-HEAD-clean guards, original300s caps.
+Actual static geometry **12,374far/50,496close≤25%**, submissions **8≤119**. Both
+lifecycle epochs, exact boundaries/nonfinite/current-camera/cockpit, literal
+complete membership, resource/authority and real boarding/disembark cases pass.
+No geometry/production code changed in this causal resumption.
 
+**First required rendered gate FAILS:** default original two-view crown capture
+under privateXvfb/explicitx11/Forward+/Vulkan1.4.305/llvmpipeLLVM19.1.7/Dummy hits
+unchanged110s outer limit. Actual112.028s including owned reap,exit124/marker0/
+**zero images**, raw onlytimeout; source/HEAD/clean unchanged. No blocked function,
+draw/material/thread stack was captured. This establishes a no-image timeout,
+not a particular shader cause or native-GPU performance finding. Independent
+FINAL_GO/PACKAGE_GO withheld. No warm replay, renderer/material-feature waiver,
+image substitution or cap extension. Remaining whole10rendered views/PCK5/paired
+exports/startup3/maps/audit9/eight new artifacts are **NOT_RUN**, stopped here.
 
-### Arrow complete static LOD — PARKED at shared audio re-entry,712259ad4
+**SAME original01:40→03:10UTC90minute ALL-IN window**, including intervening audio
+dependency delivery/resumption/cleanup; **1/1 substantive remains used**. No
+branch/root/task rename or goal continuation reset it. Before-window cumulative
+61.08108871666666minutes and earlier partial79.68100311666666 closeout remain
+historical; new closeout records continuous original-window wall time, including
+dependency work, without adding the partial window twice. Root's dirty-overlap
+import was rejected(clean=false); fresh clean import6.486sPASS. Three local type
+annotations repair a recorded compiler inference failure. Initial missing case
+file admitted no engine and was restored exactly; no cases/caps/predicates cut.
+
+Reopening requires cause evidence and a concrete plan for this fixed required
+capture to finish within its original cap under authorized scope/allowance;
+identical/warm replay is not justified by source passes. Ordinary/native/device/
+human/fullcraft/fullgame gates remain OPEN/NOT_RUN; hostedCI off.
+Verified archive `/srv/mudds-work/arrow-whole-lod-epoch-20261118/records.tar.gz`:
+**26,074,081bytes/115members**, SHA256
+`57971c3fe63d714b70e01fe7324fec4cdddd5efac65e57415b88632b5747a606`.
+Every member and complete source bundle verified; full raw source passes/failed
+render, invalid import/parser/orchestration history, prior archive and actual
+102-file failed render cache preserved. Cache is diagnostic raw, not cause proof.
+Owned worktree/branch/processes/scratch removed after fresh remote/ownership/
+exact-tip checks; only archive+closeout remain. ProtectedParadoxc743 stays.
+
+### Earlier Arrow shared-audio re-entry stop — failed712259ad4, historical
+
 
 Same unfinished card; no Arrow runtime merge/checkpoint/delivery credit. At this
 failed run, accepted playable remained09e0ece and Main runtime was unchanged;
@@ -389,8 +417,9 @@ all12rendered images, PCK5, exports/startup3/maps/audit9/eight checkpoint artifa
 are **NOT_RUN**. Ordinary/native/human/fullcraft/fullgame gates stay open; CI off.
 
 Shared-audio restoration is now accepted as7801f6b ([delivery](#fleet-audio-reentry-current)).
-Arrow reopening still requires explicit listener-contract reconciliation under
-authorized scope/allowance, retaining all
+At this earlier stop Arrow reopening still required explicit listener-contract
+reconciliation, subsequently completed without a new production correction; the
+latest rendered stop above now governs. All original cases/caps remain, including
 original cases/caps/cumulative cost. No automatic geometry tuning, silent signal
 filter, partial runtime merge or renamed allowance successor is authorized.
 Verified archive `/srv/mudds-work/arrow-whole-lod-renewal-20261118/records.tar.gz`:
@@ -4247,7 +4276,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 | [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
 | [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
 | [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
-| [Arrow whole-craft LOD](#arrow-whole-lod-renewal-current) | PARKED712259ad4: geometry12,374/50,496≤25% passes; actual Main re-entry loses shared damage-audio callback and replaces boarding-audio binding identity | Cause-backed accepted shared audio restoration and explicit original listener-contract reconciliation under authorized scope/allowance; full gates/caps/priorcost retained |
+| [Arrow whole-craft LOD](#arrow-whole-lod-renewal-current) | PARKED8337feec1: all5fullsource/geometry12,374≤25% pass; requireddefaultcapture110s timeout/exit124/marker0/images0 | Cause-backed plan for original fixed capture/cap; no identical warm replay or renderer/material waiver, remaining render/PCK/release NOT_RUN; same01:40→03:10window1/1used/priorcost retained |
 | [Zenith modern-airframe LOD](#zenith-modern-lod-current) | DONE09e0ece: complete modern roots/source+PCK234each/render10/package gates pass | Scoped runtime/component member closed; ordinary/native/Player/Main/fullcraft gates remain open; original failures/cost retained |
 | [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
 | [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
