@@ -990,6 +990,9 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 	Input.action_press(&"fire")
 	await _main_frames(20)
 	Input.action_release(&"fire")
+	print("KATANA_MAIN_HELD_FIRE_OPERANDS: sortie=",sortie," bad_shot=",_main_bad_shot," before_shots=",shots," shots=",_main_shots,
+		" before_projectiles=",projectiles," projectiles=",_main_projectiles," status=",_main_ship.get_weapon_fire_status(),
+		" records=",_main_combat_records.slice(maxi(0,_main_combat_records.size()-3)))
 	if not _main_check(_main_shots > shots and _main_projectiles > projectiles and not _main_bad_shot,"actual held fire uses approved center-muzzle pulse on usable flight "+str(sortie)): return false
 	if sortie == 0 and "--component-service" in OS.get_cmdline_user_args():
 		if not await _main_component_damage(): return false
@@ -2107,7 +2110,11 @@ func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth
 	before = _main_reset_snapshot(berth)
 	refusal = _main_ship.reset_for_reuse(dock)
 	if not _main_check(not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" and _main_reset_snapshot(berth) == before,"public premature reset cannot bypass actual due recovery and lease"): return
+	print("KATANA_LIFECYCLE_DEAD_PROBE_BEFORE: bad_shot=",_main_bad_shot," shots=",_main_shots," projectiles=",_main_projectiles,
+		" records=",_main_combat_records.slice(maxi(0,_main_combat_records.size()-3)))
 	var dead_request := authority.submit_hitscan(_main_ship,GameFlow.ARROW_COMBAT_WEAPON_ID,_main_ship.to_global(Vector3(0,1,-6.2)),-_main_ship.global_basis.z)
+	print("KATANA_LIFECYCLE_DEAD_PROBE_AFTER: bad_shot=",_main_bad_shot," shots=",_main_shots," projectiles=",_main_projectiles,
+		" dead_request=",dead_request," records=",_main_combat_records.slice(maxi(0,_main_combat_records.size()-3)))
 	if not _main_check(not dead_request.accepted and dead_request.status == &"source_destroyed","dead actual Katana source cannot fire and consumes stale shot sequence"): return
 	var stale_shot: ShotRequest = dead_request.request
 	await _main_frames(20)
