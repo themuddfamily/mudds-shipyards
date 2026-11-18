@@ -50,6 +50,8 @@ const FRAME_BUDGET_GRACE := 30
 
 var _failures := PackedStringArray()
 var _assertions := 0
+var _boarding_budget_observer := false
+var _boarding_budget_first_receipt: Dictionary = {}
 var _production_input_route := false
 var _sortie_diagnostics := false
 var _diagnostic_wall_ms := -1
@@ -329,6 +331,7 @@ func _run() -> void:
 		await _run_settings_reentry()
 		return
 	_production_input_route = "--production-input-route" in OS.get_cmdline_user_args()
+	_boarding_budget_observer = _production_input_route and "--boarding-budget-observer" in OS.get_cmdline_user_args()
 	_sortie_diagnostics = _production_input_route and "--sortie-diagnostics" in OS.get_cmdline_user_args()
 	_sortie_timing_sample("boot_begin")
 	var game: GameFlow
@@ -453,18 +456,28 @@ func _run() -> void:
 		and game.boarding_candidate == torrent,
 		"the live proximity system, not a ship-selection shortcut, owns the candidate"
 	)
-	await _tap_physical_joy_button(BUTTON_X)
+	if _production_input_route:
+		_check((game.call("get_boarding_time_budget_source", torrent) as Dictionary).is_empty(), "fresh ordinary Torrent has no observed boarding interval before physical input")
+	if _boarding_budget_observer:
+		await _boarding_budget_key(game, torrent, true)
+	else:
+		await _tap_physical_joy_button(BUTTON_X)
 	_check(
 		await _wait_until(
 			func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES,
 			game.canopy_motion_time + game.boarding_motion_time + 1.0 if _production_input_route else 1.2
 		),
-		"controller X drives the physical canopy, boarding path, and pilot-seat handoff"
+		"physical E drives the authored canopy, boarding path, and pilot-seat handoff" if _boarding_budget_observer else "controller X drives the physical canopy, boarding path, and pilot-seat handoff"
 	)
 	_check(
 		game.get_active_ship() == torrent and torrent.is_piloted() and player.is_seated(),
 		"the same visible player and parked Torrent now share piloting authority"
 	)
+
+	if _production_input_route:
+		_boarding_budget_first_receipt = game.call("get_boarding_time_budget_source", torrent)
+		_check(_boarding_budget_first_receipt.get("status") == "MEASURED" if _boarding_budget_observer else _boarding_budget_first_receipt.is_empty(),
+			"physical E observes actual settled boarding; the unchanged JoyX control remains unmeasured")
 
 	var source := torrent.get_command_source() as LocalShipInputSource
 	var provider: ControllerStateProvider = ControllerInputEvents.new(source) if _production_input_route else ControllerStateProvider.new()
@@ -756,8 +769,184 @@ func _run() -> void:
 			"Boot-to-exit ordinary input route preserves all authored sortie tuning and the default sampler")
 		print("CONTROLLER_PRODUCTION_INPUT_ROUTE: Boot > Begin Shift > same-body sortie > docked exit; one run, not three fresh runs or native controls")
 
+	if _production_input_route:
+		var after_exit: Dictionary = game.call("get_boarding_time_budget_source", torrent)
+		_check(after_exit == _boarding_budget_first_receipt, "ordinary exit preserves the completed interval without applying transition-generation invalidation")
+		if _boarding_budget_observer:
+			var detached := after_exit.duplicate(true)
+			detached.seconds = 0.0
+			if detached.get("context") is Dictionary:
+				detached.context.healthy = false
+			_check((game.call("get_boarding_time_budget_source", torrent) as Dictionary) == _boarding_budget_first_receipt,
+				"consumer mutation cannot change the completed observer receipt")
+			var reached_console := await _boarding_budget_walk_to_console(game, player, world)
+			_check(reached_console, "the same exited player walks the supported station route to the physical fleet terminal")
+			if reached_console:
+				var console := world.get_fleet_registry_console()
+				var presentation_valid := true
+				var snapshot: Dictionary = {}
+				for page in 9:
+					await _boarding_budget_key(game, torrent)
+					var presented: Dictionary = console.call("get_presentation_snapshot")
+					snapshot = presented.last_snapshot
+					presentation_valid = presentation_valid and int(presented.rated_page) == page
+					if page == 8:
+						presentation_valid = presentation_valid and str(presented.screen_text).begins_with("BOARDING 9/9")
+				var measured := 0
+				for row: Dictionary in snapshot.get("rows", []):
+					var timing: Dictionary = row.rated_budget.boarding_time
+					if timing.status == "MEASURED":
+						measured += 1
+						presentation_valid = presentation_valid and row.ship_id == "torrent_provisional" and timing.observation == _boarding_budget_first_receipt
+					else:
+						presentation_valid = presentation_valid and timing.status == "UNKNOWN" and not timing.has("field")
+				_check(presentation_valid and measured == 1 and snapshot.rows.size() == 15, "nine ordinary terminal E pages consume exactly one real Torrent observation and fourteen unknown rows")
+				var path := ""
+				for argument: String in OS.get_cmdline_user_args():
+					if argument.begins_with("--write-rated-snapshot="):
+						path = argument.trim_prefix("--write-rated-snapshot=")
+				var file := FileAccess.open(path, FileAccess.WRITE) if path.is_absolute_path() else null
+				_check(file != null, "post-exit actual console snapshot writes only to the explicit absolute path")
+				if file != null:
+					file.store_string(JSON.stringify(snapshot, "\t"))
+					file.close()
 	await _clean_up(game, provider)
 	_finish()
+
+
+func _boarding_budget_key(game: GameFlow, torrent: HeroShip, observe_pending: bool = false) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = KEY_E
+	event.keycode = KEY_E
+	event.pressed = true
+	Input.parse_input_event(event)
+	await physics_frame
+	await process_frame
+	if observe_pending:
+		_check(game.phase == GameFlow.Phase.BOARDING and (game.call("get_boarding_time_budget_source", torrent) as Dictionary).is_empty(),
+			"real E begins the authored handoff without publishing an intermediate canopy or seat as completion")
+	event = InputEventKey.new()
+	event.physical_keycode = KEY_E
+	event.keycode = KEY_E
+	event.pressed = false
+	Input.parse_input_event(event)
+	await physics_frame
+	await process_frame
+
+
+func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, world: ShipyardWorld) -> bool:
+	var console := world.get_fleet_registry_console()
+	if console == null:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "console_missing"})
+		return false
+	# Reuse the existing Arrow-route north lane, outside the transfer machinery.
+	var north_rail := world.get_node_or_null(^"ExposedDockLattice/BranchRail/Collision") as CollisionShape3D
+	var cargo := world.get_node_or_null(^"OperationalLattice/Activities/PortBranchCargoLine") as StationOperationsActivity
+	var capsule := player.get_node("PlayerCollision") as CollisionShape3D
+	if north_rail == null or not north_rail.shape is BoxShape3D or cargo == null or not capsule.shape is CapsuleShape3D:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "rail_cargo_capsule_missing", "rail": str(north_rail), "cargo": str(cargo), "capsule": str(capsule)})
+		return false
+	var radius := (capsule.shape as CapsuleShape3D).radius
+	var rail_shape := north_rail.shape as BoxShape3D
+	var lane := world.to_local(north_rail.to_global(Vector3(0.0, 0.0, rail_shape.size.z * 0.5))).z + radius * 2.0
+	var cargo_front := INF
+	for volume: Dictionary in cargo.get_solid_volume_contract():
+		cargo_front = minf(cargo_front, world.to_local(cargo.to_global((volume.position as Vector3) - (volume.size as Vector3) * 0.5)).z)
+	if not is_finite(lane) or lane + radius >= cargo_front:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "lane_clearance", "lane": lane, "radius": radius, "cargo_front": cargo_front})
+		return false
+	# Arrow's +90-degree home yaw rotates its accepted local collision union:
+	# world x ends at -36.07 and world z at21.05. The .38m capsule clears both
+	# at x=-35.5, z=21.85, inside the supported port deck's x<=-34.6 edge.
+	# Enter the real threshold at its low end, never its .40m vertical side.
+	var local_route: Array[Vector3] = [Vector3(world.to_local(player.global_position).x, -0.02, lane), Vector3(-35.5, -0.02, lane),
+		Vector3(-35.5, -0.02, 21.85), Vector3(-43.0, -0.02, 21.85), Vector3(-43.0, 0.38, 23.05)]
+	var route: Array[Vector3] = []
+	for waypoint: Vector3 in local_route:
+		route.append(world.to_global(waypoint))
+	var leg := -1
+	for waypoint: Vector3 in route:
+		leg += 1
+		var distance := (waypoint - player.global_position).slide(Vector3.UP).length()
+		var frames := _frame_budget(distance / player.walk_speed)
+		var arrived := false
+		var started_physics := Engine.get_physics_frames()
+		var used_frames := 0
+		var requested_axes := Vector2.ZERO
+		for frame in frames:
+			used_frames = frame + 1
+			if game.station_interaction_candidate == console:
+				_release_physical_joypad()
+				return true
+			if not player.is_control_enabled() or player.is_seated() or player.global_position.y < -1.0:
+				_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "actor_control_seat_or_fall", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
+				_release_physical_joypad()
+				return false
+			var offset := (waypoint - player.global_position).slide(Vector3.UP)
+			if offset.length() < 0.35:
+				arrived = true
+				if leg != route.size() - 1:
+					break
+				requested_axes = Vector2.ZERO
+			else:
+				var yaw := player.get_node("CameraRig/CameraYaw") as Node3D
+				var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+				var right := forward.cross(Vector3.UP).normalized()
+				var desired := offset.normalized()
+				requested_axes = Vector2(desired.dot(right), -desired.dot(forward))
+			_set_physical_joy_axis(AXIS_LEFT_X, requested_axes.x)
+			_set_physical_joy_axis(AXIS_LEFT_Y, requested_axes.y)
+			if leg == route.size() - 1:
+				_boarding_budget_aim_at_console(player, console)
+			await physics_frame
+		if not arrived:
+			_boarding_budget_walk_diagnostic(game, player, {"event": "LEG_END" if arrived else "FAIL", "reason": "arrived" if arrived else "frame_exhaustion", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
+		_release_physical_joypad()
+		if not arrived:
+			return false
+	await physics_frame
+	await process_frame
+	if game.station_interaction_candidate != console:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FINAL", "reason": "real_console_candidate" if game.station_interaction_candidate == console else "no_console_candidate"})
+	return game.station_interaction_candidate == console
+
+func _boarding_budget_aim_at_console(player: PlayerController, console: Area3D) -> void:
+	# Use the actual Player camera owner: native right-stick input, its radial
+	# deadzone and 2.5 rad/s angular response, within the existing final leg.
+	const LookInput := preload("res://scripts/player/gamepad_look_input.gd")
+	var to_console := (console.global_position - player.get_interaction_origin()).normalized()
+	var yaw := player.get_node("CameraRig/CameraYaw") as Node3D
+	var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+	var desired_flat := to_console.slide(Vector3.UP).normalized()
+	var yaw_step := -forward.signed_angle_to(desired_flat, Vector3.UP)
+	var pitch_delta := asin(clampf(to_console.y, -1.0, 1.0)) - asin(clampf(player.get_interaction_direction().y, -1.0, 1.0))
+	var pitch_step := pitch_delta if player.invert_mouse_y else -pitch_delta
+	var demand := Vector2(yaw_step, pitch_step)
+	var raw := Vector2.ZERO
+	if not demand.is_zero_approx():
+		var strength := minf(demand.length() / (LookInput.ANGULAR_SPEED / float(Engine.physics_ticks_per_second)), 1.0)
+		raw = demand.normalized() * (LookInput.DEADZONE + (1.0 - LookInput.DEADZONE) * strength)
+	_set_physical_joy_axis(AXIS_RIGHT_X, raw.x)
+	_set_physical_joy_axis(AXIS_RIGHT_Y, raw.y)
+
+
+func _boarding_budget_walk_diagnostic(game: GameFlow, player: PlayerController, detail: Dictionary) -> void:
+	var yaw := player.get_node_or_null("CameraRig/CameraYaw") as Node3D
+	var candidate: Node = game.station_interaction_candidate
+	var console := game.world.get_fleet_registry_console() as Area3D
+	var direction := (console.global_position - player.get_interaction_origin()).normalized() if console != null else Vector3.ZERO
+	detail.merge({"wall_usec": Time.get_ticks_usec(), "physics_frame": Engine.get_physics_frames(), "process_frame": Engine.get_process_frames(),
+		"position": str(player.global_position), "velocity": str(player.velocity), "on_floor": player.is_on_floor(),
+		"interaction_origin": str(player.get_interaction_origin()), "interaction_direction": str(player.get_interaction_direction()),
+		"console_direction": str(direction), "facing_dot": player.get_interaction_direction().dot(direction),
+		"control_enabled": player.is_control_enabled(), "seated": player.is_seated(),
+		"candidate": str(candidate.get_path()) if is_instance_valid(candidate) else "none",
+		"camera_basis": str(yaw.global_basis) if yaw != null else "missing",
+		"actual_joy_axes": str(Vector2(Input.get_joy_axis(0, AXIS_LEFT_X), Input.get_joy_axis(0, AXIS_LEFT_Y))),
+		"actual_player_move_vector": str(Input.get_vector("move_left", "move_right", "move_forward", "move_back")),
+		"move_left_strength": Input.get_action_strength("move_left"), "move_right_strength": Input.get_action_strength("move_right"),
+		"move_forward_strength": Input.get_action_strength("move_forward"), "move_back_strength": Input.get_action_strength("move_back")})
+	print("BOARDING_BUDGET_CONSOLE_WALK_DIAGNOSTIC: ", JSON.stringify(detail))
 
 
 ## External orchestration first runs accessibility_reentry_integration_test's
@@ -1938,7 +2127,7 @@ func _sortie_guidance_sample(kind: String, ship: HeroShip, desired: Vector3, dis
 
 
 func _finish() -> void:
-	var expected := PRODUCTION_INPUT_ASSERTIONS if _production_input_route else EXPECTED_ASSERTIONS
+	var expected := (PRODUCTION_INPUT_ASSERTIONS + (8 if _boarding_budget_observer else 3)) if _production_input_route else EXPECTED_ASSERTIONS
 	if _assertions != expected:
 		_failures.append(
 			"assertion contract drifted: expected %d, observed %d"

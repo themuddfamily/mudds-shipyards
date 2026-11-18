@@ -28,16 +28,18 @@ const PAGE_FIELDS := [
 	["damage", "range", "cooldown"],
 	["warmup", "heatlockout", "minimum_operators"],
 	["ammo_capacity"],
+	[],
 ]
 const PAGE_HEADERS := [
-	"RATED 1/8 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
-	"RATED 2/8 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
-	"RATED 3/8 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
-	"RATED 4/8 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
-	"COLLISION 5/8 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
-	"PILOT 6/8 RAW/IDX 0..1 | DMG/trigger RANGE m COOLDOWN s | INTERACT:NEXT",
-	"PILOT 7/8 RAW/IDX 0..1 | WARMUP s HEATLOCK s MIN OPS | INTERACT:NEXT",
-	"PILOT 8/8 AMMO CAP rounds/IDX 0..1 | REFILL | INTERACT:NEXT",
+	"RATED 1/9 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
+	"RATED 2/9 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
+	"RATED 3/9 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
+	"RATED 4/9 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
+	"COLLISION 5/9 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
+	"PILOT 6/9 RAW/IDX 0..1 | DMG/trigger RANGE m COOLDOWN s | INTERACT:NEXT",
+	"PILOT 7/9 RAW/IDX 0..1 | WARMUP s HEATLOCK s MIN OPS | INTERACT:NEXT",
+	"PILOT 8/9 AMMO CAP rounds/IDX 0..1 | REFILL | INTERACT:NEXT",
+	"BOARDING 9/9 | OBSERVED s/COST IDX 0..1 | FRESH HOME E TO PILOT | INTERACT:NEXT",
 ]
 
 var _rated_page := -1
@@ -126,6 +128,9 @@ func present_fleet_snapshot(snapshot: Dictionary, advance_page: bool = false) ->
 						cells.append("%.3f/%.3f" % [field.raw, field.normalized])
 				else:
 					cells = PackedStringArray([str(footprint.status), str(footprint.status), str(footprint.status)])
+			elif proposed_page == 8:
+				var boarding: Dictionary = budget.boarding_time
+				cells.append("%.3f/%.3f" % [boarding.field.raw, boarding.field.normalized] if boarding.status == "MEASURED" else str(boarding.status))
 			elif proposed_page >= 5:
 				var pilot: Dictionary = budget.pilot_weapon
 				if pilot.status == "SOURCED":
@@ -187,11 +192,15 @@ func _valid_rated_budget(value: Variant, ship_id: String) -> bool:
 		return false
 	if not FleetRatedBudget.valid_pilot_weapon(budget.get("pilot_weapon"), ship_id):
 		return false
+	if not FleetRatedBudget.valid_boarding_time(budget.get("boarding_time"), ship_id):
+		return false
 	if not _valid_footprint(budget.get("footprint"), ship_id):
 		return false
 	var expected_missing := FleetRatedBudget.MISSING_DIMENSIONS.duplicate()
 	if budget.footprint.status == "MEASURED":
 		expected_missing.erase("collision_footprint")
+	if budget.boarding_time.status == "MEASURED":
+		expected_missing.erase("boarding_time")
 	var missing: Variant = budget.get("missing_dimensions")
 	if not missing is Array or missing != expected_missing:
 		return false

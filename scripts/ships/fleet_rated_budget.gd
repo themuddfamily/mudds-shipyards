@@ -39,12 +39,14 @@ const PILOT_FIELDS := {
 	"heatlockout": ["s", "cost"], "minimum_operators": ["operator", "cost"],
 	"ammo_capacity": ["round", "benefit"],
 }
+const BOARDING_SOURCE := "ordinary_E_to_settled_pilot"
+var _boarding_time: Dictionary = {"status": "UNKNOWN", "reason": "observation_not_available", "source": BOARDING_SOURCE}
 var _pilot_weapon: Dictionary = {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": PILOT_SOURCE}
 var _fields: Dictionary = {}
 var _footprint: Dictionary = {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": FOOTPRINT_SOURCE}
 
 
-func _init(definition: ShipDefinition = null, actual_craft: HeroShip = null, pilot_source: Dictionary = {}) -> void:
+func _init(definition: ShipDefinition = null, actual_craft: HeroShip = null, pilot_source: Dictionary = {}, boarding_source: Dictionary = {}) -> void:
 	if definition == null or actual_craft != null:
 		_pilot_weapon = {"status": "UNAVAILABLE", "reason": "live_pilot_source_unavailable", "source": PILOT_SOURCE}
 	if definition == null:
@@ -70,6 +72,7 @@ func _init(definition: ShipDefinition = null, actual_craft: HeroShip = null, pil
 	if actual_craft != null:
 		_footprint = _measure_footprint(definition, actual_craft)
 		_pilot_weapon = _measure_pilot(definition, actual_craft, pilot_source)
+		_boarding_time = _measure_boarding(definition, actual_craft, boarding_source)
 
 
 func is_valid() -> bool:
@@ -87,9 +90,12 @@ func get_snapshot() -> Dictionary:
 		"missing_dimensions": MISSING_DIMENSIONS.duplicate(),
 		"footprint": _footprint.duplicate(true),
 		"pilot_weapon": _pilot_weapon.duplicate(true),
+		"boarding_time": _boarding_time.duplicate(true),
 	}
 	if _footprint.status == "MEASURED":
 		snapshot.missing_dimensions.erase("collision_footprint")
+	if _boarding_time.status == "MEASURED":
+		snapshot.missing_dimensions.erase("boarding_time")
 	if _valid:
 		snapshot["fields"] = _fields.duplicate(true)
 	return snapshot.duplicate(true)
@@ -365,3 +371,77 @@ static func valid_pilot_weapon(value: Variant, ship_id: String) -> bool:
 		if (item.constraints.thermal.model == "none") != no_heat or item.constraints.ammo_unbounded == (ship_id == "cinder_long_range_bomber"):
 			return false
 	return true
+
+
+func _measure_boarding(definition: ShipDefinition, craft: HeroShip, source: Dictionary) -> Dictionary:
+	var unknown := {"status": "UNKNOWN", "reason": "observation_not_available", "source": BOARDING_SOURCE}
+	if source.is_empty():
+		return unknown
+	var unavailable := {"status": "UNAVAILABLE", "reason": "invalid_observation", "source": BOARDING_SOURCE}
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() or craft.is_destroyed() \
+			or craft.get_ship_definition() != definition or craft.get_ship_id() != definition.get_ship_id():
+		return unavailable
+	if not valid_boarding_observation(source, str(_ship_id)) or int(source.craft_instance_id) != craft.get_instance_id() \
+			or source.context.home_berth_id != str(craft.get_home_berth_id()):
+		return unavailable
+	var ledger := craft.get_component_damage()
+	if ledger == null or int(source.lifecycle_generation) != ledger.get_ledger_generation():
+		return unavailable
+	return {"status": "MEASURED", "source": BOARDING_SOURCE, "ship_id": str(_ship_id),
+		"observation": source.duplicate(true), "field": _field(float(source.seconds), "s", "cost", BOARDING_SOURCE + ".seconds")}
+
+
+static func _positive_integer(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) and float(value) > 0.0 and floorf(float(value)) == float(value) and float(value) <= 9007199254740991.0
+
+
+static func valid_boarding_observation(value: Variant, ship_id: String) -> bool:
+	if not value is Dictionary or not _detached_finite(value) or value.size() != 11 or ship_id != "torrent_provisional":
+		return false
+	for key: String in ["status", "source", "ship_id"]:
+		if not value.get(key) is String:
+			return false
+	if value.status != "MEASURED" or value.source != BOARDING_SOURCE or value.ship_id != ship_id:
+		return false
+	for key: String in ["craft_instance_id", "player_instance_id", "transition_generation", "lifecycle_generation", "started_usec", "settled_usec"]:
+		if not _positive_integer(value.get(key)):
+			return false
+	if not _nonnegative_number(value.get("seconds")) or float(value.seconds) <= 0.0 or float(value.settled_usec) <= float(value.started_usec):
+		return false
+	var expected := (float(value.settled_usec) - float(value.started_usec)) / 1000000.0
+	if absf(float(value.seconds) - expected) > 0.000000000001 or not value.get("context") is Dictionary:
+		return false
+	var context: Dictionary = value.context
+	if context.size() != 7 or not context.get("home_berth_id") is String or context.home_berth_id.is_empty() or not context.get("input") is String or context.input != "physical_E":
+		return false
+	for key: String in ["closed_canopy", "healthy", "offline", "default_handoff", "fresh_home"]:
+		if not context.get(key) is bool or not context[key]:
+			return false
+	return true
+
+
+static func valid_boarding_time(value: Variant, ship_id: String) -> bool:
+	if not value is Dictionary or not _detached_finite(value):
+		return false
+	for key: String in ["status", "source"]:
+		if not value.get(key) is String:
+			return false
+	if value.source != BOARDING_SOURCE:
+		return false
+	if value.status in ["UNKNOWN", "UNAVAILABLE"]:
+		return value.size() == 3 and value.get("reason") is String and value.reason == ("observation_not_available" if value.status == "UNKNOWN" else "invalid_observation")
+	if value.size() != 5 or value.status != "MEASURED" or not value.get("ship_id") is String or value.ship_id != ship_id \
+			or not valid_boarding_observation(value.get("observation"), ship_id) or not value.get("field") is Dictionary:
+		return false
+	var field: Dictionary = value.field
+	if field.size() != 6:
+		return false
+	for key: String in ["unit", "direction", "source"]:
+		if not field.get(key) is String:
+			return false
+	if field.unit != "s" or field.direction != "cost" or field.source != BOARDING_SOURCE + ".seconds":
+		return false
+	if not _nonnegative_number(field.get("raw")) or not _nonnegative_number(field.get("unit_scale")) or not _nonnegative_number(field.get("normalized")):
+		return false
+	return float(field.unit_scale) == 1.0 and absf(float(field.raw) - float(value.observation.seconds)) <= 0.000000000001 \
+		and absf(float(field.normalized) - 1.0 / (1.0 + float(field.raw))) <= 0.000000000001
