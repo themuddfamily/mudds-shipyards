@@ -152,6 +152,34 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ## Current work and next selection
 
+### Network selection readiness — 2026-11-18, no implementation selected
+
+After delivered Titan parcel checkpointc7eb060, Dynamic card10 is the next
+adopted network capability after its accepted cards1–9. Its grounded access
+prerequisite shares Katana's unfinished single-helm registration and physical
+handoff layer; Dynamic has no travelling cabin and current server startup omits
+it from that registration. Renaming the failed ground profile does not establish
+readiness or authorize a different completion limit.
+
+The archived Katana profile completed its actual actors in140.7219257seconds
+but failed the binding120second completion wait. A bounded source/timestamp
+review ruled out the proposed late overlap: clientB must remain stationary for
+its foreign-access refusal. Only7.460102seconds remain from that refusal to
+hostA completion, so even perfect overlap leaves at least133.2618237seconds.
+It cannot establish120second feasibility. Original ordered cases, actor300s,
+supervisor360s and transition8s limits remain unchanged; no clock-origin,
+route, assertion or case-order workaround was selected. Source of the retained
+profile/results: `/srv/mudds-work/katana-network-ground-resume-20261118/records.tar.gz`.
+
+The owner has been asked whether to approve the previously pending120→180second
+completion wait or retain120 and require a demonstrated execution-cost reduction.
+No answer is assumed. Until that actual gate is resolved, neither a Katana retry
+nor a renamed Dynamic grounded profile is ready. Utopia card7 separately retains
+its full-route300second cost gate. No production branch, worktree or engine was
+created for this readiness check. This finding is not a delivered game capability;
+all prior failures, allowances, costs and acceptance requirements remain intact.
+
+
 <a id="owner-allowance-reset"></a>
 
 ### Owner allowance reset — 2026-11-18
