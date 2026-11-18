@@ -3526,13 +3526,16 @@ func _test_modern_census_visibility(zenith: ZenithInterceptor, airframe: Node3D,
 	cover.visible = cover_visible
 	mount.visible = mount_visible
 	airframe.visible = root_visible
-	# HeroShip._box uses _rounded_box_mesh: six faces, nine quads each,
-	# two triangles per quad, all in one ArrayMesh surface.
+	# Native face extraction independently measures the actual retained mesh;
+	# the census uses surface arrays instead of this geometry API.
+	var cover_triangles: int = int(cover.mesh.get_faces().size() / 3)
+	var cover_submissions: int = cover.mesh.get_surface_count()
 	var correct: bool = inactive_root_counted and leaf_still_visible and hidden_parent == hidden_leaf \
 		and production_hidden == hidden_leaf and hidden_parent_bounds == hidden_leaf_bounds \
 		and int(hidden_parent.meshes) == int(baseline.meshes) - 1 \
-		and int(hidden_parent.submissions) == int(baseline.submissions) - 1 \
-		and int(hidden_parent.triangles) == int(baseline.triangles) - 108
+		and cover_triangles > 0 and cover_submissions == 1 \
+		and int(hidden_parent.submissions) == int(baseline.submissions) - cover_submissions \
+		and int(hidden_parent.triangles) == int(baseline.triangles) - cover_triangles
 	if not correct:
 		print("ZENITH_MODERN_CENSUS_VISIBILITY_FAILURE: ", {
 			"inactive_root_counted": inactive_root_counted, "leaf_visible": leaf_still_visible,
@@ -3540,7 +3543,7 @@ func _test_modern_census_visibility(zenith: ZenithInterceptor, airframe: Node3D,
 			"production_hidden": production_hidden, "baseline_bounds": baseline_bounds,
 			"hidden_parent_bounds": hidden_parent_bounds, "hidden_leaf_bounds": hidden_leaf_bounds,
 			"mount_class": mount.get_class(), "cover_mesh_class": cover.mesh.get_class(),
-			"cover_faces": int(cover.mesh.get_faces().size() / 3),
+			"cover_faces": cover_triangles, "cover_submissions": cover_submissions,
 		})
 	_check(correct,
 		epoch + ": inactive LOD root remains measurable; hidden intermediary excludes its locally visible rounded cover from cost and bounds")
