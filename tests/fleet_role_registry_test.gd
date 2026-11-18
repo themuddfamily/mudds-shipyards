@@ -244,7 +244,7 @@ func _check_hauler_contract() -> void:
 
 func _check_rated_budgets() -> void:
 	var definitions: Array = DEFINITIONS.duplicate()
-	for path in ["titan_provisional", "predator_provisional", "paradox_provisional", "dynamic_provisional", "utopia_provisional", "katana_provisional", "vortex_new_design", "salyut_new_design"]:
+	for path in ["titan_provisional", "predator_provisional", "paradox_provisional", "dynamic_provisional", "utopia_provisional", "katana_provisional", "vortex_provisional", "salyut_provisional"]:
 		definitions.append(load("res://assets/ships/%s.tres" % path))
 	_check(definitions.size() == 17, "all seventeen authored definitions expose the initial rated subset without changing Main membership")
 	for definition: ShipDefinition in definitions:
