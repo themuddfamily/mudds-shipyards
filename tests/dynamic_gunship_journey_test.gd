@@ -1312,7 +1312,9 @@ func _run_components() -> void:
 		if not _check(pilot != null,"component controller has actual reserved seated pilot"): return
 		pilots.append(pilot)
 		craft.set_piloted(true)
+		print("DYNAMIC_COMPONENT_ENGINE_BEFORE: ",_component_fixture_state(craft))
 		craft.request_engine_start()
+		print("DYNAMIC_COMPONENT_ENGINE_AFTER: ",_component_fixture_state(craft))
 		crafts.append(craft)
 		sources.append(source)
 	await _frames(130)
@@ -1884,8 +1886,9 @@ func _component_fixture_pilot(craft: HeroShip) -> PlayerController:
 	deck.add_child(collision)
 	root.add_child(deck)
 	await _frames(2)
-	craft.set_canopy_open(true,0.05)
-	await _frames(6)
+	if not await _component_fixture_canopy(craft,true):
+		deck.queue_free()
+		return null
 	var pilot := PLAYER.instantiate() as PlayerController
 	pilot.transform = craft.get_boarding_entry_transform()
 	root.add_child(pilot)
@@ -1895,8 +1898,10 @@ func _component_fixture_pilot(craft: HeroShip) -> PlayerController:
 		pilot.queue_free()
 		deck.queue_free()
 		return null
-	craft.set_canopy_open(false,0.05)
-	await _frames(6)
+	if not await _component_fixture_canopy(craft,false):
+		pilot.queue_free()
+		deck.queue_free()
+		return null
 	pilot.set_meta("fixture_support",deck)
 	return pilot
 
@@ -2068,3 +2073,21 @@ func _main_actual_combat() -> bool:
 	if not _main_check(bool(event.result.get("accepted",false)),"current actual pilot resumes usable pulse after normal recovery"): return false
 	Input.action_release(&"brake")
 	return true
+
+
+func _component_fixture_state(craft: HeroShip) -> Dictionary:
+	return {"state":craft.get_telemetry().engine_state,"timer":craft.get("_engine_timer"),
+		"canopy_open":craft.is_canopy_open(),"fraction":craft.get("_access_fraction"),
+		"motion":craft.call("is_access_motion_active"),"physics_hz":Engine.physics_ticks_per_second,
+		"tick":Engine.get_physics_frames()}
+
+
+func _component_fixture_canopy(craft: HeroShip, opened: bool) -> bool:
+	craft.set_canopy_open(opened,0.05)
+	for frame in 60:
+		if craft.is_canopy_open() == opened and not bool(craft.call("is_access_motion_active")) \
+				and is_equal_approx(float(craft.get("_access_fraction")),1.0 if opened else 0.0):
+			print("DYNAMIC_COMPONENT_ACCESS_COMPLETE: ",_component_fixture_state(craft))
+			return true
+		await _frames(1)
+	return _check(false,"actual public component canopy completion: "+str(_component_fixture_state(craft)))

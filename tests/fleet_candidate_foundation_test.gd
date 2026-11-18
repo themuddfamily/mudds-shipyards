@@ -83,8 +83,11 @@ func _run() -> void:
 		if not data.has("muzzle") or _ship.to_local(origin).distance_to(data.muzzle)>.0001 or not direction.is_finite() or direction.is_zero_approx(): _bad_origin = true)
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_OFFLINE,"initial real OFFLINE"): return
 	var ticks = int(round(float(VALUES[_name].engine_start_time)*60))
+	print("FLEET_FIXTURE_ENGINE_BEFORE: ",_fixture_access_snapshot(_ship))
 	_ship.request_engine_start()
+	print("FLEET_FIXTURE_ENGINE_AFTER: ",_fixture_access_snapshot(_ship))
 	await _frames(ticks-2)
+	print("FLEET_FIXTURE_ENGINE_PREDEADLINE: ",_fixture_access_snapshot(_ship)," edges=",_edges)
 	if not _check(StringName(_ship.get_telemetry().engine_state)==HeroShip.ENGINE_STARTING,"real approved spool remains STARTING before deadline"): return
 	await _frames(5)
 	if not _check(_edges.size()==2 and _edges[0].state==HeroShip.ENGINE_STARTING and _edges[1].state==HeroShip.ENGINE_ONLINE
@@ -348,8 +351,7 @@ func _fixture_deck(pose: Transform3D) -> void:
 func _fixture_pilot(craft: HeroShip) -> PlayerController:
 	_fixture_deck(craft.global_transform)
 	await _frames(2)
-	craft.set_canopy_open(true,0.05)
-	await _frames(6)
+	if not await _fixture_canopy(craft,true): return null
 	var pilot := PLAYER.instantiate() as PlayerController
 	pilot.transform = craft.get_boarding_entry_transform()
 	root.add_child(pilot)
@@ -358,8 +360,9 @@ func _fixture_pilot(craft: HeroShip) -> PlayerController:
 			or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
 		pilot.queue_free()
 		return null
-	craft.set_canopy_open(false,0.05)
-	await _frames(6)
+	if not await _fixture_canopy(craft,false):
+		pilot.queue_free()
+		return null
 	return pilot
 
 
@@ -425,3 +428,21 @@ func _compare_dynamic_arrow() -> bool:
 	for craft in crafts: craft.queue_free()
 	await _frames(3)
 	return accepted
+
+
+func _fixture_access_snapshot(craft: HeroShip) -> Dictionary:
+	return {"state":craft.get_telemetry().engine_state,"timer":craft.get("_engine_timer"),
+		"canopy_open":craft.is_canopy_open(),"fraction":craft.get("_access_fraction"),
+		"motion":craft.call("is_access_motion_active") if craft.has_method("is_access_motion_active") else false,
+		"physics_hz":Engine.physics_ticks_per_second,"tick":Engine.get_physics_frames()}
+
+
+func _fixture_canopy(craft: HeroShip, opened: bool) -> bool:
+	craft.set_canopy_open(opened,0.05)
+	for frame in 60:
+		if craft.is_canopy_open() == opened and not bool(craft.call("is_access_motion_active")) \
+				and is_equal_approx(float(craft.get("_access_fraction")),1.0 if opened else 0.0):
+			print("FLEET_FIXTURE_ACCESS_COMPLETE: ",_fixture_access_snapshot(craft))
+			return true
+		await _frames(1)
+	return _check(false,"actual public canopy completion before fixture handoff: "+str(_fixture_access_snapshot(craft)))
