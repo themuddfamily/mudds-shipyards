@@ -217,14 +217,20 @@ reset. Historical records below and in archives remain unchanged.
 
 ### Dynamic gunship actual pilot combat — card6 ACTIVE
 
-Candidate **1bbbebd24** implements the Dynamic-only current physical pilot and
+Candidate **11e3c0610** implements the Dynamic-only current physical pilot and
 one-use emission guards; runtime acceptance remains pending. Exact old baseline
 control **1d920d1f0** actually accepts a stale callback: source1112, one shot,
 real target health100→50;87.536s/exit143 at the intended rejection assertion,
 all four guards true. First positive foundation stopped at its new reservation
 fixture; test-only real deck/open/reserve/seat/seal correction preserves runtime,
 all cases/caps and current **0/1 substantive corrections used**. Current full
-matrix is running; no new checkpoint or integration is claimed.
+matrix is running; no new checkpoint or integration is claimed. The complete
+actual Dynamic combat/two-sortie/normal-Quit source journey now passes171.581s,
+exit0/marker1/raw0/all four guards and actual clean_shutdown/clean/session_ended.
+Actual pulse damage, once-only resolution, ownership refusals, heat recovery and
+both original physical sorties pass. The unavailable mid-air foreign reservation
+fixture was moved to the existing supported second boarding; no production or
+acceptance predicate changed. Remaining full source/PCK/package gates stay open.
 
 Goal BUILD-SPLIT-DYNAMIC/card6, parents10/11/36; exact adopted specification
 [Dynamic card6](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md). Result: only
