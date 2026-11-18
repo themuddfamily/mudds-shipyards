@@ -852,10 +852,12 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 		cargo_front = minf(cargo_front, world.to_local(cargo.to_global((volume.position as Vector3) - (volume.size as Vector3) * 0.5)).z)
 	if not is_finite(lane) or lane + radius >= cargo_front:
 		return false
-	# The east apron is x=-36, outside Arrow's x<=-37.45 collision union.
-	# At z=23.1 the turn clears its aftmost z=22.43 plus the .38m capsule.
-	var local_route: Array[Vector3] = [Vector3(world.to_local(player.global_position).x, -0.02, lane), Vector3(-36.0, -0.02, lane),
-		Vector3(-36.0, -0.02, 23.1), Vector3(-43.0, 0.38, 23.1)]
+	# Arrow's +90-degree home yaw rotates its accepted local collision union:
+	# world x ends at -36.07 and world z at21.05. The .38m capsule clears both
+	# at x=-35.5, z=21.85, inside the supported port deck's x<=-34.6 edge.
+	# Enter the real threshold at its low end, never its .40m vertical side.
+	var local_route: Array[Vector3] = [Vector3(world.to_local(player.global_position).x, -0.02, lane), Vector3(-35.5, -0.02, lane),
+		Vector3(-35.5, -0.02, 21.85), Vector3(-43.0, -0.02, 21.85), Vector3(-43.0, 0.38, 23.05)]
 	var route: Array[Vector3] = []
 	for waypoint: Vector3 in local_route:
 		route.append(world.to_global(waypoint))

@@ -9503,7 +9503,7 @@ func _boarding_budget_default_home(candidate: HeroShip) -> bool:
 			or not _boarding_budget_healthy(candidate) or str(candidate.get_telemetry().engine_state) != "OFFLINE" \
 			or not candidate.velocity.is_zero_approx() or not is_instance_valid(world):
 		return false
-	var home := world.get_berth_node(candidate.get_home_berth_id())
+	var home: ShipBerth = world.get_berth_node(candidate.get_home_berth_id())
 	return home != null and home.get_occupant() == candidate and home.get_reservation_owner() == candidate \
 		and home.get_reserved_ship_id() == candidate.get_ship_id() \
 		and home.has_valid_lease(candidate, home.get_reservation_token(candidate), candidate.get_ship_id()) \
@@ -9529,7 +9529,7 @@ func _begin_boarding_budget_observation(candidate: HeroShip, event: Dictionary, 
 		"started_usec": int(event.started_usec), "settled_usec": 0, "seconds": 0.0,
 		"context": {"home_berth_id": str(candidate.get_home_berth_id()), "closed_canopy": true,
 			"healthy": true, "offline": true, "default_handoff": true, "fresh_home": true, "input": "physical_E"}}
-	var home := world.get_berth_node(candidate.get_home_berth_id())
+	var home: ShipBerth = world.get_berth_node(candidate.get_home_berth_id())
 	_boarding_budget_pending_scope = {"home_instance_id": home.get_instance_id(), "lease_token": home.get_reservation_token(candidate),
 		"craft_parent_id": candidate.get_parent().get_instance_id(), "player_parent_id": player.get_parent().get_instance_id()}
 	var lifetime_clear := _clear_boarding_budget_lifetime.bind(identity)
