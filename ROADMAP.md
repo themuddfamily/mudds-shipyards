@@ -206,8 +206,11 @@ change. Passive hidden-mast cost inflation was also corrected without changing
 rendering. Actual first focused run fails the real cost gate: close50496/far29416
 triangles (58.25%, maximum12624), submissions119→8. Exit143/34.846s includes
 first-error abort/reap; all4 integrity guards pass. Dependent checks stopped.
-One genuine geometry correction remains, only after actual contributor mapping;
-no threshold, silhouette, cutout, close-geometry or deadline relaxation.
+The single substantive geometry correction is now **1/1 used**, candidate7a33796:
+128 actual source contributors sum exactly29416. Constrained evaluated-mesh
+reduction preserves material/open-boundary/seam topology and close geometry;
+new runtime cost, geometry budget and all visual/package gates remain unproved.
+No threshold, silhouette, cutout, close-geometry or deadline relaxation.
 
 Baseline5dc4aa1c2, checkpoint2cf0a3f; branchwork/arrow-whole-lod-1118, owned root
 `/srv/mudds-work/arrow-whole-lod-20261118`. MEDIUM implementer owns only
