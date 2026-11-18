@@ -282,6 +282,35 @@ Root-owned card/helpers/results under
 `/srv/mudds-work/arrow-whole-lod-renewal-20261118/`; previous failed closeout below
 stays historical. Main runtime remains unchanged pending complete acceptance.
 
+<a id="arrow-whole-lod-renewal-current"></a>
+
+### Arrow complete static LOD — renewed directed-extrema correction selected
+
+Same unfinished card, owner2026-11-18 01:39:01 reset **0/1 substantive used**
+until the selected correction is applied. Window **01:40→03:10UTC**,90minutes
+ALL-IN including mapping/fullchecks/checkpoint/integration/push/owned cleanup;
+prior61.08108871666666minutes and all failures/source archives remain historical.
+Baseline6598a96be/checkpoint09e0ece. Existing five-file candidate restored exactly
+as a90c93eb9, not merged or accepted. Single unchanged-geometry diagnostic passes
+30.997s/exit0/marker1/raw0/source-cache-HEAD-clean guards:128final contributors
+sum15,004, with1,768vertices locked only by AABB extrema,1,671having at least
+two same-plane neighbours. This provides a measured seam, not accepted savings.
+
+Selected one correction allows a directed collapse only when every removed
+extremal coordinate is exactly preserved by its retained neighbour. Actual open
+boundaries/nonmanifold/junction locks, feature chains, accumulated plane error,
+.025m scale bound, topology/winding/attributes and every original full gate
+remain. Target is unchanged≤12,624far of50,496close triangles/≤119submissions.
+Existing focused test gains a closed-facet regression; existing open-grid and
+all original cases stay mandatory. No recipe/nozzle/camera/material/budget cuts.
+One implementation agent plus independent high-risk reviewer; root owns engine
+checks/release/integration/cleanup. Original five source300s/five actual-PCK300s,
+12fixed rendered images and paired checkpoint/startup3/maps/audit9/eightfiles
+remain required. No ordinary/native/human/full-craft qualification inferred.
+Owned root `/srv/mudds-work/arrow-whole-lod-renewal-20261118`; full frozen card and
+prior archive retained there. First final failure stops dependents and parks
+the whole candidate unmerged; no automatic tuning successor.
+
 <a id="arrow-whole-lod-current"></a>
 
 ### Arrow complete static exterior LOD — PARKED,unmerged
