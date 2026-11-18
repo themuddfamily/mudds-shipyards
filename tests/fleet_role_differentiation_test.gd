@@ -1418,9 +1418,10 @@ func _test_live_rated_budget_sources(by_id: Dictionary, game: GameFlow) -> void:
 	for ship_id: StringName in by_id:
 		var definition := (by_id[ship_id] as HeroShip).get_ship_definition()
 		var before := {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}
-		var budget := registry.create_rated_budget(definition, by_id[ship_id] as HeroShip, game.call("get_pilot_weapon_budget_source", by_id[ship_id]))
+		var budget := registry.create_rated_budget(definition, by_id[ship_id] as HeroShip, game.call("get_pilot_weapon_budget_source", by_id[ship_id]), {}, game.call("get_cargo_budget_source", by_id[ship_id]))
 		var snapshot := budget.get_snapshot()
 		_check(snapshot.boarding_time.status == "UNKNOWN" and not snapshot.boarding_time.has("field"), "unobserved live craft does not acquire an invented boarding interval")
+		_check(snapshot.cargo.status == ("SOURCED" if str(ship_id) == "titan_provisional" else "UNKNOWN") and snapshot.missing_dimensions.has("cargo"), "only actual Titan parcel kind is sourced without qualifying the complete cargo dimension")
 		var pilot: Dictionary = snapshot.pilot_weapon
 		var expected: Array = EXPECTED_PILOT[str(ship_id)]
 		_check(pilot.status == ("UNARMED" if expected.is_empty() else "SOURCED"), "live pilot state matches independent all-fifteen literal oracle")

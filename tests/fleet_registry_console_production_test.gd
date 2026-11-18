@@ -166,9 +166,17 @@ func _run() -> void:
 	if not complete_boarding:
 		await _finish(game)
 		return
+	var complete_cargo := rows.size() == 15
+	for row: Dictionary in rows:
+		var cargo: Variant = (row.get("rated_budget", {}) as Dictionary).get("cargo")
+		complete_cargo = complete_cargo and cargo is Dictionary and cargo.get("status") == ("SOURCED" if str(row.ship_id) == "titan_provisional" else "UNKNOWN")
+	_check(complete_cargo, "ordinary first E publishes actual Titan parcel capacity and explicit unknown cargo for other craft")
+	if not complete_cargo:
+		await _finish(game)
+		return
 	_check_live_pilot_sources(game, live_snapshot)
 	var first_accepted_snapshot := live_snapshot.duplicate(true)
-	for page in 9:
+	for page in 10:
 		if page > 0:
 			game.call(&"_on_interact_requested")
 			await process_frame
@@ -181,7 +189,7 @@ func _run() -> void:
 		_check(default_receipt.get("accepted", false) and (console.call(&"get_presentation_snapshot") as Dictionary).screen_text == text, "default snapshot refresh preserves the current page")
 	game.call(&"_on_interact_requested")
 	await process_frame
-	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/9"), "tenth ordinary E wraps back to page one")
+	_check((console.call(&"get_presentation_snapshot") as Dictionary).screen_text.begins_with("RATED 1/10"), "eleventh ordinary E wraps back to page one")
 	_check(
 		_berth_snapshot(game.world) == berths_before
 			and _regeneration_snapshot(game) == regeneration_before,
@@ -355,6 +363,9 @@ func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String, page:
 			for axis: String in ["span", "height", "length"]:
 				var field: Dictionary = budget.footprint.fields[axis]
 				cells.append("%.3f/%.3f" % [field.raw, field.normalized])
+		elif page == 9:
+			var cargo: Dictionary = budget.cargo
+			cells.append("%s/%.3f  %s/%s/%s" % [str(cargo.field.raw), cargo.field.normalized, str(cargo.projection.aboard), str(cargo.projection.free), str(cargo.projection.locker)] if cargo.status == "SOURCED" else str(cargo.status))
 		elif page == 8:
 			var boarding: Dictionary = budget.boarding_time
 			cells.append("%.3f/%.3f" % [boarding.field.raw, boarding.field.normalized] if boarding.status == "MEASURED" else str(boarding.status))
@@ -461,6 +472,26 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 	mixed.rows[0].erase("rated_budget")
 	cases.append(mixed)
 	for row_index in source.rows.size():
+		var cargo: Dictionary = source.rows[row_index].rated_budget.cargo
+		for key: String in cargo:
+			for bad: Variant in [null, [], {}, true, INF, NAN]:
+				var malformed := source.duplicate(true)
+				malformed.rows[row_index].rated_budget.cargo[key] = bad
+				cases.append(malformed)
+		if cargo.status == "SOURCED":
+			for key: String in cargo.projection:
+				for bad: Variant in [null, [], {}, true, INF, NAN]:
+					var malformed := source.duplicate(true)
+					malformed.rows[row_index].rated_budget.cargo.projection[key] = bad
+					cases.append(malformed)
+			for key: String in cargo.projection.handoff:
+				var malformed := source.duplicate(true)
+				malformed.rows[row_index].rated_budget.cargo.projection.handoff[key] = []
+				cases.append(malformed)
+			for patch: Dictionary in [{"raw": 0.0}, {"raw": true}, {"unit": "freight"}, {"direction": "cost"}, {"normalized": 0.7}, {"unit_scale": 2.0}, {"source": []}]:
+				var malformed := source.duplicate(true)
+				malformed.rows[row_index].rated_budget.cargo.field.merge(patch, true)
+				cases.append(malformed)
 		if str(source.rows[row_index].ship_id) == "torrent_provisional":
 			# Literal detached consumer negatives, not an ordinary timing receipt.
 			var observation := {"status": "MEASURED", "source": "ordinary_E_to_settled_pilot", "ship_id": "torrent_provisional",
@@ -572,7 +603,7 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 				break
 			console.call(&"present_fleet_snapshot", unavailable, true)
 		var unavailable_text := str((console.call(&"get_presentation_snapshot") as Dictionary).screen_text)
-		_check(unavailable_text.begins_with("COLLISION 5/9") and unavailable_text.split("\n")[1].contains("%s  %s  %s" % [status, status, status]), "missing footprint prints explicit unknown cells without numeric zeros")
+		_check(unavailable_text.begins_with("COLLISION 5/10") and unavailable_text.split("\n")[1].contains("%s  %s  %s" % [status, status, status]), "missing footprint prints explicit unknown cells without numeric zeros")
 		var malformed := unavailable.duplicate(true)
 		malformed.rows[0].rated_budget.footprint["shape_count"] = 0
 		var before := console.call(&"get_presentation_snapshot") as Dictionary
@@ -643,7 +674,7 @@ func _capture_rated_registry() -> void:
 	var receipt := console.call(&"present_fleet_snapshot", snapshot) as Dictionary
 	_check(bool(receipt.get("accepted", false)), "production component accepts the exact real captured snapshot")
 	_check(DirAccess.make_dir_recursive_absolute(output) == OK, "component capture output directory is available")
-	for page in 9:
+	for page in 10:
 		if page > 0:
 			receipt = console.call(&"present_fleet_snapshot", snapshot, true) as Dictionary
 			_check(bool(receipt.get("accepted", false)), "component advances the exact pinned snapshot")
@@ -724,7 +755,7 @@ func _check_footprint_geometry(craft: HeroShip, budget: Dictionary) -> void:
 
 
 func _page_heading(page: int) -> String:
-	return "BOARDING 9/9" if page == 8 else ("RATED %d/9" % [page + 1] if page < 4 else ("COLLISION 5/9" if page == 4 else "PILOT %d/9" % [page + 1]))
+	return "PARCEL 10/10" if page == 9 else ("BOARDING 9/10" if page == 8 else ("RATED %d/10" % [page + 1] if page < 4 else ("COLLISION 5/10" if page == 4 else "PILOT %d/10" % [page + 1])))
 
 
 func _check_live_pilot_sources(game: GameFlow, source: Dictionary) -> void:

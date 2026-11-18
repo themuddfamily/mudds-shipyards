@@ -30,6 +30,7 @@ func _run() -> void:
 		await _cold_main()
 	else:
 		await _semantic_store()
+		await _budget_projection()
 		await _sealed_custody()
 	if _failures.is_empty():
 		print("TITAN_CARGO_CUSTODY_TEST_OK")
@@ -289,3 +290,63 @@ func _other_recovery_main() -> void:
 	game.release_mouse_capture()
 	game.queue_free()
 	for frame in 4: await process_frame
+
+
+func _budget_projection() -> void:
+	var f := _fixture()
+	var custody := f.custody as TitanCargoCustody
+	var load_panel := TitanCargoPanel.new()
+	load_panel.name = "TitanLockerPanel"
+	load_panel.loading = true
+	load_panel.custody = custody
+	f.locker.add_child(load_panel)
+	var return_panel := TitanCargoPanel.new()
+	return_panel.name = "TitanHoldPanel"
+	return_panel.custody = custody
+	f.ship.add_child(return_panel)
+	var before := {"store": f.store.get_snapshot(), "generation": f.store.get_generation(), "authority": f.authority.to_dictionary(), "status": custody.status, "available": custody._available}
+	var projected := custody.get_budget_source(f.ship, load_panel, return_panel)
+	_check(projected.get("status") == "SOURCED" and projected.capacity == 4 and projected.aboard == 0 and projected.free == 4 and projected.locker == 4,
+		"read-only projection reads real four-parcel authority capacity, not current stock")
+	_check(before == {"store": f.store.get_snapshot(), "generation": f.store.get_generation(), "authority": f.authority.to_dictionary(), "status": custody.status, "available": custody._available},
+		"projection does not reload, retry, transfer, commit or change owner state")
+	projected.capacity = 99
+	projected.handoff.quantity = 4
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).capacity == 4 and custody.get_budget_source(f.ship, load_panel, return_panel).handoff.quantity == 1,
+		"projection and consumer identities are detached")
+	_check(custody.get_budget_source(null, load_panel, return_panel).status == "UNAVAILABLE", "foreign actual craft cannot inherit the manifest")
+	load_panel.loading = false
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "wrong physical load binding fails closed")
+	load_panel.loading = true
+	load_panel.collision_layer = 0
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "disabled physical interaction layer cannot advertise parcel handoff")
+	load_panel.collision_layer = PhysicsLayers.INTERACTABLE_AREA_LAYER
+	var interaction_shape: CollisionShape3D = null
+	for child in return_panel.get_children():
+		if child is CollisionShape3D:
+			interaction_shape = child as CollisionShape3D
+	_check(interaction_shape != null, "real return panel owns its physical sphere")
+	if interaction_shape != null:
+		interaction_shape.disabled = true
+		_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "disabled physical interaction shape cannot advertise parcel handoff")
+		interaction_shape.disabled = false
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "SOURCED", "restored physical consumer bindings restore read-only projection")
+	var old_handle := custody.ship_handle.duplicate(true)
+	custody.ship_handle.manifest_generation += 1
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "stale manifest handle has no numeric cargo claim")
+	custody.ship_handle = old_handle
+	var definitions: Dictionary = f.authority.get("_item_definitions").duplicate(true)
+	var changed := definitions.duplicate(true)
+	changed[TitanCargoCustody.ITEM].unit_capacity = 2
+	f.authority.set("_item_definitions", changed)
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "a changed registered parcel unit cannot masquerade as parcel capacity")
+	f.authority.set("_item_definitions", definitions)
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "SOURCED", "restored actual item definition restores the unchanged read-only projection")
+	f.ship.remove_child(return_panel)
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "detached physical consumer cannot publish supported handoff")
+	f.ship.add_child(return_panel)
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "SOURCED", "reattached exact physical consumers restore projection without stock mutation")
+	f.ship.apply_damage(220)
+	custody.seal_destroyed_ship()
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE", "destroyed sealed parcel custody remains unscored")
+	await _dispose(f)

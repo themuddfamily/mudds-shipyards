@@ -64,6 +64,7 @@ func _run() -> void:
 	_check_literal_footprint()
 	_check_pilot_budget_detachment()
 	_check_boarding_budget()
+	_check_cargo_budget()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
 	_check(bool(report.get("valid", false)), "the nine production definitions satisfy the role registry")
 	_check(int(report.get("craft_count", 0)) == 9, "the role registry audits all nine supported craft")
@@ -536,3 +537,42 @@ func _check_boarding_budget() -> void:
 	budget.boarding_time.field.raw = 99.0
 	craft.free()
 	_check(resource.get_snapshot() == frozen, "boarding resource retains detached observation after caller mutation and craft release")
+
+
+func _check_cargo_budget() -> void:
+	var definition := load("res://assets/ships/titan_provisional.tres") as ShipDefinition
+	var craft := LiteralHull.new()
+	craft.ship_definition = definition
+	craft.ship_id = definition.get_ship_id()
+	root.add_child(craft)
+	var projection := {"status": "SOURCED", "source": "actual_titan_parcel_custody_and_transfer", "ship_id": "titan_provisional",
+		"craft_instance_id": craft.get_instance_id(), "custody_instance_id": 123, "authority_instance_id": 124,
+		"manifest_id": "titan_cargo_manifest", "manifest_generation": 1, "owner_generation": 1,
+		"item_id": "titan_repair_kit_parcel", "capacity": 4, "aboard": 2, "free": 2, "locker": 2,
+		"handoff": {"load_panel_instance_id": 125, "return_panel_instance_id": 126, "quantity": 1,
+			"load": "supply_locker", "return": "parcel_hold", "conditions": "on_foot_at_own_offline_home"}}
+	var resource := Registry.create_rated_budget(definition, craft, {}, {}, projection)
+	var frozen := resource.get_snapshot()
+	_check(frozen.cargo.status == "SOURCED" and frozen.cargo.field.raw == 4.0 and frozen.cargo.field.normalized == 0.8
+		and frozen.cargo.projection.aboard == 2 and frozen.cargo.projection.free == 2 and frozen.cargo.projection.locker == 2
+		and frozen.missing_dimensions.has("cargo") and frozen.qualification == &"NOT_QUALIFIED", "parcel capacity4/.8 is separate from conserved2/2 stock and incomplete full cargo")
+	_check(RatedBudgetType.valid_cargo(JSON.parse_string(JSON.stringify(frozen.cargo)), "titan_provisional"), "parcel projection survives exact detached JSON roundtrip")
+	_check(Registry.create_rated_budget(definition, craft).get_snapshot().cargo.status == "UNKNOWN", "missing parcel source remains unknown without numeric zeros")
+	for key: String in projection:
+		for bad: Variant in [null, [], {}, true, INF, NAN]:
+			var malformed := projection.duplicate(true)
+			malformed[key] = bad
+			_check(Registry.create_rated_budget(definition, craft, {}, {}, malformed).get_snapshot().cargo.status == "UNAVAILABLE", "malformed parcel projection refuses before comparison: %s" % key)
+	for key: String in projection.handoff:
+		var malformed := projection.duplicate(true)
+		malformed.handoff[key] = []
+		_check(Registry.create_rated_budget(definition, craft, {}, {}, malformed).get_snapshot().cargo.status == "UNAVAILABLE", "malformed parcel handoff refuses atomically: %s" % key)
+	for patch: Dictionary in [{"capacity": 5}, {"aboard": -1}, {"free": 0}, {"locker": 0}, {"manifest_id": "wrong"}, {"item_id": "repair_kit"}, {"craft_instance_id": 1}, {"ship_id": "torrent_provisional"}]:
+		var malformed := projection.duplicate(true)
+		malformed.merge(patch, true)
+		_check(Registry.create_rated_budget(definition, craft, {}, {}, malformed).get_snapshot().cargo.status == "UNAVAILABLE", "parcel identity/capacity/stock consistency is exact")
+	projection.aboard = 4
+	var detached := resource.get_snapshot()
+	detached.cargo.field.raw = 99.0
+	craft.free()
+	_check(resource.get_snapshot() == frozen, "parcel resource keeps no live craft reference and detaches all nested values")

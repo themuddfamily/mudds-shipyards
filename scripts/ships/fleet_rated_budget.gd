@@ -39,6 +39,8 @@ const PILOT_FIELDS := {
 	"heatlockout": ["s", "cost"], "minimum_operators": ["operator", "cost"],
 	"ammo_capacity": ["round", "benefit"],
 }
+const CARGO_SOURCE := "actual_titan_parcel_custody_and_transfer"
+var _cargo: Dictionary = {"status": "UNKNOWN", "reason": "kind_not_sourced", "source": CARGO_SOURCE}
 const BOARDING_SOURCE := "ordinary_E_to_settled_pilot"
 var _boarding_time: Dictionary = {"status": "UNKNOWN", "reason": "observation_not_available", "source": BOARDING_SOURCE}
 var _pilot_weapon: Dictionary = {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": PILOT_SOURCE}
@@ -46,7 +48,7 @@ var _fields: Dictionary = {}
 var _footprint: Dictionary = {"status": "UNKNOWN", "reason": "live_craft_not_supplied", "source": FOOTPRINT_SOURCE}
 
 
-func _init(definition: ShipDefinition = null, actual_craft: HeroShip = null, pilot_source: Dictionary = {}, boarding_source: Dictionary = {}) -> void:
+func _init(definition: ShipDefinition = null, actual_craft: HeroShip = null, pilot_source: Dictionary = {}, boarding_source: Dictionary = {}, cargo_source: Dictionary = {}) -> void:
 	if definition == null or actual_craft != null:
 		_pilot_weapon = {"status": "UNAVAILABLE", "reason": "live_pilot_source_unavailable", "source": PILOT_SOURCE}
 	if definition == null:
@@ -73,6 +75,7 @@ func _init(definition: ShipDefinition = null, actual_craft: HeroShip = null, pil
 		_footprint = _measure_footprint(definition, actual_craft)
 		_pilot_weapon = _measure_pilot(definition, actual_craft, pilot_source)
 		_boarding_time = _measure_boarding(definition, actual_craft, boarding_source)
+		_cargo = _measure_cargo(definition, actual_craft, cargo_source)
 
 
 func is_valid() -> bool:
@@ -91,6 +94,7 @@ func get_snapshot() -> Dictionary:
 		"footprint": _footprint.duplicate(true),
 		"pilot_weapon": _pilot_weapon.duplicate(true),
 		"boarding_time": _boarding_time.duplicate(true),
+		"cargo": _cargo.duplicate(true),
 	}
 	if _footprint.status == "MEASURED":
 		snapshot.missing_dimensions.erase("collision_footprint")
@@ -445,3 +449,76 @@ static func valid_boarding_time(value: Variant, ship_id: String) -> bool:
 		return false
 	return float(field.unit_scale) == 1.0 and absf(float(field.raw) - float(value.observation.seconds)) <= 0.000000000001 \
 		and absf(float(field.normalized) - 1.0 / (1.0 + float(field.raw))) <= 0.000000000001
+
+
+func _measure_cargo(definition: ShipDefinition, craft: HeroShip, source: Dictionary) -> Dictionary:
+	var unknown := {"status": "UNKNOWN", "reason": "kind_not_sourced", "source": CARGO_SOURCE}
+	if source.is_empty():
+		return unknown
+	var unavailable := {"status": "UNAVAILABLE", "reason": "invalid_custody", "source": CARGO_SOURCE}
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() or craft.is_destroyed() \
+			or craft.get_ship_definition() != definition or craft.get_ship_id() != definition.get_ship_id() \
+			or not valid_cargo_projection(source, str(_ship_id)) or int(source.craft_instance_id) != craft.get_instance_id():
+		return unavailable
+	return {"status": "SOURCED", "source": CARGO_SOURCE, "ship_id": str(_ship_id), "projection": source.duplicate(true),
+		"field": _field(float(source.capacity), "parcel", "benefit", CARGO_SOURCE + ".capacity")}
+
+
+static func valid_cargo_projection(value: Variant, ship_id: String) -> bool:
+	if not value is Dictionary or not _detached_finite(value) or value.size() != 15 or ship_id != "titan_provisional":
+		return false
+	for key: String in ["status", "source", "ship_id", "manifest_id", "item_id"]:
+		if not value.get(key) is String:
+			return false
+	if value.status != "SOURCED" or value.source != CARGO_SOURCE or value.ship_id != ship_id \
+			or value.manifest_id != "titan_cargo_manifest" or value.item_id != "titan_repair_kit_parcel":
+		return false
+	for key: String in ["craft_instance_id", "custody_instance_id", "authority_instance_id", "manifest_generation", "owner_generation", "capacity"]:
+		if not _positive_integer(value.get(key)):
+			return false
+	for key: String in ["aboard", "free", "locker"]:
+		if not _nonnegative_number(value.get(key)) or floorf(float(value[key])) != float(value[key]):
+			return false
+	if float(value.capacity) != 4.0 or float(value.aboard) + float(value.free) != float(value.capacity) \
+			or float(value.aboard) + float(value.locker) != 4.0 or not value.get("handoff") is Dictionary:
+		return false
+	var handoff: Dictionary = value.handoff
+	if handoff.size() != 6:
+		return false
+	for key: String in ["load", "return", "conditions"]:
+		if not handoff.get(key) is String:
+			return false
+	if handoff.load != "supply_locker" or handoff["return"] != "parcel_hold" or handoff.conditions != "on_foot_at_own_offline_home" \
+			or not _positive_integer(handoff.get("quantity")) or float(handoff.quantity) != 1.0:
+		return false
+	return _positive_integer(handoff.get("load_panel_instance_id")) and _positive_integer(handoff.get("return_panel_instance_id")) \
+		and handoff.load_panel_instance_id != handoff.return_panel_instance_id
+
+
+static func valid_cargo(value: Variant, ship_id: String) -> bool:
+	if not value is Dictionary or not _detached_finite(value):
+		return false
+	for key: String in ["status", "source"]:
+		if not value.get(key) is String:
+			return false
+	if value.source != CARGO_SOURCE:
+		return false
+	if value.status in ["UNKNOWN", "UNAVAILABLE"]:
+		return value.size() == 3 and value.get("reason") is String \
+			and value.reason == ("kind_not_sourced" if value.status == "UNKNOWN" else "invalid_custody")
+	if value.size() != 5 or value.status != "SOURCED" or not value.get("ship_id") is String or value.ship_id != ship_id \
+			or not valid_cargo_projection(value.get("projection"), ship_id) or not value.get("field") is Dictionary:
+		return false
+	var field: Dictionary = value.field
+	if field.size() != 6:
+		return false
+	for key: String in ["unit", "direction", "source"]:
+		if not field.get(key) is String:
+			return false
+	if field.unit != "parcel" or field.direction != "benefit" or field.source != CARGO_SOURCE + ".capacity":
+		return false
+	for key: String in ["raw", "unit_scale", "normalized"]:
+		if not _nonnegative_number(field.get(key)):
+			return false
+	return float(field.unit_scale) == 1.0 and float(field.raw) == float(value.projection.capacity) \
+		and absf(float(field.normalized) - float(field.raw) / (1.0 + float(field.raw))) <= 0.000000000001

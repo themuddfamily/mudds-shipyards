@@ -29,17 +29,19 @@ const PAGE_FIELDS := [
 	["warmup", "heatlockout", "minimum_operators"],
 	["ammo_capacity"],
 	[],
+	[],
 ]
 const PAGE_HEADERS := [
-	"RATED 1/9 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
-	"RATED 2/9 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
-	"RATED 3/9 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
-	"RATED 4/9 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
-	"COLLISION 5/9 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
-	"PILOT 6/9 RAW/IDX 0..1 | DMG/trigger RANGE m COOLDOWN s | INTERACT:NEXT",
-	"PILOT 7/9 RAW/IDX 0..1 | WARMUP s HEATLOCK s MIN OPS | INTERACT:NEXT",
-	"PILOT 8/9 AMMO CAP rounds/IDX 0..1 | REFILL | INTERACT:NEXT",
-	"BOARDING 9/9 | OBSERVED s/COST IDX 0..1 | FRESH HOME E TO PILOT | INTERACT:NEXT",
+	"RATED 1/10 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
+	"RATED 2/10 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
+	"RATED 3/10 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
+	"RATED 4/10 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
+	"COLLISION 5/10 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
+	"PILOT 6/10 RAW/IDX 0..1 | DMG/trigger RANGE m COOLDOWN s | INTERACT:NEXT",
+	"PILOT 7/10 RAW/IDX 0..1 | WARMUP s HEATLOCK s MIN OPS | INTERACT:NEXT",
+	"PILOT 8/10 AMMO CAP rounds/IDX 0..1 | REFILL | INTERACT:NEXT",
+	"BOARDING 9/10 | OBSERVED s/COST IDX 0..1 | FRESH HOME E TO PILOT | INTERACT:NEXT",
+	"PARCEL 10/10 | SEALED KIT CAP/IDX 0..1 ABOARD/FREE/LOCKER | HOME E:SUPPLY LOAD/HOLD RETURN | INTERACT:NEXT",
 ]
 
 var _rated_page := -1
@@ -128,6 +130,9 @@ func present_fleet_snapshot(snapshot: Dictionary, advance_page: bool = false) ->
 						cells.append("%.3f/%.3f" % [field.raw, field.normalized])
 				else:
 					cells = PackedStringArray([str(footprint.status), str(footprint.status), str(footprint.status)])
+			elif proposed_page == 9:
+				var cargo: Dictionary = budget.cargo
+				cells.append("%s/%.3f  %s/%s/%s" % [str(cargo.field.raw), cargo.field.normalized, str(cargo.projection.aboard), str(cargo.projection.free), str(cargo.projection.locker)] if cargo.status == "SOURCED" else str(cargo.status))
 			elif proposed_page == 8:
 				var boarding: Dictionary = budget.boarding_time
 				cells.append("%.3f/%.3f" % [boarding.field.raw, boarding.field.normalized] if boarding.status == "MEASURED" else str(boarding.status))
@@ -191,6 +196,8 @@ func _valid_rated_budget(value: Variant, ship_id: String) -> bool:
 	if str(budget.ship_id) != ship_id or str(budget.qualification) != "NOT_QUALIFIED":
 		return false
 	if not FleetRatedBudget.valid_pilot_weapon(budget.get("pilot_weapon"), ship_id):
+		return false
+	if not FleetRatedBudget.valid_cargo(budget.get("cargo"), ship_id):
 		return false
 	if not FleetRatedBudget.valid_boarding_time(budget.get("boarding_time"), ship_id):
 		return false

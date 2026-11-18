@@ -791,7 +791,7 @@ func _run() -> void:
 					snapshot = presented.last_snapshot
 					presentation_valid = presentation_valid and int(presented.rated_page) == page
 					if page == 8:
-						presentation_valid = presentation_valid and str(presented.screen_text).begins_with("BOARDING 9/9")
+						presentation_valid = presentation_valid and str(presented.screen_text).begins_with("BOARDING 9/10")
 				var measured := 0
 				for row: Dictionary in snapshot.get("rows", []):
 					var timing: Dictionary = row.rated_budget.boarding_time

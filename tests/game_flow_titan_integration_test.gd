@@ -11,6 +11,7 @@ var _ship: HeroShip
 var _player: PlayerController
 var _engine_edges: Array[Dictionary] = []
 var _damaged_hull := -1.0
+var _cargo_budget_snapshot: Dictionary = {}
 
 class CompletedShipTick:
 	extends Node
@@ -53,6 +54,7 @@ func _run() -> void:
 	_check(_game.get_flyable_ships().size() == 15 and berth.get_occupant() == _ship
 		and berth.get_reservation_owner() == _ship, "one real Titan joins fleet with own occupied lease")
 	_check_panel_solids()
+	_check_cargo_budget(0, 4)
 	var cargo_before := _game._runtime_settings_user_data_store.get_snapshot()
 	_check(not _game.titan_cargo.request_transfer(_player, _game._titan_locker_panel, true, 1).accepted
 		and not _game.titan_cargo.request_transfer(_ship, _game._titan_locker_panel, true, 1).accepted
@@ -84,6 +86,8 @@ func _run() -> void:
 		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].titan) == 2
 		and _game._runtime_settings_user_data_store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT) == TitanCargoCustody.SAFE_CONTEXT,
 		"same actual store commit contains loaded pair and safe on-foot recovery")
+	_check_cargo_budget(2, 2)
+	_cargo_budget_snapshot = (_game.call("_build_fleet_registry_snapshot") as Dictionary).duplicate(true)
 	# Retain a real-process seed for the independent cold Main probe, without
 	# changing production persistence or shortening this complete ordinary loop.
 	if OS.get_environment("TITAN_COLD_SEED_PATH") != "":
@@ -307,6 +311,18 @@ func _quit_normally() -> void:
 	_check(is_instance_valid(exit_button) and root.gui_get_focus_owner() == exit_button, "normal pause Tab reaches Exit to desktop")
 	if not _failures.is_empty():
 		await _fail_exit("normal Quit focus failed")
+		return
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--cargo-budget-snapshot="):
+			var path := argument.trim_prefix("--cargo-budget-snapshot=")
+			_check(path.is_absolute_path() and not _cargo_budget_snapshot.is_empty(), "cargo capture writes only the retained ordinary loaded snapshot to an explicit absolute path")
+			var file := FileAccess.open(path, FileAccess.WRITE) if path.is_absolute_path() else null
+			_check(file != null, "ordinary Titan parcel snapshot opens after all full journey cases pass")
+			if file != null:
+				file.store_string(JSON.stringify(_cargo_budget_snapshot, "\t"))
+				file.close()
+	if not _failures.is_empty():
+		await _fail_exit("cargo snapshot output failed")
 		return
 	print("TITAN_USER_DATA_DIR: ", OS.get_user_data_dir())
 	print("GAME_FLOW_TITAN_INTEGRATION_TEST_PASS")
@@ -701,6 +717,7 @@ func _post_chair_cargo_round_trip(identity: int) -> bool:
 	_check(_game.titan_cargo.snapshot().locker == 4 and _game.titan_cargo.snapshot().titan == 0
 		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].locker) == 4,
 		"normal E after passenger stand durably returns both parcels4/0")
+	_check_cargo_budget(0, 4)
 	_check(_ship.is_canopy_open() and not bool(_player.get_cabin_containment_report().get("active", false)),
 		"grounded passenger retains actual open access and free supported walking")
 	for point in [Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 8), Vector3(0, 0.4, 10.5),
@@ -717,6 +734,7 @@ func _post_chair_cargo_round_trip(identity: int) -> bool:
 	_check(_game.titan_cargo.snapshot().locker == 2 and _game.titan_cargo.snapshot().titan == 2
 		and int(_game._runtime_settings_user_data_store.get_snapshot()[TitanCargoCustody.SLOT].titan) == 2,
 		"normal exterior E reload durably restores2/2 before original full flight")
+	_check_cargo_budget(2, 2)
 	for point in [Vector3(0, 0, 14.3), Vector3(0, 0, 13), Vector3(0, 0.4, 10.5),
 		Vector3(0, 0.8, 8), Vector3(0, 0.8, 6.5), Vector3(0, 0.8, 1.8)]:
 		if not await _walk_to(_ship.to_global(point), 36): return false
@@ -959,3 +977,25 @@ func _test_cannon_authority(authority: LiveCombatAuthority, resolver: CombatReso
 		and is_equal_approx(target.get_health(), health), "actual world-layer occlusion protects production target from Titan cannon")
 	blocker.queue_free()
 	await _wait_frames(1)
+
+
+func _check_cargo_budget(aboard: int, locker: int) -> void:
+	var before := _game._runtime_settings_user_data_store.get_snapshot()
+	var source: Dictionary = _game.call("get_cargo_budget_source", _ship)
+	_check(source.get("status") == "SOURCED" and int(source.get("capacity", -1)) == 4
+		and int(source.get("aboard", -1)) == aboard and int(source.get("free", -1)) == 4 - aboard
+		and int(source.get("locker", -1)) == locker and source.get("item_id") == "titan_repair_kit_parcel",
+		"actual ordinary parcel actions project current4-capacity independently of %d/%d stock" % [locker, aboard])
+	var snapshot: Dictionary = _game.call("_build_fleet_registry_snapshot")
+	var sourced := 0
+	for row: Dictionary in snapshot.rows:
+		var cargo: Dictionary = row.rated_budget.cargo
+		if str(row.ship_id) == "titan_provisional":
+			sourced += 1
+			_check(cargo.status == "SOURCED" and cargo.field.raw == 4.0 and cargo.field.normalized == 0.8
+				and int(cargo.projection.aboard) == aboard and int(cargo.projection.free) == 4 - aboard and int(cargo.projection.locker) == locker
+				and row.rated_budget.missing_dimensions.has("cargo") and row.rated_budget.qualification == &"NOT_QUALIFIED",
+				"live fleet source consumes finite parcel capacity/.8 and separate stock without qualifying full cargo")
+		else:
+			_check(cargo.status == "UNKNOWN" and not cargo.has("field"), "other craft never inherit Titan parcel capacity")
+	_check(sourced == 1 and before == _game._runtime_settings_user_data_store.get_snapshot(), "projection is read-only and publishes exactly one actual cargo kind")
