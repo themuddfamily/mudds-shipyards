@@ -19,6 +19,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--capture-rated-registry" in OS.get_cmdline_user_args():
+		await _capture_rated_registry()
+		return
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
@@ -87,6 +90,7 @@ func _run() -> void:
 			and not _contains_object(live_snapshot),
 		"one shared interaction paints every retained craft as detached available/occupied/destroyed/regenerating data"
 	)
+	_check_rated_rows(game, live_snapshot, text)
 	# Inspect the actual glyph geometry after the complete live roster is drawn.
 	# Keep the existing font, pixel size and screen until measured otherwise.
 	await process_frame
@@ -169,6 +173,9 @@ func _run() -> void:
 		"the terminal refuses Callables that retain live object/method authority"
 	)
 
+	_check_rated_refusals(console, live_snapshot)
+	if _failures.is_empty():
+		_write_rated_snapshot(live_snapshot)
 	await _finish(game)
 
 
@@ -236,3 +243,146 @@ func _finish(game: GameFlow) -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_rated_rows(game: GameFlow, snapshot: Dictionary, text: String) -> void:
+	var rows := snapshot.get("rows", []) as Array
+	var all_present := rows.size() == 15
+	for row: Dictionary in rows:
+		all_present = all_present and row.get("rated_budget") is Dictionary
+	_check(all_present, "normal E publishes actual rated speed/hull budget snapshots for all fifteen current craft")
+	if not all_present:
+		return
+	_check(text.begins_with("FLEET LIVE | RATED M/S,HULL | RAW/INDEX 0..1"), "physical terminal labels rated units and per-field index range")
+	for row: Dictionary in rows:
+		var craft: HeroShip = game.call(&"_find_flyable_ship_by_id", StringName(row.ship_id)) as HeroShip
+		_check(craft != null, "rated row identifies an actual current Main craft")
+		if craft == null:
+			continue
+		var definition := craft.get_ship_definition()
+		var budget := row.rated_budget as Dictionary
+		_check(budget.get("ship_id") == row.ship_id and budget.get("qualification") == &"NOT_QUALIFIED" and budget.get("missing_dimensions") is Array and not _contains_object(budget), "rated row retains detached current identity and honest unqualified status")
+		var fields: Variant = budget.get("fields")
+		_check(fields is Dictionary, "rated row has actual sourced fields")
+		if not fields is Dictionary:
+			continue
+		for axis: String in ["maximum_speed", "maximum_hull"]:
+			var field: Variant = fields.get(axis)
+			_check(field is Dictionary, "rated row contains %s" % axis)
+			if not field is Dictionary:
+				continue
+			var raw := float(definition.get(axis))
+			_check(field.get("raw") == raw and field.get("normalized") == raw / (1.0 + raw) and field.get("unit") == ("m/s" if axis == "maximum_speed" else "hull point") and field.get("direction") == "benefit" and field.get("unit_scale") == 1.0, "terminal %s raw and unrounded normalized values match actual definition" % axis)
+			_check(text.contains("%s/%.3f" % [str(field.raw), field.normalized]), "terminal renders each sourced raw/index pair")
+
+
+func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
+	var rows := source.get("rows", []) as Array
+	if rows.is_empty() or not (rows[0] as Dictionary).get("rated_budget") is Dictionary:
+		return
+	var receipt := console.call(&"present_fleet_snapshot", source) as Dictionary
+	_check(bool(receipt.get("accepted", false)), "sourced rated snapshot can be presented again")
+	var retained := console.call(&"get_presentation_snapshot") as Dictionary
+	var edited := source.duplicate(true)
+	edited.rows[0].rated_budget.fields.maximum_speed.raw = 999.0
+	_check((console.call(&"get_presentation_snapshot") as Dictionary) == retained, "detached snapshot editing cannot mutate retained terminal state")
+	var cases: Array = []
+	for replacement in [null, [], "budget", {}, {"ship_id": []}]:
+		var candidate := source.duplicate(true)
+		candidate.rows[0].rated_budget = replacement
+		cases.append(candidate)
+	for patch in [{"ship_id": &"foreign"}, {"ship_id": []}, {"valid": []}, {"qualification": []}, {"qualification": "QUALIFIED"}, {"missing_dimensions": []}, {"missing_dimensions": [null]}, {"fields": []}, {"live": console}]:
+		var candidate := source.duplicate(true)
+		candidate.rows[0].rated_budget.merge(patch, true)
+		cases.append(candidate)
+	for patch in [{"raw": INF}, {"raw": NAN}, {"raw": 0.0}, {"raw": []}, {"normalized": INF}, {"normalized": []}, {"normalized": 0.5}, {"unit": []}, {"unit": "km/h"}, {"unit_scale": []}, {"unit_scale": 2.0}, {"direction": []}, {"direction": "lower"}, {"source": []}, {"source": "invented"}]:
+		var candidate := source.duplicate(true)
+		candidate.rows[0].rated_budget.fields.maximum_speed.merge(patch, true)
+		cases.append(candidate)
+	var mixed := source.duplicate(true)
+	mixed.rows[0].erase("rated_budget")
+	cases.append(mixed)
+	for candidate: Dictionary in cases:
+		receipt = console.call(&"present_fleet_snapshot", candidate) as Dictionary
+		_check(not bool(receipt.get("accepted", true)) and (console.call(&"get_presentation_snapshot") as Dictionary) == retained, "malformed rated payload refuses atomically without changing text, sequence or retained data")
+	var legacy := source.duplicate(true)
+	var expected := PackedStringArray(["FLEET STATUS // LIVE"])
+	for row: Dictionary in legacy.rows:
+		row.erase("rated_budget")
+		expected.append("%-18s  %s" % [str(row.display_name).strip_edges().replace("_", " ").to_upper().left(18), str(row.state).to_upper()])
+	receipt = console.call(&"present_fleet_snapshot", legacy) as Dictionary
+	_check(bool(receipt.get("accepted", false)) and (console.call(&"get_presentation_snapshot") as Dictionary).screen_text == "\n".join(expected), "all-budget-absent legacy snapshots retain the exact original status-only format")
+
+
+func _argument(prefix: String) -> String:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with(prefix + "="):
+			return argument.substr(prefix.length() + 1)
+	return ""
+
+
+func _write_rated_snapshot(snapshot: Dictionary) -> void:
+	var path := _argument("--write-rated-snapshot")
+	if path.is_empty():
+		return
+	_check(path.is_absolute_path(), "real rated snapshot output uses an explicit absolute path")
+	if not path.is_absolute_path():
+		return
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	_check(file != null, "real rated snapshot output opens")
+	if file != null:
+		file.store_string(JSON.stringify(snapshot, "\t"))
+		file.close()
+
+
+func _capture_rated_registry() -> void:
+	# Production component only: Main is never instantiated in this branch.
+	var path := _argument("--snapshot")
+	var output := _argument("--output-dir")
+	_check(path.is_absolute_path() and output.is_absolute_path(), "component capture requires explicit absolute snapshot and output paths")
+	_check(DisplayServer.get_name() == "X11" and RenderingServer.get_current_rendering_method() == "forward_plus", "component capture requires isolated X11 Forward+")
+	var snapshot: Variant = JSON.parse_string(FileAccess.get_file_as_string(path)) if path.is_absolute_path() and FileAccess.file_exists(path) else null
+	_check(snapshot is Dictionary, "component capture reads the pinned real detached snapshot")
+	if not _failures.is_empty():
+		await _finish(null)
+		return
+	_check(snapshot.get("rows") is Array and snapshot.rows.size() == 15, "pinned real snapshot contains all fifteen rows")
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	root.content_scale_size = Vector2i.ZERO
+	root.content_scale_factor = 1.0
+	var component := Node3D.new()
+	root.add_child(component)
+	var console := preload("res://scripts/interaction/fleet_registry_console.gd").new() as Area3D
+	component.add_child(console)
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.3
+	camera.position = Vector3(0.0, 0.38, -4.5)
+	component.add_child(camera)
+	camera.look_at(Vector3(0.0, 0.38, -1.1), Vector3.UP)
+	camera.current = true
+	var environment := WorldEnvironment.new()
+	environment.environment = Environment.new()
+	environment.environment.background_mode = Environment.BG_COLOR
+	environment.environment.background_color = Color("101c25")
+	component.add_child(environment)
+	await process_frame
+	var receipt := console.call(&"present_fleet_snapshot", snapshot) as Dictionary
+	_check(bool(receipt.get("accepted", false)), "production component accepts the exact real captured snapshot")
+	_check(DirAccess.make_dir_recursive_absolute(output) == OK, "component capture output directory is available")
+	for viewport: Vector2i in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = viewport
+		for frame in 8:
+			await process_frame
+			await RenderingServer.frame_post_draw
+		var label := console.get_node("FleetRegistryLiveRows") as Label3D
+		var screen := console.get_node("FleetRegistryLiveScreen") as MeshInstance3D
+		var bounds := screen.global_transform.affine_inverse() * label.global_transform * label.get_aabb()
+		var screen_bounds := screen.get_aabb()
+		_check(label.font_size == 40 and is_equal_approx(label.pixel_size, 0.0016) and label.text.split("\n").size() == 16 and bounds.position.x >= screen_bounds.position.x and bounds.end.x <= screen_bounds.end.x and bounds.position.y >= screen_bounds.position.y and bounds.end.y <= screen_bounds.end.y, "component captures retain actual glyph bounds, font and all sixteen physical lines")
+		var image := root.get_texture().get_image()
+		_check(image.get_size() == viewport, "component capture has exact requested native dimensions")
+		if _failures.is_empty():
+			_check(image.save_png(output.path_join("fleet_rated_budget_%dx%d.png" % [viewport.x, viewport.y])) == OK, "component capture saves the real terminal pixels")
+	component.queue_free()
+	await _finish(null)
