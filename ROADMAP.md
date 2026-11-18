@@ -149,7 +149,26 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 05:27:05 UTC.** Every task unfinished at this
+**Latest owner renewal: 2026-11-18 08:57:09 UTC.** Every task unfinished at this
+renewal receives **0 corrections used** against its last positive approved limit,
+or **one** if none was recorded. This globally overrides older current counts
+in this roadmap and linked task cards, including active, parked, failed, blocked
+and gated tasks. Completed tasks are excluded. Apply once per unfinished task;
+branch changes, retries and splitting tasks do not grant another reset.
+
+Preserve historical counts, failures, archives and actual costs. Original
+acceptance checks, test/journey caps, dependencies and causal reopening conditions
+remain binding. Active deadlines stay unchanged; resumed parked work requires a
+fresh bounded all-in window. This reset starts no tests or automatic retries.
+
+Current Katana card8 receives **0/1 used**; its **08:39:13→10:09:13 UTC**
+window remains unchanged. All other unfinished tasks receive the same global
+reset under their existing limits, including parked station-panel shader,
+Arrow complete-static LOD, Utopia card7, Vortex card3 and Salyut card3.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 05:27:05 UTC.** Every task unfinished at this
 renewal has **0 corrections used** against its last positive approved limit,
 or **one** if none was recorded. This applies globally to active, parked,
 failed, blocked and gated tasks, overriding earlier current-used counts in
@@ -268,8 +287,9 @@ Dependencies cards1–7 accepted, base555c87977/runtime4ad278b. First mapping
 08:39:13UTC is included. Window **2026-11-18 08:39:13→10:09:13UTC,90minutes ALL-IN**:
 mapping/code/review, exact baseline control/import/syntax, all source/PCK/views,
 fresh checkpoint, integration/push, verified archive/process/worktree/branch
-cleanup and finaldocs. Freeze before code. Owner05:27:05 renewal applied once:
-**0/1 substantive corrections used**, approvedlimit1. Preserve original caps;
+cleanup and finaldocs. Freeze before code. Owner08:57:09 renewal applied once:
+**0/1 substantive corrections used**, approvedlimit1. Previous05:27:05-renewal
+0/1 remains historical; the new renewal changes no deadline or acceptance check. Preserve original caps;
 real failure stops dependent cases until measured cause; routine caller/compiler
 maintenance stays in this window. No route/cap/physics/geometry/definition/heat/
 health/owner/acceptance waiver, partial source-only delivery or blind retry.
