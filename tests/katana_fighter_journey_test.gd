@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Default: standalone foundation. --access: physical Player port access.
 ## --main: real Boot/Begin Shift, two sorties, third claim and full reverse route.
-## --main: ordinary production pilot route only; no comparative handling/damage qualification.
+## --main --combat: the complete ordinary route plus current-pilot combat/heat/audio.
 ## One initial ship/source/player setup; real commands thereafter.
 ## No pose, velocity, startup-clock or engine-state mutation.
 const KATANA := preload("res://scenes/ships/katana_fighter.tscn")
@@ -32,12 +32,13 @@ class FixtureCommands:
 	extends ShipCommandSource
 	var throttle := 0.0
 	var brake := false
+	var boost := false
 	var yaw := 0.0
 	var pitch := 0.0
 	var roll := 0.0
 
 	func _sample_controls() -> Dictionary:
-		return {"throttle": throttle, "brake": brake, "yaw": yaw, "pitch": pitch, "roll": roll}
+		return {"throttle": throttle, "brake": brake, "boost": boost, "yaw": yaw, "pitch": pitch, "roll": roll}
 
 
 func _init() -> void:
@@ -166,6 +167,7 @@ func _run() -> void:
 	ship.set_piloted(false)
 	ship.queue_free()
 	await _frames(3)
+	if not await _test_measured_handling(): return
 	print("KATANA_FIGHTER_JOURNEY_TEST_OK: ", _checks, " checks")
 	quit(0)
 
@@ -751,6 +753,16 @@ var _main_engine_edges: Array[Dictionary] = []
 var _main_shots := 0
 var _main_projectiles := 0
 var _main_bad_shot := false
+var _main_combat_records: Array[Dictionary] = []
+var _main_stale_probed := false
+var _main_heat_probe := false
+var _main_heat_ticks: Array[Dictionary] = []
+var _main_audio_start := false
+var _main_audio_flight := false
+var _main_audio_offline := false
+var _main_rig: ShipAudioRig
+var _main_rig_cues: Array[Dictionary] = []
+var _main_fire_cues: Array[Dictionary] = []
 var _main_claims := 0
 var _main_releases := 0
 
@@ -760,6 +772,7 @@ class MainCompletedPlayerTick:
 	var suite: SceneTree
 	func _physics_process(_delta: float) -> void:
 		suite.call("_main_audit_completed_tick")
+		suite.call("_main_observe_heat_tick")
 		completed_tick.emit()
 
 
@@ -790,8 +803,16 @@ func _run_main() -> void:
 	_main_ship.projectile_fired.connect(func(_origin: Vector3,_direction: Vector3): _main_projectiles += 1)
 	_main_game.get_combat_authority().authoritative_shot_submitted.connect(func(request: Variant,result: Dictionary):
 		if request.source_entity == _main_ship:
+			_main_combat_records.append({"request":request,"result":result.duplicate(true),"tick":Engine.get_physics_frames(),"heat":_main_ship.get("_weapon_heat")})
 			_main_shots += 1
 			_main_bad_shot = _main_bad_shot or not bool(result.get("accepted",false)) or request.source_id != 1114 or request.weapon_id != GameFlow.ARROW_COMBAT_WEAPON_ID or request.range != 480 or request.damage != 24 or _main_ship.to_local(request.origin).distance_to(Vector3(0,1,-6.2)) > 0.0001)
+	_main_rig = _main_ship.get_ship_audio_rig()
+	_main_rig.cue_requested.connect(func(cue: StringName,intensity: float,queued: bool):
+		_main_rig_cues.append({"cue":cue,"intensity":intensity,"queued":queued,"tick":Engine.get_physics_frames(),"engine":_main_ship.get_telemetry().engine_state}))
+	_main_game.get_combat_audio_presentation().cue_started.connect(func(cue: StringName,_voice: StringName,position: Vector3,source: int):
+		if source == _main_ship.get_instance_id():
+			_main_fire_cues.append({"cue":cue,"position":position,"source":source,"tick":Engine.get_physics_frames()}))
+	if not _main_check(_main_rig.get_parent() == _main_ship and _main_rig.get_profile_id() == &"standard_fighter" and not _main_rig.is_engine_running(),"actual Katana standard_fighter rig is bound to same offline ship"): return
 	var identity := _main_player.get_instance_id()
 	var spawn := _main_player.global_position
 	var world := _main_game.world
@@ -846,6 +867,7 @@ func _run_main() -> void:
 		if not await _main_walk_to(MAIN_STATION_ROUTE[index],index): return
 	for sortie in 2:
 		if not await _main_board_from_port(sortie,identity,area): return
+		if sortie == 0 and "--combat" in OS.get_cmdline_user_args() and not await _main_stale_combat_refusal(): return
 		if not await _main_sortie_home(sortie,identity,area,berth,dock): return
 		if not await _main_walk_out(sortie): return
 	# A fresh physical third claim proves that the second exit did not strand
@@ -864,6 +886,7 @@ func _run_main() -> void:
 	for home: ShipBerth in old_leases:
 		var saved: Dictionary = old_leases[home]
 		if not _main_check(home.audit() == saved.audit and home.get_reservation_owner() == saved.owner and home.get_occupant() == saved.occupant and home.get_reservation_token(saved.owner) == saved.token and home.get_dock_transform().is_equal_approx(saved.pose) and home.landing_volume_center == old_centers[home],"all fourteen old berth poses/centers/owners/occupants/tokens preserved "+str(home.get_berth_id())): return
+	if "--combat" in OS.get_cmdline_user_args() and not _main_audio_complete(): return
 	if not _main_check(not _main_bad_shot and _main_shots >= 2 and _main_projectiles == _main_shots,"both usable flights emit only real center-muzzle approved pulse with unique source"): return
 	await _main_quit_normally()
 
@@ -885,6 +908,7 @@ func _main_board_from_port(sortie: int, identity: int, area: ShipBoardingArea) -
 		if not await _main_walk_to(_main_ship.to_global(point),30+sortie,true): return false
 	if not _main_check(_main_ship.can_board_from_landed_approach(_main_player),"same full actual Player walks continuously up ramp to fixed supported stand"): return false
 	if not _main_check(area.try_reserve(_main_game) and area.try_reserve(_main_game) and not area.try_reserve(_main_player) and not area.release_reservation(_main_player) and area.get_reservation_token() == _main_game,"foreign/duplicate seat requests preserve current temporary claimant"): return false
+	if _main_stale_probed and "--combat" in OS.get_cmdline_user_args() and not _main_unseated_combat_refusal(&"foreign"): return false
 	await _main_tap(&"interact")
 	if not _main_check(not _main_game._piloting and area.get_reservation_token() == _main_game,"foreign-held helm refuses ordinary Interact"): return false
 	if not _main_check(area.release_reservation(_main_game) and not area.release_reservation(_main_game),"temporary foreign claim retires once and stale release refuses"): return false
@@ -936,6 +960,7 @@ func _main_sortie_home(sortie: int, identity: int, area: ShipBoardingArea, berth
 		if frame%180 == 0: print("KATANA_MAIN_FLIGHT: sortie=",sortie," frame=",frame," local=",dock.affine_inverse()*_main_ship.global_position," speed=",_main_ship.velocity.length())
 	_main_release_inputs()
 	if not _main_check(arrived and turned and _main_game.phase == GameFlow.Phase.FREE_FLIGHT and (dock.affine_inverse()*_main_ship.global_position).distance_to(Vector3(0,8,-18)) <= 0.6 and _main_ship.velocity.length() <= 0.5 and not berth.contains_oriented_bounds(_main_ship.global_transform,_main_ship.get_landing_collision_report().local_bounds),"actual ordinary pitch/throttle/brake flight reaches finite own-home acquisition endpoint"): return false
+	if sortie == 0 and "--combat" in OS.get_cmdline_user_args() and not await _main_actual_combat(): return false
 	var shots := _main_shots
 	var projectiles := _main_projectiles
 	Input.action_press(&"fire")
@@ -978,6 +1003,7 @@ func _main_release_at_home(identity: int, area: ShipBoardingArea) -> bool:
 	await _main_frames(3)
 	if not _main_check(not _main_game._piloting and not _main_ship.is_piloted() and not _main_player.is_seated() and _main_player.get_instance_id() == identity and _main_player.is_control_enabled() and _main_player.is_on_floor() and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and _main_player.collision_layer == _main_layer and _main_player.collision_mask == _main_mask and not (_main_player.get_node("PlayerCollision") as CollisionShape3D).disabled and not area.is_reserved() and _main_game._boarding_area == null and _main_ship.is_canopy_open() and not _main_ship.call("is_access_motion_active") and _main_ship.to_local(_main_player.global_position).distance_to(Vector3(-0.9,0.6,0)) < 0.05 and not bool(_main_player.get_cabin_containment_report().get("active",false)),"normal supported seated-open/inside release restores exact stand, walking body/control/camera and retires claim"): return false
 	_main_releases += 1
+	if "--combat" in OS.get_cmdline_user_args() and not _main_unseated_combat_refusal(&"released"): return false
 	return _main_check(not area.release_reservation(_main_player),"stale released pilot claim cannot act")
 
 
@@ -1121,3 +1147,342 @@ func _main_quit_normally() -> void:
 	await _main_key(KEY_ENTER)
 	for frame in 120: await process_frame
 	_main_check(false,"normal Main Quit did not terminate actual OS process")
+
+
+func _test_measured_handling() -> bool:
+	# One separated placement per real production controller. Thereafter only
+	# command sources act: no pose, velocity, clock or handling-value writes.
+	var craft: Array[HeroShip] = [KATANA.instantiate() as HeroShip,
+		preload("res://scenes/ships/torrent_interceptor.tscn").instantiate() as HeroShip,
+		preload("res://scenes/ships/arrow_recon_ship.tscn").instantiate() as HeroShip,
+		CinderLightInterceptor.new(),
+		preload("res://scenes/ships/zenith_interceptor.tscn").instantiate() as HeroShip]
+	var definitions: Array[ShipDefinition] = [DEFINITION,
+		preload("res://assets/ships/torrent_provisional.tres"),
+		preload("res://assets/ships/arrow_provisional.tres"),
+		preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
+		preload("res://assets/ships/zenith_b7_observed.tres")]
+	var sources: Array[FixtureCommands] = []
+	for index in craft.size():
+		craft[index].ship_definition = definitions[index]
+		craft[index].position = Vector3(index*2000,500,0)
+		root.add_child(craft[index])
+		var source := FixtureCommands.new()
+		source.brake = true
+		craft[index].add_child(source)
+		craft[index].set_command_source(source)
+		craft[index].set_piloted(true)
+		craft[index].request_engine_start()
+		sources.append(source)
+	await _frames(180)
+	for index in craft.size():
+		if not _check(craft[index].get_ship_id() == definitions[index].ship_id
+			and craft[index].get("_engine_state") == HeroShip.ENGINE_ONLINE,
+			"matched fixture uses actual canonical online controller "+str(craft[index].get_ship_id())): return false
+		sources[index].brake = false
+	var stable := 0
+	for tick in 600:
+		var matched := true
+		for index in craft.size():
+			var speed := craft[index].velocity.length()
+			# Feedback controls ordinary thrust to balance actual measured speed.
+			sources[index].throttle = clampf((craft[index].passive_drag+4.0*(30.0-speed))/craft[index].thrust_acceleration,0,1)
+			matched = matched and absf(speed-30.0) <= 0.001
+		stable = stable+1 if matched else 0
+		if stable >= 12: break
+		await _frames(1)
+	if not _check(stable >= 12,"all five actual controllers attain common30m/s through normal throttle feedback"): return false
+	var origins: Array[Vector3] = []
+	var starts: Array[float] = []
+	var stopped: Array[Dictionary] = []
+	var brake_tick := Engine.get_physics_frames()
+	for index in craft.size():
+		origins.append(craft[index].global_position)
+		starts.append(craft[index].velocity.length())
+		stopped.append({})
+		sources[index].throttle = 0
+		sources[index].brake = true
+	for tick in 180:
+		await _frames(1)
+		var complete := true
+		for index in craft.size():
+			if stopped[index].is_empty() and craft[index].velocity.length() <= 0.0001:
+				stopped[index] = {"id":craft[index].get_ship_id(),"start_tick":brake_tick,
+					"start_speed":starts[index],"stop_tick":Engine.get_physics_frames(),
+					"distance":craft[index].global_position.distance_to(origins[index]),
+					"seconds":float(Engine.get_physics_frames()-brake_tick)/Engine.physics_ticks_per_second,
+					"end_speed":craft[index].velocity.length()}
+			complete = complete and not stopped[index].is_empty()
+		if complete: break
+	for index in craft.size():
+		print("KATANA_MATCHED_BRAKING: ",stopped[index])
+		if not _check(not stopped[index].is_empty() and absf(starts[index]-30.0) <= 0.01,
+			"actual matched start and complete stopping measurement "+str(craft[index].get_ship_id())): return false
+		if index > 0 and not _check(float(stopped[0].distance) < float(stopped[index].distance)
+			and int(stopped[0].stop_tick) < int(stopped[index].stop_tick),
+			"Katana actual stopping distance/time beats "+str(craft[index].get_ship_id())): return false
+	var attitudes: Array[Quaternion] = []
+	var yaw_tick := Engine.get_physics_frames()
+	for index in craft.size():
+		attitudes.append(craft[index].global_basis.get_rotation_quaternion())
+		sources[index].yaw = 1
+	await _frames(60)
+	var angles: Array[float] = []
+	for index in craft.size():
+		angles.append(attitudes[index].angle_to(craft[index].global_basis.get_rotation_quaternion()))
+		sources[index].yaw = 0
+		print("KATANA_MATCHED_YAW: id=",craft[index].get_ship_id()," start_tick=",yaw_tick," end_tick=",Engine.get_physics_frames()," radians=",angles[index])
+		if index > 0 and not _check(angles[0] > 0 and angles[0] < angles[index],
+			"equal actual yaw command/time leaves Katana slower than "+str(craft[index].get_ship_id())): return false
+	for source in sources:
+		source.brake = false
+		source.throttle = 1
+		source.boost = true
+	await _frames(480)
+	var ceilings: Array[float] = []
+	for item in craft: ceilings.append(item.velocity.length())
+	await _frames(120)
+	for index in craft.size():
+		var actual := craft[index].velocity.length()
+		print("KATANA_MATCHED_BOOST: id=",craft[index].get_ship_id()," tick=",Engine.get_physics_frames()," prior_speed=",ceilings[index]," speed=",actual)
+		if not _check(absf(actual-ceilings[index]) < 0.01 and absf(actual-craft[index].boost_speed) < 0.01,
+			"real held full boost reaches stable canonical ceiling "+str(craft[index].get_ship_id())): return false
+		if index > 0 and not _check(craft[0].velocity.length() < actual,
+			"actual Katana full boost remains lower than "+str(craft[index].get_ship_id())): return false
+	for index in craft.size():
+		sources[index].throttle = 0
+		sources[index].boost = false
+		sources[index].brake = true
+	await _frames(180)
+	for item in craft:
+		item.set_piloted(false)
+		item.queue_free()
+	await _frames(3)
+	return true
+
+
+func _main_new_combat_target(position: Vector3, index: int) -> StaticBody3D:
+	var world := _main_game.world
+	world.call("_create_target",world,index,world.to_local(position))
+	_main_game.get_combat_authority().attach_range_targets(world)
+	return world.get_node("TargetDrone%02d" % index) as StaticBody3D
+
+
+func _main_retire_combat_target(target: StaticBody3D) -> void:
+	var targets: Array = _main_game.world.get("_targets")
+	targets.erase(target)
+	target.queue_free()
+
+
+func _main_stale_combat_refusal() -> bool:
+	# Deliberately precedes every new Katana API call: exact old Main reaches a
+	# real registered resolution and fails this damage/ownership assertion.
+	var origin := _main_ship.to_global(Vector3(0,1,-6.2))
+	var target := _main_new_combat_target(origin+Vector3.UP*30,8001)
+	await _main_frames(2)
+	var before := _main_shots
+	var health := float(target.get_meta("health"))
+	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat")]
+	_main_game._on_projectile_fired(origin,(target.global_position-origin).normalized(),_main_ship)
+	var result: Dictionary = _main_game.get("_last_player_shot_result")
+	print("KATANA_STALE_CALLBACK: source=",_main_game.get_combat_authority().get_source_id(_main_ship)," result=",result," shot_delta=",_main_shots-before," health_before=",health," health_after=",target.get_meta("health"))
+	if not _main_check(_main_shots == before and not bool(result.get("accepted",false))
+		and float(target.get_meta("health")) == health
+		and [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat")] == state,
+		"stale callback without synchronous pilot emission cannot resolve or damage actual production target"): return false
+	_main_stale_probed = true
+	_main_retire_combat_target(target)
+	await _main_frames(2)
+	return true
+
+
+func _main_unseated_combat_refusal(label: StringName) -> bool:
+	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles]
+	_main_ship.call("_fire_weapon")
+	_main_ship.call("_fire_weapon_with_aim",_main_ship.global_position,Vector3.FORWARD)
+	_main_game._on_projectile_fired(_main_ship.to_global(Vector3(0,1,-6.2)),Vector3.FORWARD,_main_ship)
+	return _main_check(not _main_player.is_seated() and not _main_ship.is_piloted()
+		and not bool(_main_ship.call("get_primary_pilot_claim_is_current"))
+		and _main_ship.get_weapon_fire_status().get("reason") == &"primary_pilot_required"
+		and [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,
+		"ordinary "+String(label)+" unseated pilot cannot emit, resolve, consume heat or cooldown")
+
+
+func _main_pulse_once() -> Dictionary:
+	var count := _main_combat_records.size()
+	Input.action_press(&"fire")
+	await _main_observer.completed_tick
+	await _main_observer.completed_tick
+	Input.action_release(&"fire")
+	if not _main_check(_main_combat_records.size() == count+1,"one ordinary pilot trigger resolves exactly once"): return {}
+	return _main_combat_records.back()
+
+
+func _main_actual_combat() -> bool:
+	Input.action_press(&"brake")
+	await _main_frames(90)
+	if not _main_check(bool(_main_ship.call("get_primary_pilot_claim_is_current")),"real current pilot retains physical reservation and exact seated anchor before combat"): return false
+	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles]
+	_main_ship.call("_fire_weapon_with_aim",_main_ship.global_position,Vector3.FORWARD)
+	if not _main_check([_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,"explicit crew aim cannot consume Katana pilot heat, cooldown or damage"): return false
+	var camera := _main_ship.get_camera()
+	var direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size*0.5).normalized()
+	var target := _main_new_combat_target(camera.global_position+direction*40,8002)
+	var damageable := target.get_node("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	var hits: Array[float] = []
+	damageable.damage_applied.connect(func(amount: float,_health: float,_maximum: float,_position: Vector3,_normal: Vector3,_context: Dictionary): hits.append(amount))
+	await _main_frames(2)
+	var health := damageable.get_health()
+	var replay := func(origin: Vector3,aim: Vector3):
+		_main_ship.call("_fire_weapon")
+		_main_game._on_projectile_fired(origin,aim,_main_ship)
+	_main_ship.projectile_fired.connect(replay)
+	var event := await _main_pulse_once()
+	_main_ship.projectile_fired.disconnect(replay)
+	if _failed: return false
+	var result: Dictionary = event.result
+	if not _main_check(bool(result.get("damaged",false)) and result.get("target_entity") == target
+		and float(result.get("applied_damage",0)) == 24 and damageable.get_health() == health-24
+		and hits == [24.0] and float(_main_ship.get("_weapon_heat")) > 0
+		and not bool((_main_game.get("_last_player_shot_result") as Dictionary).get("accepted",false)),
+		"real center pulse source1114 damages production target once; same synchronous callback cannot duplicate health mutation"): return false
+	await _main_frames(25)
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = PhysicsLayers.WORLD
+	blocker.collision_mask = 0
+	blocker.position = camera.global_position+direction*15
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3.ONE*6
+	shape.shape = box
+	blocker.add_child(shape)
+	root.add_child(blocker)
+	await _main_frames(2)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(event.result.get("status") == &"world_blocked" and damageable.get_health() == health-24 and hits.size() == 1,"physical world obstruction preserves actual production target health"): return false
+	blocker.queue_free()
+	_main_retire_combat_target(target)
+	await _main_frames(25)
+	# The shared resolver sees a physical friendly behind the source hull. Its
+	# own collision tree is excluded; the friendly body blocks without damage.
+	var friendly := StaticBody3D.new()
+	friendly.collision_layer = PhysicsLayers.TARGET
+	friendly.collision_mask = 0
+	friendly.position = camera.global_position+direction*25
+	var collision := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 3
+	collision.shape = sphere
+	friendly.add_child(collision)
+	var friendly_health := Damageable.new()
+	friendly_health.faction_id = GameFlow.PLAYER_FACTION
+	friendly.add_child(friendly_health)
+	root.add_child(friendly)
+	await _main_frames(2)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(event.result.get("status") == &"friendly_fire_blocked" and friendly_health.get_health() == 100,"actual pilot friendly hit blocks without changing friendly health"): return false
+	var resolver := _main_game.get_combat_resolver()
+	var self_health := float(_main_ship.get_telemetry().hull)
+	var inside := _main_ship.to_global(Vector3(0,3.5,0))
+	var request := ShotRequest.new(_main_ship,1114,GameFlow.PLAYER_FACTION,GameFlow.ARROW_COMBAT_WEAPON_ID,
+		resolver.get_last_sequence(_main_ship,1114)+1,inside,(friendly.global_position-inside).normalized(),480,24)
+	result = resolver.resolve_hitscan(request)
+	if not _main_check(result.get("status") == &"friendly_fire_blocked" and result.get("collider") == friendly
+		and float(_main_ship.get_telemetry().hull) == self_health and friendly_health.get_health() == 100,
+		"registered Katana compound self collision is excluded while friendly policy preserves both real health owners"): return false
+	friendly.queue_free()
+	await _main_frames(90)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(not bool(event.result.get("hit",false)) and not bool(event.result.get("damaged",false)),"ordinary pilot empty-space miss has no target damage"): return false
+	await _main_frames(90)
+	var first := _main_combat_records.size()
+	_main_heat_ticks.clear()
+	_main_heat_probe = true
+	Input.action_press(&"fire")
+	for frame in 240:
+		await _main_observer.completed_tick
+		if bool(_main_ship.get_telemetry().weapon_overheated): break
+	if not _main_check(bool(_main_ship.get_telemetry().weapon_overheated),"held actual Katana fire reaches inherited heat lockout"): return false
+	var burst := _main_combat_records.slice(first)
+	var exact := burst.size() >= 2 and is_equal_approx(float(burst[0].heat),0.28)
+	for index in range(1,burst.size()):
+		var interval := int(burst[index].tick)-int(burst[index-1].tick)
+		exact = exact and interval == 23
+		exact = exact and absf(float(burst[index].heat)-minf(1.0,float(burst[index-1].heat)+0.28-0.50*interval/60.0)) < 0.0001
+	var count := _main_combat_records.size()
+	# Observe the producer's actual emission tick and the completed physics
+	# state, rather than a later render/process poll which can skip ticks.
+	var locked_tick := int(burst.back().tick)
+	for frame in 90:
+		if _main_combat_records.size() > count: break
+		await _main_observer.completed_tick
+	Input.action_release(&"fire")
+	_main_heat_probe = false
+	if not _main_check(_main_combat_records.size() == count+1,"held fire resumes once after actual heat recovery"): return false
+	var resumed: Dictionary = _main_combat_records.back()
+	var lockout_ticks := int(resumed.tick)-locked_tick
+	for sample in _main_heat_ticks:
+		if int(sample.tick) >= locked_tick and bool(sample.overheated):
+			exact = exact and int(sample.shots) == count
+	for index in range(1,_main_heat_ticks.size()):
+		var previous: Dictionary = _main_heat_ticks[index-1]
+		var sample: Dictionary = _main_heat_ticks[index]
+		if int(sample.shots) == int(previous.shots) and bool(previous.overheated) and bool(sample.overheated):
+			exact = exact and int(sample.tick) == int(previous.tick)+1
+			exact = exact and absf(float(previous.heat)-float(sample.heat)-0.50/60.0) < 0.0001
+	exact = exact and lockout_ticks >= 60 and lockout_ticks <= 61
+	exact = exact and absf(float(resumed.heat)-0.28-0.35) < 0.0001
+	print("KATANA_ACTUAL_COMBAT: burst=",burst," lockout_ticks=",lockout_ticks," resumed_heat=",resumed.heat," completed_physics_samples=",_main_heat_ticks.size())
+	if not _main_check(exact,"actual .38 cadence preserves .28/shot, .50/s cooling, 1s lockout and .35 recovery"): return false
+	if not _main_check(bool(resumed.result.get("accepted",false)),"current actual pilot resumes usable pulse after normal recovery"): return false
+	await _main_frames(25)
+	event = await _main_pulse_once()
+	if _failed: return false
+	if not _main_check(bool(event.result.get("accepted",false)),"fresh ordinary trigger remains usable after recovered held fire"): return false
+	Input.action_release(&"brake")
+	return true
+
+
+func _main_observe_heat_tick() -> void:
+	if not is_instance_valid(_main_ship): return
+	if _main_heat_probe:
+		_main_heat_ticks.append({"tick":Engine.get_physics_frames(),
+			"overheated":_main_ship.get("_weapon_overheated"),
+			"heat":_main_ship.get("_weapon_heat"),"shots":_main_combat_records.size()})
+	if not is_instance_valid(_main_rig): return
+	var audio := _main_rig.get_state_snapshot()
+	var engine := StringName(_main_ship.get_telemetry().engine_state)
+	_main_audio_start = _main_audio_start or (engine == HeroShip.ENGINE_STARTING and not bool(audio.engine_running))
+	_main_audio_flight = _main_audio_flight or (engine == HeroShip.ENGINE_ONLINE and bool(audio.engine_running)
+		and float(audio.throttle) > 0.05 and _main_ship.velocity.length() > 0.05)
+	_main_audio_offline = _main_audio_offline or (_main_shots > 0 and engine == HeroShip.ENGINE_OFFLINE
+		and not bool(audio.engine_running) and is_zero_approx(float(audio.throttle)))
+
+
+func _main_audio_complete() -> bool:
+	var startup := 0
+	var stop := 0
+	for edge in _main_rig_cues:
+		if edge.cue == ShipAudioRig.CUE_STARTUP: startup += 1
+		if edge.cue == ShipAudioRig.CUE_STOP: stop += 1
+	var fire := 0
+	for cue in _main_fire_cues:
+		if cue.cue != CombatAudioPresentation.CUE_PLAYER_FIRE: continue
+		var matched := false
+		for event in _main_combat_records:
+			var request: ShotRequest = event.request
+			if int(event.tick) == int(cue.tick) and request.origin.is_equal_approx(cue.position):
+				matched = true
+		if not _main_check(matched and int(cue.source) == _main_ship.get_instance_id(),
+			"actual fire audio cue uses exact current Katana shot source, position and tick"): return false
+		fire += 1
+	print("KATANA_ACTUAL_AUDIO: rig=",_main_rig.get_instance_id()," profile=",_main_rig.get_profile_id(),
+		" start=",_main_audio_start," flight=",_main_audio_flight," offline=",_main_audio_offline,
+		" startup_cues=",startup," stop_cues=",stop," fire_cues=",fire," actual_shots=",_main_shots)
+	return _main_check(_main_rig == _main_ship.get_ship_audio_rig() and _main_rig.get_parent() == _main_ship
+		and _main_rig.get_profile_id() == &"standard_fighter" and _main_audio_start and _main_audio_flight
+		and _main_audio_offline and startup >= 2 and stop >= 2 and fire == _main_shots,
+		"same actual standard_fighter rig follows start/flight/offline and production shot audio follows every current pulse")
