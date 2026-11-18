@@ -292,6 +292,29 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="cinder-bomber-choice-current"></a>
+
+### Cinder Bomber live role-choice card — ACTIVE, independent UI member
+
+Named production outcome of the approved [Cinder expansion](docs/design/FLEET_VISUAL_GRAMMAR.md) and [normalized role-budget consumer](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract): approaching/boarding Bomber exposes its existing hull/braking versus turning/cadence trade-off. This is neither full normalized resource/balance/craft completion nor a successor/retry of parked Katana networking. Katana10a retains1/1 and all reopening conditions.
+
+Clean base **5be79ab2d316975e62fe1cfb40ca1c6b1e4f63d4**. Conservative first-mapping clock **12:32:05UTC**, hard all-in **12:32:05→13:32:05UTC,60minutes**, includes selection/code/review/all source/PCK/capture/export/package/integration/push/archive/worktree/ref/process cleanup/finalverification. Owner11:53:45 reset applies once to this unfinished independent member: **0/1 substantive corrections used**, limit1. Retain all costs/failures; no branch/split reset.
+
+One MEDIUM implementer owns only registry/presenter/adapter plus four existing fixtures below. Root owns every engine/import/render/export and integration, no engines in mutable source. No nested delegation. Independent review covers source facts/layout/fallback and final artifact scope.
+
+| Frozen outcome | Exact acceptance and stop |
+| --- | --- |
+| Player-visible content | Bomber approach and available cards display exact **TOUGH HULL & BRAKES // SLOW TURN / FIRE**, complete craft identity, original instruction, literal LONG-RANGE BOMBER /72M/S BASE /MAX HULL240 facts and actual observed shape/state. Only approved rated comparison, not a global best/normalized score/function claim. |
+| Source facts | Derive from existing accepted Bomber definition hull240/brake28/yaw28/roll34/cooldown.85 and72base; advantages/weaknesses compare Cinder siblings as approved, not all17. Registry supplies detached source-axis/numeric facts; presenter strictly verifies role/identity/current numeric matches and refuses malformed/mismatched data without hiding ordinary rated facts/instructions. No retuning or invented capabilities. |
+| Retained behavior | Exact accepted Light views/facts/marker and all other craft/states remain unchanged. Preserve original six global signatures/non-dominance/minimum14of16, explicit Light small-band maximumspeed, all17profiles/15Maincraft/15homes. Any Bomber signature has explicit Cinder-sibling scope; no global extrema weakening or borrowed guest capability. |
+| Layout/capture | Unchanged396×112card, normal16/11px fonts, full identity/instructions/facts/trade-off/shape/state. Both Bomber states pass all six existing viewport/scale cells with unchanged1pxbody tolerance/title noellipsis/nooverlap/noscroll. New --capture-bomber-choice runs ALLdefault/Light cases before two actual1280/1920 available-card PNGs atUIscale1, original eight-frame settling/Forward+/privateX11, both inspected. Legacy capture flags/paths/cases remain. Component UI proof only, no fullMain/native qualification. |
+| Ownership | ONLY scripts/ships/fleet_role_registry.gd; scripts/ui/boarding_confirmation_hud_presenter.gd; scripts/ui/boarding_confirmation_hud_adapter.gd; tests/fleet_role_registry_test.gd; tests/fleet_role_differentiation_test.gd; tests/boarding_confirmation_cues_hud_test.gd; tests/boarding_confirmation_game_flow_test.gd. Existing generic GameFlow choice publication unchanged. No geometry, cardbounds/fonts, handling, weapons, saves, networking, schema or validator-family work. |
+| Control | Exact final registry fixture on clean oldbase must fail actual missing Bomber role/choice facts using existing old APIs, before candidate-only APIs/constants; no parser/missingmethod substitution. Same original300s cap, source/cache/HEAD/clean guards and owned cleanup. |
+| Source4 | Existing full fleet_role_registry_test, fleet_role_differentiation_test, boarding_confirmation_cues_hud_test(newcaptureflag/explicitoutput), boarding_confirmation_game_flow_test. ALL300s unchanged, original exactmarkers, alloldcases retained plus Bomber cases. Main/render invocations alone. Raw0/exit0/markeronce and source/cache/HEAD/clean each. |
+| PCK4 | Same four full fixtures/default HUD with allnew/old assertions, all300s, new actualWindowsPCK from empty production-source directory. Preserve inherited methods/real dependencies; only exact literal test resource relocation and entry source-isolation guard, pin all original/adapted bytes. No source fallback, flattening or reducedtest matrix. |
+| Checkpoint/closure | SourceGO then fresh clean paired safeexports300internal/360outer, actualtrustedprivateWindows template, strictstartup3(exit0/exactoneSTARTUP_MENU_READY_OK), equal completeWin/Linuxmaps/intendedthree-runtime-scriptdelta+reviewedmetadata, exactLinux6members/modes/extractedELF/ZIPbytes/existingaudit9/eightrepo-localartifacts with actualnewBomberHUDpreview. Independentreview beforemerge/push. Everyarchive memberrehashed before exact-tip local+remote ref/worktree/processcleanup; preserveprotectedParadox. CI remainsdisabled, noDownloads. |
+| Open gates | Full normalized role budget/vector/actualutility/firepower/footprint/boardingtime/skillfloor and final17qualification remain OPEN. NativeWindows/mandatoryhuman retain OWNER-EXCLUDED/NOT_RUN, applicableGPU/device/listening/readability/ordinaryfullworld/craft/network/all36parents/10phasegates remain OPEN. |
+
 <a id="katana-network-ground-current"></a>
 
 ### Katana card10a — network ground access and physical pilot handoff, PARKED / unaccepted
