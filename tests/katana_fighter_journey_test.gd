@@ -2147,6 +2147,29 @@ func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth
 	wrong_home.origin.x += 1.0
 	refusal = _main_ship.preflight_reset_for_reuse(wrong_home)
 	if not _main_check(not refusal.accepted and _main_reset_snapshot(berth) == before,"wrong reset transform refuses before hull/Player/lease mutation"): return
+	# Adversarial configuration of this actual registered home, restored
+	# synchronously before any further gameplay or lease operation.
+	var original_home_tags := berth.compatibility_tags.duplicate()
+	var incompatible_definition := preload("res://assets/ships/cinder_cargo_hauler_new_design.tres") as ShipDefinition
+	var incompatible_tag := ""
+	for tag in incompatible_definition.get_compatibility_tags():
+		if not _main_ship.get_ship_definition().get_compatibility_tags().has(tag):
+			incompatible_tag = tag
+			break
+	if not _main_check(not incompatible_tag.is_empty(),"actual accepted cargo definition supplies a tag absent from actual Katana definition"): return
+	berth.compatibility_tags = PackedStringArray([incompatible_tag])
+	before = _main_reset_snapshot(berth)
+	var incompatible_home := not berth.is_compatible_with(_main_ship.get_ship_definition()) \
+		and not berth.can_accept(_main_ship.get_ship_definition(),_main_ship)
+	refusal = _main_ship.preflight_reset_for_reuse(dock)
+	var incompatible_atomic := not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" \
+		and _main_reset_snapshot(berth) == before
+	print("KATANA_LIFECYCLE_INCOMPATIBLE_HOME: actual_home=",berth.get_berth_id()," tag=",incompatible_tag,
+		" actual_definition_tags=",_main_ship.get_ship_definition().get_compatibility_tags()," receipt=",refusal," atomic=",incompatible_atomic)
+	berth.compatibility_tags = original_home_tags
+	if not _main_check(incompatible_home and incompatible_atomic and berth.compatibility_tags == original_home_tags
+		and berth.can_accept(_main_ship.get_ship_definition(),_main_ship),
+		"actual incompatible registered home refuses public reset atomically and exact accepted configuration restores"): return
 	var receipt := _main_ship.preflight_reset_for_reuse(dock)
 	if not _main_check(receipt.accepted and _main_ship.cancel_reset_for_reuse(receipt).accepted,"safe ordinary return reserves and cancels exact home receipt"): return
 	before = _main_reset_snapshot(berth)
