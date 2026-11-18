@@ -1,5 +1,29 @@
 extends SceneTree
 
+const EXPECTED_RATED_FIELDS := {
+	"maximum_speed": ["m/s", "benefit", "flight"],
+	"maximum_hull": ["hull point", "benefit", "systems"],
+	"boost_speed": ["m/s", "benefit", "flight"],
+	"thrust_acceleration": ["m/s2", "benefit", "flight"],
+	"yaw_speed_degrees": ["degree/s", "benefit", "flight"],
+	"roll_speed_degrees": ["degree/s", "benefit", "flight"],
+	"brake_acceleration": ["m/s2", "benefit", "flight"],
+	"passive_drag": ["m/s2", "cost", "flight"],
+	"boost_multiplier": ["ratio", "benefit", "flight"],
+	"landing_maximum_speed": ["m/s", "benefit", "systems"],
+	"engine_start_time": ["s", "cost", "systems"],
+	"weapon_cooldown": ["s", "cost", "systems"],
+	"throttle_response": ["1/s", "benefit", "flight"],
+	"flight_assist_strength": ["1/s", "undirected", "flight"],
+	"visual_bank_degrees": ["degree", "undirected", "flight"],
+	"maximum_mouse_turn_degrees": ["degree", "undirected", "flight"],
+}
+const EXPECTED_MISSING_DIMENSIONS := [
+	"component_consequences_and_repair", "firepower_and_range", "cargo",
+	"passenger_and_support", "collision_footprint", "boarding_time", "skill_floor",
+	"complete_role_and_capability_metadata",
+]
+
 ## Freezes the fleet-wide properties that the Phase 4 "differentiated roles,
 ## readable colours, physical boarding, cockpit seating, interiors appropriate
 ## to vessel size" item actually delivers today, measured from the production
@@ -1380,3 +1404,15 @@ func _test_live_rated_budget_sources(by_id: Dictionary) -> void:
 		var snapshot := budget.get_snapshot()
 		_check(budget.is_valid() and snapshot.ship_id == ship_id and snapshot.qualification == &"NOT_QUALIFIED" and snapshot.fields.maximum_speed.raw == definition.maximum_speed and snapshot.fields.maximum_hull.raw == definition.maximum_hull, "live %s uses actual definition speed/hull without full-role qualification" % ship_id)
 		_check(snapshot.fields.maximum_speed.normalized == definition.maximum_speed / (1.0 + definition.maximum_speed) and snapshot.fields.maximum_hull.normalized == definition.maximum_hull / (1.0 + definition.maximum_hull) and before == {"flight": definition.get_flight_profile(), "systems": definition.get_systems_profile()}, "live rated indices retain full precision and do not mutate %s" % ship_id)
+
+		_check(snapshot.fields.size() == 16 and snapshot.missing_dimensions == EXPECTED_MISSING_DIMENSIONS, "live handling sources all sixteen fields but leaves actual-role dimensions missing")
+		for axis: String in EXPECTED_RATED_FIELDS:
+			var spec: Array = EXPECTED_RATED_FIELDS[axis]
+			var field: Dictionary = snapshot.fields[axis]
+			var profile: Dictionary = definition.get_flight_profile() if spec[2] == "flight" else definition.get_systems_profile()
+			var raw: float = profile[axis]
+			_check(field.raw == raw and field.unit == spec[0] and field.direction == spec[1] and field.unit_scale == 1.0 and field.source == "ShipDefinition.get_%s_profile.%s" % [spec[2], axis], "live %s actual %s source/unit/direction is retained" % [ship_id, axis])
+			if spec[1] == "undirected":
+				_check(not field.has("normalized"), "live feel field is unscored")
+			else:
+				_check(field.normalized == (raw / (1.0 + raw) if spec[1] == "benefit" else 1.0 / (1.0 + raw)), "live directed field has exact normalized value")
