@@ -273,6 +273,51 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Katana card9 — committed/refused/interrupted cold continuation, ACTIVE
+
+Existing BUILD-SPLIT-KATANA/card9. Result: saving after ordinary Katana use retains
+its named home preference; a fresh process offers honest recovery and starts the
+same player supported on foot at the station, with normal Katana availability.
+No saved pilot/seat/flight position, damaged hull, inventory bonus or network
+continuity is restored. Last good progress survives refused and interrupted writes.
+
+Dependencies cards1–8 accepted. Clean base73eec854ff4841633f5cd8768721c68e2c28abcb,
+runtime5fc94caf21f485fb9014ed4f057809f336f60f9f. First mapping10:09:56UTC is included.
+Window **2026-11-18 10:09:56→11:39:56UTC,90minutes ALL-IN**, including mapping,
+code/review, exact old control/import/syntax, all source/PCK, checkpoint, merge/push,
+archive/process/worktree/branch cleanup and final docs/verification. Freeze before
+code. Owner08:57:09 renewal applied once: **0/1 substantive corrections used**.
+Do not extend this deadline or original per-process caps. Stop dependent cases
+on first unexpected failure; measure cause before correction. Routine caller/
+compiler maintenance consumes time, not an extra production correction.
+
+Bounded ownership: one HIGH implementer owns ONLY scripts/game/game_flow.gd
+(the five existing Dynamic conservative recovery consumers, adding exact Katana
+identity) and tests/katana_fighter_journey_test.gd (cold modes in existing fixture).
+UserDataStore/filesystem/schema/diagnostics/shared generic and other craft
+policies remain unchanged. Existing Dynamic behavior stays identical; one HIGH
+independent reviewer covers the shared policy and transaction/fault fixture.
+Root owns all engines/release helpers/integration. No engines in mutable worktree.
+
+| Frozen contract | Proof and stopping condition |
+| --- | --- |
+| Real production gap | Actual current Katana pilot capture writes mode=pilot; cold sealed Katana fails generic boardability resolution, loses named home offer/preference and can be replaced by default Torrent. Add Katana to existing exact-home conservative policy, not a new recovery owner. |
+| Context/offer | Same existing four fields: location=mudds_home_berth, mode=on_foot, craft_id=katana_provisional, berth_id=katana_home_berth. Even actual pilot use records only preference. Healthy/unpiloted/supported/stationary exact occupied home and live enabled unreserved area may resolve while sealed; ordinary access still must open before boarding. Offer says station walking/no saved helm or flight pose. Existing pilot/on_foot records remain compatible; replayed shift/recovery grants no authority/teleport/duplicate. |
+| Eight real restart cases | Each process300s, existing real Boot/title/Begin Shift/normal physical station route/port ramp/helm claim. Independent committed profile write→fresh read→legacy-pilot→legacy-on-foot; refused profile refuse→fresh read; interrupted profile interrupt→fresh read. Same player/capsule/masks/gravity/camera supported and clear, no stale seat/pilot/claim, one Katana/fifteen homes and all14othercraft owners/poses/settings/sources. Cold modes deliberately exit without normal shutdown so actual next process sees unfinished session; they do not qualify normal clean Quit. |
+| Durable progress | FOV87 through actual settings owner, real cinder_debris_beacon_traversal tutorial progress, actual initialized Titan cargo owner four locker parcels/zero aboard before baseline. Compare ALL non-recovery payload slots across processes. No fake inventory ledger, pose/velocity/clock/retry timestamp or generation writes. |
+| Refusal | Real .tmp directory blocks publication. Primary SHA/bytes/generation/context and unrelated data remain exact, existing retry arms; remove blocker and observe ordinary retry through existing driver ticks. No storage semantics change or silent mutation. |
+| Interrupted write | Existing fixture filesystem seam flushes exactly32 incomplete .tmp bytes and records actual primary/generation/context before backup/publication. Root verifies marker/PID/ancestry/start identity and bytes then SIGKILLs only owned Godot; expect supervisor137/no success marker. Fresh reader proves exact last accepted primary survived plus invalid temporary, then actual recovery/retry commits normally. Original300s caps; independent abort/reap/input release. |
+| Specific old control | Exact final committed Katana cold write fixture on old73eec base,300s, after actual physical helm claim; expect old persisted pilot mode rather than on_foot and explicit exact-context failure with real store/actor/receipt operands. No missing API/compiler or manufactured dictionary failure qualifies. Preserve source/cache/HEAD/clean guards. |
+| Source eight ordinary checks | user_data_store_test120, user_data_store_crash_points_test120, safe_start_production_recovery_test120, safe_start_recovery_policy_test120; full Katana lifecycle-fixture120, --main--combat300, --main--component-service300, --main--lifecycle300. Every original assertion/route/marker remains. PLUS Katana eight cold cases300each and unchanged Dynamic committed write/read pair300each (fresh independent profile), total18 processes. Dynamic's other existing cases/caps remain unchanged; no broad full-craft claim. |
+| PCK fourteen | Exact source fixtures plus existing entry isolation/necessary immutable test constants only, from empty source directories, new actual Windows EXE. Same four Katana ordinary journeys120/300/300/300 plus same eight Katana cold cases300each plus Dynamic committed write/read pair300each. All Main/cold invocations run ALONE. Actual normal gameplay primaries require clean_shutdown/clean/session_ended; intentional cold/kill cases retain their explicit boundary expectations. |
+| Diagnostics and guards | Exit0/exactone canonical markers and source/cache/HEAD/clean for ordinary cases; exact interrupted137/no marker only for owned kill. Source/PCK cold wrappers preserve all raw output and all4guards. Existing named safe-start negative warnings and the deliberate partial-reader JSON parser diagnostic are allowed ONLY by exact case/message/trace and proven fault operands; reject every unexpected diagnostic. Do not report raw0 where expected diagnostics occurred. |
+| Checkpoint | After all selectedsourceGO, fresh clean paired safeexports300internal/360outer, trusted private Windows template, strict Windowspayload60/Linuxdirect300/extracted300 exit0/exactone STARTUP_MENU_READY_OK. Complete equal inventories/intended GameFlow-only script delta + reviewed metadata, exact Linux6members/modes/extractedELF/ZIPbytes/existing audit9/eight repo-local artifacts. Reuse hash-verified accepted5fc regenerated preview63194b106145b0e246b8066cce775ca8136f81cdf96b33793581fd2950c527b2 with explicit reference attribution; no new rendering qualification for save-only change. No Downloads/CI activation. |
+| Close | Runtime/source/package GO then accepted merge/push, published hashes, every raw/archive member rehashed before exact-tip owned branch/worktree/process cleanup. Preserve all failures/actual cost. Paradox gunnerc743 stays protected. Katana10–13/full normalized roles/hull-service/craft/network/game/36parents/10phasegates remain OPEN; actual native Windows/mandatory human remain OWNER-EXCLUDED/NOT_RUN and applicable GPU/device/listening/readability gates OPEN. |
+
+Previous card8 delivered before its final documentation push at89.817minutes;
+its additional final verification finished at90.135minutes (8.07s over the90-minute
+window). That overrun is retained in its closeout, not claimed on-budget or reset.
+
 <a id="katana-lifecycle-current"></a>
 
 ### Katana destruction, guarded home recall and physical reuse — card8 DONE,5fc94ca
