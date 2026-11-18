@@ -500,6 +500,7 @@ func _check_boarding_budget() -> void:
 	var ledger := ShipComponentDamage.new()
 	ledger.configure(AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2)), definition.maximum_hull)
 	craft.set("_component_damage", ledger)
+	craft.add_child(ledger)
 	root.add_child(craft)
 	var observation := {"status": "MEASURED", "source": "ordinary_E_to_settled_pilot", "ship_id": "torrent_provisional",
 		"craft_instance_id": craft.get_instance_id(), "player_instance_id": 123, "transition_generation": 1,
