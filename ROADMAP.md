@@ -16,15 +16,22 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **29a28e4** — [Windows ZIP](builds/windows/MuddsShipyards-29a28e4-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-29a28e4-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-29a28e4-linux-x86_64.tar.gz).
-Dynamic's existing pilot pulse now requires its current physically seated pilot
-and one synchronous emission. Stale/released/foreign callbacks cannot add damage.
-Actual target hits, obstruction/friendly/self refusal, native heat/recovery and
-measured handling tradeoffs pass alongside the complete destruction/service/reuse
-journeys in source and exported content. [Card6 delivery and retained history](#dynamic-combat-current).
-Native Windows/GPU/device/listening/human/full-craft/network gates remain open.
+Latest playable checkpoint: **614abb0** — [Windows ZIP](builds/windows/MuddsShipyards-614abb0-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-614abb0-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-614abb0-linux-x86_64.tar.gz).
+Katana's real current pilot now owns each single-use precision-pulse emission.
+Stale, duplicate, foreign and released requests cannot mint damage. Actual
+same-speed braking measures6.78m versus8.08–11.00m for four fighter peers;
+its weaker turning/boost and unchanged480m/24damage/.38s emitter remain.
+Full source12/PCK7, startup3 and package gates pass.
+[Card6 delivery and retained failure](#katana-combat-current).
+
+Dynamic's previously delivered current-pilot/once-only pulse guards, target,
+heat/recovery and handling proof remain included, along with its complete
+service/destruction/reuse routes. [Dynamic card6 delivery](#dynamic-combat-current).
+Applicable GPU/device/listening/readability/fullcraft/network gates remain open;
+actual native Windows execution and mandatory human review remain owner-excluded/
+NOT_RUN under the existing adopted specification, without reinstating a gate.
 
 The earlier shared damage-audio re-entry repair remains included: the current
 listener restores when a retained hero ship re-enters the tree, and damage/repair
@@ -85,8 +92,8 @@ let propulsion shut OFFLINE, open/release inside and walk fully down the ramp.
 Two usable sorties and a third physical reboard/release pass in source and actual
 Windows PCK, followed by the full station walk home and normal UI Quit.
 Main has **15 usable pilot craft / 15 occupied physical homes**; all14oldercraft
-and current leases remain intact. Katana comparative handling, target damage,
-service/recovery/save/network and full craft qualification remain open.
+and current leases remain intact. Katana comparative handling and actual target damage are now qualified by
+card6 below. Service/recovery/save/network and full craft qualification remain open.
 Existing Utopia home-only chairs and other accepted pilot content remain included.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
@@ -243,7 +250,98 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Katana card6 — measured braking and actual current-pilot combat, ACTIVE
+<a id="katana-combat-current"></a>
+
+### Katana measured handling and current-pilot combat — card6 DONE,614abb0
+
+Accepted source **614abb06db3f986192e77446c44f118b4c3b1907**, merged and pushed
+as **0ad2bd27001fb2e44cd5a9c5a6e87ad023f69f0a**. This completes the existing
+BUILD-SPLIT-KATANA/card6 measured handling/actual gunship-function contract.
+
+The actual physical current seated pilot owns one synchronous, single-use
+precision emission. Crew/synthetic, foreign, released and stale requests cannot
+consume heat/cooldown or damage; reentrant trigger/callback replay cannot duplicate
+one real24damage hit. Source1114, center(0,1,-6.2), existing Arrow480m/24/.38 pulse,
+.28heat/.50cooling/1slockout/.35recovery, geometry and every sibling remain unchanged.
+Actual world obstruction, friendly/self exclusion, empty-space miss, cadence and
+recovery pass. The same standard_fighter rig follows start/flight/OFFLINE;
+production fire-audio cues match the actual shot source, position and tick.
+
+Five actual canonical controllers attain30m/s within±.001 using normal throttle,
+then start ordinary braking on the same completed physics tick. No velocity,
+pose, clock or tuning writes establish the result. Source measurements:
+
+| Craft | Stop distance metres | Stop seconds | Actual boost m/s |
+| --- | ---: | ---: | ---: |
+| Katana | 6.78212 | .48333 | 114 |
+| Torrent | 9.12650 | .63333 | 118 |
+| Arrow | 10.46469 | .71667 | 132 |
+| Cinder Light | 10.99976 | .75000 | 120 |
+| Zenith | 8.08492 | .56667 | 126 |
+
+All five also receive the same60actual-tick yaw input: Katana turns1.01229rad
+versus1.08210–1.64061rad for the peers. Actual PCK repeats these full comparisons.
+Seven existing policy contracts, all17combined profiles,14-axis separation,
+non-dominance and existing extrema remain intact; fleet-wide normalized role/
+choice and complete craft acceptance remain open.
+
+All **12 source and7 actual Windows-PCK cases pass** on final614, each exit0/
+exact-one original marker/raw0/all4 source-cache-HEAD-clean guards. All6 Main
+primaries end clean_shutdown/clean/lastsession_ended; Main runs are separate.
+Original two-sortie/ramp/helm/strict-home/OFFLINE/physical-exit/thirdclaim/full
+reverse-to-spawn/normalQuit routes remain. Full Main seconds (source/PCK):
+Katana **207.035/196.654**, Dynamic **174.464/163.927**, default Titan
+**166.365/159.711**. Physical access both placements, complete registry/
+differentiation/sharedheat/Paradox primary and actual audio re-entry also pass.
+Measured Katana lockout60ticks/resumedheat.63 and19shot/19firecue match native
+constants. Silent automation establishes these environments, not device/listening.
+
+Exact final fixture on old accepted d95 fails the actual stale-shot refusal:
+source1114, shotdelta1, target100→76,78.231s and all4 guards. First cce fixture
+also proved this in80.907s and passed full Main204.255s, but its foundation failed
+17.789s at the obsolete literal6role-count. Current Registry has7; four canonical
+profiles were also missing. The caller-only correction adds those resources and
+uses exact7registered/17total without weakening any predicate; Main and production
+bodies are byte-identical. Historical failure/raw/control remain preserved.
+
+Clean paired exports pass27.712/25.508s; strict startups30.716/25.947/25.497s
+require exit0/exact-one STARTUP_MENU_READY_OK. Actual private trustedWindows
+preflight, complete equal1611-entry maps, only Katana+GameFlow script delta,
+82typed node_ids-only unrelated scene changes/noUID-class additions, exact
+Linux6members/modes/extractedELF identity, ZIPbytes and existing **audit9** pass
+independent scoped review. Eight local artifacts: [Windows EXE](builds/windows/MuddsShipyards-614abb0.exe),
+[ZIP](builds/windows/MuddsShipyards-614abb0-checkpoint.zip),
+[notes](builds/windows/MuddsShipyards-614abb0-notes.txt),
+[reference](builds/windows/MuddsShipyards-614abb0-katana-reference-preview.png),
+[Linux ELF](builds/linux/MuddsShipyards-614abb0.x86_64),
+[archive](builds/linux/MuddsShipyards-614abb0-linux-x86_64.tar.gz),
+[export result](builds/linux/MuddsShipyards-614abb0.x86_64.export-result.json) and
+[Linux notes](builds/linux/MuddsShipyards-614abb0-linux-notes.txt).
+Reference is byte-identical to accepted1a8c084 Main preview, visually checked;
+unchanged geometry receives no new render/native qualification.
+
+Window06:20:37→07:50:37UTC90minutes ALL-IN; **61.3220716167minutes through verified
+archive/cleanup**, plus final documentation/push cost in adjacent closeout.
+Owner05:27:05 renewal **0/1 substantive corrections used**; the measured stale
+fixture-count repair changes no production behavior. Earlier Vortex readiness
+06:18:04→06:20:37/2.55minutes remains separately recorded; no failed Vortex,
+ascending-contact or Salyut acceptance gate is reopened or counted as passed.
+
+Verified archive `/srv/mudds-work/katana-combat-20261118/records.tar.gz`:
+**41,934,244bytes/287members**, SHA256
+`bad02a128a1ca3e636a15c0eeb70be420204c010c6caf472b76d1de537d9f23f`.
+Every member rehashed before owned loose records and both worktrees were removed.
+Only archive+closeout remain in task root. Accepted branch deleted locally and
+absent remotely after pushed integration; separate unaccepted Paradox gunner
+c743f585 remains retained. Main stays15usablecraft/15occupiedhomes.
+
+Katana components/service7, lifecycle8, safe cold continuation9, network10–11,
+integrated craft12 and final qualification13 remain open. Actual native Windows
+execution/mandatory human review retain their existing owner-excluded/NOT_RUN
+status; applicable GPU/device/listening/readability and all36parent/10phase gates
+remain open. CI staysOFF. No next task is selected by this closure.
+
+### Katana card6 — executed frozen delivery card, DONE614abb0
 
 Goal: existing BUILD-SPLIT-KATANA/card6 from the adopted Katana design. Full
 card6: actual equal-speed braking advantage over Torrent/Arrow/Cinder Light/
