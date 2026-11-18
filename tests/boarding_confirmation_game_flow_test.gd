@@ -92,6 +92,7 @@ func _run() -> void:
 
 	_check_light_choice_bridge(game)
 	_check_bomber_choice_bridge(game)
+	_check_hauler_choice_bridge(game)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Input.action_release(&"interact")
 	game.queue_free()
@@ -219,6 +220,47 @@ func _check_bomber_choice_bridge(game: GameFlow) -> void:
 		_check(_choice_authority_snapshot(game, bomber) == state_before, "Bomber %s presentation cannot mutate gameplay or saved state" % state)
 	game.set("_transition_busy", was_busy)
 	bomber_area.release_reservation(game.player)
+	game.call(&"_clear_boarding_confirmation_reservation")
+
+func _check_hauler_choice_bridge(game: GameFlow) -> void:
+	var hauler := game.call(&"_find_flyable_ship_by_id", &"cinder_cargo_hauler") as HeroShip
+	_check(hauler != null, "Main supplies the actual registered Hauler instance for the choice bridge")
+	if hauler == null:
+		return
+	var hauler_area := hauler.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	_check(hauler_area != null, "registered Hauler retains its real boarding area")
+	if hauler_area == null:
+		return
+	var before := _choice_authority_snapshot(game, hauler)
+	for state in [&"approach", &"available"]:
+		game.call(&"_present_boarding_confirmation", state, hauler)
+		var view := _choice_view(game)
+		var expected_title := "[>] MOVE TO CINDER CARGO HAULER" if state == &"approach" else "[+] CINDER CARGO HAULER"
+		var expected_instruction := "LOOK FOR THE BOARDING PROMPT" if state == &"approach" else "PRESS INTERACT TO BOARD"
+		_check(view.state == state and view.title == expected_title
+			and view.message == "HULL & LOW DRAG // SLOW SPEED / THRUST\nCARGO HAULER | 64 M/S BASE | MAX HULL 220\n" + expected_instruction
+			and view.get("hauler_choice_ship_id") == &"cinder_cargo_hauler",
+			"Main's actual Hauler %s producer carries registry trade-off and rated facts" % state)
+		_check(not bool(view.reservation_authority) and not bool(view.transition_authority), "Hauler choice remains presentation-only")
+		if state == &"available":
+			_check(str(view.message).contains("PRESS INTERACT TO BOARD"), "Hauler keeps the ordinary Interact instruction")
+	_check(_choice_authority_snapshot(game, hauler) == before, "Hauler choice reads preserve full resource, component, weapon, seat, reservation and save snapshots")
+	# Existing successful boarding above supplies a genuinely seated player.
+	# Set only the observed busy fixture for the bridge's transition states;
+	# this is a producer regression, not an ordinary Hauler access journey.
+	_check(hauler_area.try_reserve(game.player), "transition fixture holds a real Hauler reservation")
+	game.call(&"_remember_boarding_confirmation_reservation", hauler_area, game.player, game.get("_transition_generation"))
+	var was_busy: bool = game.get("_transition_busy")
+	for state in [&"reserved", &"boarding", &"seated", &"disembarking", &"rejected"]:
+		game.set("_transition_busy", state in [&"boarding", &"disembarking"])
+		var state_before := _choice_authority_snapshot(game, hauler)
+		game.call(&"_present_boarding_confirmation", state, hauler, &"seat_occupied" if state == &"rejected" else &"")
+		var view := _choice_view(game)
+		_check(view.state == state and not (str(view.title) + str(view.message)).contains("HULL & LOW DRAG")
+			and not str(view.message).contains("MAX HULL"), "Hauler %s preserves the exclusive transition/refusal reading" % state)
+		_check(_choice_authority_snapshot(game, hauler) == state_before, "Hauler %s presentation cannot mutate gameplay or saved state" % state)
+	game.set("_transition_busy", was_busy)
+	hauler_area.release_reservation(game.player)
 	game.call(&"_clear_boarding_confirmation_reservation")
 
 func _choice_view(game: GameFlow) -> Dictionary:

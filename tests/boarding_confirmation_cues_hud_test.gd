@@ -56,9 +56,10 @@ func _run() -> void:
 	await _check_fleet_choice_readability(hud)
 	_check_choice_negatives()
 	_check_bomber_negatives()
+	_check_hauler_negatives()
 	hud.queue_free()
 	await process_frame
-	if _failures.is_empty() and ("--capture-light-choice" in OS.get_cmdline_user_args() or "--capture-bomber-choice" in OS.get_cmdline_user_args()):
+	if _failures.is_empty() and ("--capture-light-choice" in OS.get_cmdline_user_args() or "--capture-bomber-choice" in OS.get_cmdline_user_args() or "--capture-hauler-choice" in OS.get_cmdline_user_args()):
 		# The opt-in images extend this complete suite; they never replace it.
 		await _run_choice_capture()
 		return
@@ -168,7 +169,7 @@ func _check_fleet_choice_readability(hud: Object) -> void:
 			for definition_name in DEFINITION_PATHS:
 				var definition := load("res://assets/ships/%s.tres" % definition_name) as ShipDefinition
 				var facts := _definition_facts(definition)
-				for choice_state in ([&"available", &"approach"] if definition.get_ship_id() in [&"cinder_light_interceptor", &"cinder_long_range_bomber"] else [&"available"]):
+				for choice_state in ([&"available", &"approach"] if definition.get_ship_id() in [&"cinder_light_interceptor", &"cinder_long_range_bomber", &"cinder_cargo_hauler"] else [&"available"]):
 					composition.apply_snapshot({"state": choice_state, "craft_name": definition.get_display_name(), "definition_facts": facts})
 					for frame in 3:
 						await process_frame
@@ -176,7 +177,8 @@ func _check_fleet_choice_readability(hud: Object) -> void:
 					var expected := "%s | %.0f M/S BASE | MAX HULL %.0f" % [definition.get_role().to_upper(), definition.maximum_speed, definition.maximum_hull]
 					var is_light := definition.get_ship_id() == &"cinder_light_interceptor"
 					var is_bomber := definition.get_ship_id() == &"cinder_long_range_bomber"
-					var is_choice := is_light or is_bomber
+					var is_hauler := definition.get_ship_id() == &"cinder_cargo_hauler"
+					var is_choice := is_light or is_bomber or is_hauler
 					_check((str(view.message).contains("\n" + expected + "\n") if is_choice else str(view.message).ends_with(expected)) and str(view.message).contains("PRESS INTERACT TO BOARD" if choice_state == &"available" else "LOOK FOR THE BOARDING PROMPT"), "rated facts and ordinary Interact survive for %s at %s / %.2f" % [definition_name, viewport, scale_value])
 					_check(str(view.message).contains("FAST RESPONSE // HIGH DRAG WHEN COASTING") == is_light, "only Light gains the registry trade-off at %s / %.2f" % [viewport, scale_value])
 					if is_light:
@@ -185,6 +187,9 @@ func _check_fleet_choice_readability(hud: Object) -> void:
 					_check(str(view.message).contains("TOUGH HULL & BRAKES // SLOW TURN / FIRE") == is_bomber, "only Bomber gains its approved trade-off")
 					if is_bomber:
 						_check(view.title == _expected_bomber_title(choice_state) and view.message == _expected_bomber_message(choice_state) and view.get("bomber_choice_ship_id") == &"cinder_long_range_bomber", "complete Bomber identity, instruction, facts and trade-off retain exact layout")
+					_check(str(view.message).contains("HULL & LOW DRAG // SLOW SPEED / THRUST") == is_hauler, "only Hauler gains its approved trade-off")
+					if is_hauler:
+						_check(view.title == _expected_hauler_title(choice_state) and view.message == _expected_hauler_message(choice_state) and view.get("hauler_choice_ship_id") == &"cinder_cargo_hauler", "complete Hauler identity, instruction, facts and trade-off retain exact layout")
 					var name_upper := definition.get_display_name().to_upper()
 					if "CANDIDATE" in name_upper:
 						_check("CANDIDATE" in str(view.message), "candidate identity remains visible for %s" % definition_name)
@@ -357,11 +362,12 @@ func _run_choice_capture() -> void:
 	hud.set_ui_scale(1.0)
 	var composition := CompositionType.new()
 	_check(bool(composition.attach(hud).get("accepted", false)), "choice capture attaches the public retained composition")
+	var capture_hauler := "--capture-hauler-choice" in OS.get_cmdline_user_args()
 	var capture_bomber := "--capture-bomber-choice" in OS.get_cmdline_user_args()
-	var definition := load("res://assets/ships/%s_new_design.tres" % ("cinder_long_range_bomber" if capture_bomber else "cinder_light_interceptor")) as ShipDefinition
+	var definition := load("res://assets/ships/%s_new_design.tres" % ("cinder_cargo_hauler" if capture_hauler else ("cinder_long_range_bomber" if capture_bomber else "cinder_light_interceptor"))) as ShipDefinition
 	var facts := _definition_facts(definition)
-	var expected_title := _expected_bomber_title(&"available") if capture_bomber else _expected_light_title(&"available")
-	var expected_message := _expected_bomber_message(&"available") if capture_bomber else "FAST RESPONSE // HIGH DRAG WHEN COASTING\nLIGHT INTERCEPTOR | 102 M/S BASE | MAX HULL 110\nPRESS INTERACT TO BOARD"
+	var expected_title := _expected_hauler_title(&"available") if capture_hauler else (_expected_bomber_title(&"available") if capture_bomber else _expected_light_title(&"available"))
+	var expected_message := _expected_hauler_message(&"available") if capture_hauler else (_expected_bomber_message(&"available") if capture_bomber else "FAST RESPONSE // HIGH DRAG WHEN COASTING\nLIGHT INTERCEPTOR | 102 M/S BASE | MAX HULL 110\nPRESS INTERACT TO BOARD")
 	for viewport in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		# Reset both viewport and content policy for each native-size image.
 		root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
@@ -371,11 +377,11 @@ func _run_choice_capture() -> void:
 		hud.set_ui_scale(1.0)
 		var applied := composition.apply_snapshot({"state": &"available", "craft_name": definition.get_display_name(), "definition_facts": facts})
 		_check(bool(applied.get("accepted", false)), "native-size selected choice reaches the retained card")
-		for frame in (8 if capture_bomber else 4):
+		for frame in (8 if capture_bomber or capture_hauler else 4):
 			await process_frame
-			if capture_bomber:
+			if capture_bomber or capture_hauler:
 				await RenderingServer.frame_post_draw
-		if not capture_bomber:
+		if not capture_bomber and not capture_hauler:
 			await RenderingServer.frame_post_draw
 		var view := (composition.get_snapshot().adapter as Dictionary).view as Dictionary
 		var panel := hud.find_child("RuntimeStatusPanel", true, false) as Control
@@ -399,7 +405,7 @@ func _run_choice_capture() -> void:
 		_check(not image.get_region(Rect2i(panel.get_global_rect())).get_data().is_empty(), "choice card contains rendered pixels")
 		if _failures.is_empty():
 			_check(DirAccess.make_dir_recursive_absolute(output_dir) == OK, "choice output directory is available")
-			_check(image.save_png(output_dir.path_join(("choice_cinder_bomber_%dx%d.png" if capture_bomber else "choice_cinder_light_%dx%d.png") % [viewport.x, viewport.y])) == OK, "choice PNG saves at exact %dx%d" % [viewport.x, viewport.y])
+			_check(image.save_png(output_dir.path_join(("choice_cinder_hauler_%dx%d.png" if capture_hauler else ("choice_cinder_bomber_%dx%d.png" if capture_bomber else "choice_cinder_light_%dx%d.png")) % [viewport.x, viewport.y])) == OK, "choice PNG saves at exact %dx%d" % [viewport.x, viewport.y])
 	composition.detach()
 	hud.queue_free()
 	await process_frame
@@ -487,3 +493,61 @@ func _check_bomber_negatives() -> void:
 			"reservation_retained": true, "transition_busy": true, "player_seated": true})
 		_check(view == baseline, "Bomber %s ignores choice facts and retains complete original view" % state)
 	_check(facts == original, "Bomber detached input facts remain unchanged")
+
+
+func _expected_hauler_title(state: StringName) -> String:
+	return "[>] MOVE TO CINDER CARGO HAULER" if state == &"approach" else "[+] CINDER CARGO HAULER"
+
+
+func _expected_hauler_message(state: StringName) -> String:
+	return "HULL & LOW DRAG // SLOW SPEED / THRUST\nCARGO HAULER | 64 M/S BASE | MAX HULL 220\n" + ("LOOK FOR THE BOARDING PROMPT" if state == &"approach" else "PRESS INTERACT TO BOARD")
+
+
+func _check_hauler_negatives() -> void:
+	var presenter := PresenterType.new()
+	var definition := load("res://assets/ships/cinder_cargo_hauler_new_design.tres") as ShipDefinition
+	var facts := _definition_facts(definition)
+	var original := facts.duplicate(true)
+	for state in [&"approach", &"available"]:
+		var view := presenter.present({"state": state, "craft_name": definition.get_display_name(), "definition_facts": facts})
+		_check(view.title == _expected_hauler_title(state) and view.message == _expected_hauler_message(state) and view.get("hauler_choice_ship_id") == &"cinder_cargo_hauler", "Hauler exact %s choice is sourced" % state)
+	var bad_choices: Array = [null, [], "HAULER", {}, {"advantage": "HULL & LOW DRAG"}]
+	for patch in [{"ship_id": &"cinder_light_interceptor"}, {"role_id": &"wrong"}, {"ship_id": []}, {"role_id": []}, {"source_axes": []}, {"source_axes": {"advantage": 28, "weakness": []}}, {"source_axes": {"advantage": [[], &"passive_drag"], "weakness": [&"maximum_speed", &"thrust_acceleration"]}}, {"advantage": []}, {"weakness": []}, {"advantage": "FAKE"}, {"weakness": "WRONG\nLINE"}]:
+		var bad := facts.role_choice.duplicate(true) as Dictionary
+		bad.merge(patch, true)
+		bad_choices.append(bad)
+	for axis in ["maximum_speed", "maximum_hull", "thrust_acceleration", "passive_drag"]:
+		for invalid in [0.0, INF, NAN, "28", 999.0]:
+			var bad := facts.role_choice.duplicate(true) as Dictionary
+			bad[axis] = invalid
+			bad_choices.append(bad)
+	for bad in bad_choices:
+		var bad_facts := facts.duplicate(true)
+		bad_facts.role_choice = bad
+		var view := presenter.present({"state": &"available", "craft_name": definition.get_display_name(), "definition_facts": bad_facts})
+		_check(not view.has("hauler_choice_ship_id") and not str(view.message).contains("HULL & LOW DRAG") and str(view.message).ends_with("CARGO HAULER | 64 M/S BASE | MAX HULL 220"), "malformed Hauler choice preserves ordinary rated facts without a fabricated trade-off")
+	for role in ["Light interceptor", "Long-range bomber", "Reconnaissance ship"]:
+		var foreign := facts.duplicate(true)
+		foreign.role = role
+		var view := presenter.present({"state": &"available", "craft_name": "FOREIGN", "definition_facts": foreign})
+		_check(not view.has("hauler_choice_ship_id") and not str(view.message).contains("HULL & LOW DRAG"), "Hauler facts cannot bleed into foreign roles")
+	for state in [&"reserved", &"boarding", &"seated", &"disembarking", &"rejected"]:
+		var snapshot := {"state": state, "craft_name": definition.get_display_name(), "reservation_retained": true, "transition_busy": true, "player_seated": true}
+		var baseline := presenter.present(snapshot)
+		snapshot.definition_facts = facts
+		_check(presenter.present(snapshot) == baseline, "Hauler %s retains the complete original transition view" % state)
+	for patch in [{"maximum_speed": 65.0}, {"maximum_hull": 221.0}]:
+		var mismatched := facts.duplicate(true)
+		mismatched.merge(patch, true)
+		var view := presenter.present({"state": &"available", "craft_name": definition.get_display_name(), "definition_facts": mismatched})
+		_check(not view.has("hauler_choice_ship_id") and not str(view.message).contains("HULL & LOW DRAG") and str(view.message).contains("MAX HULL"), "Hauler source/rated mismatch retains ordinary facts without a trade-off")
+	for malformed in [null, [], "HAULER", 42, {"role": []}, {"role": "Cargo hauler", "maximum_speed": "64", "maximum_hull": 220}, {"role": "Cargo hauler", "maximum_speed": INF, "maximum_hull": 220}, {"role": "Cargo hauler", "maximum_speed": 64, "maximum_hull": NAN}]:
+		var view := presenter.present({"state": &"available", "craft_name": definition.get_display_name(), "definition_facts": malformed})
+		_check(not view.has("hauler_choice_ship_id") and str(view.message) == "CINDER CARGO HAULER // PRESS INTERACT TO BOARD", "malformed Hauler definition safely preserves ordinary prompt")
+	for state in [&"reserved", &"boarding", &"seated", &"disembarking", &"rejected"]:
+		var view := presenter.present({"state": state, "craft_name": definition.get_display_name(), "definition_facts": facts,
+			"reservation_retained": true, "transition_busy": true, "player_seated": true})
+		var baseline := presenter.present({"state": state, "craft_name": definition.get_display_name(),
+			"reservation_retained": true, "transition_busy": true, "player_seated": true})
+		_check(view == baseline, "Hauler %s ignores choice facts and retains complete original view" % state)
+	_check(facts == original, "Hauler detached input facts remain unchanged")
