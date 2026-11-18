@@ -1401,7 +1401,7 @@ const EXPECTED_PILOT := {
 	"jovian_provisional": [70.0, 650.0, 0.62],
 	"zenith_b7_observed": [28.0, 420.0, 0.24],
 	"halyard_new_design": [52.0, 560.0, 0.95],
-	"bulwark_new_design": [50.0, 360.0, 0.30],
+	"bulwark_heavy_gunship": [50.0, 360.0, 0.30],
 	"cinder_light_interceptor": [18.0, 320.0, 0.28],
 	"cinder_long_range_bomber": [80.0, 900.0, 1.0],
 	"cinder_cargo_hauler": [26.0, 180.0, 0.70],

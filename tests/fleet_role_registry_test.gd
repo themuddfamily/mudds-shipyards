@@ -458,6 +458,21 @@ func _check_pilot_budget_detachment() -> void:
 		var malformed := source.duplicate(true)
 		malformed.merge(patch, true)
 		_check(Registry.create_rated_budget(definition, craft, malformed).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "invalid or object-bearing pilot source fails closed without retaining authority")
+	for metadata: String in ["ship_id", "status", "selected_context"]:
+		for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+			var malformed := source.duplicate(true)
+			malformed[metadata] = bad
+			_check(Registry.create_rated_budget(definition, craft, malformed).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "heterogeneous pilot source metadata refuses before comparison")
+	for metadata: String in ["model", "refill_rule", "weapon_id"]:
+		for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+			var malformed := source.duplicate(true)
+			if metadata == "model":
+				malformed.constraints.thermal.model = bad
+			elif metadata == "refill_rule":
+				malformed.constraints.refill_rule = bad
+			else:
+				malformed.profiles.combat.weapon_id = bad
+			_check(Registry.create_rated_budget(definition, craft, malformed).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "heterogeneous nested pilot source metadata refuses before comparison")
 	_check(Registry.create_rated_budget(definition, craft).get_snapshot().pilot_weapon.status == "UNAVAILABLE", "live craft without authority source is unavailable rather than inferred from definition")
 	var scatter := source.duplicate(true)
 	scatter.profiles.combat.resolver_profile = {"damage": 14.0, "trigger_damage": 42.0, "range": 180.0, "origin_tolerance": 24.0, "spread_degrees": 3.0, "pellet_count": 3}

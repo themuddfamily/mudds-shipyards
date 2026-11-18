@@ -200,14 +200,14 @@ func _measure_pilot(definition: ShipDefinition, craft: HeroShip, source: Diction
 		return unavailable
 	if craft.get_ship_definition() != definition or craft.get_ship_id() != definition.get_ship_id() or not _detached_finite(source):
 		return unavailable
-	if source.get("ship_id") != str(_ship_id):
+	if not source.get("ship_id") is String or not source.get("status") is String:
+		return unavailable
+	if source.ship_id != str(_ship_id):
 		return unavailable
 	if source.get("status") == "UNARMED" and _ship_id == &"predator_provisional":
 		return {"status": "UNARMED", "reason": "production_pilot_unarmed", "source": PILOT_SOURCE,
 			"ship_id": str(_ship_id), "selected_context": "", "contexts": {}}
-	if source.get("status") != "SOURCED" or not source.get("profiles") is Dictionary or not source.get("constraints") is Dictionary:
-		return unavailable
-	if source.constraints != craft.get_pilot_weapon_constraints():
+	if source.status != "SOURCED" or not source.get("selected_context") is String or not source.get("profiles") is Dictionary or not source.get("constraints") is Dictionary:
 		return unavailable
 	var contexts := {}
 	for context: Variant in source.profiles:
@@ -218,6 +218,8 @@ func _measure_pilot(definition: ShipDefinition, craft: HeroShip, source: Diction
 		if built.is_empty():
 			return unavailable
 		contexts[context] = built
+	if source.constraints != craft.get_pilot_weapon_constraints():
+		return unavailable
 	var result := {"status": "SOURCED", "reason": "actual_registered_pilot_configuration", "source": PILOT_SOURCE,
 		"ship_id": str(_ship_id), "selected_context": source.get("selected_context"), "contexts": contexts}
 	return result if valid_pilot_weapon(result, str(_ship_id)) else unavailable
@@ -262,7 +264,7 @@ static func _pilot_context(weapon_id: String, profile: Dictionary, constraints: 
 	if float(constraints.warmup) != 0.0 or float(constraints.minimum_operators) != 1.0 or not constraints.get("ammo_unbounded") is bool:
 		return {}
 	var thermal: Variant = constraints.get("thermal")
-	if not thermal is Dictionary:
+	if not thermal is Dictionary or not thermal.get("model") is String or not constraints.get("refill_rule") is String:
 		return {}
 	var lockout := 0.0
 	if thermal.get("model") == "native":
@@ -273,7 +275,7 @@ static func _pilot_context(weapon_id: String, profile: Dictionary, constraints: 
 			if not _nonnegative_number(thermal.get(axis)) or float(thermal[axis]) != expected[axis]:
 				return {}
 		lockout = float(thermal.lockout_seconds)
-	elif thermal != {"model": "none"}:
+	elif thermal.model != "none" or thermal.size() != 1:
 		return {}
 	if constraints.ammo_unbounded:
 		if constraints.size() != 6 or constraints.get("refill_rule") != "unbounded":
@@ -307,11 +309,13 @@ static func _nonnegative_number(value: Variant) -> bool:
 
 ## Whole-payload validation is independent of the currently displayed page.
 static func valid_pilot_weapon(value: Variant, ship_id: String) -> bool:
-	if not value is Dictionary or not _detached_finite(value) or value.get("source") != PILOT_SOURCE:
+	if not value is Dictionary or not _detached_finite(value):
 		return false
 	for key: String in ["status", "reason", "source"]:
 		if not value.get(key) is String:
 			return false
+	if value.source != PILOT_SOURCE:
+		return false
 	if value.status in ["UNKNOWN", "UNAVAILABLE"]:
 		return value.size() == 3 and value.reason == ("live_craft_not_supplied" if value.status == "UNKNOWN" else "live_pilot_source_unavailable")
 	if value.size() != 6 or not value.get("ship_id") is String or value.ship_id != ship_id or not value.get("selected_context") is String or not value.get("contexts") is Dictionary:
@@ -332,20 +336,30 @@ static func valid_pilot_weapon(value: Variant, ship_id: String) -> bool:
 		if not item is Dictionary or not item.get("weapon_id") is String or not item.get("resolver_profile") is Dictionary or not item.get("constraints") is Dictionary or not item.get("fields") is Dictionary:
 			return false
 		var expected := _pilot_context(item.weapon_id, item.resolver_profile, item.constraints)
-		if expected.is_empty() or item != expected:
+		if expected.is_empty() or item.size() != 4 or item.fields.size() != PILOT_FIELDS.size():
 			return false
 		for axis: String in PILOT_FIELDS:
-			var field: Dictionary = item.fields[axis]
+			var field_raw: Variant = item.fields.get(axis)
+			if not field_raw is Dictionary:
+				return false
+			var field: Dictionary = field_raw
+			var expected_field: Dictionary = expected.fields[axis]
+			if field.size() != expected_field.size():
+				return false
 			for key: String in ["unit", "direction", "source"]:
-				if not field.get(key) is String:
+				if not field.get(key) is String or field[key] != expected_field[key]:
 					return false
-			for key: String in ["normalized", "unit_scale"]:
-				if not _nonnegative_number(field.get(key)):
-					return false
+			if not _nonnegative_number(field.get("unit_scale")) or float(field.unit_scale) != float(expected_field.unit_scale):
+				return false
+			if not _nonnegative_number(field.get("normalized")) or absf(float(field.normalized) - float(expected_field.normalized)) > 0.000000000001:
+				return false
 			if axis == "ammo_capacity":
-				if not field.get("unbounded") is bool or (not field.unbounded and not _nonnegative_number(field.get("raw"))):
+				if not field.get("unbounded") is bool or field.unbounded != expected_field.unbounded:
 					return false
-			elif not _nonnegative_number(field.get("raw")):
+			if expected_field.has("raw"):
+				if not _nonnegative_number(field.get("raw")) or float(field.raw) != float(expected_field.raw):
+					return false
+			elif field.has("raw"):
 				return false
 		var no_heat := ship_id in ["paradox_provisional", "cinder_long_range_bomber"]
 		if (item.constraints.thermal.model == "none") != no_heat or item.constraints.ammo_unbounded == (ship_id == "cinder_long_range_bomber"):

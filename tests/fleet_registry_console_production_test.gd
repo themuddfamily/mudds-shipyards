@@ -6,7 +6,7 @@ const EXPECTED_PILOT := {
 	"jovian_provisional": [70.0, 650.0, 0.62],
 	"zenith_b7_observed": [28.0, 420.0, 0.24],
 	"halyard_new_design": [52.0, 560.0, 0.95],
-	"bulwark_new_design": [50.0, 360.0, 0.30],
+	"bulwark_heavy_gunship": [50.0, 360.0, 0.30],
 	"cinder_light_interceptor": [18.0, 320.0, 0.28],
 	"cinder_long_range_bomber": [80.0, 900.0, 1.0],
 	"cinder_cargo_hauler": [26.0, 180.0, 0.70],
@@ -455,6 +455,11 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 			var malformed := source.duplicate(true)
 			malformed.rows[row_index].rated_budget.pilot_weapon = replacement
 			cases.append(malformed)
+		for metadata: String in ["source", "status", "reason", "ship_id", "selected_context"]:
+			for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+				var malformed := source.duplicate(true)
+				malformed.rows[row_index].rated_budget.pilot_weapon[metadata] = bad
+				cases.append(malformed)
 		if pilot.status != "SOURCED":
 			var armed_predator := source.duplicate(true)
 			armed_predator.rows[row_index].rated_budget.pilot_weapon = source.rows[0].rated_budget.pilot_weapon.duplicate(true)
@@ -466,6 +471,22 @@ func _check_rated_refusals(console: Area3D, source: Dictionary) -> void:
 				for patch: Dictionary in [{"normalized": 0.123}, {"normalized": INF}, {"normalized": []}, {"unit_scale": 2.0}, {"direction": "invented"}, {"raw": NAN}, {"raw": true}]:
 					var malformed := source.duplicate(true)
 					malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name].fields[axis].merge(patch, true)
+					cases.append(malformed)
+				for metadata: String in ["unit", "direction", "source"]:
+					for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+						var malformed := source.duplicate(true)
+						malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name].fields[axis][metadata] = bad
+						cases.append(malformed)
+			for metadata: String in ["model", "refill_rule", "weapon_id"]:
+				for bad: Variant in [[], {}, {"nested": []}, [{"nested": []}]]:
+					var malformed := source.duplicate(true)
+					var target: Dictionary = malformed.rows[row_index].rated_budget.pilot_weapon.contexts[context_name]
+					if metadata == "model":
+						target.constraints.thermal.model = bad
+					elif metadata == "refill_rule":
+						target.constraints.refill_rule = bad
+					else:
+						target.weapon_id = bad
 					cases.append(malformed)
 			for profile_key: String in pilot.contexts[context_name].resolver_profile:
 				for bad: Variant in [[], true, INF, NAN, -1.0]:
