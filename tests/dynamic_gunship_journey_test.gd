@@ -1308,7 +1308,7 @@ func _run_components() -> void:
 		source.brake = true
 		craft.add_child(source)
 		craft.set_command_source(source)
-		var pilot := _component_fixture_pilot(craft)
+		var pilot := await _component_fixture_pilot(craft)
 		if not _check(pilot != null,"component controller has actual reserved seated pilot"): return
 		pilots.append(pilot)
 		craft.set_piloted(true)
@@ -1398,6 +1398,7 @@ func _run_components() -> void:
 			and not craft.is_canopy_open(),str(id)+" pilot release/reclaim and refused unsupported access never heal damage"): return
 		craft.set_piloted(false)
 		craft.queue_free()
+		(pilots[index].get_meta("fixture_support") as Node).queue_free()
 		pilots[index].queue_free()
 		await _frames(2)
 	await _component_paired_engines()
@@ -1870,13 +1871,33 @@ func _lifecycle_shapes_enabled(ship: HeroShip) -> bool:
 
 
 func _component_fixture_pilot(craft: HeroShip) -> PlayerController:
+	var deck := StaticBody3D.new()
+	deck.name = "ComponentPilotSupportDeck"
+	deck.transform = craft.global_transform
+	deck.collision_layer = PhysicsLayers.WORLD
+	deck.collision_mask = 0
+	var collision := CollisionShape3D.new()
+	var slab := BoxShape3D.new()
+	slab.size = Vector3(24,0.5,20)
+	collision.shape = slab
+	collision.position.y = -0.25
+	deck.add_child(collision)
+	root.add_child(deck)
+	await _frames(2)
+	craft.set_canopy_open(true,0.05)
+	await _frames(6)
 	var pilot := PLAYER.instantiate() as PlayerController
 	pilot.transform = craft.get_boarding_entry_transform()
 	root.add_child(pilot)
 	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
-	if not area.try_reserve(pilot) or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
+	if not craft.is_boardable() or not area.try_reserve(pilot) \
+			or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
 		pilot.queue_free()
+		deck.queue_free()
 		return null
+	craft.set_canopy_open(false,0.05)
+	await _frames(6)
+	pilot.set_meta("fixture_support",deck)
 	return pilot
 
 

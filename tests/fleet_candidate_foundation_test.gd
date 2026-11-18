@@ -19,6 +19,7 @@ var _shots = 0
 var _bad_origin = false
 var _edges: Array[Dictionary] = []
 var _solid_poses: Dictionary = {}
+var _fixture_decks: Array[StaticBody3D] = []
 
 class FixtureCommands:
 	extends ShipCommandSource
@@ -73,7 +74,7 @@ func _run() -> void:
 	_ship.set_command_source(command)
 	var pilot: PlayerController = null
 	if _name == "dynamic":
-		pilot = _fixture_pilot(_ship)
+		pilot = await _fixture_pilot(_ship)
 		if not _check(pilot != null and pilot.is_seated_at(_ship.get_pilot_seat_anchor()),"Dynamic fixture owns actual reserved and physically seated Player"): return
 	_ship.set_piloted(true)
 	_ship.engine_state_changed.connect(func(state: StringName): _edges.append({"state":state,"tick":Engine.get_physics_frames(),"remaining":_ship.get("_engine_timer")}))
@@ -157,6 +158,8 @@ func _run() -> void:
 	if pilot != null: pilot.queue_free()
 	await _frames(3)
 	if _name == "dynamic" and not await _compare_dynamic_arrow(): return
+	for deck in _fixture_decks: deck.queue_free()
+	await _frames(2)
 	print("FLEET_CANDIDATE_FOUNDATION_TEST_OK: ship=",_name," checks=",_checks," shots=",_shots)
 	quit(0)
 
@@ -326,14 +329,37 @@ func _root_pose(value: Node3D) -> Transform3D:
 	return pose
 
 
+func _fixture_deck(pose: Transform3D) -> void:
+	var deck := StaticBody3D.new()
+	deck.name = "ControllerSupportDeck"
+	deck.transform = pose
+	deck.collision_layer = PhysicsLayers.WORLD
+	deck.collision_mask = 0
+	var collision := CollisionShape3D.new()
+	var slab := BoxShape3D.new()
+	slab.size = Vector3(24,0.5,20)
+	collision.shape = slab
+	collision.position.y = -0.25
+	deck.add_child(collision)
+	root.add_child(deck)
+	_fixture_decks.append(deck)
+
+
 func _fixture_pilot(craft: HeroShip) -> PlayerController:
+	_fixture_deck(craft.global_transform)
+	await _frames(2)
+	craft.set_canopy_open(true,0.05)
+	await _frames(6)
 	var pilot := PLAYER.instantiate() as PlayerController
 	pilot.transform = craft.get_boarding_entry_transform()
 	root.add_child(pilot)
 	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
-	if not area.try_reserve(pilot) or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
+	if not craft.is_boardable() or not area.try_reserve(pilot) \
+			or not pilot.begin_boarding(craft.get_boarding_entry_transform(),craft.get_pilot_seat_anchor(),0.0,craft):
 		pilot.queue_free()
 		return null
+	craft.set_canopy_open(false,0.05)
+	await _frames(6)
 	return pilot
 
 
@@ -350,11 +376,13 @@ func _compare_dynamic_arrow() -> bool:
 		command.brake = true
 		craft.add_child(command)
 		craft.set_command_source(command)
-		craft.set_piloted(true)
 		commands.append(command)
-	var pilot := _fixture_pilot(dynamic)
+	_fixture_deck(arrow.global_transform)
+	var pilot := await _fixture_pilot(dynamic)
 	if not _check(pilot != null,"matched Dynamic controller has actual physical pilot claim"): return false
-	for craft in crafts: craft.request_engine_start()
+	for craft in crafts:
+		craft.set_piloted(true)
+		craft.request_engine_start()
 	await _frames(135)
 	if not _check(dynamic.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and arrow.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE,"both unchanged controller clocks complete under real brake demand"): return false
 	for command in commands:
