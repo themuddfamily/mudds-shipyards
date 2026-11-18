@@ -516,16 +516,25 @@ original eight-path diff. Current rated terminal and accepted Cinder cards stay
 included. Original90minute all-in window is freshly selected as
 **14:17:08→15:47:08UTC**, including mapping, diagnostics, production, full checks,
 checkpoint, review, merge/push/archive/ref-worktree-process cleanup and finaldocs/
-verification. Latest13:57:23 allowance **0/1 used**, shared across the entire
+verification. Latest13:57:23 allowance **1/1 used**, shared across the entire
 card10 family; prior1/1 and **70.31434235minutes** remain historical/cumulative.
 
-PhaseA changes only observations in existing GameFlow/three-peer fixture, then
-runs the original ground route once to retain actual startup publication return
-and exit operation/landing/refusal/toast operands. No replayed publication or
-state injection. PhaseB requires that measured cause and independent review:
-one Katana-local exact initial-home berth/current lease+occupant/fit/current dock/
-support/unpiloted-OFFLINE proof, dock latch only, and initial LANDED registration
-through the existing owner. No fake LandingContract/cabin or HeroShip change.
+PhaseA61c43ada3 completed the ONE planned diagnostic in146.213s: actual initial
+publication refused landing_state_not_committed, authority stayed flying with
+no committed record, and the actual incoming operation had landed=true/docked=false/
+OFFLINE. Ordinary Interact retained the same pilot claim/seated Player and showed
+EXIT LOCKED/no pressurised cabin. Four source/cache/HEAD/clean guards pass;
+owned abort143 and all three actual actor PIDs absent. Raw and exact operands
+are retained. Independent causal review approved one combined repair.
+PhaseB **e965286cb33338be48a737d974263b231e91c2a1** applies that repair: Katana-local
+exact initial-home berth/current lease+occupant/fit/current dock/support/unpiloted-
+OFFLINE proof, dock latch only, and initial LANDED registration through the
+existing owner. Wrong-token/actual foreign-home calls test atomic refusal. Final fixture82e21e1
+uses dynamic observations so exact old60fb still compiles. An overlapping
+fixture edit made the e965 syntax run fail its HEAD guard; it is retained as
+rejected and excluded, with fresh current-pin checks required. No fake
+LandingContract/cabin or HeroShip change. Candidate remains UNACCEPTED until
+the unchanged full gates below pass.
 The same eight original paths and all original source8/PCK6/300actor/360supervisor/
 8s-transition/package gates below remain binding. Current checkpoint0c429cb stays
 accepted until a full candidate passes; no10b successor is selected. Full10b,
