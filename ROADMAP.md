@@ -1681,7 +1681,10 @@ caused90s failure; timingsinstrumented, not nativeperformance. No productionfix
 selected, allowance0/1unused; old costs/source/failures remain attached. Next
 productionchoice needs mathematically equivalent optimization at these actual
 producers and full unchanged cold-view proof, not another blind/warmcapture.
-Window02:59→03:19UTC20min including archive/cleanup. Verified archive
+Selected window02:59→03:19UTC20min included archive/cleanup. Cleanup took
+20.026311minutes, narrowly overrunning it; finaldocs/push/verification also remain
+charged in closeout. The timebox did not pass; only actual causal findings are
+retained, with no production/renderer completion credit. Verified archive
 `/srv/mudds-work/main-render-owner-20261118/records.tar.gz`:
 9075106bytes/656members, SHA256`6fe0702a04f66c6759dbc26d3c57c0ef8431970f18f3cce790ba075b593c0d1b`.
 Allmembersverified; sourceacceptedalreadyreachableinpushedmain. Detachedowned
