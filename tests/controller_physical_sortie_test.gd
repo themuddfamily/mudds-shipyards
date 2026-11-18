@@ -876,7 +876,7 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 			if offset.length() < 0.35:
 				arrived = true
 				break
-			var yaw := player.get_node("CameraYaw") as Node3D
+			var yaw := player.get_node("CameraRig/CameraYaw") as Node3D
 			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
 			var right := forward.cross(Vector3.UP).normalized()
 			var desired := offset.normalized()
