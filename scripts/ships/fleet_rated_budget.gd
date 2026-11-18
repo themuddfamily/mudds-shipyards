@@ -100,7 +100,7 @@ func _measure_footprint(definition: ShipDefinition, craft: HeroShip) -> Dictiona
 	if craft.get_ship_definition() != definition or craft.get_ship_id() != definition.get_ship_id():
 		return _unavailable("live_definition_identity_mismatch")
 	var root_transform := craft.global_transform
-	if not root_transform.is_finite() or not is_equal_approx(root_transform.basis.determinant(), 1.0) or not root_transform.basis.is_equal_approx(root_transform.basis.orthonormalized()):
+	if not _valid_root_transform(root_transform):
 		return _unavailable("root_transform_not_proper_rigid")
 	var combined := AABB()
 	var count := 0
@@ -113,7 +113,7 @@ func _measure_footprint(definition: ShipDefinition, craft: HeroShip) -> Dictiona
 		if collision.is_queued_for_deletion() or collision.shape == null:
 			return _unavailable("enabled_shape_unavailable")
 		var pose := collision.transform
-		if not pose.is_finite() or is_zero_approx(pose.basis.determinant()):
+		if not _valid_shape_transform(pose):
 			return _unavailable("enabled_shape_transform_invalid")
 		var bounds := _shape_bounds(collision.shape, pose)
 		if not bounds.position.is_finite() or not bounds.size.is_finite() or not bounds.has_volume():
@@ -128,6 +128,14 @@ func _measure_footprint(definition: ShipDefinition, craft: HeroShip) -> Dictiona
 	return {"status": "MEASURED", "reason": "complete_enabled_root_union", "source": FOOTPRINT_SOURCE,
 		"ship_id": str(_ship_id), "shape_count": count, "fields": fields,
 		"local_bounds": {"position": _vector_snapshot(combined.position), "size": _vector_snapshot(combined.size)}}
+
+
+func _valid_root_transform(pose: Transform3D) -> bool:
+	return pose.is_finite() and is_equal_approx(pose.basis.determinant(), 1.0) and pose.basis.is_equal_approx(pose.basis.orthonormalized())
+
+
+func _valid_shape_transform(pose: Transform3D) -> bool:
+	return pose.is_finite() and not is_zero_approx(pose.basis.determinant())
 
 
 func _vector_snapshot(value: Vector3) -> Dictionary:

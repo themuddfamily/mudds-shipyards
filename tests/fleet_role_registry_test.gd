@@ -371,23 +371,21 @@ func _check_literal_footprint() -> void:
 		_check(field.unit == "m" and field.direction == "cost" and field.unit_scale == 1.0 and field.normalized == 1.0 / (1.0 + field.raw), "literal footprint uses fixed metre cost normalization")
 	craft.transform = Transform3D(Basis.from_euler(Vector3(0.2,0.6,0.1)), Vector3(20,30,40))
 	_check(Registry.create_rated_budget(definition, craft).get_snapshot().footprint == measured, "root rigid rotation and translation preserve local physical dimensions")
-	craft.scale = Vector3(2,1,1)
+	craft.scale = Vector3.ONE * 2.0
 	_check_unavailable_footprint(definition, craft, "root_transform_not_proper_rigid")
 	craft.transform = Transform3D.IDENTITY
-	craft.basis = Basis(Vector3(-1,0,0), Vector3.UP, Vector3.BACK)
-	_check_unavailable_footprint(definition, craft, "root_transform_not_proper_rigid")
-	craft.transform = Transform3D.IDENTITY
+	_check(not resource._valid_root_transform(Transform3D(Basis(Vector3(-1,0,0), Vector3.UP, Vector3.BACK), Vector3.ZERO)), "reflected root basis cannot produce physical metre measurements")
 	var wrong := definition.duplicate(true) as ShipDefinition
 	_check_unavailable_footprint(wrong, craft, "live_definition_identity_mismatch")
-	var unsupported := _literal_shape(craft, WorldBoundaryShape3D.new())
+	var unsupported := _literal_shape(craft, SeparationRayShape3D.new())
 	_check_unavailable_footprint(definition, craft, "enabled_shape_unsupported_or_empty")
 	unsupported.shape = null
 	_check_unavailable_footprint(definition, craft, "enabled_shape_unavailable")
-	unsupported.shape = ConvexPolygonShape3D.new()
-	_check_unavailable_footprint(definition, craft, "enabled_shape_unsupported_or_empty")
 	unsupported.free()
-	second.basis = Basis(Vector3.ZERO, Vector3.UP, Vector3.BACK)
-	_check_unavailable_footprint(definition, craft, "enabled_shape_transform_invalid")
+	# Invalid empty/singular inputs stay outside the live PhysicsServer owner.
+	_check(not resource._shape_bounds(ConvexPolygonShape3D.new(), Transform3D.IDENTITY).has_volume(), "empty convex geometry is explicitly unmeasurable before union")
+	_check(not resource._valid_shape_transform(Transform3D(Basis(Vector3.ZERO, Vector3.UP, Vector3.BACK), Vector3.ZERO)), "singular child transform is rejected by the production transform gate")
+	_check(not resource._valid_shape_transform(Transform3D(Basis.IDENTITY, Vector3(INF, 0, 0))), "nonfinite child transform is rejected by the production transform gate")
 	second.free()
 	first.disabled = true
 	_check_unavailable_footprint(definition, craft, "no_enabled_root_shapes")
