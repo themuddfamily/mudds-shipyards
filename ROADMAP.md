@@ -16,14 +16,20 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **7801f6b** — [Windows ZIP](builds/windows/MuddsShipyards-7801f6b-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-7801f6b-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-7801f6b-linux-x86_64.tar.gz).
-Damage audio now restores its current listener after a whole retained hero ship
-leaves and re-enters the tree. Real damage/repair cues remain once-only through
-the same rig. Full six-source/five-packaged suites, strict startups and package
-gates pass under Dummy audio. [Delivery and retained failures](#fleet-audio-reentry-current).
-Native listening/device/fullgame qualification stays open.
+Latest playable checkpoint: **29a28e4** — [Windows ZIP](builds/windows/MuddsShipyards-29a28e4-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-29a28e4-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-29a28e4-linux-x86_64.tar.gz).
+Dynamic's existing pilot pulse now requires its current physically seated pilot
+and one synchronous emission. Stale/released/foreign callbacks cannot add damage.
+Actual target hits, obstruction/friendly/self refusal, native heat/recovery and
+measured handling tradeoffs pass alongside the complete destruction/service/reuse
+journeys in source and exported content. [Card6 delivery and retained history](#dynamic-combat-current).
+Native Windows/GPU/device/listening/human/full-craft/network gates remain open.
+
+The earlier shared damage-audio re-entry repair remains included: the current
+listener restores when a retained hero ship re-enters the tree, and damage/repair
+cues remain once-only through the same rig. Its original six-source/five-packaged
+proof remains recorded under [that delivery](#fleet-audio-reentry-current).
 
 Zenith's complete modern hull/fittings now follow its existing53m/43m LOD switch,
 with shared canopy and cockpit retained. Actual static geometry drops from25,472
@@ -57,7 +63,7 @@ and four real unrelated Titan parcels. Full ordinary Dynamic and destruction/
 reset/reuse journeys remain intact, including normal Quit and clean primaries.
 Prior lifecycle/component/service content stays included. Main retains 15 usable
 craft / 15 occupied homes. This delivers Dynamic card 9's limited cold continuation;
-full-game save coverage, target-damage/comparative handling, network/full-craft,
+full-game save coverage, network/full-craft,
 Main cold render and native/human qualification remain open or NOT_RUN.
 [Reference appearance](builds/windows/MuddsShipyards-f3cf6bb-dynamic-reference-preview.png)
 is copied unchanged from the accepted ec8cfda view; no new render qualification
@@ -92,8 +98,9 @@ Dynamic now joins Main as the thirteenth usable pilot craft: ordinary physical
 port access, two complete flight/home/OFFLINE/physical-exit sorties and fresh
 reboarding pass in source and actual Windows PCK
 ([Main preview](builds/windows/MuddsShipyards-aae5aa8-dynamic-main-preview.png)).
-Its approved pilot pulse is bound to unique source 1112; full combat-target,
-comparative-handling, recovery and multiplayer qualification stay open.
+Its approved pilot pulse is bound to unique source 1112; current-pilot target
+damage and comparative handling now pass card6 below. Full-game recovery and
+multiplayer qualification stay open.
 Katana retains validated standalone physical port access and exclusive pilot
 claim/release/reuse ([preview](builds/windows/MuddsShipyards-5ae5879-katana-access-preview.png));
 its home and ordinary Main pilot route are now delivered; full craft qualification remains open.
@@ -236,7 +243,84 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Dynamic card6 — current-pilot combat and physical lifecycle, clock correction ACTIVE
+<a id="dynamic-combat-current"></a>
+
+### Dynamic current-pilot combat — card6 DONE,29a28e4
+
+Accepted source **29a28e4663103677745e8fe3a8bcc6df3ace6408**, merged and pushed
+as **ec25d6040f0c0b50b435d28f6ee0abb28b6bb927**. This checkpoint completes
+the full BUILD-SPLIT-DYNAMIC/card6 contract.
+
+The real seated current pilot can fire the existing center-muzzle source1112
+pulse, unchanged at360m/50damage/.30s. One synchronous emission resolves once;
+crew/synthetic, foreign, released and stale requests cannot consume heat,
+cooldown or damage. Actual target/miss/world/friendly/self cases and inherited
+.28heat/.50 cooling/1s lockout/.35 recovery pass. Measured handling retains the
+stronger Dynamic launch and lower90/121 cruise/boost than Arrow94/132, with all
+existing ship profiles, geometry and roles preserved.
+
+All **14 source and9 actual Windows-PCK cases pass**, each exit0, exact-one
+success marker, raw0 and unchanged source/cache/HEAD/clean guards. Main cases
+run separately; all8 actual source/PCK primaries finish clean_shutdown/clean/
+lastsession_ended. Complete physical routes, two usable sorties, fresh third
+claim, component impairment/service and terminal destruction/regeneration/reset/
+physical reuse remain intact. Source/PCK full journeys:
+
+| Original300-second case | Source seconds | Actual PCK seconds |
+| --- | ---: | ---: |
+| Dynamic combat | 170.191 | 164.966 |
+| Dynamic component service | 172.337 | 163.203 |
+| Dynamic lifecycle | 237.941 | 228.949 |
+| Unchanged default Titan | 166.188 | 159.461 |
+
+The prior accepted baseline really accepts a stale callback and damages the
+production target100→50 (87.536s, expected failure, all4 guards). The new clock
+negative also fails specifically: old131 paired waits consume295 physics ticks
+rather than≤139, with raw operands and all4 guards (93.831s). The corrected
+source lifecycle's14 gaps take131–132 actual ticks, preserving ordinary process
+heat advancement. All15 real hits remain:14×11damage then remaining4 terminal
+damage. No physics-rate, weapon, heat, route or cap change was used. An ad-hoc
+log query initially assumed the terminal hit also applied11; its parser was
+corrected, with no production test/assertion change.
+
+Clean safe Windows/Linux exports pass27.561/25.510s. Strict startup checks pass
+30.563/25.799/25.597s with exit0/exact-one STARTUP_MENU_READY_OK. Trusted private
+Windows-template preflight, complete equal1611-entry maps, intended two-script
+payload delta, typed node_ids-only unrelated scene metadata, exact Linux6-member
+archive/modes/extractedELF identity, ZIP EXE/notes identity and existing package
+**audit9** all pass independent review. Eight artifacts are published locally:
+[Windows EXE](builds/windows/MuddsShipyards-29a28e4.exe),
+[ZIP](builds/windows/MuddsShipyards-29a28e4-checkpoint.zip),
+[notes](builds/windows/MuddsShipyards-29a28e4-notes.txt),
+[reference preview](builds/windows/MuddsShipyards-29a28e4-dynamic-reference-preview.png),
+[Linux ELF](builds/linux/MuddsShipyards-29a28e4.x86_64),
+[archive](builds/linux/MuddsShipyards-29a28e4-linux-x86_64.tar.gz),
+[export result](builds/linux/MuddsShipyards-29a28e4.x86_64.export-result.json) and
+[Linux notes](builds/linux/MuddsShipyards-29a28e4-linux-notes.txt).
+The preview is copied unchanged from f3cf6bb; no new render qualification.
+
+Window05:19:32→06:34:32UTC75minutes ALL-IN; actual **56.1452179333minutes through
+verified archive/cleanup**, plus final documentation/push cost recorded in the
+adjacent closeout. Prior failed card6 **71.7881388333minutes** and read-only
+readiness **7.25minutes** remain, cumulative **135.1833567667minutes through
+cleanup**. Owner05:27:05 renewal ends **0/1 substantive corrections used**;
+previous counts/failures are retained, not rewritten as passes.
+
+Verified archive `/srv/mudds-work/dynamic-gunship-combat-clock-20261118/records.tar.gz`:
+**39,889,658bytes/269members**, SHA256
+`e07ff07d4d8296226008096072eaa634732b60a25a21b7d993c1e6e284820fa3`.
+Every archived member was independently rehashed before owned records/worktrees
+were removed. Task root retains only archive+closeout. Completed candidate branch
+is deleted locally and absent remotely after pushed integration; only the
+separate unaccepted Paradox gunner branchc743f585 remains retained.
+
+Main stays15usable pilot craft/15occupied homes. Network/cards10–11, integrated
+craft/card12, final qualification/card13 and actual native Windows/GPU/device/
+listening/human/full-craft/full-game gates remain open or NOT_RUN. CI stays OFF.
+All36 original parent outcomes/10phase gates remain open. No next task selected
+by this closure. The executed card and failed prior attempt follow as history.
+
+### Dynamic card6 — executed frozen clock-correction card, delivered29a28e4
 
 Same BUILD-SPLIT-DYNAMIC/card6 and full approved function contract; no new goal,
 allowance reset or reduced delivery. Prior unaccepted f180bbae source/raw/archive
@@ -269,7 +353,7 @@ release/docs/integration; one HIGH independent clock/heat reviewer. No nested.
 
 | Case | Fixed action and expected result |
 | --- | --- |
-| Clock correction | Each of14 incoming gaps waits at least ceil(60/.460829493087558)=131 actual physics ticks, with at most the real engine's single process catch-up boundary; allow ordinary process progression for heat. Log actual before/after tick, process frame, wall time and vent counts. All15 real11damage hits, real health0/destruction/recall/occupied-home refusal/regeneration, physical reboarding/reuse/home/normalQuit remain unchanged. |
+| Clock correction | Each of14 incoming gaps waits at least ceil(60/.460829493087558)=131 actual physics ticks, with at most the real engine's single process catch-up boundary; allow ordinary process progression for heat. Log actual before/after tick, process frame, wall time and vent counts. All15 real incoming hits including terminal remaining-hull damage, real health0/destruction/recall/occupied-home refusal/regeneration, physical reboarding/reuse/home/normalQuit remain unchanged. |
 | Counter negative | Exact strengthened fixture with only old paired-wait body restored on archived f180 baseline, cap300, fails the explicit actual-physics deadline-overrun assertion. Preserve raw operands/guards; a compile/missing-method failure is not a control. No repeated controls until one passes. |
 | Entire Dynamic function | Preserve current physical seated claim, source1112/single-use emission, unchanged360m/50/.30 pulse; actual hit/miss/once-only health, self/friendly/world/foreign/released ownership refusals, native.28/.50/1s/.35 heat/recovery and actual Dynamic/Arrow launch/cruise/boost/yaw/roll/brake/neutral tradeoffs. |
 | Complete source14 | foundation90; components120; lifecycle-fixture120; access identity180 and transformed180; definitions120; registry180; differentiation300; sharedheat120; Paradoxprimary180; fullDynamiccombat300, service300, lifecycle300; full unchanged defaultTitan300. Exact original markers/exit0/raw0/all4source-cache-HEAD-clean guards. All Main cases run ALONE. Actual Main primaries clean_shutdown/clean/lastsession_ended. |
@@ -283,7 +367,10 @@ or blind warm retry. CI remains OFF. Accepted source must be contained in pushed
 main before exact-tip branch deletion; failed unique source/raw must be bundled
 and independently verified first. Task-root archive+closeout only at closure.
 
-### Dynamic gunship actual pilot combat — card6 PARKED, unmerged f180bbae
+### Historical Dynamic card6 attempt — PARKED at closure,f180bbae
+
+The following prior closeout is preserved as history. Its failed300s result
+remains failed; the accepted29a28e4 delivery above supersedes its queue status.
 
 Candidate **f180bbaeef499a7e2f167d222c1d127e3a0cfae0** remains unaccepted.
 Its Dynamic/GameFlow current-physical-pilot and single synchronous emission guards
