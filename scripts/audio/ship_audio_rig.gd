@@ -1006,6 +1006,7 @@ func _restore_after_enter_tree() -> void:
 	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
 		return
 	_apply_runtime_state()
+	_attach_hero_fleet_audio()
 
 
 func _apply_runtime_state() -> void:
