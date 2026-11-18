@@ -16,15 +16,17 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **3a5ae0e** — [Windows ZIP](builds/windows/MuddsShipyards-3a5ae0e-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-3a5ae0e-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-3a5ae0e-linux-x86_64.tar.gz).
-After the first qualifying ordinary physical-E Torrent handoff and normal exit,
-the fleet terminal exposes observed boarding seconds on page09. Other craft
-remain UNKNOWN; the prior eight pages are retained. Complete source11/PCK11,
-18 inspected component images and fresh paired checkpoint gates pass.
-[Scoped delivery](#torrent-boarding-budget-delivered) and
-[actual preview](builds/windows/MuddsShipyards-3a5ae0e-torrent-boarding-budget-preview.png).
+Latest playable checkpoint: **c7eb060** — [Windows ZIP](builds/windows/MuddsShipyards-c7eb060-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-c7eb060-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-c7eb060-linux-x86_64.tar.gz).
+The normal fleet terminal cycles ten pages with actual Titan sealed-parcel
+capacity4/index.8 and live aboard/free/locker stock; other craft/kinds stay UNKNOWN.
+The reviewed loaded example is2/2/2; fresh custody is0/4/4.
+Source13/PCK13, twenty inspected component images and fresh paired checkpoint
+pass. Native Windows and mandatory human review remain OWNER-EXCLUDED/NOT_RUN;
+applicable GPU/device/listening/fullrole/game gates remain OPEN.
+[Scoped delivery](#titan-parcel-budget-delivered) and
+[actual preview](builds/windows/MuddsShipyards-c7eb060-titan-parcel-budget-preview.png).
 Main remains15craft/15homes; fullrole/finalgame/all36parents/10phases remainOPEN.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
@@ -386,6 +388,56 @@ Preserve all prior failures, source and cumulative cost. Original acceptance
 checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
+
+<a id="titan-parcel-budget-delivered"></a>
+
+### Titan sealed-parcel capacity and handoff — DONE,c7eb060
+
+Accepted source **c7eb060c14709254e00f635f1e6025628fadd4dd**, merged via **f7bd0c92b60383d0f24c0733ba192f2b2861c14c**, is in pushed Main.
+The normal fleet terminal now cycles ten pages. Its new parcel page separates
+Titan repair-kit parcel capacity4/index.8 from live aboard/free/locker stock.
+The reviewed loaded example is2/2/2; fresh custody is0/4/4. Physical supply-locker
+load1 and parcel-hold return1 retain their original authority. Other craft/kinds
+remain UNKNOWN; cargo stays missing and fullrole NOT_QUALIFIED. These inert
+parcels are not healing/currency/general cargo. All prior nine pages remain.
+
+Complete source13/PCK13 pass: nine original300s focused suites, both complete
+JoyX/E controller routes900inner/960outer, TitanMain300 with normal UI Quit and
+actual primary clean_shutdown/clean/session_ended/conserved parcel pair, plus
+TitanCustody120. Original routes/cases/caps/waits remain. Twenty actual10page
+component images were inspected from the actual ordinary Titan2/2 snapshot;
+[page10 preview](builds/windows/MuddsShipyards-c7eb060-titan-parcel-budget-preview.png).
+Fresh paired exports, strictstartup3, equal1613maps/five runtime changes/noUIDclass,
+exactLinux6members/modes/ELF/ZIPbytes/audit9/eightpublished artifacts pass.
+This is software component/input proof. Native Windows and mandatory human
+review remain OWNER-EXCLUDED/NOT_RUN; applicable GPU/device/listening and
+fullrole/fullcraft/game/all36parents/10phases remain OPEN. CI stays off.
+
+The initial b7fb3afd Main attempt failed38.920s on valid JSON whole floats
+compared directly with live integer Dictionaries. Actual saved4.0/0.0 versus
+live4/0 reproduced unequal Dictionary comparison; strict whole0..4 normalization
+in858ce39 is the one charged production correction. Both independent reviews
+approved the measured cause and retained guards. A later858 gameplay pass was
+rejected by an incorrect external final-primary2/2 oracle: current and archived
+prior runs end4/0 while the earlier loaded snapshot is2/2. The helper now checks
+bounded whole quantities/conserved4, with strict clean-state gates unchanged.
+That wrapper-rejected run remains archived and was not backfilled as a pass;
+the full same-source Titan journey was rerun from a fresh profile and passed.
+All failures, raw logs and actual costs remain charged to this card.
+
+A final routine label reconciliation removed the hardcoded HOME E caption:
+cargo supports named Interact on remapped keys/controllers, so the header is
+binding-neutral. Prior858 source/images/exports remain historical; finalc7eb060
+received its own complete required validation. This changes no cargo/input
+behavior and does not replenish or consume another substantive correction.
+
+Actual through cleanup 80.07335383minutes;
+prior family 246.38729093 retained. Deadline21:20:01
+remains fixed; docs/push/final audit elapsed is recorded afterward. Renewal19:40:26
+allowance 1/1; historical costs/failures retained.
+Archive **93094939bytes/1495members**, SHA256
+**64b6fa31e773bad582b0e701f8b13ebe77657a83ad77713a4263c3627533cc07**; all members/eight published hashes verified. Paradoxc743
+retained; parked station and pending Katana gates unchanged.
 
 <a id="torrent-boarding-budget-delivered"></a>
 
