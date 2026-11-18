@@ -123,6 +123,7 @@ func _run() -> void:
 	if not complete_handling:
 		await _finish(game)
 		return
+	var first_accepted_snapshot := live_snapshot.duplicate(true)
 	for page in 4:
 		if page > 0:
 			game.call(&"_on_interact_requested")
@@ -204,7 +205,7 @@ func _run() -> void:
 
 	_check_rated_refusals(console, live_snapshot)
 	if _failures.is_empty():
-		_write_rated_snapshot(live_snapshot)
+		_write_rated_snapshot(first_accepted_snapshot)
 	await _finish(game)
 
 

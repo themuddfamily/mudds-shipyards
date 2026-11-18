@@ -26,10 +26,10 @@ const PAGE_FIELDS := [
 	["throttle_response", "flight_assist_strength", "visual_bank_degrees", "maximum_mouse_turn_degrees"],
 ]
 const PAGE_HEADERS := [
-	"RATED 1/4 RAW/IDX | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
-	"RATED 2/4 RAW/IDX | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
-	"RATED 3/4 RAW/IDX | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
-	"RATED 4/4 THROTTLE 1/s RAW/IDX | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
+	"RATED 1/4 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
+	"RATED 2/4 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
+	"RATED 3/4 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
+	"RATED 4/4 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
 ]
 
 var _rated_page := -1
