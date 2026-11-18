@@ -217,6 +217,15 @@ reset. Historical records below and in archives remain unchanged.
 
 ### Dynamic gunship actual pilot combat — card6 ACTIVE
 
+Candidate **1bbbebd24** implements the Dynamic-only current physical pilot and
+one-use emission guards; runtime acceptance remains pending. Exact old baseline
+control **1d920d1f0** actually accepts a stale callback: source1112, one shot,
+real target health100→50;87.536s/exit143 at the intended rejection assertion,
+all four guards true. First positive foundation stopped at its new reservation
+fixture; test-only real deck/open/reserve/seat/seal correction preserves runtime,
+all cases/caps and current **0/1 substantive corrections used**. Current full
+matrix is running; no new checkpoint or integration is claimed.
+
 Goal BUILD-SPLIT-DYNAMIC/card6, parents10/11/36; exact adopted specification
 [Dynamic card6](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md). Result: only
 the current physical pilot may emit Dynamic's single pulse, with exactly one
