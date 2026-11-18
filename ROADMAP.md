@@ -215,30 +215,52 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Station panel shader cold five-view rendering — ACTIVE, acceptance pending
+### Station panel shader cold five-view rendering — PARKED, unmerged af5a29888
 
-Same unfinished production task, selected **2026-11-18 03:22→04:52 UTC**,
-**90 minutes all-in**, including implementation, review, validation, packaging
-and cleanup. Actual consumer mapping identified the floor material family and
-CabinetStatus scalar material; this candidate preserves native PBR outputs while
-removing redundant constant texture reads for explicitly eligible station sources.
-Source `5f11a7d4d` passed focused binding and import but failed the original
-triplanar roster checks. The current causal correction preserves dressing merges
-and exact canonical-source module audits under early proxies; original geometry
-and courier expectations remain binding. Runtime acceptance is pending. Latest owner **03:44:02 renewal: 1/1 used**; prior 01:39:01-renewal
-**1/1 used**, old failed candidate and **68.187 minutes** remain historical.
+No production, render or checkpoint delivery. Candidate
+**af5a29888f755b8f96bad14b14ac55a79cf3a84d** remains unaccepted;
+Main runtime/latest playable **7801f6b** are unchanged.
 
-Prove the original focused binding test, seven station suites and full default
-Titan journey at their original caps, then all five original cold Main views
-within **90 seconds**, actual **1280×720**, FOV60 explicit views and actual
-ship-camera FOV for default chase. Preserve poses, waits, renderer and quality;
-only the historical fleet assertion changes 12→15. Require the same actual
-Windows PCK tests and five views, strict startup checks, paired exports and a
-fresh playable checkpoint before integration. Native hardware and human gates
-stay open. Frozen card and raw records:
-`/srv/mudds-work/station-panel-shader-20261118/`. A partial source or four-view
-result does not deliver this task. Existing failures and exact acceptance caps
-remain binding.
+Original source checks stopped at the triplanar station census: **36.235s**,
+exit143 on first diagnostics, success marker0, source/cache/HEAD/clean guards
+all true. Focused binding passed **3.861s**, exit0/marker1/raw0/all four guards;
+all **26 changed GDScripts** passed syntax checks. The causal correction restored
+ordinary dressing merges (Central13/12 and Modern32/20), but **all seven service
+couriers remain absent**. Ordinary mapped surfaces are **1529/45/243/1241**
+versus independently measured accepted baseline **1564/45/243/1276**: exactly
+35 missing courier bindings. Batches remain **231/151** versus required
+**214/134**. These gates were retained, not re-frozen to the failed candidate.
+
+The baseline's inherited1543 assertion was independently proven stale by exactly
+21 accepted static station additions (20 berth surfaces and one Aft stair
+shoulder); only those two global ordinary/0.30 columns were corrected. Baseline
+module/courier and batch expectations pass and remain unchanged. Initial candidate
+5f11a7d4d failures and baseline raw controls remain archived separately.
+
+Remaining source seam: routing and allocation audits run during synchronous
+construction while some late assignments are still native and other renderers
+already use proxies. That mixed resource identity can reject module allocation
+contracts before final binding. **The exact rejecting module report was not
+captured**; this is a source-backed seam, not a claim of a uniquely proven final
+cause. Reopening requires that exact report and preservation of construction-time
+allocation identities under an authorized correction allowance. No blind replay.
+
+Original window **03:22→04:52 UTC,90 minutes all-in**; latest owner03:44:02
+renewal **1/1 used**, earlier01:39:01-renewal1/1 and old1/1 remain historical.
+Cleanup completed after **36.4452327 minutes**; prior68.187 minutes retained,
+cumulative **104.6322327 minutes at cleanup**. Final documentation/push cost is
+recorded in the adjacent closeout. Remaining seven-suite dependents, full Titan,
+original five cold views90s, exports/startups, actual PCK gates and checkpoint
+are **NOT_RUN**. Original actual1280×720/FOV60 explicit views/default-chase ship
+FOV/poses/eight-frame waits/caps remain binding. No native/human qualification.
+
+Verified archive `/srv/mudds-work/station-panel-shader-20261118/records.tar.gz`:
+**12,871,392bytes/153members**, SHA256
+`1e85712b1a778c3f57fc57f7c3b6dbec0d6d997f4ce29aa830557e59b67901df`.
+Source bundle/all members independently verified before exact-tip local branch
+and both worktrees were removed; remote candidate branch was absent. Owned root
+contains only archive+closeout; no owned engine remains. Protected Paradox gunner
+local/remote c743 remains retained. No automatic successor selected; CI stays off.
 
 <a id="zenith-modern-lod-current"></a>
 
