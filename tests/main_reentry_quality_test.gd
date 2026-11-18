@@ -222,12 +222,22 @@ func _test_whole_main_reentry_paused(
 	var all_craft_ids: Array[StringName] = []
 	for craft: HeroShip in all_craft:
 		all_craft_ids.append(craft.get_ship_id())
-	all_craft_ids.sort()
+	all_craft_ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	print("MAIN_REENTRY_FLEET_CENSUS: craft_ids=", all_craft_ids,
 		" player_rows=", roster.get("player_sources", []),
 		" actual_source_count=", roster.get("actual_source_count", 0))
 	var census_valid: bool = all_craft.size() == 15 and all_craft_ids == EXPECTED_FLEET_IDS \
 		and _settled_roster_is_exact(roster)
+	if not census_valid:
+		print("MAIN_REENTRY_FLEET_CENSUS_FAILURE: craft_count=", all_craft.size(),
+			" craft_count_exact=", all_craft.size() == 15,
+			" craft_ids_exact=", all_craft_ids == EXPECTED_FLEET_IDS,
+			" player_count=", roster.get("expected_player_source_count", 0),
+			" expected_source_count=", roster.get("expected_source_count", 0),
+			" actual_source_count=", roster.get("actual_source_count", 0),
+			" roster_valid=", roster.get("valid", false),
+			" roster_errors=", roster.get("errors", PackedStringArray()),
+			" settled_roster_exact=", _settled_roster_is_exact(roster))
 	_check(census_valid, "component cut uses the exact fifteen-craft/fourteen-player/eighteen-source composition")
 	if not census_valid:
 		return
