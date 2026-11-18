@@ -130,6 +130,20 @@ const ROLE_CONTRACTS := {
 		"signature_axes": {"maximum_speed": &"maximum"},
 		"signature_scope": &"same_scale_band",
 	},
+	&"cinder_long_range_bomber": {
+		"role_id": &"cinder_long_range_bomber",
+		"role_name": "Long-range bomber",
+		"required_tags": [&"medium_craft", &"bomber", &"ordnance"],
+		"scale_band": &"medium",
+		"interior_expected": false,
+		"crew_story": "A durable bomber that trades turn rate and weapon cadence for hull and braking among Cinder siblings.",
+		"advantage": "TOUGH HULL & BRAKES",
+		"weakness": "SLOW TURN / FIRE",
+		"choice_source_axes": {"advantage": [&"maximum_hull", &"brake_acceleration"], "weakness": [&"yaw_speed_degrees", &"roll_speed_degrees", &"weapon_cooldown"]},
+		"signature_axes": {"maximum_hull": &"maximum", "yaw_speed_degrees": &"minimum", "roll_speed_degrees": &"minimum", "weapon_cooldown": &"maximum"},
+		"signature_scope": &"cinder_siblings",
+		"signature_ship_ids": [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"],
+	},
 }
 
 
@@ -138,7 +152,7 @@ static func get_role_contract(ship_id: StringName) -> Dictionary:
 
 
 ## Rated choice facts only; no instance, seat, weapon, or save authority.
-## Other Cinder contracts and the full normalized role budget remain open.
+## The Hauler contract and the full normalized role budget remain open.
 static func get_boarding_choice_facts(definition: ShipDefinition) -> Dictionary:
 	if definition == null:
 		return {}
@@ -146,6 +160,18 @@ static func get_boarding_choice_facts(definition: ShipDefinition) -> Dictionary:
 	if not contract.has("choice_source_axes"):
 		return {}
 	var profile := definition.get_flight_profile()
+	if definition.get_ship_id() == &"cinder_long_range_bomber":
+		return {
+			"ship_id": definition.get_ship_id(), "role_id": contract.role_id,
+			"advantage": contract.advantage, "weakness": contract.weakness,
+			"source_axes": contract.choice_source_axes,
+			"maximum_speed": profile.maximum_speed,
+			"maximum_hull": definition.get_systems_profile().maximum_hull,
+			"brake_acceleration": profile.brake_acceleration,
+			"yaw_speed_degrees": profile.yaw_speed_degrees,
+			"roll_speed_degrees": profile.roll_speed_degrees,
+			"weapon_cooldown": definition.get_systems_profile().weapon_cooldown,
+		}.duplicate(true)
 	return {
 		"ship_id": definition.get_ship_id(),
 		"role_id": contract.role_id,
@@ -328,6 +354,8 @@ static func _validate_signatures(profiles: Dictionary, errors: PackedStringArray
 						not ROLE_CONTRACTS.has(other)
 						or ROLE_CONTRACTS[other].scale_band != contract.scale_band
 				):
+					continue
+				if scope == &"cinder_siblings" and other not in contract.signature_ship_ids:
 					continue
 				var value := float(profiles[other].get(axis, subject))
 				if want_maximum and value >= subject:

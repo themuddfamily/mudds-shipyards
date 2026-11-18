@@ -91,6 +91,7 @@ func _run() -> void:
 		"a contender cannot replace the restored pilot reservation")
 
 	_check_light_choice_bridge(game)
+	_check_bomber_choice_bridge(game)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Input.action_release(&"interact")
 	game.queue_free()
@@ -178,6 +179,47 @@ func _check_light_choice_bridge(game: GameFlow) -> void:
 				and str(view.message).contains("MAX HULL"), "%s %s has only its existing rated facts" % [craft.get_ship_id(), state])
 		_check(_choice_authority_snapshot(game, craft) == craft_before, "unrelated craft choice preserves all gameplay and save facts")
 
+
+func _check_bomber_choice_bridge(game: GameFlow) -> void:
+	var bomber := game.call(&"_find_flyable_ship_by_id", &"cinder_long_range_bomber") as HeroShip
+	_check(bomber != null, "Main supplies the actual registered Bomber instance for the choice bridge")
+	if bomber == null:
+		return
+	var bomber_area := bomber.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	_check(bomber_area != null, "registered Bomber retains its real boarding area")
+	if bomber_area == null:
+		return
+	var before := _choice_authority_snapshot(game, bomber)
+	for state in [&"approach", &"available"]:
+		game.call(&"_present_boarding_confirmation", state, bomber)
+		var view := _choice_view(game)
+		var expected_title := "[>] MOVE TO CINDER LONG-RANGE BOMBER" if state == &"approach" else "[+] CINDER LONG-RANGE BOMBER"
+		var expected_instruction := "LOOK FOR THE BOARDING PROMPT" if state == &"approach" else "PRESS INTERACT TO BOARD"
+		_check(view.state == state and view.title == expected_title
+			and view.message == "TOUGH HULL & BRAKES // SLOW TURN / FIRE\nLONG-RANGE BOMBER | 72 M/S BASE | MAX HULL 240\n" + expected_instruction
+			and view.get("bomber_choice_ship_id") == &"cinder_long_range_bomber",
+			"Main's actual Bomber %s producer carries registry trade-off and rated facts" % state)
+		_check(not bool(view.reservation_authority) and not bool(view.transition_authority), "Bomber choice remains presentation-only")
+		if state == &"available":
+			_check(str(view.message).contains("PRESS INTERACT TO BOARD"), "Bomber keeps the ordinary Interact instruction")
+	_check(_choice_authority_snapshot(game, bomber) == before, "Bomber choice reads preserve full resource, component, weapon, seat, reservation and save snapshots")
+	# Existing successful boarding above supplies a genuinely seated player.
+	# Set only the observed busy fixture for the bridge's transition states;
+	# this is a producer regression, not an ordinary Bomber access journey.
+	_check(bomber_area.try_reserve(game.player), "transition fixture holds a real Bomber reservation")
+	game.call(&"_remember_boarding_confirmation_reservation", bomber_area, game.player, game.get("_transition_generation"))
+	var was_busy: bool = game.get("_transition_busy")
+	for state in [&"reserved", &"boarding", &"seated", &"disembarking", &"rejected"]:
+		game.set("_transition_busy", state in [&"boarding", &"disembarking"])
+		var state_before := _choice_authority_snapshot(game, bomber)
+		game.call(&"_present_boarding_confirmation", state, bomber, &"seat_occupied" if state == &"rejected" else &"")
+		var view := _choice_view(game)
+		_check(view.state == state and not (str(view.title) + str(view.message)).contains("TOUGH HULL")
+			and not str(view.message).contains("MAX HULL"), "Bomber %s preserves the exclusive transition/refusal reading" % state)
+		_check(_choice_authority_snapshot(game, bomber) == state_before, "Bomber %s presentation cannot mutate gameplay or saved state" % state)
+	game.set("_transition_busy", was_busy)
+	bomber_area.release_reservation(game.player)
+	game.call(&"_clear_boarding_confirmation_reservation")
 
 func _choice_view(game: GameFlow) -> Dictionary:
 	return (game.get_boarding_confirmation_presentation_report().adapter as Dictionary).view as Dictionary
