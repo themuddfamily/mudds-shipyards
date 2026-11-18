@@ -873,11 +873,9 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 		var started_physics := Engine.get_physics_frames()
 		var used_frames := 0
 		var requested_axes := Vector2.ZERO
-		_boarding_budget_walk_diagnostic(game, player, {"event": "LEG_BEGIN", "leg": leg, "target": str(waypoint), "start": str(player.global_position), "distance": distance, "frame_budget": frames, "walk_speed": player.walk_speed})
 		for frame in frames:
 			used_frames = frame + 1
 			if game.station_interaction_candidate == console:
-				_boarding_budget_walk_diagnostic(game, player, {"event": "SUCCESS", "reason": "real_console_candidate", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
 				_release_physical_joypad()
 				return true
 			if not player.is_control_enabled() or player.is_seated() or player.global_position.y < -1.0:
@@ -887,30 +885,60 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 			var offset := (waypoint - player.global_position).slide(Vector3.UP)
 			if offset.length() < 0.35:
 				arrived = true
-				break
-			var yaw := player.get_node("CameraRig/CameraYaw") as Node3D
-			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
-			var right := forward.cross(Vector3.UP).normalized()
-			var desired := offset.normalized()
-			requested_axes = Vector2(desired.dot(right), -desired.dot(forward))
-			_set_physical_joy_axis(AXIS_LEFT_X, desired.dot(right))
-			_set_physical_joy_axis(AXIS_LEFT_Y, -desired.dot(forward))
+				if leg != route.size() - 1:
+					break
+				requested_axes = Vector2.ZERO
+			else:
+				var yaw := player.get_node("CameraRig/CameraYaw") as Node3D
+				var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+				var right := forward.cross(Vector3.UP).normalized()
+				var desired := offset.normalized()
+				requested_axes = Vector2(desired.dot(right), -desired.dot(forward))
+			_set_physical_joy_axis(AXIS_LEFT_X, requested_axes.x)
+			_set_physical_joy_axis(AXIS_LEFT_Y, requested_axes.y)
+			if leg == route.size() - 1:
+				_boarding_budget_aim_at_console(player, console)
 			await physics_frame
-		_boarding_budget_walk_diagnostic(game, player, {"event": "LEG_END" if arrived else "FAIL", "reason": "arrived" if arrived else "frame_exhaustion", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
+		if not arrived:
+			_boarding_budget_walk_diagnostic(game, player, {"event": "LEG_END" if arrived else "FAIL", "reason": "arrived" if arrived else "frame_exhaustion", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
 		_release_physical_joypad()
 		if not arrived:
 			return false
 	await physics_frame
 	await process_frame
-	_boarding_budget_walk_diagnostic(game, player, {"event": "FINAL", "reason": "real_console_candidate" if game.station_interaction_candidate == console else "no_console_candidate"})
+	if game.station_interaction_candidate != console:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FINAL", "reason": "real_console_candidate" if game.station_interaction_candidate == console else "no_console_candidate"})
 	return game.station_interaction_candidate == console
+
+func _boarding_budget_aim_at_console(player: PlayerController, console: Area3D) -> void:
+	# Use the actual Player camera owner: native right-stick input, its radial
+	# deadzone and 2.5 rad/s angular response, within the existing final leg.
+	const LookInput := preload("res://scripts/player/gamepad_look_input.gd")
+	var to_console := (console.global_position - player.get_interaction_origin()).normalized()
+	var yaw := player.get_node("CameraRig/CameraYaw") as Node3D
+	var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+	var desired_flat := to_console.slide(Vector3.UP).normalized()
+	var yaw_step := -forward.signed_angle_to(desired_flat, Vector3.UP)
+	var pitch_delta := asin(clampf(to_console.y, -1.0, 1.0)) - asin(clampf(player.get_interaction_direction().y, -1.0, 1.0))
+	var pitch_step := pitch_delta if player.invert_mouse_y else -pitch_delta
+	var demand := Vector2(yaw_step, pitch_step)
+	var raw := Vector2.ZERO
+	if not demand.is_zero_approx():
+		var strength := minf(demand.length() / (LookInput.ANGULAR_SPEED / float(Engine.physics_ticks_per_second)), 1.0)
+		raw = demand.normalized() * (LookInput.DEADZONE + (1.0 - LookInput.DEADZONE) * strength)
+	_set_physical_joy_axis(AXIS_RIGHT_X, raw.x)
+	_set_physical_joy_axis(AXIS_RIGHT_Y, raw.y)
 
 
 func _boarding_budget_walk_diagnostic(game: GameFlow, player: PlayerController, detail: Dictionary) -> void:
 	var yaw := player.get_node_or_null("CameraRig/CameraYaw") as Node3D
 	var candidate: Node = game.station_interaction_candidate
+	var console := game.world.get_fleet_registry_console() as Area3D
+	var direction := (console.global_position - player.get_interaction_origin()).normalized() if console != null else Vector3.ZERO
 	detail.merge({"wall_usec": Time.get_ticks_usec(), "physics_frame": Engine.get_physics_frames(), "process_frame": Engine.get_process_frames(),
 		"position": str(player.global_position), "velocity": str(player.velocity), "on_floor": player.is_on_floor(),
+		"interaction_origin": str(player.get_interaction_origin()), "interaction_direction": str(player.get_interaction_direction()),
+		"console_direction": str(direction), "facing_dot": player.get_interaction_direction().dot(direction),
 		"control_enabled": player.is_control_enabled(), "seated": player.is_seated(),
 		"candidate": str(candidate.get_path()) if is_instance_valid(candidate) else "none",
 		"camera_basis": str(yaw.global_basis) if yaw != null else "missing",
