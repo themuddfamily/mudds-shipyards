@@ -793,15 +793,294 @@ class MainCompletedPlayerTick:
 		completed_tick.emit()
 
 
+# Cold-process modes use the real Boot, shared store, physical station route
+# and ordinary helm Interact above. Only the explicit fault seam below changes
+# disk I/O; it never changes player/craft pose, controls, or store semantics.
+const COLD_STORE_PATH := "user://mudds_user_data.json"
+const COLD_BASELINE_PATH := "user://katana_cold_baseline.json"
+var _cold_mode := ""
+var _cold_unrelated: Dictionary = {}
+var _cold_fault: Dictionary = {}
+var _cold_before_shift_context: Dictionary = {}
+var _cold_resume_required := false
+var _cold_armed_primary: Dictionary = {}
+var _cold_expected_context: Dictionary = {}
+
+class PartialRecoveryFilesystem extends UserDataFilesystem:
+	var suite: SceneTree
+	var armed := true
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if armed and path == "user://mudds_user_data.json.tmp" and document is Dictionary \
+				and document.get("payload", {}).get("solo_safe_recovery", {}).get("craft_id") == "katana_provisional":
+			armed = false
+			if not bool(suite.call("_cold_record_interrupt_boundary")): return ERR_UNAVAILABLE
+			# A real flushed, incomplete envelope, before backup or publication.
+			var result := super.write_bytes_and_flush(path, bytes.slice(0,32))
+			if result != OK: return result
+			suite.call("_cold_partial_ready", path)
+			# Root owns this exact PID and kills it after the explicit marker.
+			# A bounded fallback prevents an unattended probe from hanging forever.
+			for tick in 300: OS.delay_msec(100)
+			push_error("KATANA_COLD_FAIL: owned partial-write process was not killed")
+			return ERR_UNAVAILABLE
+		return super.write_bytes_and_flush(path,bytes)
+
+
+func _cold_preserved(payload: Dictionary) -> Dictionary:
+	var snapshot := payload.duplicate(true)
+	for key in ["solo_safe_recovery","crash_recovery","session_diagnostics","safe_start_recovery"]:
+		snapshot.erase(key)
+	return snapshot
+
+
+func _cold_read_document(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path): return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed if parsed is Dictionary else {}
+
+
+func _cold_write_baseline(record: Dictionary) -> bool:
+	return _main_check(UserDataFilesystem.new().write_bytes_and_flush(COLD_BASELINE_PATH,
+		JSON.stringify(record,"",true,true).to_utf8_buffer()) == OK,"cold baseline sidecar is flushed")
+
+
+func _cold_prepare_profile() -> bool:
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--cold-recovery="): _cold_mode = argument.trim_prefix("--cold-recovery=")
+	if _cold_mode.is_empty(): return true
+	if not _main_check(_cold_mode in ["write","read","refuse","interrupt","legacy-pilot","legacy-on-foot"],"known cold recovery mode"): return false
+	if _cold_mode == "read":
+		var baseline := _cold_read_document(COLD_BASELINE_PATH)
+		var current := _cold_read_document(COLD_STORE_PATH)
+		if not _main_check(not baseline.is_empty() and not current.is_empty(),"fresh reader sees real writer's document and baseline"): return false
+		_cold_unrelated = baseline.unrelated
+		_cold_expected_context = current.payload.get("solo_safe_recovery",{}).duplicate(true)
+		if baseline.get("boundary") == "committed" and not _main_check(_cold_expected_context == baseline.context,
+			"committed reader starts from exact actual Katana writer preference"): return false
+		if not _main_check(_cold_preserved(current.payload) == _cold_unrelated,"before Boot all unrelated committed data matches writer"): return false
+		if baseline.get("boundary") == "partial":
+			if not _main_check(FileAccess.get_sha256(COLD_STORE_PATH) == baseline.sha256
+				and int(current.generation) == int(baseline.generation)
+				and current.payload.get("solo_safe_recovery",{}) == baseline.context
+				and FileAccess.file_exists(COLD_STORE_PATH+".tmp")
+				and JSON.parse_string(FileAccess.get_file_as_string(COLD_STORE_PATH+".tmp")) == null,
+				"actual killed writer retained exact last committed primary and invalid partial temporary"): return false
+			print("KATANA_COLD_INTERRUPTED_PRIMARY_PRESERVED: ",JSON.stringify(baseline))
+		return true
+	var store := UserDataStore.new(COLD_STORE_PATH)
+	var settings := RuntimeSettings.new()
+	var adapter := RuntimeSettingsStoreAdapter.new(settings,store)
+	if not _main_check(bool(adapter.load().accepted),"cold fixture loads existing real shared store"): return false
+	settings.camera_fov = 87.0
+	if not _main_check(bool(adapter.save("katana-cold-settings-%d" % (store.get_generation()+1)).accepted),"actual settings owner saves nondefault camera FOV"): return false
+	var progress := TutorialPromptSeenStore.new(store)
+	if not _main_check(bool(progress.restore().accepted)
+		and bool(progress.mark_seen(&"cinder_debris_beacon_traversal","katana-cold-progress-%d" % (store.get_generation()+1)).accepted),
+		"actual tutorial progress owner records real beacon briefing"): return false
+	if not _cold_initialize_parcel_inventory(store): return false
+	if _cold_mode.begins_with("legacy-"):
+		var payload := store.get_snapshot()
+		var context: Dictionary = payload.get("solo_safe_recovery",{})
+		if not _main_check(context.get("craft_id") == "katana_provisional" and context.size() == 4,"compatibility fixture begins from actual committed Katana preference"): return false
+		context.mode = "pilot" if _cold_mode == "legacy-pilot" else "on_foot"
+		payload.solo_safe_recovery = context
+		if not _main_check(bool(store.commit(payload,store.get_generation(),"katana-legacy-%d" % (store.get_generation()+1)).accepted),"only compatibility fixture writes old valid recovery mode"): return false
+		# A compatibility fixture uses the existing diagnostic owner to leave a
+		# real unfinished session, so Begin Shift must consume its actual offer.
+		var coordinator := CrashRecoveryCoordinator.new(store)
+		if not _main_check(bool(coordinator.restore().accepted),"legacy fixture restores actual diagnostic owner"): return false
+		var session_id := int(coordinator.get_snapshot().get("startup_generation",0)) + 1
+		if not _main_check(bool(coordinator.begin_session(session_id,"katana-legacy-session-%d" % (store.get_generation()+1)).accepted),
+			"legacy fixture persists an actual unfinished session through its owner"): return false
+	_cold_unrelated = _cold_preserved(store.get_snapshot())
+	_cold_expected_context = store.get_snapshot().get("solo_safe_recovery",{}).duplicate(true)
+	return true
+
+
+## First-use Main creates Titan's real four-parcel inventory and, when no
+## preference exists, its on-foot recovery context. Establish that same owner
+## before taking the baseline; its stock is unrelated to the Katana journey.
+func _cold_initialize_parcel_inventory(store: UserDataStore) -> bool:
+	var payload := store.get_snapshot()
+	if payload.has(TitanCargoCustody.MARKER) or payload.has(TitanCargoCustody.SLOT):
+		return _main_check(payload.get(TitanCargoCustody.MARKER) == true
+			and payload.get(TitanCargoCustody.SLOT) == {"locker":4.0,"titan":0.0},
+			"existing real parcel inventory matches normal cold Main projection")
+	var fixture := Node3D.new()
+	root.add_child(fixture)
+	var authority := CargoTransferAuthority.new()
+	fixture.add_child(authority)
+	var titan_scene := load("res://scenes/ships/titan_medium_transport.tscn") as PackedScene
+	var titan := titan_scene.instantiate() as HeroShip
+	fixture.add_child(titan)
+	var locker := Node3D.new()
+	fixture.add_child(locker)
+	var custody := TitanCargoCustody.new()
+	fixture.add_child(custody)
+	var initialized := custody.initialize(authority,store,titan,locker,Callable())
+	var inventory := custody.snapshot()
+	var accepted: bool = bool(initialized.get("accepted",false)) and bool(inventory.get("available",false)) \
+		and int(inventory.get("locker",-1)) == 4 and int(inventory.get("titan",-1)) == 0 \
+		and store.get_snapshot().get(TitanCargoCustody.MARKER) == true \
+		and store.get_snapshot().get(TitanCargoCustody.SLOT) == {"locker":4.0,"titan":0.0}
+	print("KATANA_COLD_PARCEL_OWNER_INITIALIZED: ",JSON.stringify({"result":initialized,
+		"locker":inventory.get("locker"),"titan":inventory.get("titan"),
+		"generation":store.get_generation(),"recovery":store.get_snapshot().get("solo_safe_recovery",{})}))
+	fixture.free()
+	return _main_check(accepted,"actual Titan cargo owner seeds exactly four unrelated parcels before cold baseline")
+
+
+func _cold_check_offer() -> bool:
+	if _cold_mode.is_empty(): return true
+	_cold_before_shift_context = _main_game._solo_safe_recovery_context.duplicate(true)
+	if not _main_check(_cold_before_shift_context == _cold_expected_context,
+		"Boot loads exact expected accepted recovery context before any shift capture"): return false
+	_cold_resume_required = _cold_mode == "read" or _cold_mode.begins_with("legacy-")
+	if _cold_resume_required and not _main_check(not _main_game.get_recovery_available_snapshot().is_empty(),
+		"fresh process exposes actual unfinished-session recovery choice before Begin Shift"): return false
+	if _cold_before_shift_context.get("craft_id") == "katana_provisional":
+		var summary := _main_game.get_session_recovery_save_summary()
+		var craft := _main_game.get_node("KatanaFighter") as HeroShip
+		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+		print("KATANA_COLD_OFFER_OPERANDS: ",JSON.stringify({"summary":summary,
+			"context":_cold_before_shift_context,"resolved":_main_game._solo_safe_recovery_craft() == craft,
+			"boardable":craft.is_boardable(),"area_available":area.is_available_for(_main_game.player),
+			"access_supported":craft.call(&"is_access_supported"),"access_motion":craft.call(&"is_access_motion_active"),
+			"reserved":area.is_reserved(),"exact_home":_main_game._ship_owns_exact_occupied_berth(craft,craft.get_home_berth_id())}))
+		return _main_check(summary.contains("on foot at the shipyard") and summary.contains("saved helm authority")
+			and not summary.contains("Safe recovery boards"),"Katana recovery offer honestly promises station walking without saved helm")
+	return true
+
+
+func _cold_check_station() -> bool:
+	if _cold_mode.is_empty(): return true
+	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
+	var shape := _main_player.get_node("PlayerCollision") as CollisionShape3D
+	var query := PhysicsShapeQueryParameters3D.new()
+	var capsule := shape.shape.duplicate() as CapsuleShape3D
+	capsule.radius -= 0.005
+	capsule.height -= 0.01
+	query.shape = capsule
+	query.transform = shape.global_transform
+	query.collision_mask = _main_player.collision_mask
+	query.exclude = [_main_player.get_rid()]
+	query.margin = 0.0
+	var clear := _main_player.get_world_3d().direct_space_state.intersect_shape(query).is_empty()
+	var count := 0
+	for craft in _main_game.get_flyable_ships():
+		if craft.get_ship_id() == &"katana_provisional": count += 1
+		if not _main_check(_main_game._ship_owns_exact_occupied_berth(craft,craft.get_home_berth_id()),"cold Main retains exact occupied home "+str(craft.get_ship_id())): return false
+	if not _main_check(count == 1 and not _main_game._piloting and not _main_ship.is_piloted()
+		and not _main_player.is_seated() and not _main_player.is_sleeping() and _main_player.is_on_floor()
+		and clear and not shape.disabled and _main_player.is_control_enabled() and not area.is_reserved()
+		and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current
+		and not _main_game._transition_busy and not bool(_main_player.get_cabin_containment_report().get("active",false)),
+		"fresh cold Main has one Katana and actual supported clear station Player/camera/input without helm or reservation"): return false
+	if not _main_check(is_equal_approx(_main_game.runtime_settings.camera_fov,87.0)
+		and _main_game.has_seen_activity_tutorial(&"cinder_debris_beacon_traversal"),
+		"fresh actual owners restore nondefault FOV and previously seen real beacon briefing"): return false
+	if not _main_check(_cold_preserved(_main_game._runtime_settings_user_data_store.get_snapshot()) == _cold_unrelated,
+		"cold startup preserves every unrelated settings/inventory/progress payload"): return false
+	if _cold_resume_required and not _main_check(_main_game.get_recovery_available_snapshot().is_empty()
+		and not _main_game._solo_safe_recovery_pending,
+		"actual Begin Shift consumed normal-start recovery and applied conservative station policy"): return false
+	var pose := _main_player.global_transform
+	var generation := _main_game._transition_generation
+	_main_game.start_shift()
+	_main_game._apply_solo_safe_recovery()
+	return _main_check(_main_player.global_transform == pose and _main_game._transition_generation == generation
+		and not _main_game._piloting and not area.is_reserved(),"replayed shift/recovery cannot teleport or reclaim old helm")
+
+
+func _cold_before_claim() -> bool:
+	if _cold_mode.is_empty(): return true
+	if _cold_mode == "refuse":
+		var store := _main_game._runtime_settings_user_data_store
+		_cold_fault = {"sha256":FileAccess.get_sha256(COLD_STORE_PATH),"generation":store.get_generation(),
+			"context":store.get_snapshot().get("solo_safe_recovery",{}),"unrelated":_cold_preserved(store.get_snapshot())}
+		return _main_check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(COLD_STORE_PATH+".tmp")) == OK,
+			"actual temporary-path directory arms a real shared-store write refusal")
+	if _cold_mode == "interrupt":
+		var store := _main_game._runtime_settings_user_data_store
+		var document := _cold_read_document(COLD_STORE_PATH)
+		if not _main_check(int(document.get("generation",-1)) == store.get_generation()
+			and document.get("payload",{}) == store.get_snapshot()
+			and document.get("commit",{}) == store.get_commit_metadata(),
+			"before fault adapter arm actual primary matches exact accepted store generation/payload/commit"): return false
+		_cold_armed_primary = {"sha256":FileAccess.get_sha256(COLD_STORE_PATH),"generation":store.get_generation(),
+			"context":store.get_snapshot().get("solo_safe_recovery",{})}
+		var filesystem := PartialRecoveryFilesystem.new()
+		filesystem.suite = self
+		_main_game._runtime_settings_user_data_store.set("_filesystem",filesystem)
+	return true
+
+
+func _cold_record_interrupt_boundary() -> bool:
+	var store := _main_game._runtime_settings_user_data_store
+	var document := _cold_read_document(COLD_STORE_PATH)
+	if not _main_check(int(document.get("generation",-1)) == store.get_generation()
+		and document.get("payload",{}) == store.get_snapshot()
+		and document.get("commit",{}) == store.get_commit_metadata(),
+		"partial-write boundary retains actual last accepted primary before publication"): return false
+	_cold_fault = {"boundary":"partial","armed_primary":_cold_armed_primary,"sha256":FileAccess.get_sha256(COLD_STORE_PATH),
+		"generation":store.get_generation(),"context":store.get_snapshot().get("solo_safe_recovery",{}),
+		"unrelated":_cold_preserved(store.get_snapshot())}
+	return _cold_write_baseline(_cold_fault)
+
+
+func _cold_partial_ready(path: String) -> void:
+	print("KATANA_COLD_PARTIAL_WRITE_READY: ",JSON.stringify({"pid":OS.get_process_id(),
+		"path":ProjectSettings.globalize_path(path),"primary_sha256":_cold_fault.sha256,
+		"generation":_cold_fault.generation,"context":_cold_fault.context,"armed_primary":_cold_armed_primary}))
+
+
+func _cold_finish_claim() -> bool:
+	var store := _main_game._runtime_settings_user_data_store
+	if _cold_mode == "refuse":
+		if not _main_check(FileAccess.get_sha256(COLD_STORE_PATH) == _cold_fault.sha256
+			and store.get_generation() == int(_cold_fault.generation)
+			and store.get_snapshot().get("solo_safe_recovery",{}) == _cold_fault.context
+			and _main_game._solo_safe_recovery_retry_remaining_seconds > 0.0,
+			"actual refused Katana capture preserves exact primary/context/generation and arms existing retry"): return false
+		if not _main_check(DirAccess.remove_absolute(ProjectSettings.globalize_path(COLD_STORE_PATH+".tmp")) == OK,
+			"removing real blocker restores usable retry route"): return false
+	for tick in 180:
+		if store.get_snapshot().get("solo_safe_recovery",{}).get("craft_id") == "katana_provisional" \
+				and store.get_snapshot().get("solo_safe_recovery",{}).get("mode") == "on_foot": break
+		await _main_frames(1)
+	var document := _cold_read_document(COLD_STORE_PATH)
+	var context := store.get_snapshot().get("solo_safe_recovery",{}) as Dictionary
+	print("KATANA_COLD_COMMIT_OPERANDS: actual_context=",context," persisted_context=",document.get("payload",{}).get("solo_safe_recovery",{}),
+		" accepted_store_generation=",store.get_generation()," accepted_commit=",store.get_commit_metadata(),
+		" actual_player=",_main_player," seated=",_main_player.is_seated_at(_main_ship.get_pilot_seat_anchor()),
+		" reservation_owner=",(_main_ship.get_node("ShipBoardingArea") as ShipBoardingArea).get_reservation_token()," claims=",_main_claims)
+	if not _main_check(context == {"location":"mudds_home_berth","mode":"on_foot",
+		"craft_id":"katana_provisional","berth_id":"katana_home_berth"}
+		and document.get("payload",{}).get("solo_safe_recovery",{}) == context
+		and _main_game._piloting and _main_ship.is_piloted() and _main_claims == 1
+		and _cold_preserved(store.get_snapshot()) == _cold_unrelated,
+		"ordinary physical Katana claim commits only on-foot home preference and preserves all unrelated data"): return false
+	var baseline := {"boundary":"committed","generation":store.get_generation(),"context":context,
+		"unrelated":_cold_unrelated,"sha256":FileAccess.get_sha256(COLD_STORE_PATH)}
+	if not _cold_write_baseline(baseline): return false
+	print("KATANA_COLD_RECOVERY_TEST_OK: ",JSON.stringify({"mode":_cold_mode,"pid":OS.get_process_id(),
+		"loaded_context":_cold_before_shift_context,"committed_context":context,"generation":store.get_generation(),
+		"old_generation":_cold_fault.get("generation",0),"unchanged_data":_cold_unrelated}))
+	return true
+
+
 func _run_main() -> void:
 	_main_started_ms = Time.get_ticks_msec()
 	var watchdog := create_timer(300.0)
 	watchdog.timeout.connect(func(): _main_check(false,"fixed300s complete Main profile cap"))
+	if not _cold_prepare_profile(): return
 	var boot := BOOT.instantiate() as StartupLoader
 	root.add_child(boot)
 	_main_game = await boot.startup_completed as GameFlow
 	await _main_frames(3)
 	if not _main_check(StartupLoader.is_title_menu_ready(_main_game),"ordinary Boot reaches actual Begin Shift"): return
+	if not _cold_check_offer(): return
 	for pressed in [true,false]:
 		var event := InputEventJoypadButton.new()
 		event.button_index = JOY_BUTTON_X
@@ -846,6 +1125,7 @@ func _run_main() -> void:
 	var berth := world.get_berth_node(&"katana_home_berth") as ShipBerth
 	var dock := berth.get_dock_transform()
 	if not _main_check(_main_game.phase == GameFlow.Phase.APPROACH_SHIP and _main_player.is_control_enabled() and _main_player.global_position.distance_to(world.get_player_spawn().origin) < 0.25 and _main_game.get_flyable_ships().size() == 15 and world.get_berth_ids().size() == 15 and berth.get_occupant() == _main_ship and berth.get_reservation_owner() == _main_ship and _main_ship.global_transform.is_equal_approx(dock),"actual normal Main spawn, fifteen flyables and exact occupied Katana home"): return
+	if not _cold_check_station(): return
 	var old_poses := {}
 	var old_sources := {}
 	var old_settings := {}
@@ -892,6 +1172,26 @@ func _run_main() -> void:
 	if not _trajectory_contract(): return
 	for index in MAIN_STATION_ROUTE.size():
 		if not await _main_walk_to(MAIN_STATION_ROUTE[index],index): return
+	if not _cold_mode.is_empty():
+		if not await _main_board_from_port(0,identity,area): return
+		if not await _cold_finish_claim(): return
+		for craft: HeroShip in old_poses:
+			if not _main_check(craft.global_transform.is_equal_approx(old_poses[craft])
+				and _main_game.get_combat_authority().get_source_id(craft) == old_sources[craft]
+				and [craft.mouse_sensitivity,craft.invert_mouse_y,craft.get_camera().fov,craft.maximum_chase_camera_rotation_lag_degrees] == old_settings[craft],
+				"cold physical claim preserves all fourteen other craft poses/source IDs/settings "+String(craft.name)): return
+		for home: ShipBerth in old_leases:
+			var saved: Dictionary = old_leases[home]
+			if not _main_check(home.audit() == saved.audit and home.get_reservation_owner() == saved.owner
+				and home.get_occupant() == saved.occupant and home.get_reservation_token(saved.owner) == saved.token
+				and home.get_dock_transform().is_equal_approx(saved.pose) and home.landing_volume_center == old_centers[home],
+				"cold physical claim preserves all fourteen other exact home leases "+str(home.get_berth_id())): return
+		_main_release_inputs()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		print("KATANA_MAIN_USER_DATA_DIR: ",OS.get_user_data_dir())
+		print("KATANA_COLD_INTENTIONAL_UNCLEAN_EXIT: ",_cold_mode)
+		quit(0)
+		return
 	if "--lifecycle" in OS.get_cmdline_user_args():
 		await _run_main_lifecycle(identity,area,berth,dock,spawn)
 		return
@@ -943,6 +1243,7 @@ func _main_board_from_port(sortie: int, identity: int, area: ShipBoardingArea) -
 	if not _main_check(not _main_game._piloting and area.get_reservation_token() == _main_game,"foreign-held helm refuses ordinary Interact"): return false
 	if not _main_check(area.release_reservation(_main_game) and not area.release_reservation(_main_game),"temporary foreign claim retires once and stale release refuses"): return false
 	await _main_aim(_main_ship.get_pilot_seat_anchor().global_position)
+	if sortie == 0 and not _cold_before_claim(): return false
 	await _main_tap(&"interact")
 	for frame in 240:
 		if _main_game._piloting and not _main_game._transition_busy: break
