@@ -243,6 +243,48 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Katana card6 — measured braking and actual current-pilot combat, ACTIVE
+
+Goal: existing BUILD-SPLIT-KATANA/card6 from the adopted Katana design. Full
+card6: actual equal-speed braking advantage over Torrent/Arrow/Cinder Light/
+Zenith while preserving turning/boost/cadence tradeoffs, and actual single-pilot
+480m/24damage/.38s center emitter hit/miss/cadence/heat/self/friendly/world/
+foreign/released/stale refusals plus actual state-bound audio. No new weapons,
+roles, handling values, geometry or capacity. Current Main stays15craft/15homes.
+
+Base accepted d95fd8e32/runtime29a28e4, dependency cards1–5 accepted. Vortex3
+and Salyut3 remain causally gated; this selects an unstarted dependency-ready
+existing Katana child, without retrying those parked tasks or counting mapping
+as production. Vortex readiness06:18:04→06:20:37 (2.55minutes) is separate;
+Katana first actual mapping06:20:37 is included in this all-in window.
+
+Window **2026-11-18 06:20:37→07:50:37UTC,90minutes ALL-IN**: mapping, code,
+negative, syntax/import, all source/PCK checks, clean paired checkpoint, reviews,
+merge/push, verified source/raw archive and owned cleanup. Definition frozen
+before code. Owner05:27:05 renewal applied once: **0/1 substantive corrections
+used**, original unstarted task limit1. Routine compiler/caller/assertion repair
+stays within this same budget. A real failure stops dependent cases until cause
+is measured; no blind repeated test, cap/clock/route waiver or partial delivery.
+
+One HIGH implementer owns ONLY scripts/ships/katana_fighter.gd,
+scripts/game/game_flow.gd (Katana-only currentpilot/emission dispatch addition)
+and tests/katana_fighter_journey_test.gd. Candidate-local guard may follow the
+accepted Dynamic/Paradox pattern. HeroShip, registry/contracts, definitions,
+station/berths, ship meshes/colliders/materials, weapons/cues and siblings are
+read-only. One HIGH independent source/fixture reviewer. Root owns engines,
+release wrappers, docs/integration and cleanup. No nested agents.
+
+| Case | Fixed action and expected endpoint |
+| --- | --- |
+| Measured handling | Existing standalone foundation90s retains all original tests. Add actual Katana/Torrent/Arrow/CinderLight/Zenith normal-command measurement. One initial separated fixture placement; no velocity/pose/engine/clock writes afterwards. Achieve common30m/s within±.01 through actual throttle feedback, start all braking together, retain measured actual start speed and stopping distance/time; Katana stops sooner than EACH sibling. Equal actual yaw input/time shows slower turn; actual full boost retains lower top speed. Log actual tick/speed/distance. No value-only comparison substitutes for actual controllers. |
+| Production behavior | Full original ordinary Boot/BeginShift/station/ramp/helm/two2.3s-start/flight/fire/strict-own-home/OFFLINE/inside release/portexit/thirdclaim/full reverse-to-spawn/normalUIQuit300s retained, with additional --combat actual target/miss/world/self/friendly/reentrant-once-only/foreign/released/crew/stale refusals, physical current pilot, unchanged1114/Arrow480/24/.38 center(0,1,-6.2), inherited.28/.50/1s/.35heat/recovery. Every original tick/body/support/eye/lease/roster predicate remains. Foreign claim only while genuinely supported/released; never force airborne release. |
+| Audio | Actual Katana standard_fighter rig bound to same current ship; real start/engine/flight/fire/offline states and cue_requested edges observed through production calls. Dummy output only; no audible/device qualification. |
+| Negative | Exact strengthened committed Main --combat fixture on clean acceptedd95 baseline,300s, must fail first real stale-callback refusal before any new method call. Record actual source1114, shot delta1 and real target health100→76. No missing-method/compiler failure is a control. All4source/cache/HEAD/clean guards. No repeated controls until one fails. |
+| Source12 | Katana foundation90; accessidentity180 --access; accesstransformed180 --access --transformed; completeKatanacombat300 --main --combat; definitions120; registry180; differentiation300; sharedheat120; Paradoxprimary180; completeDynamiccombat300 --main --combat; unchangeddefaultTitan300; existinghero_fleet_audio_binding180. Original success markers/exit0/raw0/all4source-cache-HEAD-clean guards. All Main cases run alone and finish actualclean_shutdown/clean/lastsession_ended primaries. |
+| Actual PCK7 | Exact committed Katanafoundation90/access2×180/Maincombat300, completeDynamiccombat300, unchangedTitan300 and audio_binding180 fixtures plus only source-isolation guard/necessary immutable excluded test constants. Actual new Windows EXE from source-empty path/cwd. Same cases/inputs/assertions/caps/markers/4guards/actualcleanMain primaries, everyMain alone. |
+| Checkpoint | SourceGO then clean safe paired exports300internal/360outer; actual private trustedWindows template preflight; strict Windows-payload60/Linuxdirect300/extracted300 startup (exit0/exactoneSTARTUP_MENU_READY_OK/raw0), complete equal maps/intended ONLY Katana+GameFlow scriptdelta and independently reviewed metadata; Linux6member/modes/extractedELF, ZIPbytes and existingaudit9; eightactual repo-local WindowsEXE/ZIP/notes/referencePNG+LinuxELF/TAR/exportJSON/notes. Copied accepted1a8c084 reference, unchangedgeometry/no newrenderclaim. |
+| Closure | Scoped source/package GO then merge/push accepted exacttip, eight artifacts published to repo builds, every owned archive member SHA verified before loose files/worktrees/branch removal. Retain separate unaccepted Paradoxgunnerc743 branch and all prior failures/cost. All36parents/10phasegates/nativeWindows/GPU/device/listening/human/fullcraft/network/fullgame remain open/NOT_RUN. CI staysOFF. |
+
 <a id="dynamic-combat-current"></a>
 
 ### Dynamic current-pilot combat — card6 DONE,29a28e4
