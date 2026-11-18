@@ -235,8 +235,8 @@ original handling profiles, geometry and pulse definition stay unchanged.
 **Final full Main lifecycle gate fails its original300s cap:** exit124,
 **302.185s including owned-process reap**, marker0, timeout-only diagnostics and
 all four guards true. Destruction, occupied-home refusal, timer regeneration and
-stale controls pass in the prefix; the timeout occurs on the subsequent physical
-station return at waypoint62. Later physical reboarding/reuse/home/normalQuit is
+stale controls pass in the prefix; the timeout occurs on the physical walk back toward the regenerated
+Dynamic at station waypoint62. Later physical reboarding/reuse/home/normalQuit is
 unperformed for this final run. Current source executes **13 of14 cases:12PASS,
 1TIMEOUT**; full Titan is **NOT_RUN** after the first failure. All9 actual-PCK
 cases, exports/startups/package audit/checkpoint/integration are **NOT_RUN**.
