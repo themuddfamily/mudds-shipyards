@@ -156,7 +156,30 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 11:53:45 UTC.** Every task unfinished at this
+**Latest owner renewal: 2026-11-18 13:57:23 UTC.** Every task unfinished at this
+renewal receives **0 corrections used** against its last positive approved limit,
+or **one** if none was recorded. This globally supersedes older current counts
+in this roadmap and linked task cards, including active, parked, failed, blocked
+and gated tasks. Completed tasks are excluded. Apply once per unfinished task;
+branch changes, retries and splitting tasks do not grant another reset.
+
+Preserve historical counts, failures, archives, actual costs, acceptance checks,
+dependencies and causal reopening conditions. Active deadlines and original
+test/journey caps remain unchanged. Resumed parked work requires a fresh bounded
+all-in window; this renewal supplies the authorization formerly needed solely
+for an exhausted allowance. It starts no tests or automatic retries.
+
+The active typed rated speed/hull budget task receives **0/1 used**; its
+**13:38:01→15:08:01 UTC** window stays unchanged. The parked Katana card10 family
+receives **0/1 used**, shared across10a/10b; its prior **1/1** remains historical,
+and the initial-home landing/dock repair and full acceptance gates remain.
+Completed Cinder Bomber/Hauler role-choice deliveries and Katana cards8/9 are
+excluded. Every other unfinished task receives this global renewal under its
+existing limit, including parked shader, Arrow, Utopia, Vortex and Salyut work.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 11:53:45 UTC.** Every task unfinished at this
 renewal receives **0 corrections used** against its last positive approved limit,
 or **one** if none was recorded. This globally supersedes older current counts
 in this roadmap and linked task cards, including active, parked, failed, blocked
@@ -303,7 +326,7 @@ reset. Historical records below and in archives remain unchanged.
 
 Before-code initial function slice of the [normalized role-budget resource/consumer](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract). This creates an actual Resource used by the running game and visible fleet-terminal columns, not a hidden dictionary/validator. It does NOT replace the full remaining vector, function, footprint, boarding-time or skill-floor requirements. Every returned full-role qualification remains NOT_QUALIFIED until those missing dimensions exist; never fill missing data with zero or claim balance acceptance.
 
-Base **0ef8c7bbb673a0a575b57407ad0f9d826fba3354**. First mapping **13:38:01UTC**, hard all-in **13:38:01→15:08:01UTC,90minutes**, includes mapping/code/review/all checks/component capture/exports/startups/package/integration/push/archive/worktree/ref/process cleanup/finalverification. Owner11:53:45 reset applies once to this previously unfinished independent function member: **0/1 substantive corrections used**, default1. Branch/retry/split does not replenish it. Parked Katana/dock/shader tasks unchanged.
+Base **0ef8c7bbb673a0a575b57407ad0f9d826fba3354**. First mapping **13:38:01UTC**, hard all-in **13:38:01→15:08:01UTC,90minutes**, includes mapping/code/review/all checks/component capture/exports/startups/package/integration/push/archive/worktree/ref/process cleanup/finalverification. Owner13:57:23 renewal applies once to this unfinished function member: **0/1 substantive corrections used**, default1. Its earlier11:53:45 allowance was also0/1 and remains historical. Branch/retry/split does not replenish it. Parked Katana/dock/shader tasks unchanged.
 
 One implementation owner; root owns all engine/import/render/export commands and UID generation. Independent source/layout/package review. No nested delegation or engines in mutable candidate. Preserve all completed Cinder cards and raw role contracts.
 
@@ -491,7 +514,9 @@ Every archive member was rehashed before ref/worktree deletion. Archive:
 final docs/push/verification remain billed to the same12:51:46 deadline.
 Only protected Paradox gunner c743f585d remains as an unaccepted branch exception.
 
-**Reopening:** renewed substantive correction allowance and a fresh bounded
+**Current allowance renewal — 2026-11-18 13:57:23 UTC:** **0/1 used**, shared across the entire card10 family. The former11:53:45 **1/1** remains historical. This satisfies the allowance prerequisite only; all causal and acceptance conditions below remain binding.
+
+**Reopening:** a fresh bounded
 all-in window; restore the archived candidate, establish valid initial-home
 landing registration and operational dock semantics through the existing exact
 occupied-home/fit/support owners (no fake completed LandingContract or cabin),
