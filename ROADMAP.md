@@ -16,25 +16,26 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **0c429cb** — [Windows ZIP](builds/windows/MuddsShipyards-0c429cb-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-0c429cb-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-0c429cb-linux-x86_64.tar.gz).
-The physical fleet terminal now shows definition-backed rated speed and maximum
-hull, with raw units and separate per-field indices, beside all15 current names
-and availability states. Normal walking/interaction, the original screen/font
-and all16 lines are retained. Fullsource5/PCK5, two inspected terminal captures,
-strictstartup3, complete package maps and audit9 pass.
-[Scoped delivery](#fleet-rated-budget-current) and
-[actual terminal preview](builds/windows/MuddsShipyards-0c429cb-fleet-rated-budget-preview.png).
-The typed Resource supports this two-field subset for all17 definitions; full
-role qualification stays NOT_QUALIFIED. Other role dimensions and final balance
-remain unfinished. This component capture does not qualify whole-world rendering.
-The completed Light/Bomber/Hauler choice cards and all nine original/Cinder role
-contracts remain included.
+Latest playable checkpoint: **89b53a8** — [Windows ZIP](builds/windows/MuddsShipyards-89b53a8-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-89b53a8-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-89b53a8-linux-x86_64.tar.gz).
+The physical fleet terminal now cycles four rated-handling pages through normal
+interaction. All15 current names/states remain visible while it shows all16
+authored fields:13 per-field indices and3 explicitly unscored feel values.
+Raw values/units, page numbers, index range and interaction hint remain clear
+at the unchanged screen/font/16lines. Full source5/PCK5, all8 inspected page/
+resolution images, strictstartup3, complete package maps and audit9 pass.
+[Scoped delivery](#fleet-handling-pages-current) and
+[actual first-page preview](builds/windows/MuddsShipyards-89b53a8-fleet-handling-pages-preview.png).
+All17 definitions supply the complete rated-handling subset. Full-role status
+stays NOT_QUALIFIED: actual functions, firepower, cargo/crew, footprint, timing,
+skill demand and final balance remain unfinished. No handling or weapon tuning,
+new access gate or whole-world/native qualification is claimed. Earlier accepted
+Cinder cards, all nine role contracts and gameplay remain included.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
 lifecycle remain included. [Card9 delivery](#katana-cold-recovery-current).
-Its latest network-ground attempt remains [PARKED at first remote inside exit](#katana-network-ground-current);
+Its latest network-ground attempt remains [PARKED at its coordinator completion limit](#katana-network-ground-current);
 that unaccepted source is archived and is not part of this checkpoint.
 
 Katana's accepted current-pilot/once-only480m24/.38 pulse, measured braking
@@ -326,46 +327,74 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="fleet-handling-pages-current"></a>
 
-### Complete authored handling and four-page fleet terminal — ACTIVE
+### Complete authored handling and four-page fleet terminal — DONE,89b53a8
 
-Complete remaining ratedhandling function: all16 authored ShipDefinition fields,
-13 directed per-field indices and3undirected feel raws, consumed by the existing
-physical terminal on four pages through normal Interact(defaultE). This completes
-the rated handling display, while actual firepower/cargo/crew/function/footprint/
-boarding-time/skill/full-role metadata and finalbalance remain NOT_QUALIFIED.
-No new craft, stats, key, modal, font, screen, authority or validator family.
+Accepted source **89b53a87d96c91ee7a224faac11310c1b54382d4**, integrated and pushed
+through **f8e77ad56b01f3f50ccdedd24a998622b94a468f**. This completes the authored
+rated-handling function of the [full-role contract](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract).
+Actual function/role/utility/demand metrics and final balance remain unfinished.
 
-Basea9063341547422dc50ebc388d5f08c3ef3bf6806. Firstmapping **14:50:04UTC**, hard
-all-in **14:50:04→16:20:04UTC,90minutes** includes implementation, full source5/
-PCK5, eight inspected four-page1280/1920 component images, release/startup/package/
-review, merge/push/archive/worktree-ref-process cleanup/docs/finalverification.
-Retain latest13:57:23 unused **0/1** correction allowance; no newreset from branch
-or split. Prior initialResource delivery cost **38.74157571666667minutes** retained
-and cumulative. Katana's separate completion-limit decision remains pending;
-no approval, resumed engine or changed cap is inferred from continuation.
+The existing FleetRatedBudget Resource copies all16 actual ShipDefinition fields
+with raw units and provenance. Ten benefit and three cost axes use full-precision
+x/(1+x) or1/(1+x), fixedunit1. Flight assist, cosmetic bank and mouse-turn clamp
+are undirected raw feel values with no invented index. Passive drag uses actual
+acceleration units m/s2; throttle/assist use1/s. Null/invalid definitions remain
+explicitly invalid; public snapshots detach. All17 authored definitions source
+the data; Main remains15craft/15homes. All nine role contracts, six original
+signatures,13-axis non-dominance,14of16 distinctness and Cinder cards are unchanged.
 
-Six owned existing scripts: FleetRatedBudget, FleetRegistryConsole, GameFlow and
-the existing registry/differentiation/console fixtures. No UID or Registry policy
-change. Pages speed/hull/boost/thrust; yaw/roll/brake/drag; thrustmult/landinglimit/
-spool/ratedcooldown; throttle plus3feelraws. Every15-row16-line page must fit the
-original3.76×1.46 screen/font40/pixel.0016. All16 off-page fields validate before
-page/text/sequence/snapshot commits; invalid data cannot advance. Directrefresh
-is stable, normalE cycles+wraps, all-budget-absent legacy remains exact. All17
-actual definitions source the values; all nine role contracts, original signatures/
-non-dominance/min14of16/Cinder cards remain. Remove only3completed rated missing
-categories; retain8actualrole categories and explicit NOT_QUALIFIED.
+Normal Interact(defaultE) cycles four pages and wraps: speed/hull/boost/thrust;
+yaw/roll/brake/drag; thrustmult/landinglimit/spool/rated profilecooldown;
+throttle plus3FEEL RAW fields. Each page keeps all15 names/states, units,
+RATED/page/RAW-INDEX0..1/INTERACT:NEXT labels, and the original3.76×1.46screen,
+font40/pixel.0016/16lines. Direct refresh stays on the current page. Every
+field, including off-page values, validates before committing page/text/sequence/
+snapshot; malformed/live-reference/identity/unit/direction/nonfinite/normalization/
+missing-field/false-feel-index inputs refuse atomically without advancing.
+All-budget-absent legacy snapshots retain exact status-only text and page.
 
-Original full source5/PCK5 each300s/oldcases/markers/raw0/fourguards; exactfinal
-consolefixture on olda906 must fail actual missing14fields after physical E with
-no parse/missingAPI substitute. Capture onlyproductionConsole from fullsuccessful
-case's pinned actual15rows, samecamera/eightpostdraw at everypage/resolution,
-beforeMainload/instantiation, no world-render/native waiver. Source/imageGO before
-cleanpairedexports300/outer360, trustedprivate template, strictstartup3, complete
-map equality/intended3GDC+reviewedmetadata/noUID-class additions, exactarchives/
-ZIPbytes/audit9/eight repo-local artifacts, PCK5/packageGO and exactcleanup.
-Every Godot Dummy/headless or privateX11; CI OFF. Firstunexpectedfailure stops
-dependents and preserves operands/costs. Full-role/final17/fullcraft/network/game/
-all36parents/10phase exits and applicableexternal gates remain OPEN.
+Every full-role status remains **NOT_QUALIFIED**, with the8 actual-role missing
+categories explicit. Only the3 now-sourced rated categories were removed. No
+zero substitute, overall score, pair qualification, actor/control/stock/berth/save/
+network change or Vortex/Salyut Main registration. Three runtime scripts and
+three existing fixtures changed; Registry policy, UID/class metadata and authored
+stats remain untouched.
+
+| Frozen proof | Actual accepted result |
+| --- | --- |
+| Full source5, original300 caps | Registry2.714s; ordinary console36.539s; HUD28.978s; differentiation45.394s; boarding41.535s. Each exit0/original marker once/raw0/source-cache-HEAD-clean guards. |
+| Physical four-page consumer | Original outside4.6stage/actual walk/ordinary interaction, four pages+wrap/defaultrefresh/all15states and berth/regen conservation. Glyph widths2.7376/2.7936/2.896/3.136m and height1.408m fit the unchanged3.76×1.46screen/font40/.0016/16lines on every page. |
+| Exact old control | Exact final console fixture on olda906 (accepted0c runtime) fails actual missing14handling fields after ordinary E in34.883s, with no parser/missing-API substitute and all four guards. New API checks are guarded after completeness. |
+| Actual component pixels | First accepted15-row snapshot, sequence1/SHA766bb51e094f6ce6e526bcb85a33665ef4f9e7651fe091cf45db423412e1bcdd, written only after full console case succeeds. Separate33.643s command renders productionConsole only before runtimeMainload, samecamera/eightpostdraw at all4pages×1280/1920. All8 actual images independently viewed and byte/hash/dimension pinned; snapshot unchanged before/after. PrivateX11/Forward+/softwareVulkan/Dummy, no world/native qualification. |
+| Actual Windows-PCK5 | Registry2.525s; console29.767s; HUD22.678s; differentiation38.879s; boarding35.022s. Original300caps/cases/markers, exit0/raw0/fourguards/isolation1. Exact committed external fixture graphs, only literal test-path relocation+entry guards, every original/adapted SHA checked; no inlining or raw-source fallback. |
+| Fresh playable build | Clean Windows27.713s/Linux26.514s exports, owned300s/outer360 and trusted private template. StrictstartupWin30.213s/Linux25.536s/extracted25.547s each exit0/exactone STARTUP_MENU_READY_OK/raw0. Complete equal1613maps, exactly3GDCchanges/82typed-node_ids-only scenes, zero added/removed/UID/class changes. ExactLinux6members/modes/extractedELF, ZIPEXE+notes, audit9 and8current repo-local files accepted. New preview is the reviewed page01/1280 pixels. |
+
+Initial36887 static review found missing visible0..1 labels and use of a later
+refreshed capture snapshot;89b53 fixes those before any Main trial. No unexpected
+runtime failure or substantive correction occurred; allowance remains **0/1**.
+Six changed scripts pass current-pin syntax. Independent source/image and final
+package review accept89b53. Every automated engine uses Dummy and headless or
+privateX11 with owned abort/reap/input release. CI remains OFF; no Downloads.
+
+Basea9063341547422dc50ebc388d5f08c3ef3bf6806, first mapping14:50:04UTC, original
+hard all-in **14:50:04→16:20:04UTC,90minutes** unchanged. Retain latest13:57:23
+unused0/1 from the accepted initialResource member; no reset from branch/split.
+Prior initialResource cost **38.74157571666667minutes** retained. Actual through
+verified cleanup **28.783894minutes**, cumulative
+**67.525470minutes**; final docs/push/verification stay billed
+to this window and are recorded in the task closeout. Verified archive:
+`/srv/mudds-work/fleet-handling-pages-20261118/records.tar.gz`,
+**30,754,826bytes/700members**, SHA256
+`c4eb2b2bf2cd24c45f2d9e748fda4cbbbf32983d0ba7ddc3facb29c65baff82a`. Every member rehashed before owned worktree/process/
+exact-tip local+remote branch cleanup. Only protected unaccepted Paradox gunner
+c743f585d remains as a branch exception; Katana's separate gate proposal remains
+unapplied/parked and no code from that candidate is included.
+
+**Still OPEN:** actual firepower/range, cargo/crew/support, component consequences/
+repair, footprint, boarding time, skill-demand/full-role metadata, final17 balance,
+fullcraft/network/game/all36parents/10phase exits. NativeWindows/mandatoryhuman
+remain OWNER-EXCLUDED/NOT_RUN; applicable GPU/device/listening/readability/whole-
+world render gates remain open. This closes authored handling, not those gates.
 
 <a id="fleet-rated-budget-current"></a>
 

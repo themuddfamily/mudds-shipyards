@@ -710,15 +710,15 @@ ordinary boarding instruction.
 The live differentiation suite covers all fifteen current Main definitions.
 FleetRoleRegistry contracts cover Torrent/Arrow/Jovian/Zenith/Halyard/Bulwark,
 Cinder Light, Cinder Bomber and Cinder Hauler: all nine original/Cinder role
-contracts are now implemented. The initial typed speed/hull Resource and live
-fleet-terminal consumer are
-[delivered on0c429cb](../../ROADMAP.md#fleet-rated-budget-current): all17 definitions
-supply the sourced subset, while all15 Main rows show raw ratings and separate
-indices through ordinary interaction. Full source5/PCK5 and both1280/1920 terminal
-images pass with the unchanged screen/font/16lines. Full-role status remains
-NOT_QUALIFIED with missing dimensions explicit. The remaining normalized
-seventeen-craft vector and actual function/utility/demand consumers remain
-implementation work. Raw role contracts and a boarding choice card do not close full-craft or final balance acceptance.
+contracts are now implemented. The complete authored rated-handling Resource and
+four-page terminal consumer are [delivered on89b53a8](../../ROADMAP.md#fleet-handling-pages-current):
+all17 definitions supply16 sourced fields, while all15 Main rows show them through
+ordinary interaction. Thirteen directed fields have per-field indices; flight
+assist, bank and mouse clamp stay unscored raw feel values. Full source5/PCK5 and
+all8 page/resolution images pass at the unchanged screen/font/16lines. Full-role
+status remains NOT_QUALIFIED with8 actual-role categories missing. Actual function/
+utility/demand consumers and the remaining full-role vector still need work. Raw
+handling and a boarding choice card do not close full-craft or final balance.
 
 The earlier [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
 failed73px-inside63px and remains historical. The later accepted [Light6e15126
@@ -873,9 +873,11 @@ cheap precisely because they happen before art.
 
 The original Phase5 requirement also includes firepower/range, utility,
 footprint, boarding time and skill floor. The 16-field comparison above does
-not cover those dimensions. No normalized role-budget resource is implemented
-in the current registry. This section defines that missing production
-capability; it does not claim a new balance result or tune any craft.
+not cover those dimensions. The current FleetRatedBudget Resource implements the complete16 authored
+handling fields and its live four-page consumer. The actual function/utility/
+footprint/timing/demand budget remains incomplete. This section defines that
+remaining production contract; it does not claim a new balance result or tune
+any craft.
 
 Use the existing ShipDefinition/FleetRoleRegistry owners. Each production craft
 must publish its stable definition ID, accepted scale band, intended player
@@ -935,10 +937,10 @@ not imply the unbuilt craft or role-budget data exist.
 `fleet_role_differentiation_test.gd`/`fleet_role_registry_test.gd` to consume the
 actual production resource, reject missing fields/wrong units/false capability
 claims and detect a deliberately dominating same-band candidate. Preserve all
-current raw-field/signature/identity checks. Fix the existing non-dominance
-failure message when integrating: `_count_advantages(first,second)` counts the
-second's wins, while the current error names the reverse upgrade. The symmetric
-all-pairs predicate is still the existing behavior; this wording issue is not
+current raw-field/signature/identity checks. The existing non-dominance
+diagnostic already names the actual dominating craft before its victim; the
+registry fixture protects this direction. Preserve the symmetric all-pairs
+predicate and current raw signatures. The handling-resource integration is not
 a measured balance defect or permission to retune ships.
 
 Numeric definition values need actual live-definition reads; firing/cargo/crew
@@ -965,8 +967,9 @@ SPECs, not an inferred unlock or invented progression system.
 
 **Missing work and limits.** Codex implements the production role-budget
 resource/consumer and selected existing observer/test extensions. All three
-Cinder registry/choice members are scoped delivered above; the full normalized
-resource does not exist merely because this definition does.
+Cinder registry/choice members and the complete16-field rated-handling Resource/
+consumer are scoped delivered above. Actual function metrics and the remaining
+full-role vector are not implemented merely because this definition exists.
 Use one selected craft/function slice within the existing90min all-in/one-
 correction limit, source suites300s, ordinary craft900/outer960s and tighter
 accepted/parked member limits. Freeze source/resource/profile/absolute deadline
