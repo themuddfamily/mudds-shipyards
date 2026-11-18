@@ -16,15 +16,19 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **614abb0** — [Windows ZIP](builds/windows/MuddsShipyards-614abb0-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-614abb0-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-614abb0-linux-x86_64.tar.gz).
-Katana's real current pilot now owns each single-use precision-pulse emission.
-Stale, duplicate, foreign and released requests cannot mint damage. Actual
-same-speed braking measures6.78m versus8.08–11.00m for four fighter peers;
-its weaker turning/boost and unchanged480m/24damage/.38s emitter remain.
-Full source12/PCK7, startup3 and package gates pass.
-[Card6 delivery and retained failure](#katana-combat-current).
+Latest playable checkpoint: **4ad278b** — [Windows ZIP](builds/windows/MuddsShipyards-4ad278b-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-4ad278b-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-4ad278b-linux-x86_64.tar.gz).
+Katana damage now follows its real nose, outriggers, systems wall and paired
+engine solids, with localized shared cues. From the same30m/s, stopping distance
+rises from6.78m healthy to9.09m impaired and19.84m with a failed engine. Ordinary
+home component service restores function/cues while retaining damaged hull through
+exit/reboarding. Full source14/PCK10, three actual cold cue views, startup3 and
+package audit pass. [Card7 delivery and capture timing history](#katana-components-current).
+[Actual impaired cue preview](builds/windows/MuddsShipyards-4ad278b-katana-components-preview.png).
+
+Katana's accepted current-pilot/once-only480m24/.38 pulse, measured braking
+advantage and weaker turning/boost remain included. [Card6 delivery](#katana-combat-current).
 
 Dynamic's previously delivered current-pilot/once-only pulse guards, target,
 heat/recovery and handling proof remain included, along with its complete
@@ -93,7 +97,8 @@ Two usable sorties and a third physical reboard/release pass in source and actua
 Windows PCK, followed by the full station walk home and normal UI Quit.
 Main has **15 usable pilot craft / 15 occupied physical homes**; all14oldercraft
 and current leases remain intact. Katana comparative handling and actual target damage are now qualified by
-card6 below. Service/recovery/save/network and full craft qualification remain open.
+card6 below; component/home-service card7 is also delivered. Lifecycle/full
+hull-service/recovery/save/network and full craft qualification remain open.
 Existing Utopia home-only chairs and other accepted pilot content remain included.
 Salyut now has continuous standalone physical stern access: operate its hatch,
 walk the deployed ramp and cabin aisle to the helm stand, then walk back and seal
@@ -250,7 +255,115 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Katana card7 — mapped component damage and real home service, ACTIVE
+<a id="katana-components-current"></a>
+
+### Katana component damage and home service — card7 DONE,4ad278b
+
+Accepted source **4ad278b396b94fba315299350d6872fa396cd905**, merged and pushed
+as **8b6146f554f970dfbdc24ece20aed65ee75373f5**. Only the Katana script and its
+existing journey fixture change; shared damage/service/visual/audio owners,
+physical geometry, profiles, weapons, current-pilot guard and source1114 remain.
+
+The existing five-section ledger now anchors onto the actual BluntNose,
+Port/StarboardAftOutrigger, AftCockpitWall and engine housing. Both real housings
+and narrower exhausts route to the same existing engine channel, using their
+exact authored union and inherited candidate/nearest fallback elsewhere. All
+IDs/radii/health/stages/repair rates stay shared. Actual named-solid contacts,
+fresh identity/transformed paired-engine faces and localized failure audio pass.
+Forward hull damage adds no mobility effect; damaged wings change actual pilot
+cadence23→37ticks then refuse failed fire; core convergence480→352.32→144m.
+Actual engine thrust/turn weaken and failed drive stops, while shared emergency
+braking remains available. Normal-command matched30m/s stopping measurements:
+
+| Engine state | Distance metres | Seconds |
+| --- | ---: | ---: |
+| Nominal | 6.78200 | .48333 |
+| Impaired | 9.08887 | .63333 |
+| Failed | 19.83938 | 1.35000 |
+
+All start29.999525m/s on tick4003; no post-setup pose/velocity/clock/engine/ledger
+forcing establishes the result. Shared impaired.62 engine power yields.753
+manual-brake factor; failed retains.35. New localized shared presentation uses
+actual solid anchors and one ledger/owner, with no new damage framework.
+
+Full ordinary Main service preserves Boot/BeginShift/station/ramp/helm/two
+usable2.3s-start flight/home/OFFLINE/physical-exit sorties/thirdclaim/fullreverse/
+normalQuit. Real airborne damage and refused access preserve ledger/hull; exact
+occupied-home service repairs components/cues, restores23tick fire and retains
+**130.5/145hull** through seat/access/reboarding. This is component-service proof;
+complete craft/hull-service qualification remains open.
+
+All **14 source and10 actual Windows-PCK cases pass** final4ad, each exit0,
+exact-one original marker/raw0/all4 source-cache-HEAD-clean guards. All8 actual
+Main primaries finish clean_shutdown/clean/lastsession_ended, Main runs alone.
+Complete relevant handling/access/role/heat/audio and sibling cases remain:
+
+| Original full case | Source seconds | Actual PCK seconds |
+| --- | ---: | ---: |
+| New Katana components (120s) | 90.838 | 84.625 |
+| Katana Main component service (300s) | 195.006 | 189.931 |
+| Katana Main combat (300s) | 206.455 | 197.572 |
+| Dynamic Main service (300s) | 175.535 | 164.975 |
+| Unchanged default Titan (300s) | 166.992 | 159.584 |
+
+Exact new fixture fails accepted4c783 baseline at the real missing localized
+presentation: actualBluntNoseCollision contact, configured five-section model,
+presentationnull,20.278s/expected143/marker0/all4guards. No compiler/missingmethod
+or synthetic state qualifies this control. Final candidate satisfies the same
+fixture. Source/actualPCK each exercise147 focused component assertions.
+
+Three fresh cold standalone views pass **9.318/11.034/11.549s**, each original90s,
+actual960×540/FOV52/camera(18,13,20)→(0,1.7,0), eight unique post-draw events,
+privateXvfb/x11/OpenGLllvmpipe/Dummy. Root inspected all3actualPNGs: nominalclear,
+impairedlocalizedportsparks, failedredwarning/glow. Actual held model states0/1/2,
+integrity1/.610333/.220667 and hull145/130.5/116 are preserved; only craft physics
+pauses after the completed post-hit snapshot, ordinary Main repair stays live.
+
+The initial nominal9.131s view passes, but impaired fails its state assertion
+and is independently aborted/reaped (59.606s including observation/cleanup).
+An unchanged-action diagnostic proves the caller issue: actual hit.60/state1,
+first repairtick.610333/state1/effect1, second.620667/state0/effect0 crosses the
+unchanged.62 threshold. Corrected caller observes one completed post-owner
+publication/repair tick, then holds the staged still; no production, rate,
+health/hit amount, state assertion, geometry, camera, frame count or cap changes.
+Diagnostic6.126s failure, old raw/recipe/nominal and corrected views remain
+archived. This proves standalone cues only; Main cold/native GPU/readability
+qualification is not inferred.
+
+Clean paired exports27.707/27.107s, strict startup3 **32.413/27.248/27.498s**
+(exit0/exact-one STARTUP_MENU_READY_OK/raw0), actual private trustedWindows
+preflight, equal1611-entry complete maps, intended Katana-only GDC delta and
+82byte-proved typednode_ids-only scene metadata/noUID-class additions, exact
+Linux6members/modes/extractedELF, ZIPbytes and existing **audit9** pass independent
+review. Eight actual repo-local artifacts: [EXE](builds/windows/MuddsShipyards-4ad278b.exe),
+[ZIP](builds/windows/MuddsShipyards-4ad278b-checkpoint.zip),
+[notes](builds/windows/MuddsShipyards-4ad278b-notes.txt),
+[new impaired cue preview](builds/windows/MuddsShipyards-4ad278b-katana-components-preview.png),
+[Linux ELF](builds/linux/MuddsShipyards-4ad278b.x86_64),
+[archive](builds/linux/MuddsShipyards-4ad278b-linux-x86_64.tar.gz),
+[export result](builds/linux/MuddsShipyards-4ad278b.x86_64.export-result.json) and
+[Linux notes](builds/linux/MuddsShipyards-4ad278b-linux-notes.txt).
+
+Window07:25:30→08:55:30UTC90minutes ALL-IN, **68.8038209minutes through verified
+archive/cleanup**, plus final docs/push recorded in adjacent closeout. Owner
+05:27:05 renewal **0/1 substantive corrections used**; capture-caller maintenance
+changes no production behavior. Prior costs/failures remain attached unchanged.
+
+Verified archive `/srv/mudds-work/katana-components-20261118/records.tar.gz`:
+**55,468,259bytes/1,684members**, SHA256
+`47b2b756f0eaf49d3e4eaa59182ab15a06aa7c1209b4b94f9c6365ac11b0f50c`.
+Every member rehashed before owned records/processes/bothworktrees removal.
+Only archive+closeout remain; accepted branch exact-tip deleted locally/absent
+remotely after pushed integration. Only unaccepted Paradox gunnerc743 remains
+retained; Main is the only worktree and still15craft/15occupiedhomes.
+
+Katana lifecycle8, cold continuation9, network10–11, integrated/final craft12–13,
+full normalized roles/hull-service/craft/game and all36parents/10phasegates remain
+open. NativeWindowsexecution/mandatoryhumanreview retain owner-excluded/NOT_RUN;
+applicable GPU/device/listening/readability remain open. CI staysOFF. No next
+card selected by this closure; the executed frozen card follows as history.
+
+### Katana card7 — executed frozen component/service card, DONE4ad278b
 
 Existing BUILD-SPLIT-KATANA/card7, adopted damage/service contract. Observable
 result: real nose/outrigger/core/engine contacts impair the intended existing
