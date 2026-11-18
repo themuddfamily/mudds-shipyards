@@ -264,6 +264,24 @@ in pushedmain before exact-tip branch deletion. Owned process/worktree/branch/
 scratch removed; remote task ref absent; root only archive+closeout. Unaccepted
 Paradox gunnerc743 remains protected. No next card selected.
 
+<a id="arrow-whole-lod-renewal-current"></a>
+
+### Arrow complete static LOD — renewed causal assessment, 2026-11-18
+
+Same unfinished Arrow member, owner01:39:01 renewal **0/1 used**; prior
+**61.0810887minutes** and all failed source/raw retained. Bounded all-in window
+**01:40→03:10UTC**,90minutes including cleanup. Baseline6598a96be/checkpoint09e0ece.
+First measure final7a contributors without changing geometry: its archived
+per-source census preceded reduction, so the aggregate15,004 does not identify
+the remaining2,380 excess. One existing-cap300s isolated diagnostic is selected,
+not another acceptance replay. No geometry repair selected until measured cause
+supports a concrete plan meeting unchanged12,624/25% and all silhouette/opening/
+material/.025m/authority/resource/camera requirements. All original source5,
+render12/PCK5/paired-checkpoint gates and caps remain binding; no subset delivery.
+Root-owned card/helpers/results under
+`/srv/mudds-work/arrow-whole-lod-renewal-20261118/`; previous failed closeout below
+stays historical. Main runtime remains unchanged pending complete acceptance.
+
 <a id="arrow-whole-lod-current"></a>
 
 ### Arrow complete static exterior LOD — PARKED,unmerged
