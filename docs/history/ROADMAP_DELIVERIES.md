@@ -34541,6 +34541,61 @@ Cleanup2026-11-05T08:44:48.422507+00:00,44.390minutes from original start;
 all-in cost also includes the following closure documentation/push.
 
 
+<a id="arrow-whole-lod-budget-stop-20261118"></a>
+## Arrow complete static LOD — actual geometry budget still fails
+
+Candidate7a33796ad4152bbfbafe77854964a673083dd7f4 remains unaccepted/unmerged.
+Same CRAFT-ACCEPT-ARROW member as75a413ec, restored against current5dc4aa1c2
+without replacing later accepted observer/driver/Light/Dynamic/Cinder changes.
+Main runtime and latest playable2cf0a3f remain unchanged.
+
+Known typed Array[MeshInstance3D].has(Node3D) construction error was guarded.
+Independent review additionally found hidden MastStem160triangles/one submission
+inflating close cost. Measurement-only fix retains the node/membership and
+checks exact initial-close visible renderer/copy/surface costs independently.
+Actual sourceed62 then failed29,416far/50,496close; contributor initialization
+1f2e745 recorded128preconsolidation sources summing exactly29,416. High-cost
+cut/opening skins/nozzles/fallbacks retained their evaluated close meshes.
+
+The single cause-backed geometry correction uses runtime constrained endpoint
+edge collapse per material surface. Scale-aware accumulated planes/feature chains,
+open/nonmanifold/extrema/junction locks, manifold link/no-duplicate/no-flip guards
+and feature-separated normal/UV/tangent attributes preserve evaluated surfaces
+conservatively. All close geometry, cheap recipes, membership, selector/camera,
+authority and resource lifecycle policies remain unchanged; optional contributor
+probe removed. Static review found no blocker but did not claim global Hausdorff,
+native startup/performance or visual acceptance.
+
+Final actual focused source: **15,004far /50,496close=29.713%**, exceeding fixed
+25%maximum12,624 by2,380; submissions8≤119 pass. Plane-grid reduction/exact open
+boundaries/winding, real visible census, hidden-mast exclusion, complete modern
+membership, healthy occupied Main berth and initial0/100m resource/authority
+observations pass. Original full boundary/camera/cockpit/re-entry completion
+unproved. First-error abort exits143/45.616s including owned reap, marker0,
+source/cache/HEAD/clean guards all true. Independent FINAL_GO/PACKAGE_GO withheld.
+No second geometry attempt, threshold/error/visual/cap waiver or partial merge.
+Remaining4source/render12/PCK5/exports/startup3/maps/audit9/eightfiles NOT_RUN.
+
+Owner23:37:41 renewal1/1 substantive repair used, historical original1/1 and
+26.8626971minutes retained. Initial root classification of the mechanical typed-
+API guard as substantive was corrected explicitly under existing routine-repair
+policy, with both records preserved and no additional owner reset. Original
+00:20→01:50UTC90minute all-in window closed early after final failure; actual
+current/cumulative cost in adjacent closeout. All component/capture/ordinary
+limits and full contract remain. Reopening requires fresh authorized substantive
+allowance and demonstrated per-source geometry plan removing≥2,380more triangles
+without dropping static coverage, cutouts or frozen visual/runtime requirements.
+
+Verified archive /srv/mudds-work/arrow-whole-lod-20261118/records.tar.gz:
+12,262,232bytes/88members, SHA256
+801c458a5ccc17364e324c665f0552c930efbda0417a1eeffb261f4aa099afee.
+All member hashes and complete source bundle verified before exact-tip local
+branch deletion. Original106member archive/raw/type/frame-order failures remain
+nested intact. Fresh remote/worktree ownership checked; no task remote ref,
+worktree/process/scratch remains; owned root only archive+closeout. Unaccepted
+Paradoxc743 remains protected. Native/GPU/human/fullcraft/fullgame gates open,
+hosted CI disabled; no roadmap completion or new checkpoint credited.
+
 <a id="arrow-whole-lod-typed-membership-stop-20261105"></a>
 ## Arrow whole-craft LOD — typed membership stop, 2026-11-05
 

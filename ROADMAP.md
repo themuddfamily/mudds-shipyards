@@ -187,72 +187,62 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="arrow-whole-lod-current"></a>
 
-### Selected — Arrow complete static exterior LOD
+### Arrow complete static exterior LOD — PARKED,unmerged
 
-Existing **CRAFT-ACCEPT-ARROW / [whole-craft LOD](docs/ROADMAP_BACKLOG.md#current-craft-lod-contract)**.
-Restore the same unfinished75a413ec member with the demonstrated typed ancestor
-membership correction. Player result: complete cheaper static Arrow exterior
-beyond120m, close below100m; preserve canopy, pods, sensor, damage cues, boarding,
-interior and cockpit. Actual far solid triangles≤25%close, submissions≤close;
-exactly one complete exterior, synchronous switch. Original near paths and every
-modern static addition remain in renderer membership, shared dynamic policy intact.
+Unaccepted **7a33796ad4152bbfbafe77854964a673083dd7f4** is preserved in the
+verified archive below. Existing CRAFT-ACCEPT-ARROW/current-craft-LOD member stays
+open; Main runtime and accepted checkpoint **2cf0a3f** are unchanged.
 
-**2026-11-18 00:20→01:50 UTC,90minutes ALL-IN**, definition before00:35.
-Latest owner23:37:41 renewal **0/1 substantive corrections used**; historical1/1
-and26.8626971minutes retained. Root initially charged the mechanical typed-API
-guard as1/1; independent review corrected that accounting under the existing
-routine-repair policy, preserving both records without another reset or deadline
-change. Passive hidden-mast cost inflation was also corrected without changing
-rendering. Actual first focused run fails the real cost gate: close50496/far29416
-triangles (58.25%, maximum12624), submissions119→8. Exit143/34.846s includes
-first-error abort/reap; all4 integrity guards pass. Dependent checks stopped.
-The single substantive geometry correction is now **1/1 used**, candidate7a33796:
-128 actual source contributors sum exactly29416. Constrained evaluated-mesh
-reduction preserves material/open-boundary/seam topology and close geometry;
-new runtime cost, geometry budget and all visual/package gates remain unproved.
-No threshold, silhouette, cutout, close-geometry or deadline relaxation.
+The previous typed ancestor-membership failure is corrected, and independent
+review corrected a passive denominator error: the original hidden MastStem
+contributed160triangles/one submission despite being invisible. Real initial-close
+surface/copy census now matches the snapshot exactly, preserving the hidden node
+and every original static member. No close geometry or acceptance budget changed.
 
-Baseline5dc4aa1c2, checkpoint2cf0a3f; branchwork/arrow-whole-lod-1118, owned root
-`/srv/mudds-work/arrow-whole-lod-20261118`. MEDIUM implementer owns only
-`scripts/ships/arrow_recon_ship.gd`, `tests/arrow_recon_ship_test.gd`,
-`tests/capture_arrow_recon_crown.gd` and Arrow-only passive fields in
-`scripts/diagnostics/native_sortie_observer.gd`, `tools/release/run_native_sortie.py`.
-HIGH independent review, root engines/release/Git/docs/cleanup; no nested agents.
-Later accepted observer/driver/Light/Dynamic/Cinder changes stay intact. No shared
-Player/HeroShip, physics, authority, handling, weapon, save, schema or validator work.
-Current baseline Arrow controller is byte-identical to original old-RED source;
-its archived missing-capability failure is retained without an unchanged replay.
+First actual focused runed62 failed at **29,416far /50,496close triangles**.
+One actual initialization traced128original source contributors summing exactly
+29,416; evaluated cut/opening skins, nozzles and fallback meshes retained close
+resolution. The sole substantive correction adds constrained runtime edge
+collapse per evaluated material surface, preserving open boundaries, feature
+chains/junctions, endpoint attributes, manifold links, winding and accumulated
+surface constraints. Existing cheap recipes, complete source membership, all
+close meshes, selector/cameras and gameplay authorities remain unchanged.
 
-Complete existing source fixtures, each300s/originalmarker1/exit0/raw0 and
-source-cache-HEAD-clean guards; focused/default alone, other isolated pairs:
+**Final focused source fails the original cost gate:** far **15,004** versus close
+**50,496**, **29.713%** against the fixed25% maximum **12,624**; excess **2,380**.
+Submissions pass8≤119. Plane-grid reduction/exact boundary/orientation, independent
+visible census, hidden-mast preservation, actual healthy Main berth, full modern
+membership and the first0/100m authority/resource observations pass. Full boundary/
+camera/cockpit/lifecycle/suite completion is unproved. Exit143 after first-error
+abort, **45.616s including owned reap**, no success marker; source/cache/HEAD/clean
+all pass. Independent FINAL_GO/PACKAGE_GO are withheld. This is a real geometry
+budget failure, not another fixture/census error. No partial runtime is merged.
 
-| Case | Fixed action / required endpoint | Actual |
-| --- | --- | --- |
-| `tests/arrow_recon_ship_test.gd --whole-craft-lod-only` | Actual mesh census,0→100→120→121→110→100→99/invalid holds, actual camera/cockpit/real Main-player transition overrides, quiet authority/resources/retained re-entry; `ARROW_RECON_SHIP_TEST_OK` | NOT_RUN |
-| Same complete default fixture | All original Arrow canopy/crown/sensor/damage/weapon/selection cases plus the full new member; same marker | NOT_RUN |
-| `tests/arrow_component_damage_cue_test.gd` | All existing damage-cue cases; `ARROW_COMPONENT_DAMAGE_CUE_TEST_OK` | NOT_RUN |
-| `tests/arrow_recon_crown_visual_test.gd` | All existing crown presentation cases; `ARROW_RECON_CROWN_VISUAL_TEST_OK` | NOT_RUN |
-| `tests/arrow_core_systems_damage_silhouette_test.gd` | All existing core/silhouette cases; `ARROW_CORE_SYSTEMS_DAMAGE_SILHOUETTE_TEST_OK` | NOT_RUN |
+The remaining four source cases, all12 original rendered images, PCK5, paired
+exports/startup3/maps/audit9/eight checkpoint files are **NOT_RUN**, stopped after
+this first required failure. No new visual/native/frame-rate/ordinary traversal
+qualification is claimed. Original300s component,90/110s capture and900/960s
+ordinary limits stay fixed. No ratio, silhouette, cutout, material, camera,
+geometry-error or deadline relaxation and no second geometry-tuning attempt.
 
-Repeat five exact committed fixtures against actual Windows PCK from blank
-source-isolated directories, only an entry isolation guard added, same300s caps.
-Changed GDScript syntax90s and Python compilation remain bounded. Original crown
-capture default2views1600×900/FOV54/10+8frames and opt-in whole10views1920×1080/
-FOV54/twoframes per stage retain exact cameras, lights, TAA/MSAA, open canopy and
-close/far/return cases. Each capture110s outer; original whole mode90s internal.
-Private Xvfb/x11/Forward+/lavapipe/Dummy; root inspects all12images. Staging proves
-visual scope only. Existing ordinary route does not cross120m; ordinary threshold
-traversal/native performance remains NOT_RUN and its900s/outer960s bounds unchanged.
+Selection **2026-11-18 00:20→01:50UTC**,90minutes ALL-IN, closed early at the
+final failure. Latest owner23:37:41 renewal **1/1 substantive correction used**;
+historical1/1 and26.8626971minutes retained. Root's initial mechanical typed-API
+charge was explicitly reclassified under the routine-repair policy, preserving
+both records; this was no new allowance reset. Current/cumulative actual cost
+is in adjacent closeout. Reopening requires fresh owner-authorized substantive
+allowance and a concrete plan removing at least2,380more far triangles while
+retaining all original geometry/topology/visual/runtime/package/cap requirements.
+An identical replay or another label cannot reopen this card.
 
-Clean paired safe exports retain300s internal/360s outer, trusted private template
-preflight; strict WindowsPCKstartup60s/Linuxdirect-extracted300s each exit0/one
-STARTUP_MENU_READY_OK/raw0, exact Linux6members/modes/extractedELF, full equal
-package maps/reviewed delta against2cf0a3f, existing audit9 and eight actual build
-files. Independent FINAL_GO/PACKAGE_GO before accepted integration/push, verified
-source/raw archive and exact owned process/worktree/ref/scratch cleanup. Preserve
-unaccepted Paradox branch. Stop dependents at first unexpected failure; no partial
-merge, threshold/viewport/route cut or blind retry. Every Godot Dummy and isolated;
-hosted CI disabled. Native/human/full-craft/full-game gates remain open.
+Verified archive `/srv/mudds-work/arrow-whole-lod-20261118/records.tar.gz`:
+**12,262,232bytes**,88members,
+SHA256 `801c458a5ccc17364e324c665f0552c930efbda0417a1eeffb261f4aa099afee`.
+All failed source/raw, original archive, contributor probe, accounting history
+and verified complete source bundle remain. Owned processes/worktree/branch/
+scratch removed; remote branch absent; owned root only archive+closeout. Separate
+unaccepted Paradox gunnerc743f585d remains protected. Native/human/fullcraft/
+fullgame gates stay open, hosted CI off. No next card selected.
 
 <a id="cinder-loadmaster-receipt-current"></a>
 
@@ -4040,7 +4030,7 @@ These are selection constraints, **not a list of tasks running in parallel**:
 | [Jovian first kit-delivery caller](docs/history/ROADMAP_DELIVERIES.md#jovian-native-caller-pause-epoch-stop-20261105) | PARKED: observer motion epoch jumps across Resume before walking; no movement defect established | Concrete pause/freshness correction and explicit reprioritization; original limits/cost remain |
 | [Guided flight-observation caller](docs/history/ROADMAP_DELIVERIES.md#guided-flight-observation-stimulus-stop-20261105) | PARKED: requested120px input observed as about150px; exact cause unmeasured | Demonstrated input-unit cause and explicit reprioritization; no renamed retry |
 | [Cinder Light whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#cinder-light-whole-lod-render-stop-20261105) | PARKED: capture timed out without an image; declared internal watchdog missing | Retry request unanswered and11:12:11UTC deadline expired; explicit reprioritization required |
-| [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED: typed mesh-array membership fails on Node3D | Type-safe correction and explicit reprioritization retaining exhausted allowance |
+| [Arrow whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#arrow-whole-lod-typed-membership-stop-20261105) | PARKED7a33796: actual far15,004/50,496triangles(29.713%) exceeds25% | Fresh substantive allowance and a cause-backed reduction of at least2,380fartriangles; full original visual/runtime/package gates and prior cost retained |
 | [Zenith whole-craft LOD](docs/history/ROADMAP_DELIVERIES.md#zenith-modern-lod-census-stop-20261105) | PARKED: ArrayMesh-only method called on BoxMesh | Concrete mesh-type correction and explicit reprioritization retaining exhausted allowance |
 | [Cinder retained-cabin readmission](docs/history/ROADMAP_DELIVERIES.md#cinder-standing-readmission-initial-chair-stop-20261105) | PARKED: initial Navigator chair Interact fails before rejoin | Diagnose that rejection, preserve landing guard, explicitly reprioritize |
 | [Cinder guest egress](docs/history/ROADMAP_DELIVERIES.md#cinder-guest-egress-home-gate-stop-20261105) | PARKED: host home-ramp eligibility fails before guest launch | Satisfy the recorded causal reopening and cumulative-cost conditions |
