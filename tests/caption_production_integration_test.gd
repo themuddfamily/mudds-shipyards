@@ -4,6 +4,8 @@ extends SceneTree
 ## presenter, request-only HUD routing, physics timing and whole-Main re-entry.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const Cinder := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const CrewAuthority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const ISOLATED_STORE_PATH := "memory://caption-production-integration-settings.json"
@@ -205,6 +207,8 @@ func _run() -> void:
 		"HUD rejects non-service lookalikes without mutating the visible presentation"
 	)
 
+	await _test_authoritative_loadmaster_captions(game, hud, audio)
+
 	var parent := game.get_parent()
 	var service_id := int(initial.service_instance_id)
 	var presenter_id := int(initial.presenter_instance_id)
@@ -311,6 +315,65 @@ func _run() -> void:
 	)
 
 	await _finish_fixture(game)
+
+
+func _test_authoritative_loadmaster_captions(game: GameFlow, hud: GameHUD, audio: AudioDirector) -> void:
+	var service := game.get("_caption_presentation_service") as CaptionPresentationService
+	# Retire earlier fixture captions using their normal physics lifetime.
+	service.advance_physics(30.0)
+	var craft := Cinder.new()
+	game.add_child(craft)
+	await process_frame
+	var authority := CrewAuthority.new(1)
+	_check(bool(authority.register_cinder_roster().accepted) and bool(craft.attach_crew_role_authority(authority).accepted), "caption journey attaches the real Cinder authoritative physical roster")
+	_check(bool(authority.claim(1, 62, &"caption_loadmaster", Cinder.LOADMASTER_STATION_SEAT_ID, CrewAuthority.ROLE_PASSENGER, 1).accepted), "caption journey admits the actual Loadmaster claim")
+	var composition := game.optional_semantic_audio_composition
+	var resident_adapter := composition.get("_cinder_adapter") as Node
+	var previous_craft := composition.get("_cinder_craft") as Node
+	_check(bool(composition.set_sources(craft, game.planetary_cruise_binding).accepted) and composition.get("_cinder_adapter") == resident_adapter, "Main binds the real Cinder to its existing resident adapter and AudioDirector router")
+	var cues: Array[StringName] = []
+	var observe := func(_source: StringName, cue: StringName, _intensity: float, _position: Vector3) -> void:
+		cues.append(cue)
+	audio.semantic_cue_emitted.connect(observe)
+	var accepted_before := int(service.get_state_snapshot().accepted_event_count)
+	var transform_before := craft.transform
+	var result := craft.submit_crew_intent(1, 62, &"caption_loadmaster", &"passenger_cargo_manifest", {
+		"manifest_id": &"cinder_manifest", "route_id": &"dock_04_cargo", "ready": true,
+	}, 2)
+	var receipt := (result.get("effect", {}) as Dictionary).get("receipt", {}) as Dictionary
+	_check(bool(result.get("consumed", false)) and receipt.get("seat_id", &"") == authority.get_assignment(62, &"caption_loadmaster").get("seat_id"), "actual submitted receipt carries the admitted assignment seat")
+	var state := service.get_state_snapshot()
+	var pending := state.get("pending_captions", []) as Array
+	var first_id := StringName((state.get("active_caption", {}) as Dictionary).get("stable_id", &""))
+	var second_id := StringName((pending[0] as Dictionary).get("stable_id", &"")) if pending.size() == 1 else &""
+	_check(cues == [&"cinder_loadmaster_seat_occupied", &"cinder_loadmaster_manifest_ready"] and int(state.accepted_event_count) == accepted_before + 2 and not first_id.is_empty() and not second_id.is_empty() and first_id != second_id, "both real readiness IDs gain distinct fresh admissions through Main's shared service")
+	craft.loadmaster_manifest_intent_accepted.emit(receipt)
+	_check(cues.size() == 2 and int(service.get_state_snapshot().accepted_event_count) == accepted_before + 2, "replaying the same actual receipt admits no cue or caption")
+	_expect_loadmaster_caption(service, hud, "Loadmaster seat occupied", first_id)
+	_expect_loadmaster_caption(service, hud, "Loadmaster manifest ready", second_id)
+	_check(bool(craft.release_crew_role(1, 62, &"caption_loadmaster", Cinder.LOADMASTER_STATION_SEAT_ID, 3, 1).accepted), "normal authoritative Loadmaster release succeeds")
+	_check(cues == [&"cinder_loadmaster_seat_occupied", &"cinder_loadmaster_manifest_ready", &"cinder_loadmaster_released"] and int(service.get_state_snapshot().accepted_event_count) == accepted_before + 3, "normal release admits exactly one released cue and caption")
+	var released_id := StringName((service.get_state_snapshot().active_caption as Dictionary).get("stable_id", &""))
+	craft.loadmaster_manifest_cleared.emit(2, &"role_released")
+	_check(cues.size() == 3 and int(service.get_state_snapshot().accepted_event_count) == accepted_before + 3, "same release notification cannot add another caption")
+	_expect_loadmaster_caption(service, hud, "Loadmaster released", released_id)
+	var manifest := craft.get_loadmaster_manifest_snapshot()
+	var presentation: Dictionary = composition.get_snapshot()
+	_check(not bool(manifest.cargo_transfer_authority) and not bool(manifest.inventory_authority) and not bool(manifest.reward_authority) and not bool(presentation.authority.cargo) and not bool(presentation.authority.movement) and not bool(service.audit().ship_authority) and craft.transform == transform_before and authority.get_assignment(62, &"caption_loadmaster").is_empty(), "caption route retains cargo/reward/movement and helm authority upstream and releases its assignment")
+	audio.semantic_cue_emitted.disconnect(observe)
+	composition.set_sources(previous_craft, game.planetary_cruise_binding)
+	craft.queue_free()
+	await process_frame
+	# Leave an ordinary production caption for the retained-Main lifecycle checks.
+	audio.play_target_destroyed()
+
+
+func _expect_loadmaster_caption(service: CaptionPresentationService, hud: GameHUD, text: String, stable_id: StringName) -> void:
+	var state := service.get_state_snapshot()
+	var active := state.get("active_caption", {}) as Dictionary
+	var report := hud.get_caption_presentation_report()
+	_check(active.get("stable_id", &"") == stable_id and not stable_id.is_empty() and active.get("text", "") == "! " + text and int(active.get("priority", -1)) == 90 and report.get("rendered_text", "") == "! " + text and str(report.get("rendered_category", "")).contains("HIGH") and bool(report.visible), "actual Main HUD displays ! %s with HIGH severity and priority 90" % text)
+	service.advance_physics(float(active.get("remaining_physics_seconds", 0.0)))
 
 
 func _test_paused_settings_preview(game: GameFlow, hud: GameHUD) -> void:

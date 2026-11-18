@@ -5,10 +5,8 @@ const Adapter := preload("res://scripts/audio/cinder_loadmaster_audio_production
 const Flow := preload("res://scripts/game/game_flow.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 
-class MockCinderLoadmasterCraft:
-	extends Node
-	signal loadmaster_manifest_intent_accepted(receipt: Dictionary)
-	signal loadmaster_manifest_cleared(generation: int, reason: StringName)
+const Cinder := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -45,16 +43,22 @@ func _run() -> void:
 	_service = _flow.get("_caption_presentation_service") as CaptionPresentationService
 	_check(_service != null and bool(_hud.get_caption_presentation_report().get("request_sink_bound", false)), "actual HUD uses the single GameFlow-owned caption service")
 	director.semantic_cue_emitted.connect(_flow._on_semantic_audio_cue_emitted)
-	var craft := MockCinderLoadmasterCraft.new()
+	var craft := Cinder.new()
 	root.add_child(craft)
+	await process_frame
+	var authority := Authority.new(1)
+	_check(bool(authority.register_cinder_roster().accepted) and bool(craft.attach_crew_role_authority(authority).accepted), "real Cinder retains authoritative physical roster")
+	_check(bool(authority.claim(1, 62, &"loadmaster", Cinder.LOADMASTER_STATION_SEAT_ID, Authority.ROLE_PASSENGER, 1).accepted), "current loadmaster claim is admitted")
 	var adapter := Adapter.new()
 	root.add_child(adapter)
 	director.semantic_cue_emitted.connect(_on_cue)
 	_check(bool(adapter.attach(craft).get("accepted", false)), "production adapter attaches")
 	_check(bool(director.bind_semantic_audio_source(adapter, &"crew").get("accepted", false)), "AudioDirector binds Cinder as crew source")
-	var receipt := {"seat_id": &"cinder_loadmaster_station", "manifest_generation": 1,
-		"request_sequence": 4, "manifest_id": &"cinder_manifest", "route_id": &"cinder_route", "ready": true}
-	craft.loadmaster_manifest_intent_accepted.emit(receipt)
+	var result := craft.submit_crew_intent(1, 62, &"loadmaster", &"passenger_cargo_manifest", {
+		"manifest_id": &"cinder_manifest", "route_id": &"cinder_route", "ready": true,
+	}, 4)
+	_check(bool(result.get("consumed", false)), "actual authoritative submit supplies the production signal")
+	var receipt := (result.get("effect", {}) as Dictionary).get("receipt", {}) as Dictionary
 	_check(_count(&"cinder_loadmaster_seat_occupied") == 1 and _count(&"cinder_loadmaster_manifest_ready") == 1, "accepted receipt routes once through AudioDirector")
 	_check(_stored_count() == 2 and _visible_text() == "! Loadmaster seat occupied", "accepted receipt displays occupied and retains ready in the shared queue")
 	var foreign := receipt.duplicate(true)
@@ -62,7 +66,7 @@ func _run() -> void:
 	craft.loadmaster_manifest_intent_accepted.emit(foreign)
 	_check(_stored_count() == 2 and _events.size() == 2, "foreign receipt adds neither normalized cue nor caption")
 	_check(bool(adapter.present_rejected({"reason": &"stale_sequence", "request_sequence": 5}).get("accepted", false)), "rejected result is forwarded")
-	craft.loadmaster_manifest_cleared.emit(2, &"role_released")
+	_check(bool(craft.release_crew_role(1, 62, &"loadmaster", Cinder.LOADMASTER_STATION_SEAT_ID, 6, 1).accepted), "normal authoritative release succeeds")
 	_check(_count(&"cinder_loadmaster_rejected") == 1 and _count(&"cinder_loadmaster_released") == 1, "rejected and released cues route once")
 	craft.loadmaster_manifest_intent_accepted.emit(receipt)
 	_check(_count(&"cinder_loadmaster_manifest_ready") == 1, "duplicate accepted receipt remains deduped")
@@ -137,7 +141,8 @@ func _expect_and_expire(text: String) -> void:
 		_visible_text() == "! " + text
 		and (_hud.get_caption_presentation_snapshot().get("caption", {}) as Dictionary).get("text", "") == "! " + text
 		and str(active.get("speaker", "")) == "crew"
-		and int(active.get("priority", -1)) == 90,
+		and int(active.get("priority", -1)) == 90
+		and str(_hud.get_caption_presentation_report().get("rendered_category", "")).contains("HIGH"),
 		"actual HUD displays %s with the existing intensity-promoted severity and shared priority" % text
 	)
 	_service.advance_physics(float(active.get("remaining_physics_seconds", 0.0)))

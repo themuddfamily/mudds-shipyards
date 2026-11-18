@@ -1245,6 +1245,7 @@ func submit_crew_intent(
 		}
 		return ping_result
 	var receipt := {
+		"seat_id": StringName(intent.get("seat_id", &"")),
 		"manifest_id": StringName(normalized.get("manifest_id", &"")),
 		"route_id": StringName(normalized.get("route_id", &"")),
 		"ready": bool(normalized.get("ready", false)),
