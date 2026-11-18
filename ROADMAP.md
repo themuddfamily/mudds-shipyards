@@ -16,15 +16,16 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **5fc94ca** — [Windows ZIP](builds/windows/MuddsShipyards-5fc94ca-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-5fc94ca-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-5fc94ca-linux-x86_64.tar.gz).
-Katana now safely releases its pilot after destruction, waits for a clear owned
-home and returns one healthy same-instance craft with fresh input. Physical
-reboarding/fire/home/exit and healthy return reuse pass; prior mapped damage,
-service and handling remain included. Source16/PCK12/cold3/startup3/maps/audit9
-pass. [Delivery and retained failures](#katana-lifecycle-current).
-[Actual regenerated preview](builds/windows/MuddsShipyards-5fc94ca-katana-lifecycle-preview.png).
+Latest playable checkpoint: **9694a33** — [Windows ZIP](builds/windows/MuddsShipyards-9694a33-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-9694a33-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-9694a33-linux-x86_64.tar.gz).
+Katana now retains a safe home preference across committed, refused/retried and
+interrupted writes. Fresh processes start supported on foot without helm authority;
+ordinary physical reboarding and existing combat/service/lifecycle remain intact.
+Source18/PCK14/strictstartup3/maps/audit9 pass. Main stays15craft/15homes.
+[Delivery and retained history](#katana-cold-recovery-current).
+[Reference preview](builds/windows/MuddsShipyards-9694a33-katana-reference-preview.png)
+is copied unchanged from accepted5fc94ca; no new rendering qualification.
 
 Katana's accepted current-pilot/once-only480m24/.38 pulse, measured braking
 advantage and weaker turning/boost remain included. [Card6 delivery](#katana-combat-current).
@@ -273,7 +274,60 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Katana card9 — committed/refused/interrupted cold continuation, ACTIVE
+<a id="katana-cold-recovery-current"></a>
+
+### Katana committed, refused and interrupted cold continuation — card9 DONE,9694a33
+
+Accepted source **9694a3310110f32e1337b52bb709dd385d7c185b**, integrated via **062add8a841dba5aff179b4fafa5eedb65791b03**, is contained in pushed Main.
+Fresh checkpoint **9694a33** preserves Katana's named home preference after actual
+pilot use. A fresh process offers honest recovery and starts supported on foot at
+the station, without restoring helm/seat authority, flight pose or damaged hull.
+Normal physical walking/opening/reboarding remains required. Legacy pilot and
+on-foot records remain compatible; replay cannot teleport or reclaim the helm.
+
+Source **18** processes (eight ordinary + eight Katana cold + two Dynamic cold)
+and actual source-isolated Windows-PCK **14** (four ordinary + the same ten cold)
+pass the frozen cases/caps. Every cold process retains its300s cap. Six complete
+normal Main journeys persist clean_shutdown/clean/session_ended; intentional
+cold exits and the owned partial-write kill retain unfinished-session boundaries.
+Committed writer/readers, real temporary-directory refusal/removal/retry and an
+owned process killed after32 flushed invalid temporary bytes preserve the exact
+last accepted primary. Separate readers recover and retry. All unrelated payload
+slots, actual FOV87/tutorial progress/four Titan parcels remain intact. Existing
+Dynamic committed restart behavior and Katana combat/service/lifecycle remain.
+Three named safe-start negative warnings and the deliberate partial-reader JSON
+error are retained as exact reviewed expectations; no unexpected diagnostic is
+accepted, and these cases are not described as raw-zero. The final writer fixture
+fails the old73eec baseline at actual pilot-preference persistence after physical
+helm claim, not compilation or an unavailable API.
+
+Ordinary durations(seconds): `{"packed": {"packed-lifecycle-fixture": 16.455, "packed-main-combat": 198.451, "packed-main-lifecycle": 243.696, "packed-main-service": 186.375}, "source": {"lifecycle-fixture": 22.348, "main-combat": 204.94, "main-lifecycle": 251.91, "main-service": 195.145, "safe-start-policy": 3.336, "safe-start-production": 46.33, "store": 2.785, "store-crash": 6.201}}`.
+Cold group totals(seconds): `{"packed-dynamic": 153.635, "packed-katana": 561.979, "source-dynamic": 166.707, "source-katana": 616.379}`.
+Fresh clean paired exports, strict startup3, complete equal payload maps,
+GameFlow-only production delta, Linux6-member/archive/ELF and ZIP checks, existing
+package audit9 and eight published artifacts pass independent scoped review.
+[Reference appearance](builds/windows/MuddsShipyards-9694a33-katana-reference-preview.png)
+is copied unchanged from accepted5fc94ca (SHA256 `63194b106145b0e246b8066cce775ca8136f81cdf96b33793581fd2950c527b2`);
+this save-only checkpoint claims no new rendering qualification.
+
+Original window **2026-11-18 10:09:56→11:39:56UTC**,90minutes ALL-IN retained.
+Actual through verified cleanup **67.308292minutes**; owner08:57:09 renewal
+**0/1 used**, applied once, with failures/cost preserved. Prior card8's final
+audit finished90.135minutes,8.07seconds over its own window; that historical
+cost/overrun is retained and is not charged again to card9.
+Verified archive `/srv/mudds-work/katana-cold-recovery-20261118/records.tar.gz`: **43757797bytes/387members**,
+SHA256 `490a5326eb33ef69d8b728a2711d0299072ec3702eae82c0a53f07c5f9896dda`. Accepted source is in pushed Main; owned
+branch/worktrees/process cleanup is complete and published hashes verified.
+Unaccepted Paradox gunner remains protected. Main stays15 usable craft/15 occupied
+homes; all14 neighbours and17profiles remain. Cards10–13/full normalized roles/
+hull-service/craft/network/game/all36parents/10phasegates remain OPEN. Actual native
+Windows and mandatory human review remain OWNER-EXCLUDED/NOT_RUN; applicable
+GPU/device/listening/readability gates remain open. CI remains disabled.
+
+<details>
+<summary>Frozen contract and retained intermediate history</summary>
+
+#### Frozen card9 assignment and intermediate validation history (historical)
 
 **Validation checkpoint:** clean candidate9694a3310110f32e1337b52bb709dd385d7c185b
 passes import/syntax/static review and all eight actual Katana source cold cases,
@@ -325,6 +379,9 @@ Root owns all engines/release helpers/integration. No engines in mutable worktre
 Previous card8 delivered before its final documentation push at89.817minutes;
 its additional final verification finished at90.135minutes (8.07s over the90-minute
 window). That overrun is retained in its closeout, not claimed on-budget or reset.
+
+
+</details>
 
 <a id="katana-lifecycle-current"></a>
 
