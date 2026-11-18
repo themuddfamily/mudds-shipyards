@@ -215,6 +215,29 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Station panel shader cold five-view rendering — ACTIVE, acceptance pending
+
+Same unfinished production task, selected **2026-11-18 03:22→04:52 UTC**,
+**90 minutes all-in**, including implementation, review, validation, packaging
+and cleanup. Actual consumer mapping identified the floor material family and
+CabinetStatus scalar material; this candidate preserves native PBR outputs while
+removing redundant constant texture reads for explicitly eligible station sources.
+Source `5f11a7d4d` is implemented and statically reviewed; runtime acceptance is
+pending. Latest owner **03:44:02 renewal: 0/1 used**; prior 01:39:01-renewal
+**1/1 used**, old failed candidate and **68.187 minutes** remain historical.
+
+Prove the original focused binding test, seven station suites and full default
+Titan journey at their original caps, then all five original cold Main views
+within **90 seconds**, actual **1280×720**, FOV60 explicit views and actual
+ship-camera FOV for default chase. Preserve poses, waits, renderer and quality;
+only the historical fleet assertion changes 12→15. Require the same actual
+Windows PCK tests and five views, strict startup checks, paired exports and a
+fresh playable checkpoint before integration. Native hardware and human gates
+stay open. Frozen card and raw records:
+`/srv/mudds-work/station-panel-shader-20261118/`. A partial source or four-view
+result does not deliver this task. Existing failures and exact acceptance caps
+remain binding.
+
 <a id="zenith-modern-lod-current"></a>
 
 ### Zenith modern-airframe LOD integration — DONE,09e0ece
