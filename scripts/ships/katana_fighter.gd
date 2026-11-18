@@ -312,6 +312,8 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 func _commit_variant_reset_for_reuse(_context: Dictionary) -> void:
 	# HeroShip has already closed access and reset its own rig under the one
 	# accepted transaction. Restore the separate solid frame without reparenting.
+	# Retire captured commands even when no pilot release preceded this reuse.
+	_invalidate_command_delivery(get_command_source())
 	if is_instance_valid(_original_shell):
 		_original_shell.visible = true
 
