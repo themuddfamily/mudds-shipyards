@@ -15799,7 +15799,7 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 	if firing_ship.get_ship_id() == &"predator_provisional":
 		_last_player_shot_result = {"accepted": false, "resolved": false, "reason": &"unarmed"}
 		return
-	if firing_ship.get_ship_id() in [&"paradox_provisional", &"dynamic_provisional"]:
+	if firing_ship.get_ship_id() in [&"paradox_provisional", &"dynamic_provisional", &"katana_provisional"]:
 		# Only a synchronous emission from this physical pilot may enter combat.
 		# Direct callbacks and crew intent cannot mint another primary shot.
 		if not _piloting or _station_seated or not is_instance_valid(player) \
