@@ -24,12 +24,14 @@ const PAGE_FIELDS := [
 	["yaw_speed_degrees", "roll_speed_degrees", "brake_acceleration", "passive_drag"],
 	["boost_multiplier", "landing_maximum_speed", "engine_start_time", "weapon_cooldown"],
 	["throttle_response", "flight_assist_strength", "visual_bank_degrees", "maximum_mouse_turn_degrees"],
+	[],
 ]
 const PAGE_HEADERS := [
-	"RATED 1/4 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
-	"RATED 2/4 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
-	"RATED 3/4 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
-	"RATED 4/4 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
+	"RATED 1/5 RAW/IDX 0..1 | SPEED m/s HULL pt BOOST m/s THRUST m/s2 | INTERACT:NEXT",
+	"RATED 2/5 RAW/IDX 0..1 | YAW deg/s ROLL deg/s BRAKE m/s2 DRAG m/s2 | INTERACT:NEXT",
+	"RATED 3/5 RAW/IDX 0..1 | THRUSTx LAND m/s SPOOL s RATED COOLDOWN s | INTERACT:NEXT",
+	"RATED 4/5 THROTTLE 1/s RAW/IDX 0..1 | FEEL RAW: ASSIST 1/s BANK deg MOUSE deg | INTERACT:NEXT",
+	"COLLISION 5/5 | SPAN m HEIGHT m LENGTH m | RAW/IDX 0..1 | INTERACT:NEXT",
 ]
 
 var _rated_page := -1
@@ -110,9 +112,18 @@ func present_fleet_snapshot(snapshot: Dictionary, advance_page: bool = false) ->
 				return {"accepted": false, "reason": &"invalid_rated_budget"}
 			var fields: Dictionary = budget.fields
 			var cells := PackedStringArray()
-			for axis: String in PAGE_FIELDS[proposed_page]:
-				var field: Dictionary = fields[axis]
-				cells.append(str(field.raw) if field.direction == "undirected" else "%s/%.3f" % [str(field.raw), field.normalized])
+			if proposed_page == 4:
+				var footprint: Dictionary = budget.footprint
+				if footprint.status == "MEASURED":
+					for axis: String in FleetRatedBudget.FOOTPRINT_AXES:
+						var field: Dictionary = footprint.fields[axis]
+						cells.append("%.3f/%.3f" % [field.raw, field.normalized])
+				else:
+					cells = PackedStringArray([str(footprint.status), str(footprint.status), str(footprint.status)])
+			else:
+				for axis: String in PAGE_FIELDS[proposed_page]:
+					var field: Dictionary = fields[axis]
+					cells.append(str(field.raw) if field.direction == "undirected" else "%s/%.3f" % [str(field.raw), field.normalized])
 			line = "%-18s %-12s %s" % [_display_name(String(display_name_raw)), String(state).to_upper(), "  ".join(cells)]
 		lines.append(line)
 	if rated:
@@ -157,8 +168,13 @@ func _valid_rated_budget(value: Variant, ship_id: String) -> bool:
 			return false
 	if str(budget.ship_id) != ship_id or str(budget.qualification) != "NOT_QUALIFIED":
 		return false
+	if not _valid_footprint(budget.get("footprint"), ship_id):
+		return false
+	var expected_missing := FleetRatedBudget.MISSING_DIMENSIONS.duplicate()
+	if budget.footprint.status == "MEASURED":
+		expected_missing.erase("collision_footprint")
 	var missing: Variant = budget.get("missing_dimensions")
-	if not missing is Array or missing != FleetRatedBudget.MISSING_DIMENSIONS:
+	if not missing is Array or missing != expected_missing:
 		return false
 	var fields: Variant = budget.get("fields")
 	if not fields is Dictionary or fields.size() != FleetRatedBudget.FIELD_SPECS.size():
@@ -191,6 +207,56 @@ func _valid_rated_budget(value: Variant, ship_id: String) -> bool:
 			var expected := raw / (1.0 + raw) if spec[1] == "benefit" else 1.0 / (1.0 + raw)
 			if absf(float(normalized) - expected) > 0.000000000001:
 				return false
+	return true
+
+
+func _finite_number(value: Variant) -> bool:
+	return (value is float or value is int) and is_finite(float(value))
+
+
+func _valid_footprint(value: Variant, ship_id: String) -> bool:
+	if not value is Dictionary:
+		return false
+	var footprint: Dictionary = value
+	for key: String in ["status", "reason", "source"]:
+		if not footprint.get(key) is String:
+			return false
+	if footprint.source != FleetRatedBudget.FOOTPRINT_SOURCE:
+		return false
+	if footprint.status in ["UNKNOWN", "UNAVAILABLE"]:
+		var reasons := ["live_craft_not_supplied"] if footprint.status == "UNKNOWN" else ["live_craft_unavailable", "live_definition_identity_mismatch", "root_transform_not_proper_rigid", "enabled_shape_unavailable", "enabled_shape_transform_invalid", "enabled_shape_unsupported_or_empty", "no_enabled_root_shapes"]
+		return footprint.size() == 3 and footprint.reason in reasons
+	if footprint.status != "MEASURED" or footprint.size() != 7 or footprint.reason != "complete_enabled_root_union" or not footprint.get("ship_id") is String or footprint.ship_id != ship_id:
+		return false
+	var count: Variant = footprint.get("shape_count")
+	if not _finite_number(count) or float(count) <= 0.0 or float(count) != floor(float(count)):
+		return false
+	var bounds: Variant = footprint.get("local_bounds")
+	if not bounds is Dictionary or bounds.size() != 2:
+		return false
+	for key: String in ["position", "size"]:
+		var vector: Variant = bounds.get(key)
+		if not vector is Dictionary or vector.size() != 3:
+			return false
+		for axis: String in ["x", "y", "z"]:
+			if not _finite_number(vector.get(axis)) or (key == "size" and float(vector[axis]) <= 0.0):
+				return false
+	var fields: Variant = footprint.get("fields")
+	if not fields is Dictionary or fields.size() != 3:
+		return false
+	var coordinates := ["x", "y", "z"]
+	for index in 3:
+		var field: Variant = fields.get(FleetRatedBudget.FOOTPRINT_AXES[index])
+		if not field is Dictionary or field.size() != 6:
+			return false
+		if field.get("unit") != "m" or field.get("direction") != "cost" or field.get("source") != FleetRatedBudget.FOOTPRINT_SOURCE:
+			return false
+		for key: String in ["raw", "unit_scale", "normalized"]:
+			if not _finite_number(field.get(key)):
+				return false
+		var raw := float(field.raw)
+		if raw <= 0.0 or field.unit_scale != 1.0 or raw != float(bounds.size[coordinates[index]]) or absf(float(field.normalized) - 1.0 / (1.0 + raw)) > 0.000000000001:
+			return false
 	return true
 
 

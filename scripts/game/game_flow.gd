@@ -9837,7 +9837,7 @@ func _build_fleet_registry_snapshot() -> Dictionary:
 			"display_name": candidate.get_display_name(),
 			"berth_id": candidate.get_home_berth_id(),
 			"state": state,
-			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition()).get_snapshot(),
+			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate).get_snapshot(),
 		})
 	rows.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
 		return String(first.get("ship_id", "")) < String(second.get("ship_id", ""))
