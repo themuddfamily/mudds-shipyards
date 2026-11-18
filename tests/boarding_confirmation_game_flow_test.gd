@@ -14,6 +14,7 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await physics_frame
+	_test_boarding_budget_admission(game)
 	game.canopy_motion_time = 0.0
 	game.boarding_motion_time = 0.0
 	game.start_shift()
@@ -69,6 +70,7 @@ func _run() -> void:
 		"real production board reaches the pilot seat",
 	)
 	_check(_presented_state(game) == &"seated", "successful production board reaches the seated bridge state")
+	_check((game.call("get_boarding_time_budget_source", ship) as Dictionary).is_empty(), "direct fixture boarding cannot manufacture a real physical-E timing observation")
 	_check(
 		area.is_reserved() and area.get_reservation_token() == player,
 		"successful bridge observation preserves ShipBoardingArea's exact token authority",
@@ -297,3 +299,50 @@ func _choice_authority_snapshot(game: GameFlow, craft: HeroShip) -> Dictionary:
 		"save_generation": store.get_generation() if store != null else -1,
 		"save_commit": store.get_commit_metadata() if store != null else {},
 	}.duplicate(true)
+
+
+func _test_boarding_budget_admission(game: GameFlow) -> void:
+	var torrent := game.ship as HeroShip
+	_check((game.call("get_boarding_time_budget_source", torrent) as Dictionary).is_empty(), "observer starts without a numeric interval")
+	_check(bool(game.call("_boarding_budget_default_home", torrent)), "fresh default healthy Torrent qualifies at its occupied home before input")
+	var original_time := game.boarding_motion_time
+	game.boarding_motion_time = 0.0
+	_check(not bool(game.call("_boarding_budget_default_home", torrent)), "shortened fixture handoff cannot qualify")
+	game.boarding_motion_time = original_time
+	var original_canopy: bool = torrent.get("_canopy_open")
+	torrent.set("_canopy_open", true)
+	_check(not bool(game.call("_boarding_budget_default_home", torrent)), "already open canopy cannot qualify")
+	torrent.set("_canopy_open", original_canopy)
+	var hull: float = torrent.get("_hull")
+	torrent.set("_hull", hull - 1.0)
+	_check(not bool(game.call("_boarding_budget_default_home", torrent)), "damaged craft cannot qualify")
+	torrent.set("_hull", hull)
+	var original_pose := torrent.global_transform
+	torrent.global_position += Vector3.RIGHT
+	_check(not bool(game.call("_boarding_budget_default_home", torrent)), "nonhome pose cannot qualify")
+	torrent.global_transform = original_pose
+	game.set("_network_session_mode", &"server")
+	_check(not bool(game.call("_boarding_budget_default_home", torrent)), "network ownership cannot qualify the offline interval")
+	game.set("_network_session_mode", &"")
+	var original_scale := Engine.time_scale
+	Engine.time_scale = 2.0
+	_check(not bool(game.call("_boarding_budget_default_home", torrent)), "altered time scale cannot qualify")
+	Engine.time_scale = original_scale
+	var other := game.get_node("ArrowReconShip") as HeroShip
+	_check(not bool(game.call("_boarding_budget_default_home", other)) and (game.call("get_boarding_time_budget_source", other) as Dictionary).is_empty(), "other craft remain unobserved for this Torrent-only member")
+	game.set("_boarding_budget_pending", {"craft_instance_id": torrent.get_instance_id(), "player_instance_id": game.player.get_instance_id(), "transition_generation": -1})
+	_check(not bool(game.call("_boarding_budget_pending_is_current")), "stale transaction cannot retain a pending observation")
+	game.set("_boarding_budget_pending", {})
+	# Component-only lifetime probes seed no MEASURED result. They exercise the
+	# retirement callbacks without substituting for the ordinary E journey.
+	var identity := torrent.get_instance_id()
+	game.set("_boarding_budget_receipts", {identity: {"lifecycle_generation": -1}})
+	game.call("_retire_boarding_budget_reset", identity)
+	_check((game.get("_boarding_budget_receipts") as Dictionary).is_empty(), "a true component-life mismatch retires the old observation")
+	game.set("_boarding_budget_receipts", {identity: {"lifecycle_generation": -1}})
+	game.call("_boarding_budget_destroyed", Vector3.ZERO, Vector3.ZERO, identity)
+	_check((game.get("_boarding_budget_receipts") as Dictionary).is_empty(), "destruction retires only its craft lifetime observation")
+	game.set("_boarding_budget_receipts", {identity: {"lifecycle_generation": -1}})
+	game.call("_clear_boarding_budget_lifetime", identity)
+	_check((game.get("_boarding_budget_receipts") as Dictionary).is_empty(), "tree lifetime retirement cannot leave a completed observation")
+	_check((game.call("get_boarding_time_budget_source", torrent) as Dictionary).is_empty(), "refused qualification and cancelled observation never publish seconds")

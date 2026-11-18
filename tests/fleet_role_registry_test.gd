@@ -63,6 +63,7 @@ func _run() -> void:
 	_check_rated_budgets()
 	_check_literal_footprint()
 	_check_pilot_budget_detachment()
+	_check_boarding_budget()
 	var report: Dictionary = Registry.audit_definitions(DEFINITIONS)
 	_check(bool(report.get("valid", false)), "the nine production definitions satisfy the role registry")
 	_check(int(report.get("craft_count", 0)) == 9, "the role registry audits all nine supported craft")
@@ -489,3 +490,48 @@ func _check_pilot_budget_detachment() -> void:
 	snapshot.pilot_weapon.contexts.combat.fields.damage.raw = 999.0
 	craft.free()
 	_check(resource.get_snapshot() == frozen, "pilot snapshot is frozen after input mutation and craft destruction/free")
+
+
+func _check_boarding_budget() -> void:
+	var definition := DEFINITIONS[0].duplicate(true) as ShipDefinition
+	var craft := LiteralHull.new()
+	craft.ship_definition = definition
+	craft.ship_id = definition.get_ship_id()
+	var ledger := ShipComponentDamage.new()
+	ledger.configure(AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2)), definition.maximum_hull)
+	craft.set("_component_damage", ledger)
+	root.add_child(craft)
+	var observation := {"status": "MEASURED", "source": "ordinary_E_to_settled_pilot", "ship_id": "torrent_provisional",
+		"craft_instance_id": craft.get_instance_id(), "player_instance_id": 123, "transition_generation": 1,
+		"lifecycle_generation": craft.get_component_damage().get_ledger_generation(), "started_usec": 1000000,
+		"settled_usec": 3500000, "seconds": 2.5, "context": {"home_berth_id": "central_berth", "closed_canopy": true,
+			"healthy": true, "offline": true, "default_handoff": true, "fresh_home": true, "input": "physical_E"}}
+	var resource := Registry.create_rated_budget(definition, craft, {}, observation)
+	var budget := resource.get_snapshot()
+	_check(budget.boarding_time.status == "MEASURED" and budget.boarding_time.field.raw == 2.5
+		and budget.boarding_time.field.normalized == 1.0 / 3.5 and not budget.missing_dimensions.has("boarding_time")
+		and budget.qualification == &"NOT_QUALIFIED", "literal resource interval uses seconds/cost index without qualifying remaining role dimensions")
+	_check(RatedBudgetType.valid_boarding_time(JSON.parse_string(JSON.stringify(budget.boarding_time)), "torrent_provisional"), "boarding observation and index survive detached JSON roundtrip")
+	_check(Registry.create_rated_budget(definition, craft).get_snapshot().boarding_time.status == "UNKNOWN", "missing observation never becomes zero seconds")
+	for key: String in observation:
+		for bad: Variant in [null, [], {}, true, INF, NAN]:
+			var malformed := observation.duplicate(true)
+			malformed[key] = bad
+			_check(Registry.create_rated_budget(definition, craft, {}, malformed).get_snapshot().boarding_time.status == "UNAVAILABLE", "heterogeneous boarding observation refuses before conversion: %s" % key)
+	for patch: Dictionary in [{"seconds": 0.0}, {"seconds": -1.0}, {"seconds": 3.0}, {"craft_instance_id": 1}, {"lifecycle_generation": 999}, {"ship_id": "arrow_provisional"}, {"settled_usec": 1000000}]:
+		var malformed := observation.duplicate(true)
+		malformed.merge(patch, true)
+		_check(Registry.create_rated_budget(definition, craft, {}, malformed).get_snapshot().boarding_time.status == "UNAVAILABLE", "inconsistent boarding identity/ticks/interval is unavailable")
+	for key: String in observation.context:
+		var malformed := observation.duplicate(true)
+		malformed.context[key] = false
+		_check(Registry.create_rated_budget(definition, craft, {}, malformed).get_snapshot().boarding_time.status == "UNAVAILABLE", "boarding context requires exact typed qualification: %s" % key)
+	for patch: Dictionary in [{"raw": true}, {"raw": NAN}, {"unit": "ms"}, {"direction": "benefit"}, {"source": "tooltip"}, {"normalized": 0.1}, {"unit_scale": 1000.0}]:
+		var malformed := budget.boarding_time.duplicate(true)
+		malformed.field.merge(patch, true)
+		_check(not RatedBudgetType.valid_boarding_time(malformed, "torrent_provisional"), "whole boarding payload validates raw/index/units/source before presentation")
+	var frozen := resource.get_snapshot()
+	observation.context.healthy = false
+	budget.boarding_time.field.raw = 99.0
+	craft.free()
+	_check(resource.get_snapshot() == frozen, "boarding resource retains detached observation after caller mutation and craft release")

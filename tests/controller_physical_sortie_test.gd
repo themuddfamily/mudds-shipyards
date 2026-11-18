@@ -50,6 +50,8 @@ const FRAME_BUDGET_GRACE := 30
 
 var _failures := PackedStringArray()
 var _assertions := 0
+var _boarding_budget_observer := false
+var _boarding_budget_first_receipt: Dictionary = {}
 var _production_input_route := false
 var _sortie_diagnostics := false
 var _diagnostic_wall_ms := -1
@@ -329,6 +331,7 @@ func _run() -> void:
 		await _run_settings_reentry()
 		return
 	_production_input_route = "--production-input-route" in OS.get_cmdline_user_args()
+	_boarding_budget_observer = _production_input_route and "--boarding-budget-observer" in OS.get_cmdline_user_args()
 	_sortie_diagnostics = _production_input_route and "--sortie-diagnostics" in OS.get_cmdline_user_args()
 	_sortie_timing_sample("boot_begin")
 	var game: GameFlow
@@ -453,18 +456,28 @@ func _run() -> void:
 		and game.boarding_candidate == torrent,
 		"the live proximity system, not a ship-selection shortcut, owns the candidate"
 	)
-	await _tap_physical_joy_button(BUTTON_X)
+	if _production_input_route:
+		_check((game.call("get_boarding_time_budget_source", torrent) as Dictionary).is_empty(), "fresh ordinary Torrent has no observed boarding interval before physical input")
+	if _boarding_budget_observer:
+		await _boarding_budget_key(game, torrent, true)
+	else:
+		await _tap_physical_joy_button(BUTTON_X)
 	_check(
 		await _wait_until(
 			func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES,
 			game.canopy_motion_time + game.boarding_motion_time + 1.0 if _production_input_route else 1.2
 		),
-		"controller X drives the physical canopy, boarding path, and pilot-seat handoff"
+		"physical E drives the authored canopy, boarding path, and pilot-seat handoff" if _boarding_budget_observer else "controller X drives the physical canopy, boarding path, and pilot-seat handoff"
 	)
 	_check(
 		game.get_active_ship() == torrent and torrent.is_piloted() and player.is_seated(),
 		"the same visible player and parked Torrent now share piloting authority"
 	)
+
+	if _production_input_route:
+		_boarding_budget_first_receipt = game.call("get_boarding_time_budget_source", torrent)
+		_check(_boarding_budget_first_receipt.get("status") == "MEASURED" if _boarding_budget_observer else _boarding_budget_first_receipt.is_empty(),
+			"physical E observes actual settled boarding; the unchanged JoyX control remains unmeasured")
 
 	var source := torrent.get_command_source() as LocalShipInputSource
 	var provider: ControllerStateProvider = ControllerInputEvents.new(source) if _production_input_route else ControllerStateProvider.new()
@@ -756,8 +769,124 @@ func _run() -> void:
 			"Boot-to-exit ordinary input route preserves all authored sortie tuning and the default sampler")
 		print("CONTROLLER_PRODUCTION_INPUT_ROUTE: Boot > Begin Shift > same-body sortie > docked exit; one run, not three fresh runs or native controls")
 
+	if _production_input_route:
+		var after_exit: Dictionary = game.call("get_boarding_time_budget_source", torrent)
+		_check(after_exit == _boarding_budget_first_receipt, "ordinary exit preserves the completed interval without applying transition-generation invalidation")
+		if _boarding_budget_observer:
+			var detached := after_exit.duplicate(true)
+			detached.seconds = 0.0
+			if detached.get("context") is Dictionary:
+				detached.context.healthy = false
+			_check((game.call("get_boarding_time_budget_source", torrent) as Dictionary) == _boarding_budget_first_receipt,
+				"consumer mutation cannot change the completed observer receipt")
+			var reached_console := await _boarding_budget_walk_to_console(game, player, world)
+			_check(reached_console, "the same exited player walks the supported station route to the physical fleet terminal")
+			if reached_console:
+				var console := world.get_fleet_registry_console()
+				var presentation_valid := true
+				var snapshot: Dictionary = {}
+				for page in 9:
+					await _boarding_budget_key(game, torrent)
+					var presented: Dictionary = console.call("get_presentation_snapshot")
+					snapshot = presented.last_snapshot
+					presentation_valid = presentation_valid and int(presented.rated_page) == page
+					if page == 8:
+						presentation_valid = presentation_valid and str(presented.screen_text).begins_with("BOARDING 9/9")
+				var measured := 0
+				for row: Dictionary in snapshot.get("rows", []):
+					var timing: Dictionary = row.rated_budget.boarding_time
+					if timing.status == "MEASURED":
+						measured += 1
+						presentation_valid = presentation_valid and row.ship_id == "torrent_provisional" and timing.observation == _boarding_budget_first_receipt
+					else:
+						presentation_valid = presentation_valid and timing.status == "UNKNOWN" and not timing.has("field")
+				_check(presentation_valid and measured == 1 and snapshot.rows.size() == 15, "nine ordinary terminal E pages consume exactly one real Torrent observation and fourteen unknown rows")
+				var path := ""
+				for argument: String in OS.get_cmdline_user_args():
+					if argument.begins_with("--write-rated-snapshot="):
+						path = argument.trim_prefix("--write-rated-snapshot=")
+				var file := FileAccess.open(path, FileAccess.WRITE) if path.is_absolute_path() else null
+				_check(file != null, "post-exit actual console snapshot writes only to the explicit absolute path")
+				if file != null:
+					file.store_string(JSON.stringify(snapshot, "\t"))
+					file.close()
 	await _clean_up(game, provider)
 	_finish()
+
+
+func _boarding_budget_key(game: GameFlow, torrent: HeroShip, observe_pending: bool = false) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = KEY_E
+	event.keycode = KEY_E
+	event.pressed = true
+	Input.parse_input_event(event)
+	await physics_frame
+	await process_frame
+	if observe_pending:
+		_check(game.phase == GameFlow.Phase.BOARDING and (game.call("get_boarding_time_budget_source", torrent) as Dictionary).is_empty(),
+			"real E begins the authored handoff without publishing an intermediate canopy or seat as completion")
+	event = InputEventKey.new()
+	event.physical_keycode = KEY_E
+	event.keycode = KEY_E
+	event.pressed = false
+	Input.parse_input_event(event)
+	await physics_frame
+	await process_frame
+
+
+func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, world: ShipyardWorld) -> bool:
+	var console := world.get_fleet_registry_console()
+	if console == null:
+		return false
+	# Reuse the existing Arrow-route north lane, outside the transfer machinery.
+	var north_rail := world.get_node_or_null(^"ExposedDockLattice/BranchRail/Collision") as CollisionShape3D
+	var cargo := world.get_node_or_null(^"OperationalLattice/Activities/PortBranchCargoLine") as StationOperationsActivity
+	var capsule := player.get_node("PlayerCollision") as CollisionShape3D
+	if north_rail == null or not north_rail.shape is BoxShape3D or cargo == null or not capsule.shape is CapsuleShape3D:
+		return false
+	var radius := (capsule.shape as CapsuleShape3D).radius
+	var rail_shape := north_rail.shape as BoxShape3D
+	var lane := world.to_local(north_rail.to_global(Vector3(0.0, 0.0, rail_shape.size.z * 0.5))).z + radius * 2.0
+	var cargo_front := INF
+	for volume: Dictionary in cargo.get_solid_volume_contract():
+		cargo_front = minf(cargo_front, world.to_local(cargo.to_global((volume.position as Vector3) - (volume.size as Vector3) * 0.5)).z)
+	if not is_finite(lane) or lane + radius >= cargo_front:
+		return false
+	# The east apron is x=-36, outside Arrow's x<=-37.45 collision union.
+	# At z=23.1 the turn clears its aftmost z=22.43 plus the .38m capsule.
+	var local_route: Array[Vector3] = [Vector3(world.to_local(player.global_position).x, -0.02, lane), Vector3(-36.0, -0.02, lane),
+		Vector3(-36.0, -0.02, 23.1), Vector3(-43.0, 0.38, 23.1)]
+	var route: Array[Vector3] = []
+	for waypoint: Vector3 in local_route:
+		route.append(world.to_global(waypoint))
+	for waypoint: Vector3 in route:
+		var distance := (waypoint - player.global_position).slide(Vector3.UP).length()
+		var frames := _frame_budget(distance / player.walk_speed)
+		var arrived := false
+		for frame in frames:
+			if game.station_interaction_candidate == console:
+				_release_physical_joypad()
+				return true
+			if not player.is_control_enabled() or player.is_seated() or player.global_position.y < -1.0:
+				_release_physical_joypad()
+				return false
+			var offset := (waypoint - player.global_position).slide(Vector3.UP)
+			if offset.length() < 0.35:
+				arrived = true
+				break
+			var yaw := player.get_node("CameraYaw") as Node3D
+			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+			var right := forward.cross(Vector3.UP).normalized()
+			var desired := offset.normalized()
+			_set_physical_joy_axis(AXIS_LEFT_X, desired.dot(right))
+			_set_physical_joy_axis(AXIS_LEFT_Y, -desired.dot(forward))
+			await physics_frame
+		_release_physical_joypad()
+		if not arrived:
+			return false
+	await physics_frame
+	await process_frame
+	return game.station_interaction_candidate == console
 
 
 ## External orchestration first runs accessibility_reentry_integration_test's
@@ -1938,7 +2067,7 @@ func _sortie_guidance_sample(kind: String, ship: HeroShip, desired: Vector3, dis
 
 
 func _finish() -> void:
-	var expected := PRODUCTION_INPUT_ASSERTIONS if _production_input_route else EXPECTED_ASSERTIONS
+	var expected := (PRODUCTION_INPUT_ASSERTIONS + (8 if _boarding_budget_observer else 3)) if _production_input_route else EXPECTED_ASSERTIONS
 	if _assertions != expected:
 		_failures.append(
 			"assertion contract drifted: expected %d, observed %d"

@@ -1537,6 +1537,10 @@ func _on_game_flow_tree_exiting() -> void:
 
 
 func _exit_tree() -> void:
+	_boarding_budget_receipts.clear()
+	_boarding_budget_pending.clear()
+	_boarding_budget_pending_scope.clear()
+	_boarding_budget_input.clear()
 	_surface_visit_pending_retirements.clear()
 	_clear_network_halyard_repair_panel()
 	_disconnect_ship_service_consoles()
@@ -5721,6 +5725,10 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if not _boarding_budget_input.is_empty():
+		call_deferred("_retire_boarding_budget_input", int(_boarding_budget_input.serial))
+	if not _boarding_budget_pending.is_empty() and not _boarding_budget_pending_is_current():
+		_boarding_budget_pending.clear()
 	if not _initialized:
 		return
 	# A freed craft is still an Object variant at typed activity boundaries.
@@ -9441,7 +9449,186 @@ func _consume_cinder_bomber_fire_pressed() -> Dictionary:
 ## authority stream and never mutates ship lifecycle state itself.
 ## HeroShip receives wheel events only while piloted. An exact local engineer
 ## instead queues them into that same retained producer before Player zoom.
+var _boarding_budget_input: Dictionary = {}
+var _boarding_budget_input_serial := 0
+var _boarding_budget_pending: Dictionary = {}
+var _boarding_budget_pending_scope: Dictionary = {}
+var _boarding_budget_receipts: Dictionary = {}
+
+
+func _observe_boarding_budget_input(event: InputEvent) -> void:
+	if not event is InputEventKey:
+		if event.is_action_pressed("interact"):
+			_boarding_budget_input.clear()
+		return
+	var key := event as InputEventKey
+	if key.physical_keycode != KEY_E:
+		if key.is_action_pressed("interact"):
+			_boarding_budget_input.clear()
+		return
+	_boarding_budget_input.clear()
+	if key.pressed and not key.echo and key.is_action_pressed("interact"):
+		_boarding_budget_input_serial += 1
+		_boarding_budget_input = {"serial": _boarding_budget_input_serial, "started_usec": Time.get_ticks_usec()}
+
+
+func _retire_boarding_budget_input(serial: int) -> void:
+	if int(_boarding_budget_input.get("serial", -1)) == serial:
+		_boarding_budget_input.clear()
+
+
+func _take_boarding_budget_input() -> Dictionary:
+	var event := _boarding_budget_input
+	_boarding_budget_input = {}
+	if not Input.is_action_just_pressed("interact") or not Input.is_physical_key_pressed(KEY_E):
+		return {}
+	return event
+
+
+func _boarding_budget_healthy(candidate: HeroShip) -> bool:
+	var telemetry := candidate.get_telemetry()
+	return not candidate.is_destroyed() and float(telemetry.hull) == float(telemetry.maximum_hull) \
+		and int(telemetry.components_failed) == 0 and int(telemetry.components_impaired) == 0 \
+		and float(telemetry.component_integrity) == 1.0
+
+
+func _boarding_budget_default_home(candidate: HeroShip) -> bool:
+	if not is_instance_valid(candidate) or candidate != ship or candidate.get_ship_id() != TORRENT_SHIP_ID \
+			or candidate not in ships or not candidate.is_inside_tree() or candidate.is_queued_for_deletion() \
+			or not is_ancestor_of(candidate) or not is_instance_valid(player) or not is_ancestor_of(player) \
+			or player.is_seated() or candidate.is_piloted() or candidate.is_canopy_open() \
+			or not _network_session_mode.is_empty() or (is_instance_valid(network_session) and network_session.is_session_active()) \
+			or not is_equal_approx(Engine.time_scale, 1.0) or not is_equal_approx(canopy_motion_time, 0.65) \
+			or not is_equal_approx(boarding_motion_time, 1.1) or _launch_registered or _sortie_departed_berth \
+			or not _boarding_budget_healthy(candidate) or str(candidate.get_telemetry().engine_state) != "OFFLINE" \
+			or not candidate.velocity.is_zero_approx() or not is_instance_valid(world):
+		return false
+	var home := world.get_berth_node(candidate.get_home_berth_id())
+	return home != null and home.get_occupant() == candidate and home.get_reservation_owner() == candidate \
+		and home.get_reserved_ship_id() == candidate.get_ship_id() \
+		and home.has_valid_lease(candidate, home.get_reservation_token(candidate), candidate.get_ship_id()) \
+		and candidate.global_transform.is_equal_approx(home.get_dock_transform()) \
+		and candidate.global_basis.is_equal_approx(candidate.global_basis.orthonormalized()) \
+		and is_equal_approx(candidate.global_basis.determinant(), 1.0)
+
+
+func _begin_boarding_budget_observation(candidate: HeroShip, event: Dictionary, generation: int) -> void:
+	_boarding_budget_pending.clear()
+	if event.is_empty() or not _boarding_budget_default_home(candidate) or candidate.get_component_damage() == null:
+		return
+	var identity := candidate.get_instance_id()
+	var retained: Dictionary = _boarding_budget_receipts.get(identity, {})
+	if not retained.is_empty():
+		if int(retained.lifecycle_generation) == candidate.get_component_damage().get_ledger_generation():
+			return
+		_boarding_budget_receipts.erase(identity)
+	_boarding_budget_pending = {"status": "MEASURED", "source": "ordinary_E_to_settled_pilot",
+		"ship_id": str(candidate.get_ship_id()), "craft_instance_id": identity,
+		"player_instance_id": player.get_instance_id(), "transition_generation": generation,
+		"lifecycle_generation": candidate.get_component_damage().get_ledger_generation(),
+		"started_usec": int(event.started_usec), "settled_usec": 0, "seconds": 0.0,
+		"context": {"home_berth_id": str(candidate.get_home_berth_id()), "closed_canopy": true,
+			"healthy": true, "offline": true, "default_handoff": true, "fresh_home": true, "input": "physical_E"}}
+	var home := world.get_berth_node(candidate.get_home_berth_id())
+	_boarding_budget_pending_scope = {"home_instance_id": home.get_instance_id(), "lease_token": home.get_reservation_token(candidate),
+		"craft_parent_id": candidate.get_parent().get_instance_id(), "player_parent_id": player.get_parent().get_instance_id()}
+	var lifetime_clear := _clear_boarding_budget_lifetime.bind(identity)
+	if not candidate.tree_exiting.is_connected(lifetime_clear):
+		candidate.tree_exiting.connect(lifetime_clear, CONNECT_ONE_SHOT)
+	var reset_clear := _retire_boarding_budget_reset.bind(identity)
+	if not candidate.component_damage_display_changed.is_connected(reset_clear):
+		candidate.component_damage_display_changed.connect(reset_clear)
+	var destroyed_clear := _boarding_budget_destroyed.bind(identity)
+	if not candidate.destroyed.is_connected(destroyed_clear):
+		candidate.destroyed.connect(destroyed_clear)
+
+
+func _clear_boarding_budget_lifetime(identity: int) -> void:
+	_boarding_budget_receipts.erase(identity)
+	if int(_boarding_budget_pending.get("craft_instance_id", -1)) == identity:
+		_boarding_budget_pending.clear()
+
+
+func _retire_boarding_budget_reset(identity: int) -> void:
+	var candidate := instance_from_id(identity) as HeroShip
+	if not is_instance_valid(candidate) or candidate.get_component_damage() == null:
+		_clear_boarding_budget_lifetime(identity)
+		return
+	var generation := candidate.get_component_damage().get_ledger_generation()
+	var retained: Dictionary = _boarding_budget_receipts.get(identity, {})
+	if (not retained.is_empty() and int(retained.lifecycle_generation) != generation) \
+			or (int(_boarding_budget_pending.get("craft_instance_id", -1)) == identity and int(_boarding_budget_pending.get("lifecycle_generation", -1)) != generation):
+		_clear_boarding_budget_lifetime(identity)
+
+
+func _boarding_budget_destroyed(_position: Vector3, _velocity: Vector3, identity: int) -> void:
+	_clear_boarding_budget_lifetime(identity)
+
+
+func _boarding_budget_home_is_current(candidate: HeroShip) -> bool:
+	if _boarding_budget_pending_scope.is_empty() or not is_instance_valid(candidate) or not is_instance_valid(player) or not is_instance_valid(world):
+		return false
+	var home := instance_from_id(int(_boarding_budget_pending_scope.home_instance_id)) as ShipBerth
+	return is_instance_valid(home) and world.get_berth_node(candidate.get_home_berth_id()) == home \
+		and home.get_occupant() == candidate and home.get_reservation_owner() == candidate \
+		and home.has_valid_lease(candidate, _boarding_budget_pending_scope.lease_token, candidate.get_ship_id()) \
+		and candidate.global_transform.is_equal_approx(home.get_dock_transform()) and candidate.velocity.is_zero_approx() \
+		and candidate.get_parent().get_instance_id() == int(_boarding_budget_pending_scope.craft_parent_id) \
+		and player.get_parent().get_instance_id() == int(_boarding_budget_pending_scope.player_parent_id) \
+		and str(candidate.get_telemetry().engine_state) == "OFFLINE" \
+		and _network_session_mode.is_empty() and (not is_instance_valid(network_session) or not network_session.is_session_active()) \
+		and is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(canopy_motion_time, 0.65) and is_equal_approx(boarding_motion_time, 1.1)
+
+
+func _boarding_budget_pending_is_current() -> bool:
+	if _boarding_budget_pending.is_empty() or not is_instance_valid(active_ship) or not is_instance_valid(player):
+		return false
+	return int(_boarding_budget_pending.craft_instance_id) == active_ship.get_instance_id() \
+		and int(_boarding_budget_pending.player_instance_id) == player.get_instance_id() \
+		and int(_boarding_budget_pending.transition_generation) == _transition_generation \
+		and _is_transition_current(_transition_generation, active_ship, Phase.BOARDING) \
+		and active_ship.get_component_damage() != null \
+		and int(_boarding_budget_pending.lifecycle_generation) == active_ship.get_component_damage().get_ledger_generation() \
+		and _boarding_budget_home_is_current(active_ship) and _boarding_budget_healthy(active_ship) and _network_session_mode.is_empty() \
+		and str(active_ship.get_telemetry().engine_state) == "OFFLINE" \
+		and is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(canopy_motion_time, 0.65) and is_equal_approx(boarding_motion_time, 1.1)
+
+
+func _finish_boarding_budget_observation(candidate: HeroShip, generation: int) -> void:
+	if _boarding_budget_pending.is_empty():
+		return
+	var observation := _boarding_budget_pending
+	_boarding_budget_pending = {}
+	if generation != int(observation.transition_generation) or generation != _transition_generation \
+			or phase != Phase.START_ENGINES or _transition_busy or not _piloting or active_ship != candidate \
+			or candidate.is_canopy_open() or not candidate.is_piloted() or not player.is_seated_at(candidate.get_pilot_seat_anchor()) \
+			or int(observation.player_instance_id) != player.get_instance_id() or not _boarding_budget_healthy(candidate) or not _boarding_budget_home_is_current(candidate) \
+			or candidate.get_component_damage() == null or int(observation.lifecycle_generation) != candidate.get_component_damage().get_ledger_generation() \
+			or not _network_session_mode.is_empty() or not is_equal_approx(Engine.time_scale, 1.0):
+		return
+	observation.settled_usec = Time.get_ticks_usec()
+	observation.seconds = float(int(observation.settled_usec) - int(observation.started_usec)) / 1000000.0
+	if FleetRatedBudget.valid_boarding_observation(observation, str(candidate.get_ship_id())):
+		_boarding_budget_receipts[candidate.get_instance_id()] = observation.duplicate(true)
+
+
+## A completed interval survives normal exit so the physical fleet terminal can
+## read it. Reads neither advance timers nor mutate the retained observation.
+func get_boarding_time_budget_source(candidate: HeroShip) -> Dictionary:
+	if not is_inside_tree() or is_queued_for_deletion() or not is_instance_valid(candidate) or candidate != ship or candidate not in ships \
+			or not candidate.is_inside_tree() or candidate.is_queued_for_deletion() or candidate.is_destroyed() \
+			or candidate.get_parent() != self or not is_instance_valid(player) or player.get_parent() != self \
+			or candidate.get_component_damage() == null:
+		return {}
+	var observation: Dictionary = _boarding_budget_receipts.get(candidate.get_instance_id(), {})
+	if observation.is_empty() or int(observation.player_instance_id) != player.get_instance_id() \
+			or int(observation.lifecycle_generation) != candidate.get_component_damage().get_ledger_generation():
+		return {}
+	return observation.duplicate(true)
+
+
 func _input(event: InputEvent) -> void:
+	_observe_boarding_budget_input(event)
 	if is_instance_valid(_network_engineer_client_seat) and is_instance_valid(_network_engineer_source) \
 			and event is InputEventMouseButton and event.pressed \
 			and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
@@ -9837,7 +10024,7 @@ func _build_fleet_registry_snapshot() -> Dictionary:
 			"display_name": candidate.get_display_name(),
 			"berth_id": candidate.get_home_berth_id(),
 			"state": state,
-			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate, get_pilot_weapon_budget_source(candidate)).get_snapshot(),
+			"rated_budget": FleetRoleRegistry.create_rated_budget(candidate.get_ship_definition(), candidate, get_pilot_weapon_budget_source(candidate), get_boarding_time_budget_source(candidate)).get_snapshot(),
 		})
 	rows.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
 		return String(first.get("ship_id", "")) < String(second.get("ship_id", ""))
@@ -10118,6 +10305,7 @@ func _try_launch_armed_heavy_breach() -> bool:
 
 
 func _on_interact_requested() -> void:
+	var boarding_budget_event := _take_boarding_budget_input()
 	if _aurora_expedition.is_active() and _aurora_expedition.interact():
 		return
 	if _rime_expedition.is_active() and _rime_expedition.interact():
@@ -10208,7 +10396,9 @@ func _on_interact_requested() -> void:
 	# selected here and there is no walk-away-and-back-again cost.
 	if phase == Phase.IN_FLIGHT_CABIN and boarding_candidate != _cabin_ship:
 		return
-	_board_ship(boarding_candidate)
+	if not _boarding_budget_default_home(boarding_candidate):
+		boarding_budget_event.clear()
+	_board_ship(boarding_candidate, boarding_budget_event)
 
 
 ## These fields stage a physical handoff; the existing role ledger remains the
@@ -11273,7 +11463,7 @@ func _has_current_physical_pilot_approach(candidate: HeroShip) -> bool:
 	return true
 
 
-func _board_ship(candidate: HeroShip = null) -> void:
+func _board_ship(candidate: HeroShip = null, boarding_budget_event: Dictionary = {}) -> void:
 	if _transition_busy or not is_inside_tree() or is_queued_for_deletion() \
 			or not is_instance_valid(candidate) or candidate.is_queued_for_deletion() \
 			or not candidate.is_inside_tree() or not is_ancestor_of(candidate) \
@@ -11318,13 +11508,13 @@ func _board_ship(candidate: HeroShip = null) -> void:
 				2.6
 			)
 		return
-	_board_ship_locally(candidate, candidate_area)
+	_board_ship_locally(candidate, candidate_area, boarding_budget_event)
 
 
 ## Everything boarding a craft does locally, once the seat is this player's to
 ## take: offline play reaches it directly, a host reaches it directly, and a
 ## client reaches it only through the ledger's confirmation.
-func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) -> void:
+func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea, boarding_budget_event: Dictionary = {}) -> void:
 	var preserving_recovery_activity := candidate == _solo_safe_recovery_boarding_ship
 	# Capture the previous active hull before the boarding handoff replaces it.
 	# Taking this same craft home from a current away berth continues its sortie.
@@ -11399,6 +11589,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	_transition_busy = true
 	_capture_solo_safe_recovery_context()
 	var transition_generation := _begin_transition_generation()
+	_begin_boarding_budget_observation(candidate, boarding_budget_event, transition_generation)
 	_remember_boarding_confirmation_reservation(
 		candidate_area, player, transition_generation
 	)
@@ -11504,6 +11695,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	audio.set_on_foot(false)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_finish_boarding_budget_observation(candidate, transition_generation)
 	_publish_network_crew_role_status()
 	_capture_solo_safe_recovery_context()
 
