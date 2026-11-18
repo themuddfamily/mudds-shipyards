@@ -200,9 +200,17 @@ func get_budget_source(candidate: HeroShip, load_panel: TitanCargoPanel, return_
 	var pair := {"locker": stored, "titan": aboard}
 	var payload := store.get_snapshot()
 	if store.get_loaded_source() != &"primary" or not payload.get(MARKER) is bool or not payload[MARKER] \
-			or not payload.get(SLOT) is Dictionary or (payload[SLOT] as Dictionary).size() != 2 \
-			or not _whole(payload[SLOT].get("locker")) or not _whole(payload[SLOT].get("titan")) \
-			or payload[SLOT] != pair or pair != _last_pair \
+			or not payload.get(SLOT) is Dictionary or (payload[SLOT] as Dictionary).size() != 2:
+		return unavailable
+	var saved_pair: Dictionary = payload[SLOT]
+	for key: String in ["locker", "titan"]:
+		var quantity: Variant = saved_pair.get(key)
+		if quantity is bool or not _whole(quantity) or float(quantity) < 0.0 or float(quantity) > 4.0:
+			return unavailable
+	# UserDataStore installs parsed JSON numbers. Compare validated whole parcel
+	# quantities in the same integer representation as the live authority.
+	var committed_pair := {"locker": int(saved_pair.locker), "titan": int(saved_pair.titan)}
+	if committed_pair != pair or pair != _last_pair \
 			or aboard < 0 or stored < 0 or aboard + stored != 4 \
 			or int(hold.get("used_capacity", -1)) != aboard or int(supply.get("used_capacity", -1)) != stored \
 			or int(hold.get("remaining_capacity", -1)) != int(hold.capacity) - aboard:

@@ -310,6 +310,31 @@ func _budget_projection() -> void:
 		"read-only projection reads real four-parcel authority capacity, not current stock")
 	_check(before == {"store": f.store.get_snapshot(), "generation": f.store.get_generation(), "authority": f.authority.to_dictionary(), "status": custody.status, "available": custody._available},
 		"projection does not reload, retry, transfer, commit or change owner state")
+	var cached: Dictionary = f.store.get_snapshot()
+	var wire: Dictionary = JSON.parse_string(JSON.stringify(cached))
+	f.store.set("_snapshot", wire)
+	_check(wire[TitanCargoCustody.SLOT].locker is float and wire[TitanCargoCustody.SLOT].titan is float
+		and custody.get_budget_source(f.ship, load_panel, return_panel).status == "SOURCED",
+		"actual parsed JSON4.0/0.0 cached quantities preserve the live four-parcel projection")
+	for patch: Dictionary in [{"locker": true}, {"locker": 3.5}, {"locker": -1.0}, {"locker": 5.0}, {"titan": 5.0}, {"titan": INF}, {"titan": NAN}]:
+		var malformed := wire.duplicate(true)
+		malformed[TitanCargoCustody.SLOT].merge(patch, true)
+		f.store.set("_snapshot", malformed)
+		var generation: int = f.store.get_generation()
+		var frozen_authority: Dictionary = f.authority.to_dictionary()
+		var frozen_status: String = custody.status
+		var frozen_bytes := var_to_bytes(malformed)
+		_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE"
+			and var_to_bytes(f.store.get_snapshot()) == frozen_bytes and f.store.get_generation() == generation
+			and f.authority.to_dictionary() == frozen_authority and custody.status == frozen_status,
+			"invalid cached parcel quantity is refused without reload or owner mutation")
+	var false_marker := wire.duplicate(true)
+	false_marker[TitanCargoCustody.MARKER] = false
+	f.store.set("_snapshot", false_marker)
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "UNAVAILABLE"
+		and f.store.get_snapshot() == false_marker, "false initialized marker stays unavailable without a read-side repair")
+	f.store.set("_snapshot", cached)
+	_check(custody.get_budget_source(f.ship, load_panel, return_panel).status == "SOURCED", "restored committed cached pair remains current before later binding negatives")
 	projected.capacity = 99
 	projected.handoff.quantity = 4
 	_check(custody.get_budget_source(f.ship, load_panel, return_panel).capacity == 4 and custody.get_budget_source(f.ship, load_panel, return_panel).handoff.quantity == 1,
