@@ -2,7 +2,20 @@
 
 ## Owner-authorized unfinished-task allowance reset — 2026-11-18
 
-- Latest owner renewal: **2026-11-18 17:44:42 UTC**. Reset every task still
+- Latest owner renewal: **2026-11-18 19:40:26 UTC**. The owner reset every
+  task still unfinished at this renewal to **0 used** against its last positive
+  approved correction limit, or **one** if none was recorded. Include active,
+  parked, failed, blocked and gated tasks; exclude completed tasks. Apply once
+  per unfinished task or shared family, not once per branch, retry or split.
+  Earlier usage remains historical. Preserve failures, archives, actual elapsed
+  costs, dependencies, causal reopening conditions and acceptance gates. Active
+  deadlines and original test/journey caps remain unchanged; resumed parked
+  work requires a fresh bounded all-in window. This does not approve the pending
+  Katana120→180second wait change. Completed Torrent boarding-time, pilot-budget
+  and collision-footprint deliveries are excluded. Record this renewal
+  separately on each selected unfinished task card before consuming it.
+
+- Earlier owner renewal: **2026-11-18 17:44:42 UTC**. Reset every task still
   unfinished at this renewal to **0 used** against its last positive approved
   correction limit, or **one** if none was recorded. Include active, parked,
   failed, blocked and gated tasks; exclude completed tasks. Apply once per

@@ -154,7 +154,27 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 17:44:42 UTC.** Every task still unfinished
+**Latest owner renewal: 2026-11-18 19:40:26 UTC.** Every task still unfinished
+receives **0 corrections used** against its last positive approved correction
+limit, or **one** if none was recorded. This globally supersedes older current
+counts in this roadmap and linked cards for active, parked, failed, blocked and
+gated work. Apply once per unfinished task or shared family; branches, retries
+and splits do not replenish it. Record this renewal separately when selecting a
+task; preserve its historical usage and closeouts.
+
+The unfinished station shader task and Katana card10 family each receive
+**0/1 used**, as do other unfinished tasks with an approved limit of one.
+Completed Torrent boarding-time, pilot-budget, collision-footprint and other
+accepted deliveries are excluded. Preserve failures, source archives, actual
+elapsed costs, dependencies, causal reopening conditions and acceptance gates.
+Active deadlines and original test/journey caps remain unchanged; resumed
+parked work requires a fresh bounded all-in window. The pending Katana
+120→180second completion-wait proposal remains unapproved. This reset starts no
+tests or retries and declares no task passed or ready.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 17:44:42 UTC.** Every task still unfinished
 receives **0 corrections used** against its last positive approved correction
 limit, or **one** if none was recorded. This applies globally to active, parked,
 failed, blocked and gated work, superseding older current counts in this roadmap
@@ -174,8 +194,6 @@ Preserve failures, archives, actual elapsed costs, dependencies, causal reopenin
 conditions and acceptance gates. Active deadlines and original test/journey caps
 remain unchanged. Resumed parked work requires a fresh bounded all-in window.
 This reset starts no tests or retries and declares no task passed or ready.
-
-Earlier reset history (superseded current counts remain historical):
 
 **Previous owner renewal: 2026-11-18 16:00:18 UTC.** Every unfinished task receives
 **0 corrections used** against its last positive approved correction limit,
