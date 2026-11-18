@@ -16,6 +16,36 @@ var _primary_emission_origin := Vector3.INF
 var _primary_emission_direction := Vector3.ZERO
 
 
+## Retain the shared ledger, stages and radii; only place its five regions on
+## the authored Katana solids. Both pods use the existing engine channel.
+class KatanaComponentDamage:
+	extends ShipComponentDamage
+
+	func _derive_layout(local_bounds: AABB) -> Dictionary:
+		var layout := super._derive_layout(local_bounds)
+		if layout.is_empty(): return layout
+		layout[COMPONENT_FORWARD_HULL].local_position = Vector3(0,1.2,-4)
+		layout[COMPONENT_PORT_WING].local_position = Vector3(-4.9,0.9,4.5)
+		layout[COMPONENT_STARBOARD_WING].local_position = Vector3(4.9,0.9,4.5)
+		layout[COMPONENT_CORE_SYSTEMS].local_position = Vector3(0,2.8,2.6)
+		layout[COMPONENT_ENGINE_BAY].local_position = Vector3(3.4,1.75,4.5)
+		return layout
+
+	func _nearest_component(point: Vector3, candidates: Array[StringName]) -> StringName:
+		if COMPONENT_ENGINE_BAY in candidates and point.is_finite() \
+				and _within_engine_axis(point.y,1.4,2.1):
+			var housing := _within_engine_axis(absf(point.x),2.4,4.4) \
+				and _within_engine_axis(point.z,3.2,5.8)
+			var exhaust := _within_engine_axis(absf(point.x),2.5,4.3) \
+				and _within_engine_axis(point.z,5.8,6.0)
+			if housing or exhaust: return COMPONENT_ENGINE_BAY
+		return super._nearest_component(point,candidates)
+
+	func _within_engine_axis(value: float, minimum: float, maximum: float) -> bool:
+		return (value >= minimum or is_equal_approx(value,minimum)) \
+			and (value <= maximum or is_equal_approx(value,maximum))
+
+
 func can_board_from_landed_approach(actor: PlayerController) -> bool:
 	if not is_boardable() or not is_instance_valid(actor) or not actor.is_inside_tree() \
 			or actor.is_queued_for_deletion() or not actor.is_control_enabled() \
@@ -323,6 +353,11 @@ func _build_ship() -> void:
 	if _built:
 		return
 	_built = true
+	var damage := KatanaComponentDamage.new()
+	damage.name = "ShipComponentDamage"
+	add_child(damage)
+	install_shared_damage_presentation(Vector3(-4.9,1.35,4.5),
+		Vector3(3.4,2.05,4.5),Vector3(0,3.4,2.6),8)
 	collision_layer = PhysicsLayers.SHIP_BODY_LAYER
 	collision_mask = PhysicsLayers.SHIP_BODY_MASK
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
