@@ -179,6 +179,61 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+<a id="cinder-loadmaster-receipt-current"></a>
+
+### Selected — Cinder accepted Loadmaster receipt captions
+
+Goal: existing **COMFORT-CAPTIONS**, [accepted receipt contract](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract).
+Real admitted Loadmaster manifest receipt must carry its authoritative seat ID,
+so existing seat-occupied/manifest-ready captions reach the same adapter/router/
+Director/GameFlow/HUD/one service. Both fresh captions retain literal text and
+HIGH/!/90; duplicate receipt adds none and normal release emits once. No cargo,
+reward, movement, helm or navigator authority is added. This is runtime/component
+capability; ordinary native FIRE/full crew/full COMFORT remain open.
+
+**2026-11-18 00:00:00→01:00:00 UTC,60minutes ALL-IN**, definition frozen before
+00:15. Latest owner23:37:41 renewal0/1; prior1089seconds/18.15minutes, old typing
+failure and missing-template export failure are preserved. The owner renewal
+supplies the exhausted-attempt authorization; the actual packaging cause is now
+addressed by trusted matching4.7.1 release templates provisioned in the private
+export profile before invocation. No product choice or external device is inferred.
+Baselineae89c4baa, latest checkpoint6e15126; branchwork/cinder-loadmaster-receipt-1118,
+ownedroot/worktree `/srv/mudds-work/cinder-loadmaster-receipt-20261118`.
+
+HIGH implementer owns only `scripts/ships/cinder_cargo_hauler.gd` and existing
+`tests/audio/cinder_loadmaster_audio_production_test.gd`,
+`tests/audio/cinder_loadmaster_audio_router_integration_test.gd`,
+`tests/caption_production_integration_test.gd`. The admitted intent supplies seat ID;
+raw client payload does not. No adapter change is needed. Independent HIGH review;
+root engines/release/Git/docs/cleanup, no nested agents. Preserve current Main and
+all later accepted Light/Dynamic content. No validator/schema/protocol/save changes.
+
+Each complete default source fixture below runs with fresh isolated profile,
+300s existing runner cap, exit0/one exact marker/no unexpected diagnostics and
+source/cache/HEAD/clean guards. Repeat all five exact committed fixtures against
+the actual Windows PCK from blank source-isolated directories with only an entry
+isolation guard added. The Main-caption fixture runs alone; other cases may pair.
+
+| Case | Ordinary component actions / expected endpoint | Actual |
+| --- | --- | --- |
+| `tests/audio/cinder_loadmaster_audio_production_test.gd` | Seal roster, claim, submit actual manifest, reject client seat spoof; both cues, duplicate suppression, release once and reattach/voice ceiling; `CINDER_LOADMASTER_AUDIO_PRODUCTION_TEST:` | NOT_RUN |
+| `tests/audio/cinder_loadmaster_audio_router_integration_test.gd` | Actual Cinder submit through production adapter/router; preserve all priority/budget/teardown cases; `CINDER_LOADMASTER_AUDIO_ROUTER_INTEGRATION_TEST:` | NOT_RUN |
+| `tests/caption_production_integration_test.gd` | Preserve full real-Main/service/settings/queue/OFF/re-entry cases; actual receipt produces two fresh exact captions, duplicate none, normal release once; `CAPTION_PRODUCTION_INTEGRATION_TEST_OK:` | NOT_RUN |
+| `tests/network/network_cinder_loadmaster_manifest_bridge_test.gd` | Preserve all existing receipt bridge compatibility checks; `OK: Cinder loadmaster manifest bridge (` | NOT_RUN |
+| `tests/cinder_loadmaster_cabin_gameplay_test.gd` | Preserve all physical cabin/role/no-authority checks; `CINDER_LOADMASTER_CABIN_GAMEPLAY_TEST_OK:` | NOT_RUN |
+
+Release: existing clean safe paired exporters with private template preflight;
+strict menu startups3(exit0/exactoneSTARTUP_MENU_READY_OK/raw0), exact Linux six
+members/modes/extracted ELF identity, full equal Windows/Linux maps and reviewed
+one-runtime-script delta vs6e15126, existing package audit9 and eight actual
+repository artifacts. Preview is a byte-identical labelled6e15126 reference,
+not new rendered qualification; original receipt contract has no capture gate.
+Independent FINAL_GO/PACKAGE_GO, merge/push and verified archive/owned exact-ref/
+worktree/process/scratch cleanup required. Original300s caps and01:00 deadline
+remain fixed; stop dependents at first unexpected failure, retain raw operands,
+no blind retry/partial merge. Every Godot Dummy/headless or privateXvfb/x11;
+hosted CI disabled. Native/human/audio/full-game gates remain NOT_RUN/open.
+
 <a id="dynamic-cold-recovery-current"></a>
 
 ### Dynamic card 9 cold recovery — DONE, f3cf6bb
