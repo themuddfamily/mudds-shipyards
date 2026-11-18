@@ -215,70 +215,58 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
-### Dynamic gunship actual pilot combat — card6 ACTIVE
+### Dynamic gunship actual pilot combat — card6 PARKED, unmerged f180bbae
 
-Candidate **11e3c0610** implements the Dynamic-only current physical pilot and
-one-use emission guards; runtime acceptance remains pending. Exact old baseline
-control **1d920d1f0** actually accepts a stale callback: source1112, one shot,
-real target health100→50;87.536s/exit143 at the intended rejection assertion,
-all four guards true. First positive foundation stopped at its new reservation
-fixture; test-only real deck/open/reserve/seat/seal correction preserves runtime,
-all cases/caps and current **0/1 substantive corrections used**. Current full
-matrix is running; no new checkpoint or integration is claimed. The complete
-actual Dynamic combat/two-sortie/normal-Quit source journey now passes171.581s,
-exit0/marker1/raw0/all four guards and actual clean_shutdown/clean/session_ended.
-Actual pulse damage, once-only resolution, ownership refusals, heat recovery and
-both original physical sorties pass. The unavailable mid-air foreign reservation
-fixture was moved to the existing supported second boarding; no production or
-acceptance predicate changed. Remaining full source/PCK/package gates stay open.
+Candidate **f180bbaeef499a7e2f167d222c1d127e3a0cfae0** remains unaccepted.
+Its Dynamic/GameFlow current-physical-pilot and single synchronous emission guards
+are archived; Main runtime/latest playable **7801f6b** remain unchanged.
 
-Goal BUILD-SPLIT-DYNAMIC/card6, parents10/11/36; exact adopted specification
-[Dynamic card6](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md). Result: only
-the current physical pilot may emit Dynamic's single pulse, with exactly one
-registered damage resolution; actual controls demonstrate its existing handling
-tradeoffs. This is the whole existing function card, not full-craft qualification.
-Candidate starts accepted1d920d1f0/runtime7801f6b, existing15craft Main,
-Dynamic home/open/ramp/helm/ordinary departure through existing journey. No
-shader candidate, native renderer gate or other parked source is included.
+The baseline control actually accepts a stale callback: source1112, one real shot,
+target health100→50 in87.536s; the expected rejection assertion fails with all
+four source/cache/HEAD/clean guards true. The candidate's full ordinary combat
+journey passes **267.492s**, and full component-service journey **278.310s**,
+each exit0/marker1/raw0/all four guards and actual clean_shutdown/clean/
+session_ended primary. They preserve two physical sorties, third claim and normal
+Quit, and exercise actual50damage/once-only resolution, obstruction/friendly/self/
+miss/ownership refusal, native cadence/heat/recovery and reuse. Measured controllers
+retain Dynamic stronger launch and lower90/121 cruise/boost than Arrow94/132;
+original handling profiles, geometry and pulse definition stay unchanged.
 
-Budget **2026-11-18 03:59:39→05:14:39 UTC,75 minutes ALL-IN**, including readiness
-mapping, implementation, reviews, negative control, all source/PCK checks,
-checkpoint, integration/push/archive/cleanup. Owner03:44:02 renewal applies once
-**0/1 corrections used** (no earlier card6 correction recorded). All historical
-member caps stay fixed. First real unexpected failure stops dependents; cause
-required before sole substantive repair; second failure/deadline parks wholecard.
-Routine compiler/caller/incorrect assertion repairs stay inside same window.
+**Final full Main lifecycle gate fails its original300s cap:** exit124,
+**302.185s including owned-process reap**, marker0, timeout-only diagnostics and
+all four guards true. Destruction, occupied-home refusal, timer regeneration and
+stale controls pass in the prefix; the timeout occurs on the subsequent physical
+station return at waypoint62. Later physical reboarding/reuse/home/normalQuit is
+unperformed for this final run. Current source executes **13 of14 cases:12PASS,
+1TIMEOUT**; full Titan is **NOT_RUN** after the first failure. All9 actual-PCK
+cases, exports/startups/package audit/checkpoint/integration are **NOT_RUN**.
+Earlier11e lifecycle282.722s PASS remains historical and cannot replace this
+failed final gate.
 
-Owner: one HIGH implementer owns scripts/ships/dynamic_gunship.gd,
-scripts/game/game_flow.gd, tests/dynamic_gunship_journey_test.gd and
- tests/fleet_candidate_foundation_test.gd; root integration/checkpoint/docs,
-one HIGH independent reviewer, no nested agents. Shared HeroShip edits forbidden
-unless an exact emission seam is demonstrated and explicitly added before editing.
-No optional HUD/role/story work, ship numbers, weapons, geometry, camera, damage,
-heat, clock, targets' authority, or sibling policy retuning. Existing controls
-and all original cases stay. Dependencies accepted Dynamic cards1–5/7–9, existing
-pulse profile and source1112; no missing owner product decision for card6.
+The final run used four independent silent functional jobs, including three full
+Main profiles, to reduce wall time. Their durations increased; the exact lifecycle
+execution-cost cause was not isolated. Concurrency is recorded as test context,
+not a uniquely proven cause. Reopening requires a demonstrated execution-cost/
+caller correction that preserves the complete original300s lifecycle and all
+other14source/9PCK/package gates. No blind retry, cap extension or partial delivery.
 
-| Case | Initial/action | Expected result |
-| --- | --- | --- |
-| Current seated pulse | Existing full ordinary Main journey boards/starts/departs Dynamic; real held FIRE against registered production target | Actual source1112, only unchanged Bulwark pilot pulse,360m/50damage/.30s; one emitted pulse causes one authoritative hit/health delta; same callback cannot commit twice |
-| Miss/self/friendly/world | Existing real target/physics fixtures and actual registered resolver, plus ordinary pilot miss | Miss produces zero target damage; self/friendly policy refusal and physical world obstruction preserve health; no alternate damage owner |
-| Ownership and stale emission | Direct/stale callback without synchronous emission; unseated/nonpilot/foreign reserved token; explicit crew aim; released/reboarded current claim | No accepted shot or damage/heat/cooldown consumption for ownership refusals; current pilot resumes after legitimate reacquisition; no new crew/navigation authority |
-| Cadence and heat | Hold actual FIRE, observe original tick intervals/heat/status/recovery | Original.30s cadence; inherited.28 heat/shot,.50/s cooling,1s lockout/.35 recovery retained; no shot during cooldown/lockout, usable fire after recovery |
-| Actual handling comparison | Separate production Dynamic/Arrow controller fixtures, initial placement only, real timed start/throttle/boost/brake/yaw/roll | Actual launch/acceleration and settled cruise/boost/yaw/roll show adopted differences; Dynamic90/121/57/91 below Arrow94/132/62/128 for corresponding outcomes, with real startup/brake/neutral behavior; unchanged17-profile14-axis/non-dominance/signatures |
-| Existing full Dynamic scope | Original access identity/transformed, component damage, lifecycle fixture, full two-sortie Main/reboard/home/walk/normalQuit, full service and full destruction/reuse modes | All original cases/endpoints pass with original120/180/300s caps; real primary clean_shutdown/clean/lastsession_ended for Main modes |
-| Shared controls | Complete existing foundation, definitions, role registry/differentiation, shared heat and full default Titan Main | No original case removal or sibling behavior regression; foundation90, definitions120, registry180, differentiation300, heat120, Titan300 |
-| Old negative | Same strengthened actual ownership/refusal route on exact baseline with unchanged300 cap | Actual old dispatch accepts stale/nonpilot pulse where new rejects; specific expected failure, all source/cache/HEAD/clean guards, not a missing-method/compile-only failure |
-| Actual package | Source gates first, then exact relevant Dynamic functions/access/components/lifecycle/full Main/service/lifecycle and full Titan against real Windows PCK from source-empty cwd/path | Same complete cases/caps/assertions, only entry isolation guard and necessary excluded-test immutable constant inlining; exit0/exactone marker/raw0/all4guards; no source fallback |
-| Deliver | Clean paired safe exports/trusted private templates/strictstartup3, equal complete Win/Linux maps/intended delta, existing9predicate audit | Eight actualrepo artifacts EXE/ZIP/notes/preview+LinuxELF/TAR/exportJSON/notes; exact6memberLinux/ZIPbyteidentity; strict --startup-check exit0+exactoneSTARTUP_MENU_READY_OK, original exports300internal360outer and startups60/300/300 |
+Window **2026-11-18 03:59:39→05:14:39UTC,75minutes ALL-IN**. Owner03:44:02
+renewal remains **0/1 substantive corrections used**: source behavior stayed fixed
+through test-only support/open/reserve/seat/seal, supported foreign-claim placement
+and completed-physics heat-observation repairs. The final observer proves exactly
+60 lockout ticks and0.63 resumed heat (.35 recovery +.28 shot); original.30/.28/
+.50/1s/.35 values remain. Every prior caller/sampling failure is retained.
+Cleanup completed after **69.208891minutes**; final documentation/push
+cost is recorded in the adjacent closeout. No task allowance or deadline was reset.
 
-Proof root /srv/mudds-work/dynamic-gunship-combat-20261118, private profiles,
-all Godot Dummy, headless or privateXvfb/explicitx11/independent suite_process
-abort/reap/inputrelease. New geometry/render gate not claimed: unchanged accepted
-Dynamic reference preview may be reused with explicit attribution. NativeWindows/
-GPU/device/listening/human/fullcraft/network/fullgame remain NOT_RUN/open. CI OFF.
-Accepted source merged into pushedmain before exact-tip branch deletion; failed
-unique source bundled/hash-verified before cleanup. No smaller source-only delivery.
+Verified archive `/srv/mudds-work/dynamic-gunship-combat-20261118/records.tar.gz`:
+**68,703,987bytes/379members**, SHA256
+`2ab6d063f32e714c4cdde71d304edb0127c60188e2c877f21d1921c7df588155`.
+All members/source bundle verified before exact-tip local branch and worktree
+cleanup; remote candidate branch was absent. Owned root contains only archive+
+closeout, no engine remains. Protected Paradox gunner local/remote c743 remains.
+Fullcraft/network/nativeGPU/device/listening/human/fullgame gates stay open;
+GitHub CI stays disabled. No automatic successor selected.
 
 ### Station panel shader cold five-view rendering — PARKED, unmerged af5a29888
 

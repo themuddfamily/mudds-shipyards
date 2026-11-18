@@ -36463,3 +36463,56 @@ Source bundle/all members independently verified before exact-tip local branch
 and both worktrees were removed; remote candidate branch was absent. Owned root
 contains only archive+closeout; no owned engine remains. Protected Paradox gunner
 local/remote c743 remains retained. No automatic successor selected; CI stays off.
+
+## Dynamic gunship card6 lifecycle-cap stop — 2026-11-18
+
+Candidate **f180bbaeef499a7e2f167d222c1d127e3a0cfae0** remains unaccepted.
+Its Dynamic/GameFlow current-physical-pilot and single synchronous emission guards
+are archived; Main runtime/latest playable **7801f6b** remain unchanged.
+
+The baseline control actually accepts a stale callback: source1112, one real shot,
+target health100→50 in87.536s; the expected rejection assertion fails with all
+four source/cache/HEAD/clean guards true. The candidate's full ordinary combat
+journey passes **267.492s**, and full component-service journey **278.310s**,
+each exit0/marker1/raw0/all four guards and actual clean_shutdown/clean/
+session_ended primary. They preserve two physical sorties, third claim and normal
+Quit, and exercise actual50damage/once-only resolution, obstruction/friendly/self/
+miss/ownership refusal, native cadence/heat/recovery and reuse. Measured controllers
+retain Dynamic stronger launch and lower90/121 cruise/boost than Arrow94/132;
+original handling profiles, geometry and pulse definition stay unchanged.
+
+**Final full Main lifecycle gate fails its original300s cap:** exit124,
+**302.185s including owned-process reap**, marker0, timeout-only diagnostics and
+all four guards true. Destruction, occupied-home refusal, timer regeneration and
+stale controls pass in the prefix; the timeout occurs on the subsequent physical
+station return at waypoint62. Later physical reboarding/reuse/home/normalQuit is
+unperformed for this final run. Current source executes **13 of14 cases:12PASS,
+1TIMEOUT**; full Titan is **NOT_RUN** after the first failure. All9 actual-PCK
+cases, exports/startups/package audit/checkpoint/integration are **NOT_RUN**.
+Earlier11e lifecycle282.722s PASS remains historical and cannot replace this
+failed final gate.
+
+The final run used four independent silent functional jobs, including three full
+Main profiles, to reduce wall time. Their durations increased; the exact lifecycle
+execution-cost cause was not isolated. Concurrency is recorded as test context,
+not a uniquely proven cause. Reopening requires a demonstrated execution-cost/
+caller correction that preserves the complete original300s lifecycle and all
+other14source/9PCK/package gates. No blind retry, cap extension or partial delivery.
+
+Window **2026-11-18 03:59:39→05:14:39UTC,75minutes ALL-IN**. Owner03:44:02
+renewal remains **0/1 substantive corrections used**: source behavior stayed fixed
+through test-only support/open/reserve/seat/seal, supported foreign-claim placement
+and completed-physics heat-observation repairs. The final observer proves exactly
+60 lockout ticks and0.63 resumed heat (.35 recovery +.28 shot); original.30/.28/
+.50/1s/.35 values remain. Every prior caller/sampling failure is retained.
+Cleanup completed after **69.208891minutes**; final documentation/push
+cost is recorded in the adjacent closeout. No task allowance or deadline was reset.
+
+Verified archive `/srv/mudds-work/dynamic-gunship-combat-20261118/records.tar.gz`:
+**68,703,987bytes/379members**, SHA256
+`2ab6d063f32e714c4cdde71d304edb0127c60188e2c877f21d1921c7df588155`.
+All members/source bundle verified before exact-tip local branch and worktree
+cleanup; remote candidate branch was absent. Owned root contains only archive+
+closeout, no engine remains. Protected Paradox gunner local/remote c743 remains.
+Fullcraft/network/nativeGPU/device/listening/human/fullgame gates stay open;
+GitHub CI stays disabled. No automatic successor selected.
