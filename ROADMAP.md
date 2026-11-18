@@ -160,7 +160,30 @@ Vortex standalone hull/pilot content is included, with [preview](builds/windows/
 
 ### Owner allowance reset — 2026-11-18
 
-**Latest owner renewal: 2026-11-18 13:57:23 UTC.** Every task unfinished at this
+**Latest owner renewal: 2026-11-18 16:00:18 UTC.** Every unfinished task receives
+**0 corrections used** against its last positive approved correction limit,
+or **one** if none was recorded. This supersedes all older current counts in
+this roadmap and linked cards, including active, parked, failed, blocked and
+gated work. Completed tasks are excluded. Apply once per unfinished task;
+branches, retries and task splits do not grant another reset.
+
+The active collision-footprint task receives **0/1 used**; its existing
+**15:24:57→16:54:57 UTC** all-in window remains fixed. The parked Katana card10
+family receives **0/1 used**, shared across10a/10b; its13:57:23 renewal's **1/1**
+is historical. Its pending120→180second completion-wait proposal remains
+unapproved. All other unfinished tasks receive this global reset under their
+existing limits, including shader, Arrow, Utopia, Vortex and Salyut work.
+Completed rated-budget/handling deliveries, Cinder role-choice deliveries and
+Katana cards8/9 remain completed and are excluded.
+
+Preserve prior failures, archives, elapsed costs, dependencies, causal reopening
+conditions and acceptance gates. Active deadlines and original test/journey caps
+remain unchanged. Resumed parked work requires a fresh bounded all-in window.
+This reset starts no automatic tests or retries and declares no task passed.
+
+Earlier reset history (superseded current counts remain historical):
+
+**Previous owner renewal: 2026-11-18 13:57:23 UTC.** Every task unfinished at this
 renewal receives **0 corrections used** against its last positive approved limit,
 or **one** if none was recorded. This globally supersedes older current counts
 in this roadmap and linked task cards, including active, parked, failed, blocked
@@ -339,8 +362,8 @@ special landing overrides. No physics/shape/resource/pose/authority changes.
 Base4487dd8f116b45da0210b4cae4e62baf483d1e8b. Firstmapping **15:24:57UTC**, hard
 all-in **15:24:57→16:54:57UTC,90minutes**, including full implementation/source5/
 PCK5/ten images/exports/review/package/integration/push/archive/worktree-ref-process
-cleanup/docs/finalverification. Retain latest13:57:23 unused **0/1**; no reset from
-newbranch/split. Prior ratedbudget family actual **73.07255108333334minutes**
+cleanup/docs/finalverification. Owner16:00:18 renewal: **0/1 used**; previous
+13:57:23 count0/1 remains historical. No reset from newbranch/split. Prior ratedbudget family actual **73.07255108333334minutes**
 retained/cumulative. Katana's completion-limit decision remains pending, untouched.
 
 Exactly7 existingGDs: Resource, Registryfactory, GameFlow, Console and three

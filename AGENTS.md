@@ -2,7 +2,18 @@
 
 ## Owner-authorized unfinished-task allowance reset — 2026-11-18
 
-- Latest owner renewal: **2026-11-18 13:57:23 UTC**. Reset every task still
+- Latest owner renewal: **2026-11-18 16:00:18 UTC**. Reset every task unfinished at
+  this renewal to **0 used** against its last positive approved correction limit,
+  or **one** if none was recorded. Active, parked, failed, blocked and gated
+  tasks are included; completed tasks are excluded. Apply once per unfinished
+  task. Earlier counts remain historical. Preserve failures, source archives,
+  elapsed costs, acceptance and causal gates, active deadlines and original
+  test/journey caps. Branch changes, retries and task splits do not replenish
+  this renewal. Resumed parked work still requires a fresh bounded all-in window.
+  This resets correction allowances only; it does not approve the pending
+  Katana completion-wait change from120 to180seconds.
+
+- Earlier owner renewal: **2026-11-18 13:57:23 UTC**. Reset every task still
   unfinished at this renewal to **0 used** against its last positive approved
   correction limit, or **one** if none was recorded. Active, parked, failed,
   blocked and gated tasks are included; completed tasks are excluded. Apply once
