@@ -837,12 +837,14 @@ func _boarding_budget_key(game: GameFlow, torrent: HeroShip, observe_pending: bo
 func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, world: ShipyardWorld) -> bool:
 	var console := world.get_fleet_registry_console()
 	if console == null:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "console_missing"})
 		return false
 	# Reuse the existing Arrow-route north lane, outside the transfer machinery.
 	var north_rail := world.get_node_or_null(^"ExposedDockLattice/BranchRail/Collision") as CollisionShape3D
 	var cargo := world.get_node_or_null(^"OperationalLattice/Activities/PortBranchCargoLine") as StationOperationsActivity
 	var capsule := player.get_node("PlayerCollision") as CollisionShape3D
 	if north_rail == null or not north_rail.shape is BoxShape3D or cargo == null or not capsule.shape is CapsuleShape3D:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "rail_cargo_capsule_missing", "rail": str(north_rail), "cargo": str(cargo), "capsule": str(capsule)})
 		return false
 	var radius := (capsule.shape as CapsuleShape3D).radius
 	var rail_shape := north_rail.shape as BoxShape3D
@@ -851,6 +853,7 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 	for volume: Dictionary in cargo.get_solid_volume_contract():
 		cargo_front = minf(cargo_front, world.to_local(cargo.to_global((volume.position as Vector3) - (volume.size as Vector3) * 0.5)).z)
 	if not is_finite(lane) or lane + radius >= cargo_front:
+		_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "lane_clearance", "lane": lane, "radius": radius, "cargo_front": cargo_front})
 		return false
 	# Arrow's +90-degree home yaw rotates its accepted local collision union:
 	# world x ends at -36.07 and world z at21.05. The .38m capsule clears both
@@ -861,15 +864,24 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 	var route: Array[Vector3] = []
 	for waypoint: Vector3 in local_route:
 		route.append(world.to_global(waypoint))
+	var leg := -1
 	for waypoint: Vector3 in route:
+		leg += 1
 		var distance := (waypoint - player.global_position).slide(Vector3.UP).length()
 		var frames := _frame_budget(distance / player.walk_speed)
 		var arrived := false
+		var started_physics := Engine.get_physics_frames()
+		var used_frames := 0
+		var requested_axes := Vector2.ZERO
+		_boarding_budget_walk_diagnostic(game, player, {"event": "LEG_BEGIN", "leg": leg, "target": str(waypoint), "start": str(player.global_position), "distance": distance, "frame_budget": frames, "walk_speed": player.walk_speed})
 		for frame in frames:
+			used_frames = frame + 1
 			if game.station_interaction_candidate == console:
+				_boarding_budget_walk_diagnostic(game, player, {"event": "SUCCESS", "reason": "real_console_candidate", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
 				_release_physical_joypad()
 				return true
 			if not player.is_control_enabled() or player.is_seated() or player.global_position.y < -1.0:
+				_boarding_budget_walk_diagnostic(game, player, {"event": "FAIL", "reason": "actor_control_seat_or_fall", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
 				_release_physical_joypad()
 				return false
 			var offset := (waypoint - player.global_position).slide(Vector3.UP)
@@ -880,15 +892,33 @@ func _boarding_budget_walk_to_console(game: GameFlow, player: PlayerController, 
 			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
 			var right := forward.cross(Vector3.UP).normalized()
 			var desired := offset.normalized()
+			requested_axes = Vector2(desired.dot(right), -desired.dot(forward))
 			_set_physical_joy_axis(AXIS_LEFT_X, desired.dot(right))
 			_set_physical_joy_axis(AXIS_LEFT_Y, -desired.dot(forward))
 			await physics_frame
+		_boarding_budget_walk_diagnostic(game, player, {"event": "LEG_END" if arrived else "FAIL", "reason": "arrived" if arrived else "frame_exhaustion", "leg": leg, "target": str(waypoint), "offset": str(waypoint - player.global_position), "frame_budget": frames, "loop_frames": used_frames, "physics_frames": Engine.get_physics_frames() - started_physics, "requested_axes": str(requested_axes)})
 		_release_physical_joypad()
 		if not arrived:
 			return false
 	await physics_frame
 	await process_frame
+	_boarding_budget_walk_diagnostic(game, player, {"event": "FINAL", "reason": "real_console_candidate" if game.station_interaction_candidate == console else "no_console_candidate"})
 	return game.station_interaction_candidate == console
+
+
+func _boarding_budget_walk_diagnostic(game: GameFlow, player: PlayerController, detail: Dictionary) -> void:
+	var yaw := player.get_node_or_null("CameraRig/CameraYaw") as Node3D
+	var candidate: Node = game.station_interaction_candidate
+	detail.merge({"wall_usec": Time.get_ticks_usec(), "physics_frame": Engine.get_physics_frames(), "process_frame": Engine.get_process_frames(),
+		"position": str(player.global_position), "velocity": str(player.velocity), "on_floor": player.is_on_floor(),
+		"control_enabled": player.is_control_enabled(), "seated": player.is_seated(),
+		"candidate": str(candidate.get_path()) if is_instance_valid(candidate) else "none",
+		"camera_basis": str(yaw.global_basis) if yaw != null else "missing",
+		"actual_joy_axes": str(Vector2(Input.get_joy_axis(0, AXIS_LEFT_X), Input.get_joy_axis(0, AXIS_LEFT_Y))),
+		"actual_player_move_vector": str(Input.get_vector("move_left", "move_right", "move_forward", "move_back")),
+		"move_left_strength": Input.get_action_strength("move_left"), "move_right_strength": Input.get_action_strength("move_right"),
+		"move_forward_strength": Input.get_action_strength("move_forward"), "move_back_strength": Input.get_action_strength("move_back")})
+	print("BOARDING_BUDGET_CONSOLE_WALK_DIAGNOSTIC: ", JSON.stringify(detail))
 
 
 ## External orchestration first runs accessibility_reentry_integration_test's
