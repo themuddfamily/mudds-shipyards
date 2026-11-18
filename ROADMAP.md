@@ -255,6 +255,53 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Katana card8 — destruction, guarded home recall and physical reuse, ACTIVE
+
+Existing BUILD-SPLIT-KATANA/card8, adopted destruction/reset/recall contract.
+Result: actual terminal damage releases pilot/body/control/camera/claim to safe
+supported walking; ordinary timer recovery returns exactly one healthy same
+Katana at its own live home with fresh generations; physically reuse it. Atomic
+reset refusals and healthy ordinary-return reset must preserve the exact occupied
+lease through callbacks, then another usable flight/home/exit must work.
+
+Dependencies cards1–7 accepted, base555c87977/runtime4ad278b. First mapping
+08:39:13UTC is included. Window **2026-11-18 08:39:13→10:09:13UTC,90minutes ALL-IN**:
+mapping/code/review, exact baseline control/import/syntax, all source/PCK/views,
+fresh checkpoint, integration/push, verified archive/process/worktree/branch
+cleanup and finaldocs. Freeze before code. Owner05:27:05 renewal applied once:
+**0/1 substantive corrections used**, approvedlimit1. Preserve original caps;
+real failure stops dependent cases until measured cause; routine caller/compiler
+maintenance stays in this window. No route/cap/physics/geometry/definition/heat/
+health/owner/acceptance waiver, partial source-only delivery or blind retry.
+
+One HIGH implementer owns ONLY scripts/ships/katana_fighter.gd,
+scripts/game/game_flow.gd (newKatana-only guard/binding, existingcoordinator and
+Dynamic/Titan guards untouched) and tests/katana_fighter_journey_test.gd.
+Candidate mirrors accepted Dynamic serial-safe separate-shell retirement/restore,
+retained disabled-rootshape bounds, variant reset fence and healthy exact-home
+landing-lease retention. GameFlow authorizes exactKatana1114/katana_home_berth,
+realbounds/compatibility/capsuleclearance and process-owned matured pending entry
+at both preflight/commit; keep generic receipt/lease/regeneration owner unchanged.
+HeroShip/models/shareddamage/service/visual/audio/network/berths/geometry/profile/
+weapon/registry/storage files are read-only. One HIGH independent reviewer; root
+owns engines/captures/release/docs/integration/cleanup. No nested agents.
+
+| Case | Fixed action and expected result |
+| --- | --- |
+| Occupancy/transition refusal | Actual supported reserved/seatedPlayer and piloted or remote/reservation-only claims reject before state/generation/receipt/lease/camera changes; movingaccess andactivelanding reject. Focusedfixture usespublicphysicalclaim/seat; no syntheticpilotedflag-only positive proof. |
+| Terminal transition | Actualregisteredopponent, nativecadence/heat and realenginehits destroy MainKatana; stopcontrol/fire, releasebody/camera/helm/reservation, supportedwalking samePlayer. Queuedcollider-disable writes must finish before reset can commit; serial-safe delayed hide retires bothsolidShell+cosmeticrig. Fresh reuse survives stalehidecallback, no olddisablewrite disables restored shapes. |
+| Atomic guarded reset | Premature timer, cancelled/mismatched/stale receipt, changed guard, wrongtransform/incompatiblehome, occupied/foreignlease and actualstandingcapsule in destination refuse atomically. Retain rootshape bounds even disabled; exactauthoredhomepose/fit and source/currentness required twice. No fake generation/ledger/clock/input or pendingreadytimestamp writes. |
+| Ordinary regeneration | Actualcompetingpublichomelease holds timer recovery; release permits exactly one same-instance health145/nominal5components/clearcues/OFFLINE/sealed/unpilotedhome craft, freshcomponent/control generations and exact current occupiedlease. No clone/reseed/unownedhome success. Playerphysically walks back, boards/seals, actual2.3sstartup, departs/fires/strict-home/OFFLINE/inside release/full ramp exit; stale oldshot/command/claim cannot act. |
+| Healthy home reuse | StandingrealPlayer inside destination blocks reset, supportedoutside permits it. Originaloccupiedhometoken remainsidentical through BOTHpublicresetcallbacks; nestedresetrefuses. Reset retires completedlanding snapshot without releasinglivelease. Subsequentphysicalboarding/start/departure/fire/strictlanding/OFFLINE/exit usable; departure retiresoldtoken andlanding hasfreshcurrenttoken. |
+| Preserved integration | SamePlayer/capsule/masks/gravity/cameras; all14othercraft/sourceIDs/profiles/poses/settings/currenthomeowners/tokens; all17profiles/7existingroles. Current1114/480m24/.38singlecurrentpilotguard, mapped5component/consequences/home-service remain. Full original route/endpoints and normal UI Quit persist actualclean_shutdown/clean/lastsession_ended; no pose/velocity/time/engine/state forcing after initialfixture setup. Normal production recall/reset movement is observed, not injected by caller. |
+| Exact baseline control | Exactcommitted --lifecycle-fixture120 onaccepted555c base first exercisesactualsupportedreservedseatedpilot resetpreflight. Expect oldpreflight incorrectlyaccepted; fail explicitatomicoccupiedresetrefusal with realreceipt/actor/area/ledger operands before any candidate-only method/property API. No compiler/missingmethod or syntheticdictionary qualifies; all4source/cache/HEAD/clean guards. |
+| Source16 | NewKatana lifecyclefixture120 markerKATANA_LIFECYCLE_FIXTURE_TEST_OK; newfullMainlifecycle300 markerKATANA_LIFECYCLE_MAIN_TEST_OK; Katana components120/Mainservice300/foundation90/accessidentity180/transformed180/Maincombat300; Dynamiclifecyclefixture120/fullMainlifecycle300; existingHeroReset300; definitions120/registry180/differentiation300; unchangeddefaultTitan300; audio_binding180. Alloriginalmarkers/cases/caps retained; exit0/exactone/raw0/all4guards. ALLMainalone, actualcleanprimaries. NewKatana full cap300 fixed now; no oldDynamic360 substitute. |
+| Actual PCK12 | ExactcommittedKatana lifecyclefixture120/Mainlifecycle300/components120/Mainservice300/foundation90/access2×180/Maincombat300, fullDynamicMainlifecycle300, HeroReset300/defaultTitan300/audio_binding180. Source-isolation entryguard/necessaryimmutableTitanconstants only, actualnewWindowsEXE source-empty path/cwd; sameinputs/assertions/caps/markers/4guards and cleanMain endpoints. ALLMainalone. |
+| Incoming cadence | Derive ceil(60/actualopponentcadence) realphysicsdeadline, waitcompletedownerphysics then normalprocessprogress for actualresolverheat. Retainall14 native11damage incoming hits(lastremaining2damage) requiredfor145hull, actualheat/vent polling. No pairedphysics/process-iteration counter pretendingto countticks, no maxphysicssteps/time_scale/weapon/heat forcing. |
+| Three cold views | Separatefreshstandalone nominal/dead/regenerated invocations90each atactual960×540/FOV52/camera(18,13,20)→(0,1.7,0), eightuniquepostdraw events. Realterminalray/damage, actualcollider retirement/delayedshellhide; publicguardedreset and healthyfreshstate/stalehide survival. Onlyphysicspaused afteractualcompletedstagedsnapshot. PrivateXvfb/explicitx11/GLcompat/Dummy/independentabort/reap/inputrelease. RootinspectsallactualPNGs; no Main/nativeGPU/human qualification. |
+| Fresh checkpoint | SourceGO then safe cleanpairedexports300internal/360outer, actualprivate trustedWindows preflight, strictWindows-payload60/Linuxdirect300/extracted300 exit0/exactoneSTARTUP_MENU_READY_OK/raw0, completeequalmaps/intendedKatana+GameFlow-onlyscriptdelta+reviewedmetadata, exactLinux6members/modes/extractedELF/ZIPbytes/existingaudit9/eightrepo-localEXE/ZIP/notes/newregeneratedpreview+LinuxELF/TAR/exportJSON/notes. NoDownloads. |
+| Close | Scopedsource/view/packageGO thenacceptedmerge/push,8actualpublishedhashes, everyretainedraw/sourcearchivememberrehashed before exacttipbranch/ownedWT/processcleanup. Allfailures/elapsedcost/history retained; Paradoxgunnerc743 staysprotected. Katana cold9/network10–11/integrated12/final13/fullnormalizedroles/hull-service/craft/game/36parents/10phasegates remainopen; actualnativeWindows/mandatoryhuman retainowner-excludedNOT_RUN, applicableGPU/device/listening/readabilityopen. CIstaysOFF. |
+
 <a id="katana-components-current"></a>
 
 ### Katana component damage and home service — card7 DONE,4ad278b
