@@ -267,6 +267,35 @@ in pushedmain before exact-tip branch deletion. Owned process/worktree/branch/
 scratch removed; remote task ref absent; root only archive+closeout. Unaccepted
 Paradox gunnerc743 remains protected. No next card selected.
 
+<a id="fleet-audio-reentry-current"></a>
+
+### Shared hero damage-audio re-entry — implementation selected
+
+Existing AUDIO-CONTENT[one identified cue/transition gap], originalparent30.
+Main1bffcf250/checkpoint09e0ece has a confirmed shared production defect:
+ShipAudioRig disconnects its parent damage callback on detach, then retained
+re-entry restores runtime state without restoring the callback. Repair the
+shared rig so damage/degraded/critical/recovery cues keep reaching the same
+current rig once after each whole-hero re-entry. Ship/component/repair authority,
+profile/mix/cue identities and boarding-audio lifecycle stay unchanged.
+
+Window **2026-11-18 01:59→03:14UTC**,75minutes ALL-IN including checks/checkpoint/
+integration/push/cleanup; defaultone correction **0/1 used** until applied.
+Implementer owns only shared rig and existing hero-fleet-audio fixture; independent
+lifecycle review, root execution/release. Test-only old-negative first; then real
+parent damage/repair through two whole-hero detach/re-entry cycles, exactcurrent
+listener/no staleconsumer/oncecues, full6source/5actualPCK fixtures300s each and
+pairedcheckpoint/startup3/maps/audit9/eightfiles. Complete frozen commands/cases
+are in `/srv/mudds-work/fleet-audio-reentry-20261118/frozen-card.md`. Source-only
+GameFlow fixture contains raw-source wiring checks; it is not a PCK claim.
+No new rendered or audible test selected; reference preview is explicitly the
+existing09e0ece capture. Native/listening/fullgame gates remain open; hostedCI off.
+
+This independently fixes shipped shared audio. Arrow's unmerged geometry and
+all-listener contract remain PARKED1/1 under their existing owner; its prior
+79.68100311666666minutes/source/failures stay attached. This selection grants
+no Arrow reset, listener waiver, automatic successor or partial LOD delivery.
+
 <a id="arrow-whole-lod-renewal-current"></a>
 
 ### Arrow complete static LOD — PARKED at shared audio re-entry,712259ad4
