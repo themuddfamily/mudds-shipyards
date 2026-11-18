@@ -22,6 +22,10 @@ const FLEET := [
 	preload("res://assets/ships/titan_provisional.tres"),
 	preload("res://assets/ships/vortex_provisional.tres"),
 	preload("res://assets/ships/paradox_provisional.tres"),
+	preload("res://assets/ships/predator_provisional.tres"),
+	preload("res://assets/ships/dynamic_provisional.tres"),
+	preload("res://assets/ships/utopia_provisional.tres"),
+	preload("res://assets/ships/salyut_provisional.tres"),
 ]
 const VALUES := {"maximum_speed": 88.0, "boost_speed": 114.0, "thrust_acceleration": 38.0, "brake_acceleration": 64.0, "passive_drag": 2.4, "throttle_response": 11.0, "boost_multiplier": 1.35, "yaw_speed_degrees": 58.0, "roll_speed_degrees": 98.0, "flight_assist_strength": 5.2, "visual_bank_degrees": 11.0, "maximum_mouse_turn_degrees": 17.0, "engine_start_time": 2.3, "weapon_cooldown": 0.38, "maximum_hull": 145.0, "landing_maximum_speed": 15.0}
 var _checks := 0
@@ -73,7 +77,7 @@ func _run() -> void:
 		profiles[definition.ship_id] = Registry._profile(definition)
 		if Registry.get_supported_ship_ids().has(definition.ship_id):
 			registered.append(definition)
-	if not _check(registered.size() == 6 and Registry.audit_definitions(registered).valid, "unchanged registered fleet audit"):
+	if not _check(registered.size() == 7 and Registry.audit_definitions(registered).valid, "exact seven current registered fleet contracts audit"):
 		return
 	profiles[DEFINITION.ship_id] = Registry._profile(DEFINITION)
 	var errors := PackedStringArray()
@@ -81,7 +85,7 @@ func _run() -> void:
 	Registry._validate_non_dominance(profiles, errors)
 	Registry._validate_signatures(profiles, errors)
 	print("KATANA_COMBINED_FLEET: count=", profiles.size(), " errors=", errors)
-	if not _check(errors.is_empty() and profiles.size() == 13, "all current profiles plus Vortex, Paradox and Katana retain14 axes/non-dominance/extrema"):
+	if not _check(errors.is_empty() and profiles.size() == 17, "all sixteen existing definitions plus Katana retain14 axes/non-dominance/extrema"):
 		return
 	for definition: ShipDefinition in FLEET:
 		if not _check(DEFINITION.brake_acceleration > definition.brake_acceleration, "new numeric braking maximum over " + String(definition.ship_id)):
