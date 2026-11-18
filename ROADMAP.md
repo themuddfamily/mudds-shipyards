@@ -215,6 +215,51 @@ checks and per-test/journey caps, causal reopening conditions, dependencies and
 external inputs remain binding. No task becomes PASS or READY merely from this
 reset. Historical records below and in archives remain unchanged.
 
+### Dynamic card6 — current-pilot combat and physical lifecycle, clock correction ACTIVE
+
+Same BUILD-SPLIT-DYNAMIC/card6 and full approved function contract; no new goal,
+allowance reset or reduced delivery. Prior unaccepted f180bbae source/raw/archive
+and71.7881388333minutes remain preserved. Read-only readiness05:12:17→05:19:32
+(7.25minutes) found a concrete count-domain defect before reopening: the first
+seated interval grew72.017→194.583 simulated seconds while startup grew only1.825
+wall seconds; all15 incoming hits and terminal/recovery outcomes remain. The
+cadence caller counts paired physics/process awaits, so131iterations need not be
+131physics ticks. CombatResolver heat remains process-delta owned. Concurrency
+is not established as the sole trigger; per-hit tick/process/wall/vent operands
+were absent from old logs. New correction uses actual physics deadlines and
+retains process progression for the real heat owner.
+
+Window **2026-11-18 05:19:32→06:34:32UTC,75minutes ALL-IN**, including restored
+source, implementation/review, one negative control, every focused/full source and
+PCK gate, fresh checkpoint, integration/push and verified archive/cleanup.
+Same owner03:44:02-renewal **0/1 used carried forward**; changing folder or
+restoring a branch grants no allowance. Prior failures and costs stay historical.
+No clock/physics-rate/pose/velocity/weapon/heat/geometry/route/camera/cap override.
+
+Start verified archivef180bbae, base accepted1d920d1f0/runtime7801f6b; latestmain
+f3fefef91 contains later documentation only. Restore same candidate branch
+work/dynamic-gunship-combat-1118 into owned task worktree. One MEDIUM implementer
+owns ONLY tests/dynamic_gunship_journey_test.gd: lifecycle incoming-cadence wait
+helper and minimal per-hit tick/process/wall/vent observations. Keep all original
+methods, inputs, waypoints, assertions and source/PCK profiles. Root owns engines,
+release/docs/integration; one HIGH independent clock/heat reviewer. No nested.
+
+| Case | Fixed action and expected result |
+| --- | --- |
+| Clock correction | Each of14 incoming gaps waits at least ceil(60/.460829493087558)=131 actual physics ticks, with at most the real engine's single process catch-up boundary; allow ordinary process progression for heat. Log actual before/after tick, process frame, wall time and vent counts. All15 real11damage hits, real health0/destruction/recall/occupied-home refusal/regeneration, physical reboarding/reuse/home/normalQuit remain unchanged. |
+| Counter negative | Exact strengthened fixture with only old paired-wait body restored on archived f180 baseline, cap300, fails the explicit actual-physics deadline-overrun assertion. Preserve raw operands/guards; a compile/missing-method failure is not a control. No repeated controls until one passes. |
+| Entire Dynamic function | Preserve current physical seated claim, source1112/single-use emission, unchanged360m/50/.30 pulse; actual hit/miss/once-only health, self/friendly/world/foreign/released ownership refusals, native.28/.50/1s/.35 heat/recovery and actual Dynamic/Arrow launch/cruise/boost/yaw/roll/brake/neutral tradeoffs. |
+| Complete source14 | foundation90; components120; lifecycle-fixture120; access identity180 and transformed180; definitions120; registry180; differentiation300; sharedheat120; Paradoxprimary180; fullDynamiccombat300, service300, lifecycle300; full unchanged defaultTitan300. Exact original markers/exit0/raw0/all4source-cache-HEAD-clean guards. All Main cases run ALONE. Actual Main primaries clean_shutdown/clean/lastsession_ended. |
+| Complete actual PCK9 | Same committed fixtures plus entry source-isolation guard/necessary Titan immutable test constants: foundation90/components120/lifecyclefixture120/accessidentity180/transformed180/fullDynamiccombat300/service300/lifecycle300/defaultTitan300. Source-empty path/cwd, actual Windows EXE PCK, same inputs/cases/markers/guards and Main primary endpoints. Main cases ALONE. |
+| Checkpoint and integration | SourceGO then clean paired safe exports300internal/360outer, actual trusted private template preflight, strict startupsWindows60/Linux300/extracted300 (exit0/exactoneSTARTUP_MENU_READY_OK), complete equalWin/Linuxmaps/intended two-script delta, exactLinux6members/modes/extractedELF and ZIPbytes, existing9predicate packageaudit, eight repo-local EXE/ZIP/notes/referencePNG +LinuxELF/TAR/exportJSON/notes. NativeWindows/GPU/device/listening/human/fullcraft/network/fullgame remain open; unchanged reference preview attributed. |
+
+First unexpected real failure stops dependents; retain operands and cause before
+any correction. Routine compiler/caller/assertion repair stays in this same
+window/cases/caps. No partial source-only merge, positive old-control substitution
+or blind warm retry. CI remains OFF. Accepted source must be contained in pushed
+main before exact-tip branch deletion; failed unique source/raw must be bundled
+and independently verified first. Task-root archive+closeout only at closure.
+
 ### Dynamic gunship actual pilot combat — card6 PARKED, unmerged f180bbae
 
 Candidate **f180bbaeef499a7e2f167d222c1d127e3a0cfae0** remains unaccepted.
