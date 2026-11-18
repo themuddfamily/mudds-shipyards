@@ -477,6 +477,62 @@ Stop: firstunexpectedfailure stopsdependents; exactoperands/cumulativecost decis
 
 ### Station panel cold five-view rendering — PARKED, unmerged8e8e521
 
+#### Current-owner diagnosis — 2026-11-18, NO_CAUSE_GO
+
+A single instrumented replay on **88c966811e72a58e839b5288906905687ace4e5d**
+restored the exact33 parked paths over accepted main1781d5209, with no overlap
+with subsequent accepted changes. Import passed20.556s. Independent review
+verified that removing only stage logging and the read-only census restores the
+original capture bytes: all five views, cameras, frames, Titan opening proof,
+1280×720 output and90s cap were preserved. Audio was Dummy on private X11/GLES,
+Mesa25 llvmpipe, fresh shader caches; no user desktop or native GPU qualification.
+
+The diagnostic again exited124 after91.865s with four actual PNGs and no success
+marker. All four source/HEAD/clean/non-shader-cache guards passed. Main add ended
+at32.224s, census ended33.206s (5714owners/676materials/24textures), first view
+began66.981s, and mount settling began80.256s. Current GL trace recorded64457draws,
+236programs, one context/thread and no program-ID reuse. Completed instrumented
+call totals: DRAW21.054s, COMPILE2.123s, LINK8.222s, USE0.049s. Trace overhead is
+not isolated; these figures do not qualify rendering or native performance.
+
+The last event was COMPILE_BEGIN for current shader668, GLSL SHA256
+`3ca012ff4e45b0a7386da3a1d492847bae7d38edec842e4f7a290f46fa71f04b`.
+It had no attachment, material UBO, world transform or draw identity. Related
+current shaders662/665 compiled the same material body in15.282/13.397ms;
+programs660/663 had not drawn either. Many shader variants were being generated
+in the mount phase. A timeout landing inside one compile therefore does not
+prove a hung shader or sole material bottleneck. The native feature family still
+matches14materials/241owners. Other completed expensive draws remain candidate
+only or ambiguous; decoding more custom uniforms would not demonstrate a repair.
+Independent causal review returned **NO_CAUSE_GO**. No production correction,
+source9/PCK9 qualification, uninstrumented capture, export or new checkpoint was
+attempted. Latest playable remains **3a5ae0e**. This is diagnosis, not delivery.
+
+Reopen only with a current expensive call linked to its exact production
+producer and a specific mathematically equivalent optimization addressing the
+measured cost. Compile-only attribution must preserve the actual program/material
+association before a draw; the existing GL draw census cannot identify a material
+that has not drawn. Neither shader668's unfinished call, old program583 nor an
+unchanged GL-only replay satisfies that condition. Original full gates remain.
+
+First mapping19:34:22UTC; fixed all-in deadline21:04:22UTC, stopped early when
+attribution was insufficient. Latest owner19:40:26 renewal remains **0/1 used**;
+historical station178.98383205minutes and separate Mainprobe22.5129993minutes
+remain charged. Actual cleanup and final docs/push/audit cost are recorded in
+`/srv/mudds-work/station-panel-current-owner-20261118/closeout.json`.
+
+Verified archive: `/srv/mudds-work/station-panel-current-owner-20261118/records.tar.gz`,
+**200681137bytes/1784members**, SHA256
+`715ba25a8bd84f4e103a508f79531e6a10133b232ecd9ae64844c51dc65717da`.
+Every payload hash was reread; its self-contained current candidate bundle was
+restored in an independent bare repository with strict/full fsck and entire-tree
+plus33owned-blob equality. The failed source remains archived rather than merged.
+Owned branch, import ref, worktree and processes were removed after verification.
+Only unique unaccepted Paradox gunner branchc743 is retained. All36parents/10phase
+exits and native/human/full-craft gates remain open; GitHub Actions stays disabled.
+
+#### Earlier source qualification and failure
+
 The complete original nine source suites passed on
 **8e8e521421eb97e6bd013173b6b25dd5f2d1ee11**, including full Titan **217.139s** and actual
 clean_shutdown/clean/session_ended. Triplanar1564/45/243/1276,
