@@ -709,8 +709,9 @@ ordinary boarding instruction.
 
 The live differentiation suite covers all fifteen current Main definitions.
 FleetRoleRegistry contracts cover Torrent/Arrow/Jovian/Zenith/Halyard/Bulwark,
-Cinder Light and Cinder Bomber. Hauler's registry contract and the full normalized
-seventeen-craft resource/vector remain implementation work. Raw role contracts
+Cinder Light, Cinder Bomber and Cinder Hauler: all nine original/Cinder role
+contracts are now implemented. The full normalized seventeen-craft resource/
+vector and actual function/utility/demand consumers remain implementation work. Raw role contracts
 and a boarding choice card do not close full-craft or final balance acceptance.
 
 The earlier [2026-11-05 Light role-choice attempt](../history/ROADMAP_DELIVERIES.md#cinder-light-choice-card-fit-stop-20261105)
@@ -726,6 +727,17 @@ or overall normalized score is claimed. Original six globals and Light's
 small-band speed signature remain unchanged. Existing396×112card,16/11fonts,
 1px body tolerance and all original cases remain; gameplay/profile/seat/save/
 network authority and15Maincraft/15homes/all17profiles are unchanged.
+
+[Hauler51a2a98](../../ROADMAP.md#cinder-hauler-choice-current) closes the remaining
+Cinder registry/choice member. Its existing speed64/hull220/thrust14/drag1.5
+produce HULL & LOW DRAG // SLOW SPEED / THRUST in approach/available, with
+complete identity/instruction/ratings/observed state and unchanged both-state
+six-cell layout. Minimum drag is scoped to Cinder siblings1.5<1.8/3; hull exceeds
+Light110 but not Bomber240, and speed/thrust remain below both. Jovian56 stays
+the original global speed minimum. No tuning, cargo/crew authorization or
+invented function is added. Source4/PCK4/two inspected captures/paired checkpoint
+pass; all Light/Bomber/default cases and original comparisons remain unchanged.
+The three Cinder choice contracts are delivered, not the full normalized17 budget.
 
 ### The definition
 
@@ -946,9 +958,9 @@ Future required starter membership is an explicit field of the eight accepted
 SPECs, not an inferred unlock or invented progression system.
 
 **Missing work and limits.** Codex implements the production role-budget
-resource/consumer, the remaining Hauler registry contract and selected existing
-observer/test extensions. Light/Bomber choice members are scoped delivered above;
-the full normalized resource does not exist merely because this definition does.
+resource/consumer and selected existing observer/test extensions. All three
+Cinder registry/choice members are scoped delivered above; the full normalized
+resource does not exist merely because this definition does.
 Use one selected craft/function slice within the existing90min all-in/one-
 correction limit, source suites300s, ordinary craft900/outer960s and tighter
 accepted/parked member limits. Freeze source/resource/profile/absolute deadline

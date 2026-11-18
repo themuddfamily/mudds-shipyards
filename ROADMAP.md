@@ -16,15 +16,18 @@ be observable, its pass condition fixed before work starts, and its dependencies
 actually satisfied. Missing details mean blocked work, not permission to explore
 indefinitely. A completed specification does not count as a completed feature.
 
-Latest playable checkpoint: **9f88df6** — [Windows ZIP](builds/windows/MuddsShipyards-9f88df6-checkpoint.zip)
-([notes](builds/windows/MuddsShipyards-9f88df6-notes.txt)) and
-[Linux archive](builds/linux/MuddsShipyards-9f88df6-linux-x86_64.tar.gz).
-The Bomber approach/available card now exposes its existing hull/braking versus
-turning/cadence trade-off while retaining full identity, instructions, ratings
-and state. Fullsource4/PCK4/capture2/strictstartup3/maps/audit9 pass.
-[Scoped delivery](#cinder-bomber-choice-current) and
-[actual HUD preview](builds/windows/MuddsShipyards-9f88df6-cinder-bomber-choice-preview.png).
-The preview is a component UI capture, not a new ordinary-world/native qualification.
+Latest playable checkpoint: **51a2a98** — [Windows ZIP](builds/windows/MuddsShipyards-51a2a98-checkpoint.zip)
+([notes](builds/windows/MuddsShipyards-51a2a98-notes.txt)) and
+[Linux archive](builds/linux/MuddsShipyards-51a2a98-linux-x86_64.tar.gz).
+The Hauler now exposes its existing hull/coasting-drag versus speed/thrust
+trade-off before boarding. Its complete identity, instructions, ratings and
+observed state fit the existing card; Light and Bomber remain unchanged.
+This completes the three Cinder choice/registry members and all nine original/
+Cinder role contracts, while the full seventeen-craft role-budget stays open.
+Fullsource4/PCK4/capture2/strictstartup3/maps/audit9 pass.
+[Scoped delivery](#cinder-hauler-choice-current) and
+[actual HUD preview](builds/windows/MuddsShipyards-51a2a98-cinder-hauler-choice-preview.png).
+Component capture only; no new ordinary-world/native qualification is claimed.
 
 Katana's accepted safe cold restart/home preference and existing combat/service/
 lifecycle remain included. [Card9 delivery](#katana-cold-recovery-current).
@@ -296,25 +299,63 @@ reset. Historical records below and in archives remain unchanged.
 
 <a id="cinder-hauler-choice-current"></a>
 
-### Cinder Hauler live role-choice and registry member — ACTIVE
+### Cinder Hauler live role-choice and ninth registry contract — DONE,51a2a98
 
-Select the remaining Hauler member of the approved Cinder role-policy expansion / [normalized role-budget consumer](docs/design/FLEET_VISUAL_GRAMMAR.md#normalized-role-budget-contract). Add a real ninth registry contract and live approach/available reading, not a weaker UI-only substitute. Full normalized17 resource/vector/craft/role qualification remains open. Completed Light/Bomber members remain closed; parked Katana10a is independent and unchanged.
+Accepted source **51a2a981d828ed21a48583c1c006c52fb959ec84**, integrated/pushed
+via **1ee15f414c17750a8821cf82a964ac9e71b2d988**, ships in checkpoint51a2a98.
+Hauler approach/available now show **HULL & LOW DRAG // SLOW SPEED / THRUST**,
+complete Cinder Cargo Hauler identity, original instruction,64M/S BASE /
+MAX HULL220 ratings and actual observed shape/state. Facts are sourced from
+accepted speed64/hull220/thrust14/drag1.5; no tuning, cargo/crew or gameplay
+permission changes. Drag1.5 is below Bomber1.8/Light3; hull220 exceeds Light110
+but remains below Bomber240. Speed64/thrust14 are below both siblings, while
+Jovian56 preserves the original global minimum-speed signature. Hauler's drag
+minimum has explicit Cinder-sibling scope. All original six globals, Light/
+Bomber exact views/signatures, non-dominance/minimum14of16 and17profiles remain.
 
-Base **6e31bf2747c38776df3ff2643d4852472894a059**. First mapping **13:07:26UTC**, hard all-in **13:07:26→14:07:26UTC,60minutes** includes selection/implementation/review/source/PCK/capture/export/package/integration/push/archive/worktree/ref/process cleanup/finalverification. Owner11:53:45 reset applies once to this previously unfinished independent member: **0/1 substantive corrections used** (default1). Preserve all time/failures; no reset by branch/retry/split.
+**All three Cinder choice/registry members are now delivered:** Light6e15126,
+Bomber9f88df6 and Hauler51a2a98. The existing role registry now has all nine
+original/Cinder contracts. This does not close the full seventeen-craft typed
+role-budget resource/vector, actual utility/function or complete craft acceptance.
 
-One MEDIUM implementer owns only the seven files below; root owns all engines/builds/integration. Independent review covers new source facts/schema/comparison scope and preservation of both accepted cards. No nested agents or engines in mutable source.
+All four full source and all four actual exported-PCK suites pass original300s
+caps/exit0/exactone originalmarker/raw0/source-cache-HEAD-clean guards.
+Actual seconds: source registry2.521/HUD28.671/differentiation44.977/boarding41.942;
+PCK2.564/22.454/38.640/34.941. Full malformed/foreign/mismatched/nonfinite facts
+fall back without diagnostics or authority mutation. Both Hauler states fit all
+six existing viewport/scale cells, unchanged396×112/base16/11fonts/1pxbody
+limits, no ellipsis/overlap/scroll; every Light/Bomber/default case remains.
+Two actual1280/1920 available-card images atUI1/eightpostdraw were inspected.
+Component HUD setup only, not a full Main/native readability qualification.
 
-| Frozen outcome | Acceptance and stop |
-| --- | --- |
-| Actual player reading | Hauler approach/available show exact **HULL & LOW DRAG // SLOW SPEED / THRUST**, complete Cinder Cargo Hauler identity, original instruction, literal CARGO HAULER /64M/S BASE /MAX HULL220 rated facts and actual observed shape/state. Descriptive approved comparisons, no universal best/normalized score or unqualified cargo/crew/function claim. |
-| Complete missing registry contract | Add actual Hauler role contract and detached source facts in existing owners. Source current definitions speed64/hull220/thrust14/passive_drag1.5. Drag1.5 below Bomber1.8/Light3 gives explicit Cinder-sibling minimum-drag signature; hull220 exceeds Light110 but below Bomber240. Speed64 and thrust14 below both siblings72/18 and102/32. Actual Jovian56 remains the original global speed minimum: do not invent a conflict, retune or weaken any old signature. Original six globals, Light small-band signature, Bomber explicit sibling scope, non-dominance/minimum14of16 and all17profiles remain. Registry becomes9, not a claim of full17 qualification. |
-| Presentation safety | Strict typed identity/role/source-axes/numeric matching before comparison; malformed/foreign/nonfinite/mismatched inputs fall back to ordinary complete instructions/rated facts with no diagnostics or authority mutation. All Light/Bomber fields/markers/exact views and all other craft/states remain unchanged. Existing generic GameFlow producer remains unchanged. |
-| Layout/images | Preserve396×112card/base16/11fonts/1pxbody tolerance/title noellipsis/noscroll/nooverlap. Hauler both states pass all six existing viewport/scale cells; retain every Light/Bomber/default case. New --capture-hauler-choice runs full default suite before two actual1280/1920 available PNGs atUI1/eightpostdraw; both inspected. Keep Light/Bomber capture flags/paths/settling behavior unchanged. Existing --output-dir=/absolute convention unchanged. Component HUD only, no ordinary-world/native proof. |
-| Ownership | ONLY scripts/ships/fleet_role_registry.gd; scripts/ui/boarding_confirmation_hud_presenter.gd; scripts/ui/boarding_confirmation_hud_adapter.gd; tests/fleet_role_registry_test.gd; tests/fleet_role_differentiation_test.gd; tests/boarding_confirmation_cues_hud_test.gd; tests/boarding_confirmation_game_flow_test.gd. No GameFlow production/geometry/cardbounds/fonts/handling/weapon/save/network/schema or validator-family edits. |
-| Exact control | Exact final registry fixture on old6e31 base fails actual missing Hauler contract/choice facts using existing APIs; no parser/missing-method substitute. Original300cap, four source/cache/HEAD/clean guards and owned teardown. |
-| Source4 and PCK4 | Same four full existing registry/differentiation/HUD/GameFlow fixtures300s each, all original cases/markers/caps preserved plus Hauler. Source HUD --capture-hauler-choice --output-dir=/abs; PCK HUD default full suite. Raw0/exit0/markeronce/fourguards. Actual newWindowsPCK from empty production-source directory; preserve exact fixture graph methods/resources, literal test-path relocation+entryisolation only, all original/adapted SHA pinned. No inlining/case removal. Every engine Dummy; headless or privateXvfb explicitx11, independent abort/reap/input release; Main/render invocations alone. |
-| Release/closure | SourceGO then fresh clean paired safeexports300internal/360outer, trusted privateWindows template, strictstartup3 exit0/exactoneSTARTUP_MENU_READY_OK, complete equalmaps/intended3runtimeGDC+independently reviewed metadata, exactLinux6members/modes/extractedELF/ZIPbytes/existingaudit9/eight repo-local artifacts and actualnewHaulerHUDpreview. Source/image/package review before merge/push. Every archive member rehashed before owned worktree/process/exact-tip local+remote ref cleanup. Paradox branch protected, noDownloads/CI activation. |
-| Open boundaries | Full normalized typed resource/vector/firepower/utility/footprint/boardingtime/skillfloor/final17/fullcraft/network/game/all36parents/10phaseexits OPEN. NativeWindows/mandatoryhuman OWNER-EXCLUDED/NOT_RUN; applicableGPU/device/listening/readability/ordinaryworld gates unchanged. Katana initial-dock correction is not included/retried. |
+Exact committed external fixture graphs preserve methods, dependencies,
+assertions and caps; only test-resource path relocation and entry source guards,
+with all original/adapted member hashes pinned. Final registry fixture on old
+6e31 base fails the actual missing Hauler contract in2.618s, exit1/marker0,
+no parser/missing-API substitute, all four guards. No unexpected positive trial
+failure occurred; owner11:53:45 allowance ends **0/1 used**.
+
+Fresh exports27.608/25.551s; strictstartupWin31.365/Linux25.399/extracted25.396s
+all exit0/raw0/exactoneSTARTUP_MENU_READY_OK. Complete equal1611maps,3intended
+runtime GDC changes/82typednode_ids-only metadata/noUID/class changes, exact
+ZIPEXE+notes/Linux6members+modes+extractedELF and existing audit9/eightpublished
+repo-local artifacts pass independent source/image/package review. Main remains
+15craft/15homes. Owned worktrees/processes/exact-tip local+remote task refs are
+cleaned; protected Paradox gunner remains. Katana10a source stays unmerged.
+
+Original all-in **13:07:26→14:07:26UTC,60minutes** retained; actual through
+verified cleanup **25.993014minutes**,
+with finaldocs/push/verification billed to the same window. Frozen card/raw/
+source/PCK/capture/package records archived at `/srv/mudds-work/cinder-hauler-choice-20261118/records.tar.gz`
+(**23,402,388bytes/491members**, SHA256
+`d41364e5fae257a460174d52fa2e560dd3d1bcae3ec94892d2578fd297ae8e38`); every member rehashed before
+worktree/ref cleanup. No completed child receives another reset.
+
+Full normalized resource/vector/firepower/utility/footprint/boardingtime/skillfloor,
+final17balance/fullcraft/ordinaryworld/network/game/all36parents/10phase exits
+remain OPEN. NativeWindows/mandatoryhuman remain OWNER-EXCLUDED/NOT_RUN;
+applicableGPU/device/listening/readability gates remain open. CI stays disabled.
+No parked Katana/shared dock-state correction or automatic retry is included.
 
 <a id="cinder-bomber-choice-current"></a>
 
