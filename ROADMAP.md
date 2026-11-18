@@ -507,7 +507,32 @@ unchanged; no source from that unaccepted candidate is merged.
 
 <a id="katana-network-ground-current"></a>
 
-### Katana card10a — network ground access and physical pilot handoff, PARKED / unaccepted
+### Katana card10a — network ground access and physical pilot handoff, RESUMED / unaccepted
+
+**Current bounded resumption — 2026-11-18 14:17:08UTC.** Same original task;
+accepted base81cde865399322f86e7110a1b88a1f555ec204d5, restored candidatebea461c1a
+from the verified archived source using a clean three-way application of the
+original eight-path diff. Current rated terminal and accepted Cinder cards stay
+included. Original90minute all-in window is freshly selected as
+**14:17:08→15:47:08UTC**, including mapping, diagnostics, production, full checks,
+checkpoint, review, merge/push/archive/ref-worktree-process cleanup and finaldocs/
+verification. Latest13:57:23 allowance **0/1 used**, shared across the entire
+card10 family; prior1/1 and **70.31434235minutes** remain historical/cumulative.
+
+PhaseA changes only observations in existing GameFlow/three-peer fixture, then
+runs the original ground route once to retain actual startup publication return
+and exit operation/landing/refusal/toast operands. No replayed publication or
+state injection. PhaseB requires that measured cause and independent review:
+one Katana-local exact initial-home berth/current lease+occupant/fit/current dock/
+support/unpiloted-OFFLINE proof, dock latch only, and initial LANDED registration
+through the existing owner. No fake LandingContract/cabin or HeroShip change.
+The same eight original paths and all original source8/PCK6/300actor/360supervisor/
+8s-transition/package gates below remain binding. Current checkpoint0c429cb stays
+accepted until a full candidate passes; no10b successor is selected. Full10b,
+flight/fire, network capacity/adversity/endurance, fullcraft and all parent/phase
+exits stay OPEN. The historical parked record below is preserved unchanged;
+this selection supersedes only its prior no-retry-selected status.
+
 
 **Terminal source candidate0d61feae36b61146258044afb922ba78ead77fab is NOT merged.**
 Latest complete source ground profile failed after **146.536s**, at the first
