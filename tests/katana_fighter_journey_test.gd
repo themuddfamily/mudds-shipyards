@@ -764,6 +764,7 @@ var _main_engine_edges: Array[Dictionary] = []
 var _main_shots := 0
 var _main_projectiles := 0
 var _main_bad_shot := false
+var _main_dead_source_probe: Dictionary = {}
 var _main_combat_records: Array[Dictionary] = []
 var _main_stale_probed := false
 var _main_heat_probe := false
@@ -819,6 +820,13 @@ func _run_main() -> void:
 	_main_ship.projectile_fired.connect(func(_origin: Vector3,_direction: Vector3): _main_projectiles += 1)
 	_main_game.get_combat_authority().authoritative_shot_submitted.connect(func(request: Variant,result: Dictionary):
 		if request.source_entity == _main_ship:
+			# Only the exact synchronous, separately asserted dead-source request
+			# belongs to its negative observer; every real emission stays audited.
+			if not _main_dead_source_probe.is_empty() and not bool(result.get("accepted",false)) \
+					and result.get("status") == &"source_destroyed" and request.source_id == 1114 \
+					and request.weapon_id == GameFlow.ARROW_COMBAT_WEAPON_ID and request.range == 480 and request.damage == 24 \
+					and request.origin == _main_dead_source_probe.origin and request.direction == _main_dead_source_probe.direction:
+				return
 			_main_combat_records.append({"request":request,"result":result.duplicate(true),"tick":Engine.get_physics_frames(),"heat":_main_ship.get("_weapon_heat")})
 			_main_shots += 1
 			_main_bad_shot = _main_bad_shot or not bool(result.get("accepted",false)) or request.source_id != 1114 or request.weapon_id != GameFlow.ARROW_COMBAT_WEAPON_ID or request.range != 480 or request.damage != 24 or _main_ship.to_local(request.origin).distance_to(Vector3(0,1,-6.2)) > 0.0001)
@@ -2112,10 +2120,32 @@ func _run_main_lifecycle(identity: int, area: ShipBoardingArea, berth: ShipBerth
 	if not _main_check(not refusal.accepted and refusal.reason == &"katana_lifecycle_changed" and _main_reset_snapshot(berth) == before,"public premature reset cannot bypass actual due recovery and lease"): return
 	print("KATANA_LIFECYCLE_DEAD_PROBE_BEFORE: bad_shot=",_main_bad_shot," shots=",_main_shots," projectiles=",_main_projectiles,
 		" records=",_main_combat_records.slice(maxi(0,_main_combat_records.size()-3)))
-	var dead_request := authority.submit_hitscan(_main_ship,GameFlow.ARROW_COMBAT_WEAPON_ID,_main_ship.to_global(Vector3(0,1,-6.2)),-_main_ship.global_basis.z)
+	var probe_events: Array[Dictionary] = []
+	var observe_dead_request := func(request: ShotRequest,result: Dictionary):
+		if request.source_entity == _main_ship:
+			probe_events.append({"request":request,"result":result.duplicate(true)})
+	var normal_observer_before := [_main_bad_shot,_main_shots,_main_projectiles,_main_combat_records.size(),
+		_main_fire_cues.size(),_main_ship.get("_weapon_heat"),_main_ship.get("_weapon_timer")]
+	var probe_origin := _main_ship.to_global(Vector3(0,1,-6.2))
+	var probe_direction := -_main_ship.global_basis.z
+	authority.authoritative_shot_submitted.connect(observe_dead_request)
+	_main_dead_source_probe = {"origin":probe_origin,"direction":probe_direction}
+	var dead_request := authority.submit_hitscan(_main_ship,GameFlow.ARROW_COMBAT_WEAPON_ID,probe_origin,probe_direction)
+	_main_dead_source_probe.clear()
+	authority.authoritative_shot_submitted.disconnect(observe_dead_request)
 	print("KATANA_LIFECYCLE_DEAD_PROBE_AFTER: bad_shot=",_main_bad_shot," shots=",_main_shots," projectiles=",_main_projectiles,
 		" dead_request=",dead_request," records=",_main_combat_records.slice(maxi(0,_main_combat_records.size()-3)))
-	if not _main_check(not dead_request.accepted and dead_request.status == &"source_destroyed","dead actual Katana source cannot fire and consumes stale shot sequence"): return
+	if not _main_check(probe_events.size() == 1 and not dead_request.accepted and dead_request.status == &"source_destroyed"
+		and probe_events[0].request == dead_request.request and not bool(probe_events[0].result.get("accepted",false))
+		and probe_events[0].result.get("status") == &"source_destroyed"
+		and dead_request.request.get_validation_errors().is_empty() and dead_request.request.source_entity == _main_ship
+		and dead_request.request.source_id == 1114 and dead_request.request.faction_id == GameFlow.PLAYER_FACTION
+		and dead_request.request.weapon_id == GameFlow.ARROW_COMBAT_WEAPON_ID and dead_request.request.range == 480
+		and dead_request.request.damage == 24 and dead_request.request.origin == probe_origin and dead_request.request.direction == probe_direction
+		and [_main_bad_shot,_main_shots,_main_projectiles,_main_combat_records.size(),_main_fire_cues.size(),
+			_main_ship.get("_weapon_heat"),_main_ship.get("_weapon_timer")] == normal_observer_before
+		and _main_dead_source_probe.is_empty(),
+		"one exact synchronous dead-source1114 refusal consumes only its own shot sequence, without live observer, projectile, cue, heat or cooldown mutation"): return
 	var stale_shot: ShotRequest = dead_request.request
 	await _main_frames(20)
 	if not _main_check(not (_main_ship.call("get_variant_visual_root") as Node3D).visible and not (_main_ship.get("_visual_root") as Node3D).visible and _main_player.get_instance_id() == identity and _main_player.is_on_floor() and _main_player.is_control_enabled() and _main_player.global_position.distance_to(_main_game.world.get_player_spawn().origin) < 0.25 and (_main_player.get_node("%PlayerCamera") as Camera3D).current and not _main_ship.get_camera().current and not bool(_main_player.get_cabin_containment_report().get("active",false)) and _main_ship.get_command_source().get_stream_id() > old_stream and not _main_ship.consume_sampled_camera_edges(old_command),"dead separate shell hides; same supported Player recovers with fresh input stream and old command refused"): return
