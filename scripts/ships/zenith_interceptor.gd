@@ -3240,6 +3240,8 @@ var _authored_presentation: Node3D
 var _functional_cockpit: Node3D
 var _functional_canopy: Node3D
 var _modern_canopy_pivot: Node3D
+var _modern_airframe_close: Node3D
+var _modern_airframe_far: Node3D
 var _engine_plumes: Array[MeshInstance3D] = []
 var _plume_base_scales: Dictionary = {}
 var _close_plume_batch: MultiMeshInstance3D
@@ -3374,6 +3376,83 @@ func get_zenith_active_lod() -> int:
 		and _authored_presentation.has_method("get_active_lod"):
 		return int(_authored_presentation.call("get_active_lod"))
 	return -1
+
+
+## Complete modern static representations; canopy, cockpit, component damage,
+## navigation lamps and animated plumes retain their existing independent state.
+func get_zenith_modern_airframe_roots() -> Array[Node3D]:
+	return [_modern_airframe_close, _modern_airframe_far]
+
+
+func get_zenith_modern_lod_report() -> Dictionary:
+	return {
+		"active_lod": get_zenith_active_lod(),
+		"close": _modern_airframe_census(_modern_airframe_close),
+		"far": _modern_airframe_census(_modern_airframe_far),
+		"canopy_policy": &"shared_pose_and_visibility_at_both_distances",
+	}.duplicate(true)
+
+
+func _modern_airframe_census(airframe: Node3D) -> Dictionary:
+	var triangles: int = 0
+	var submissions: int = 0
+	var mesh_count: int = 0
+	if is_instance_valid(airframe):
+		for candidate: Node in airframe.find_children("*", "MeshInstance3D", true, false):
+			var instance: MeshInstance3D = candidate as MeshInstance3D
+			if instance.mesh == null or not _modern_airframe_mesh_is_visible(instance, airframe) or instance.layers == 0:
+				continue
+			mesh_count += 1
+			var array_mesh: ArrayMesh = instance.mesh as ArrayMesh
+			for surface_index: int in instance.mesh.get_surface_count():
+				# PrimitiveMesh surfaces are triangles; only ArrayMesh exposes this query.
+				if array_mesh != null and array_mesh.surface_get_primitive_type(surface_index) != Mesh.PRIMITIVE_TRIANGLES:
+					continue
+				submissions += 1
+				var arrays: Array = instance.mesh.surface_get_arrays(surface_index)
+				if arrays.size() <= Mesh.ARRAY_INDEX:
+					continue
+				# Valid nonindexed surfaces expose a null optional index array.
+				var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] \
+					if arrays[Mesh.ARRAY_INDEX] is PackedInt32Array else PackedInt32Array()
+				var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] \
+					if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array else PackedVector3Array()
+				triangles += int(indices.size() / 3) if not indices.is_empty() else int(vertices.size() / 3)
+	return {"triangles": triangles, "submissions": submissions, "meshes": mesh_count}
+
+
+## Measure either retained alternative irrespective of its selected root flag,
+## while excluding geometry hidden inside that representation.
+func _modern_airframe_mesh_is_visible(instance: MeshInstance3D, airframe: Node3D) -> bool:
+	var ancestor: Node = instance
+	while ancestor != null and ancestor != airframe:
+		if ancestor is Node3D and not (ancestor as Node3D).visible:
+			return false
+		ancestor = ancestor.get_parent()
+	return ancestor == airframe
+
+
+func _modern_airframe_resource_identities() -> Array[Dictionary]:
+	var identities: Array[Dictionary] = []
+	for airframe: Node3D in [_modern_airframe_close, _modern_airframe_far, _modern_canopy_pivot]:
+		if not is_instance_valid(airframe):
+			continue
+		identities.append({"root": airframe.get_instance_id(), "children": airframe.get_child_count()})
+		for candidate: Node in airframe.find_children("*", "MeshInstance3D", true, false):
+			var instance: MeshInstance3D = candidate as MeshInstance3D
+			var materials: PackedInt64Array = PackedInt64Array()
+			if instance.mesh != null:
+				for surface_index: int in instance.mesh.get_surface_count():
+					var material: Material = instance.get_active_material(surface_index)
+					materials.append(material.get_instance_id() if material != null else 0)
+			identities.append({
+				"node": instance.get_instance_id(),
+				"parent": instance.get_parent().get_instance_id(),
+				"mesh": instance.mesh.get_instance_id() if instance.mesh != null else 0,
+				"materials": materials,
+				"children": instance.get_child_count(),
+			})
+	return identities
 
 
 func get_zenith_runtime_identity_report() -> Dictionary:
@@ -3719,6 +3798,26 @@ func _build_modern_airframe(visual: Node3D) -> void:
 	dark.metallic = 0.20
 	dark.roughness = 0.80
 	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_modern_airframe_close = airframe
+	_modern_airframe_far = Node3D.new()
+	_modern_airframe_far.name = "ModernManufacturedAirframeFar"
+	_modern_airframe_far.set_meta("presentation_only", true)
+	_modern_airframe_far.set_meta("historical_geometry", false)
+	_modern_airframe_far.set_meta("reduced_airframe_detail", true)
+	_modern_airframe_far.visible = false
+	visual.add_child(_modern_airframe_far)
+	_populate_modern_airframe(airframe, visual, hull, panel, intake_trim, dark, false)
+	_populate_modern_airframe(_modern_airframe_far, visual, hull, panel, intake_trim, dark, true)
+	# The authored owner alone measures distance and applies hysteresis. Both
+	# complete modern roots join that same synchronous visibility transaction.
+	_authored_presentation.call("register_modern_airframe_lods", airframe, _modern_airframe_far)
+
+
+func _populate_modern_airframe(
+	airframe: Node3D, visual: Node3D, hull: StandardMaterial3D,
+	panel: StandardMaterial3D, intake_trim: StandardMaterial3D,
+	dark: StandardMaterial3D, far: bool
+) -> void:
 	# Share neighboring bulkheads across the material seam so the formed
 	# radome and forward pressure body meet with the same longitudinal slope.
 	var pressure_stations := [
@@ -3758,7 +3857,8 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		# A single cambered skin rolls from the pressure-body shoulder into the
 		# thin delta edge. The structural lower skin closes on the same perimeter.
 		_build_cambered_wing(airframe, prefix, side, hull, dark, panel)
-		_build_wing_thermal_bank(airframe, prefix, side, panel)
+		if not far:
+			_build_wing_thermal_bank(airframe, prefix, side, panel)
 		# Chamfered oblique intake lips lead into fully enclosed dark tunnels.
 		_zenith_hard_shell(airframe, prefix + "EngineCowling", side * 2.20, [
 			Vector4(0.62, 1.68, 0.86, -1.05), Vector4(0.65, 1.695, 0.74, -0.84),
@@ -3783,8 +3883,14 @@ func _build_modern_airframe(visual: Node3D) -> void:
 		cooling_mount.rotation.x = atan(0.088)
 		cooling_mount.set_meta(&"presentation_only", true)
 		airframe.add_child(cooling_mount)
-		ServiceCassette.install(cooling_mount, prefix + "NacelleCooling", Vector3.ZERO,
-			0.72, 0.86, panel, dark, intake_trim)
+		if far:
+			# Retain the cassette's raised silhouette with a single dark land;
+			# its rolled frame and individual vanes resolve only in the close root.
+			_box(cooling_mount, prefix + "NacelleCoolingCover", Vector3(0, 0.0475, 0),
+				Vector3(0.86, 0.145, 1.0), dark)
+		else:
+			ServiceCassette.install(cooling_mount, prefix + "NacelleCooling", Vector3.ZERO,
+				0.72, 0.86, panel, dark, intake_trim)
 		# Slim barrels terminate at the preserved gameplay muzzle locations.
 		_zenith_hard_shell(airframe, prefix + "RecessedCannonHousing", side * 1.25, [
 			Vector4(0.16, 0.49, 0.19, -4.25), Vector4(0.21, 0.63, 0.12, -3.70),
@@ -3802,6 +3908,8 @@ func _build_modern_airframe(visual: Node3D) -> void:
 			Vector4(0.21, -0.88, -1.02, leg.z - 0.37), Vector4(0.34, -0.82, -1.03, leg.z - 0.18),
 			Vector4(0.30, -0.84, -1.03, leg.z + 0.32),
 		], dark)
+	if far:
+		return
 	var upholstery := dark.duplicate() as StandardMaterial3D
 	upholstery.albedo_color = Color("3e484b")
 	upholstery.metallic = 0.0
@@ -4026,8 +4134,13 @@ func _wing_edge_point(span: float, chord: float, side: float, roll: int) -> Vect
 func _build_cambered_wing(parent: Node3D, prefix: String, side: float, hull: Material, dark: Material, panel: Material) -> void:
 	# Samples follow the fabricated leading edge, two assembly joints and the
 	# elevon hinge. Broad bays keep the camber; narrow troughs carry real depth.
-	const SPANS := [0.0, 0.08, 0.16, 0.24, 0.32, 0.417, 0.42, 0.423, 0.50, 0.515, 0.58, 0.66, 0.725, 0.74, 0.817, 0.82, 0.823, 0.90, 0.94, 0.98, 1.0]
-	const CHORDS := [0.0, 0.035, 0.08, 0.084, 0.088, 0.10, 0.115, 0.16, 0.24, 0.32, 0.40, 0.425, 0.44, 0.48, 0.56, 0.64, 0.72, 0.818, 0.822, 0.826, 0.90, 0.97, 1.0]
+	var SPANS: Array[float] = [0.0, 0.08, 0.16, 0.24, 0.32, 0.417, 0.42, 0.423, 0.50, 0.515, 0.58, 0.66, 0.725, 0.74, 0.817, 0.82, 0.823, 0.90, 0.94, 0.98, 1.0]
+	var CHORDS: Array[float] = [0.0, 0.035, 0.08, 0.084, 0.088, 0.10, 0.115, 0.16, 0.24, 0.32, 0.40, 0.425, 0.44, 0.48, 0.56, 0.64, 0.72, 0.818, 0.822, 0.826, 0.90, 0.97, 1.0]
+	if bool(parent.get_meta("reduced_airframe_detail", false)):
+		# Same camber, thermal-well boundaries, elevon and rolled outline;
+		# omit the narrow joint troughs and their unresolvable sample pairs.
+		SPANS = [0.0, 0.16, 0.32, 0.423, 0.50, 0.58, 0.66, 0.74, 0.823, 0.90, 0.98, 1.0]
+		CHORDS = [0.0, 0.08, 0.115, 0.24, 0.40, 0.44, 0.56, 0.72, 0.826, 0.90, 0.97, 1.0]
 	var edge_material := (hull as StandardMaterial3D).duplicate() as StandardMaterial3D
 	edge_material.albedo_color = Color("8095a5")
 	edge_material.roughness = 0.58
@@ -4329,6 +4442,15 @@ func _zenith_hard_shell(parent: Node3D, node_name: String, lateral: float, secti
 	var is_cowling := node_name.ends_with("EngineCowling")
 	if is_cowling:
 		sections = _formed_cowling_stations(sections)
+	if bool(parent.get_meta("reduced_airframe_detail", false)) and (is_cowling or node_name in ["BlendedPressureHull", "NoseSensorRadome"]):
+		# Keep every authored control station and its Hermite midpoint. This
+		# retains coaming seams and the same modern profile at one third of the
+		# close longitudinal density, rather than substituting reference art.
+		var reduced: Array = []
+		for index in range(0, sections.size() - 1, 3):
+			reduced.append(sections[index])
+		reduced.append(sections[-1])
+		sections = reduced
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_material(material)
@@ -4458,14 +4580,15 @@ func _build_segmented_exhaust(parent: Node3D, prefix: String, origin: Vector3, d
 		Vector2(0.325, 0.37), Vector2(0.31, 0.28),
 		Vector2(0.0, 0.28),
 	]
+	var radial_segments: int = 32 if bool(parent.get_meta("reduced_airframe_detail", false)) else 96
 	var profile_distance := 0.0
 	for segment in profile.size() - 1:
 		var p: Vector2 = profile[segment]
 		var q: Vector2 = profile[segment + 1]
 		var tool := surfaces[1 if segment in [1, 2, 8, 9] else 0]
-		for slice in 96:
-			var a0 := TAU * float(slice) / 96.0
-			var a1 := TAU * float(slice + 1) / 96.0
+		for slice in radial_segments:
+			var a0 := TAU * float(slice) / float(radial_segments)
+			var a1 := TAU * float(slice + 1) / float(radial_segments)
 			# Four samples per petal curve the shell; shallow pressed seams
 			# replace open cracks and the old alternating broad alloy stripes.
 			var r0 := -0.012 if slice % 4 == 0 else 0.0
@@ -4677,6 +4800,7 @@ func _preflight_authored_presentation(presentation: Node3D) -> bool:
 		"get_modern_systems_root", "get_lod0_roots", "get_lod1_roots",
 		"get_canopy_pivot", "set_canopy_fraction", "get_semantic_anchor",
 		"get_engine_plumes", "update_lod_for_distance", "get_active_lod",
+		"register_modern_airframe_lods",
 	]:
 		if not presentation.has_method(method_name):
 			return false
@@ -5256,6 +5380,14 @@ func _audit_authored_contract(audit: Dictionary, violations: Array[Dictionary]) 
 
 
 func _audit_functional_authority(violations: Array[Dictionary]) -> void:
+	var selected_lod: int = get_zenith_active_lod()
+	if not is_instance_valid(_modern_airframe_close) or not is_instance_valid(_modern_airframe_far):
+		_violation(violations, &"modern_airframe_lod_missing", "ZenithVisual", "complete modern LOD roots are missing")
+	elif _modern_airframe_close.get_parent() != _zenith_visual \
+		or _modern_airframe_far.get_parent() != _zenith_visual \
+		or _modern_airframe_close.visible != (selected_lod == 0) \
+		or _modern_airframe_far.visible != (selected_lod == 1):
+		_violation(violations, &"modern_airframe_lod_drift", "ZenithVisual", "complete modern roots disagree with the authored selector")
 	if _functional_cockpit == null or not is_instance_valid(_functional_cockpit) \
 		or _functional_cockpit.get_parent() != _zenith_visual:
 		_violation(violations, &"functional_cockpit_drift", "ZenithVisual/CockpitInterior", "functional cockpit identity or parent drifted")
@@ -5429,6 +5561,7 @@ func _capture_runtime_identities() -> Dictionary:
 		asset_root = _authored_presentation.call("get_asset_root") as Node3D
 		canopy_pivot = _authored_presentation.call("get_canopy_pivot") as Node3D
 	return {
+		"modern_airframe_resources": _modern_airframe_resource_identities(),
 		"visual_root_id": _zenith_visual.get_instance_id() if _zenith_visual != null and is_instance_valid(_zenith_visual) else 0,
 		"presentation_id": _authored_presentation.get_instance_id() if _authored_presentation != null and is_instance_valid(_authored_presentation) else 0,
 		"asset_root_id": asset_root.get_instance_id() if asset_root != null else 0,

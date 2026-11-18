@@ -99,6 +99,8 @@ var _source_lod1: Node3D
 var _modern_lod0: Node3D
 var _modern_lod1: Node3D
 var _canopy_pivot: Node3D
+var _modern_airframe_close: Node3D
+var _modern_airframe_far: Node3D
 var _semantic_anchors: Node3D
 var _runtime_materials: Dictionary = {}
 var _far_engine_emission_material: StandardMaterial3D
@@ -483,8 +485,24 @@ func _apply_lod(lod_index: int) -> void:
 		_source_lod1.visible = _active_lod == 1
 	if _modern_lod1 != null:
 		_modern_lod1.visible = _active_lod == 1
+	if is_instance_valid(_modern_airframe_close):
+		_modern_airframe_close.visible = _active_lod == 0
+	if is_instance_valid(_modern_airframe_far):
+		_modern_airframe_far.visible = _active_lod == 1
 	if previous != _active_lod:
 		lod_changed.emit(_active_lod)
+
+
+## The modern retrofit replaces SourceCore solids while keeping this selector.
+## Register once during construction; switching changes only retained visibility.
+## Its enclosed canopy remains shared outside both roots and follows the same
+## hinge fraction even when the reference canopy pivot is hidden in far LOD.
+func register_modern_airframe_lods(close_root: Node3D, far_root: Node3D) -> void:
+	if is_instance_valid(_modern_airframe_close) or is_instance_valid(_modern_airframe_far):
+		return
+	_modern_airframe_close = close_root
+	_modern_airframe_far = far_root
+	_apply_lod(_active_lod)
 
 
 func get_active_lod() -> int:

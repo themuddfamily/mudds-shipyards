@@ -3208,6 +3208,7 @@ func _run() -> void:
 
 	_test_definition_and_evidence(zenith)
 	_test_authored_asset_and_runtime_authority(zenith)
+	_test_modern_airframe_lod(zenith, "initial component fixture")
 	await _test_boarding_collision_camera_and_canopy(zenith)
 	_test_fitted_canopy(zenith)
 	_test_pilot_instruments(zenith)
@@ -3403,6 +3404,261 @@ func _test_authored_asset_and_runtime_authority(zenith: ZenithInterceptor) -> vo
 		and port_nav.mesh.get_instance_id() == int(detached_sharing.shared_mesh_resource_id),
 		"whole-ship LOD switching preserves the exact shared navigation-light resource"
 	)
+
+
+func _test_modern_airframe_lod(
+	zenith: ZenithInterceptor, epoch: String, world: ShipyardWorld = null
+) -> void:
+	var roots: Array[Node3D] = zenith.get_zenith_modern_airframe_roots()
+	var presentation: Node3D = zenith.get_zenith_authored_presentation()
+	var visual: Node3D = zenith.get_zenith_visual_root()
+	var canopy: Node3D = visual.get_node("ModernEnclosedCanopy") as Node3D
+	_check(roots.size() == 2 and roots[0] == visual.get_node("ModernManufacturedAirframe")
+		and roots[1] == visual.get_node("ModernManufacturedAirframeFar"),
+		epoch + ": complete modern roots retain the close compatibility path and distinct far root")
+	_test_modern_census_visibility(zenith, roots[1], epoch)
+	var report: Dictionary = zenith.get_zenith_modern_lod_report()
+	var close_census: Dictionary = _modern_static_census(roots[0])
+	var far_census: Dictionary = _modern_static_census(roots[1])
+	print("ZENITH_MODERN_LOD: %s close=%s far=%s" % [epoch, close_census, far_census])
+	_check(report.close == close_census and report.far == far_census
+		and int(far_census.triangles) > 0
+		and int(far_census.triangles) < int(close_census.triangles)
+		and int(far_census.submissions) <= int(close_census.submissions),
+		epoch + ": actual complete far solid triangles are strictly fewer with no extra static submissions")
+	var complete: bool = true
+	for airframe: Node3D in roots:
+		var names: PackedStringArray = PackedStringArray()
+		for candidate: Node in airframe.find_children("*", "MeshInstance3D", true, false):
+			names.append(String(candidate.name))
+			var authored_names: Variant = candidate.get_meta("authored_visual_names", PackedStringArray())
+			for authored_name: Variant in authored_names:
+				names.append(str(authored_name))
+		for macroform: String in ["BlendedPressureHull", "NoseSensorRadome",
+			"PortWingOuterSkin", "StarboardWingOuterSkin", "PortEngineCowling",
+			"StarboardEngineCowling", "PortSegmentedExhaust", "StarboardSegmentedExhaust",
+			"PortRecessedCannonHousing", "StarboardRecessedCannonHousing", "NoseLandingPad"]:
+			complete = complete and names.has(macroform)
+		complete = complete and airframe.find_children("*", "CollisionObject3D", true, false).is_empty() \
+			and airframe.find_children("*", "CollisionShape3D", true, false).is_empty() \
+			and airframe.find_children("*", "Camera3D", true, false).is_empty()
+	_check(complete, epoch + ": both roots contain the modern pressure hull, wings, nacelles, nozzles, cannons and landing forms without authority")
+	var near_bounds: AABB = _modern_airframe_bounds(roots[0])
+	var far_bounds: AABB = _modern_airframe_bounds(roots[1])
+	_check(near_bounds.position.distance_to(far_bounds.position) < 0.05
+		and near_bounds.end.distance_to(far_bounds.end) < 0.05,
+		epoch + ": reduced geometry retains the complete modern outer envelope within five centimetres")
+	zenith.update_zenith_lod_for_distance(0.0)
+	# Both modern glass and frame are explicitly shared, including a partly
+	# open hinge. The existing reference pivot remains close-only by design.
+	var reference_canopy: Node3D = presentation.call("get_canopy_pivot") as Node3D
+	var original_fraction: float = float(presentation.get("_canopy_fraction"))
+	zenith.call("_set_canopy_open_fraction", 0.37)
+	var canopy_pose: Transform3D = canopy.transform
+	var baseline: Dictionary = _quiet_lod_snapshot(zenith, world)
+	var observation: Dictionary = {"atomic": true, "events": 0}
+	var listener: Callable = func(lod_index: int) -> void:
+		observation["events"] = int(observation["events"]) + 1
+		observation["atomic"] = bool(observation["atomic"]) \
+			and roots[0].visible == (lod_index == 0) and roots[1].visible == (lod_index == 1) \
+			and _all_visible(presentation.call("get_lod0_roots") as Array, lod_index == 0) \
+			and _all_visible(presentation.call("get_lod1_roots") as Array, lod_index == 1)
+	presentation.connect(&"lod_changed", listener)
+	var cases: Array[Dictionary] = [
+		{"distance": 51.0, "lod": 0}, {"distance": 53.0, "lod": 0},
+		{"distance": NAN, "lod": 0}, {"distance": INF, "lod": 0},
+		{"distance": -INF, "lod": 0}, {"distance": 53.01, "lod": 1},
+		{"distance": 53.0, "lod": 1}, {"distance": 51.0, "lod": 1},
+		{"distance": 48.0, "lod": 1}, {"distance": 43.0, "lod": 1},
+		{"distance": NAN, "lod": 1}, {"distance": INF, "lod": 1},
+		{"distance": -INF, "lod": 1}, {"distance": 42.99, "lod": 0},
+		{"distance": 43.0, "lod": 0}, {"distance": 48.0, "lod": 0},
+	]
+	var transitions_valid: bool = true
+	var resources_and_authority_stable: bool = true
+	var shared_canopy_stable: bool = true
+	for sample: Dictionary in cases:
+		zenith.update_zenith_lod_for_distance(float(sample.distance))
+		var selected: int = int(sample.lod)
+		transitions_valid = transitions_valid and zenith.get_zenith_active_lod() == selected \
+			and roots[0].is_visible_in_tree() == (selected == 0) \
+			and roots[1].is_visible_in_tree() == (selected == 1)
+		resources_and_authority_stable = resources_and_authority_stable \
+			and _quiet_lod_snapshot(zenith, world) == baseline
+		shared_canopy_stable = shared_canopy_stable and canopy.is_visible_in_tree() \
+			and canopy.transform == canopy_pose \
+			and canopy.global_transform.is_equal_approx(reference_canopy.global_transform)
+	presentation.disconnect(&"lod_changed", listener)
+	_check(transitions_valid and bool(observation.atomic) and int(observation.events) == 2,
+		epoch + ": 53/43 exact boundaries, dead band and nonfinite values hold; crossing thresholds switches both complete roots before the signal")
+	_check(resources_and_authority_stable,
+		epoch + ": every switch retains mesh/material/node resources, collision RIDs and filters, anchors, ledger, command stream, weapons and berth claims")
+	_check(shared_canopy_stable and report.canopy_policy == &"shared_pose_and_visibility_at_both_distances",
+		epoch + ": shared modern canopy preserves visibility and the same partial-open pose at both distances")
+	zenith.call("_set_canopy_open_fraction", original_fraction)
+
+
+func _test_modern_census_visibility(zenith: ZenithInterceptor, airframe: Node3D, epoch: String) -> void:
+	# An actual far cooling cover is locally visible beneath a distinct mount.
+	var mount: Node3D = airframe.get_node("PortNacelleCoolingMount") as Node3D
+	var cover: MeshInstance3D = mount.get_node("PortNacelleCoolingCover") as MeshInstance3D
+	var root_visible: bool = airframe.visible
+	var mount_visible: bool = mount.visible
+	var cover_visible: bool = cover.visible
+	airframe.visible = true
+	mount.visible = true
+	cover.visible = true
+	var baseline: Dictionary = _modern_static_census(airframe)
+	var baseline_bounds: AABB = _modern_airframe_bounds(airframe)
+	airframe.visible = false
+	var inactive_root_counted: bool = _modern_static_census(airframe) == baseline \
+		and zenith.get_zenith_modern_lod_report().far == baseline \
+		and _modern_airframe_bounds(airframe) == baseline_bounds
+	mount.visible = false
+	var hidden_parent: Dictionary = _modern_static_census(airframe)
+	var hidden_parent_bounds: AABB = _modern_airframe_bounds(airframe)
+	var production_hidden: Dictionary = zenith.get_zenith_modern_lod_report().far
+	var leaf_still_visible: bool = cover.visible
+	mount.visible = true
+	cover.visible = false
+	var hidden_leaf: Dictionary = _modern_static_census(airframe)
+	var hidden_leaf_bounds: AABB = _modern_airframe_bounds(airframe)
+	cover.visible = cover_visible
+	mount.visible = mount_visible
+	airframe.visible = root_visible
+	# Native face extraction independently measures the actual retained mesh;
+	# the census uses surface arrays instead of this geometry API.
+	var cover_triangles: int = int(cover.mesh.get_faces().size() / 3)
+	var cover_submissions: int = cover.mesh.get_surface_count()
+	var correct: bool = inactive_root_counted and leaf_still_visible and hidden_parent == hidden_leaf \
+		and production_hidden == hidden_leaf and hidden_parent_bounds == hidden_leaf_bounds \
+		and int(hidden_parent.meshes) == int(baseline.meshes) - 1 \
+		and cover_triangles > 0 and cover_submissions == 1 \
+		and int(hidden_parent.submissions) == int(baseline.submissions) - cover_submissions \
+		and int(hidden_parent.triangles) == int(baseline.triangles) - cover_triangles
+	if not correct:
+		print("ZENITH_MODERN_CENSUS_VISIBILITY_FAILURE: ", {
+			"inactive_root_counted": inactive_root_counted, "leaf_visible": leaf_still_visible,
+			"baseline": baseline, "hidden_parent": hidden_parent, "hidden_leaf": hidden_leaf,
+			"production_hidden": production_hidden, "baseline_bounds": baseline_bounds,
+			"hidden_parent_bounds": hidden_parent_bounds, "hidden_leaf_bounds": hidden_leaf_bounds,
+			"mount_class": mount.get_class(), "cover_mesh_class": cover.mesh.get_class(),
+			"cover_faces": cover_triangles, "cover_submissions": cover_submissions,
+		})
+	_check(correct,
+		epoch + ": inactive LOD root remains measurable; hidden intermediary excludes its locally visible rounded cover from cost and bounds")
+
+
+func _modern_static_mesh_is_visible(instance: MeshInstance3D, airframe: Node3D) -> bool:
+	var ancestor: Node = instance
+	while ancestor != null and ancestor != airframe:
+		if ancestor is Node3D and not (ancestor as Node3D).visible:
+			return false
+		ancestor = ancestor.get_parent()
+	return ancestor == airframe
+
+
+func _modern_static_census(airframe: Node3D) -> Dictionary:
+	var triangles: int = 0
+	var submissions: int = 0
+	var meshes: int = 0
+	for candidate: Node in airframe.find_children("*", "MeshInstance3D", true, false):
+		var instance: MeshInstance3D = candidate as MeshInstance3D
+		if instance.mesh == null or not _modern_static_mesh_is_visible(instance, airframe) or instance.layers == 0:
+			continue
+		meshes += 1
+		var array_mesh: ArrayMesh = instance.mesh as ArrayMesh
+		for surface: int in instance.mesh.get_surface_count():
+			if array_mesh != null and array_mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
+				continue
+			submissions += 1
+			var arrays: Array = instance.mesh.surface_get_arrays(surface)
+			if arrays.size() <= Mesh.ARRAY_INDEX:
+				continue
+			# Valid nonindexed surfaces expose a null optional index array.
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] \
+				if arrays[Mesh.ARRAY_INDEX] is PackedInt32Array else PackedInt32Array()
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] \
+				if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array else PackedVector3Array()
+			triangles += int(indices.size() / 3) if not indices.is_empty() else int(vertices.size() / 3)
+	return {"triangles": triangles, "submissions": submissions, "meshes": meshes}
+
+
+func _modern_airframe_bounds(airframe: Node3D) -> AABB:
+	var result: AABB = AABB()
+	var initialized: bool = false
+	for candidate: Node in airframe.find_children("*", "MeshInstance3D", true, false):
+		var instance: MeshInstance3D = candidate as MeshInstance3D
+		if instance.mesh == null or not _modern_static_mesh_is_visible(instance, airframe) or instance.layers == 0:
+			continue
+		var placement: Transform3D = airframe.global_transform.affine_inverse() * instance.global_transform
+		var bounds: AABB = placement * instance.get_aabb()
+		result = result.merge(bounds) if initialized else bounds
+		initialized = true
+	return result
+
+
+## Deliberately synchronous comparisons: no command tick, repair or lifecycle
+## boundary occurs during a switch. A retained reentry gets its own baseline.
+## The component fixture has no Player; record that absence instead of claiming
+## ordinary occupied-cockpit or full Main access coverage.
+func _quiet_lod_snapshot(zenith: ZenithInterceptor, world: ShipyardWorld) -> Dictionary:
+	var authorities: Array[Dictionary] = []
+	var nodes: Array[Node] = [zenith]
+	nodes.append_array(zenith.find_children("*", "Node", true, false))
+	for node: Node in nodes:
+		if node is CollisionObject3D:
+			var body: CollisionObject3D = node as CollisionObject3D
+			authorities.append({"id": body.get_instance_id(), "rid": body.get_rid(),
+				"transform": body.transform, "layer": body.collision_layer, "mask": body.collision_mask,
+				"authority": body.get_multiplayer_authority()})
+		elif node is CollisionShape3D:
+			var shape: CollisionShape3D = node as CollisionShape3D
+			authorities.append({"id": shape.get_instance_id(), "transform": shape.transform,
+				"shape": shape.shape.get_instance_id() if shape.shape != null else 0,
+				"disabled": shape.disabled})
+		elif node is Marker3D or node is Camera3D:
+			var anchor: Node3D = node as Node3D
+			authorities.append({"id": anchor.get_instance_id(), "transform": anchor.transform})
+	var meshes: Array[Dictionary] = []
+	for candidate: Node in zenith.get_zenith_visual_root().find_children("*", "MeshInstance3D", true, false):
+		var mesh: MeshInstance3D = candidate as MeshInstance3D
+		var materials: PackedInt64Array = PackedInt64Array()
+		if mesh.mesh != null:
+			for surface: int in mesh.mesh.get_surface_count():
+				var material: Material = mesh.get_active_material(surface)
+				materials.append(material.get_instance_id() if material != null else 0)
+		meshes.append({"id": mesh.get_instance_id(), "mesh": mesh.mesh.get_instance_id() if mesh.mesh != null else 0,
+			"materials": materials, "pose": mesh.transform, "visible": mesh.visible, "layers": mesh.layers})
+	var berths: Array[Dictionary] = []
+	if world != null:
+		for berth_id: StringName in world.get_berth_ids():
+			var berth: ShipBerth = world.get_berth_node(berth_id)
+			var occupant: Node = berth.get_occupant()
+			var reservation: Node = berth.get_reservation_owner()
+			berths.append({"id": berth.get_instance_id(), "berth_id": berth_id,
+				"occupant": occupant.get_instance_id() if occupant != null else 0,
+				"reservation": reservation.get_instance_id() if reservation != null else 0,
+				"token": berth.get_reservation_token(reservation), "ship": berth.get_reserved_ship_id()})
+	var source: ShipCommandSource = zenith.get_command_source()
+	var player: Node = root.find_child("Player", true, false)
+	var component: ShipComponentDamage = zenith.get_component_damage()
+	return {
+		"craft": zenith.get_instance_id(), "world": world.get_instance_id() if world != null else 0,
+		"player": player.get_instance_id() if player != null else 0,
+		"resources": zenith.get_zenith_runtime_identity_report().current,
+		"children": zenith.get_child_count(), "authority": authorities, "meshes": meshes,
+		"ledger": component.get_ledger_snapshot(), "ledger_id": component.get_instance_id(),
+		"generation": component.get_ledger_generation(), "revision": component.get_revision(),
+		"source": source.get_instance_id() if source != null else 0,
+		"stream": source.get_stream_id() if source != null else -1,
+		"sequence": source.get_next_sequence() if source != null else -1,
+		"delivery": source.get_delivery_generation() if source != null else -1,
+		"command": zenith.get_last_ship_command().to_dictionary(),
+		"weapons": zenith.get_weapon_fire_status(), "telemetry": zenith.get_telemetry(),
+		"landing": zenith.get_landing_contract_report(), "berths": berths,
+		"cue": zenith.get_starboard_wing_damage_cue_snapshot(),
+	}
 
 
 func _test_boarding_collision_camera_and_canopy(zenith: ZenithInterceptor) -> void:
@@ -4083,6 +4339,7 @@ func _test_strict_berth_fit_capture_and_landing(zenith: ZenithInterceptor) -> vo
 	_check(bool(landing_report.contract_accepted) and bool(landing_report.strict_dock_acceptance), "completed landing retains strict dock acceptance evidence")
 	_check(int((landing_report.collision as Dictionary).shape_count) == 24, "completed landing report retains the twenty-four-shape collision snapshot")
 	_check(str(zenith.get_telemetry().landing_abort_reason).is_empty(), "production landing emits no obstruction or authority abort")
+	_test_modern_airframe_lod(zenith, "healthy occupied production berth", world)
 
 	berth.release(zenith, token)
 	zenith.reset_for_reuse(Transform3D(Basis.IDENTITY, Vector3(8.0, 2.0, -11.0)))
@@ -4135,6 +4392,7 @@ func _test_detach_readd_and_resource_identities(zenith: ZenithInterceptor) -> vo
 	_check((zenith.get_zenith_runtime_identity_report().current as Dictionary) == baseline, "whole-ship reentry does not rebuild authored meshes or collision shapes")
 	_check(bool(zenith.get_zenith_audit_report().valid), "whole-ship reentry returns green without rerunning ready")
 	_check(zenith.is_boardable() and _all_plumes_visible(zenith, false), "reentered reset ship remains boardable and powered down")
+	_test_modern_airframe_lod(zenith, "retained detach and reentry epoch")
 
 	var queued := ZENITH_SCENE.instantiate() as ZenithInterceptor
 	_test_root.add_child(queued)
