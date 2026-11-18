@@ -1010,6 +1010,15 @@ func _main_board_from_port(sortie: int, identity: int, area: ShipBoardingArea) -
 	if not _main_check(area.try_reserve(_main_game) and area.try_reserve(_main_game) and not area.try_reserve(_main_player) and not area.release_reservation(_main_player) and area.get_reservation_token() == _main_game,"foreign/duplicate seat requests preserve current temporary claimant"): return false
 	await _main_tap(&"interact")
 	if not _main_check(not _main_game._piloting and area.get_reservation_token() == _main_game,"foreign-held helm refuses ordinary Interact"): return false
+	# The second approach keeps Dynamic active after an actual release, so this
+	# tests owner admission rather than the older inactive-craft pointer guard.
+	if sortie > 0:
+		var foreign_fire_state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles]
+		_main_ship.call("_fire_weapon")
+		_main_game._on_projectile_fired(_main_ship.to_global(Vector3(0,0.9,-4.9)),Vector3.FORWARD,_main_ship)
+		if not _main_check(area.get_reservation_token() == _main_game
+			and [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == foreign_fire_state,
+			"foreign reserved token cannot emit or mint authoritative damage before legitimate pilot acquisition"): return false
 	if not _main_check(area.release_reservation(_main_game) and not area.release_reservation(_main_game),"temporary foreign claim retires once and stale release refuses"): return false
 	await _main_aim(_main_ship.get_pilot_seat_anchor().global_position)
 	if sortie == 0 and not _cold_before_claim(): return false
@@ -1962,16 +1971,9 @@ func _main_pulse_once() -> Dictionary:
 func _main_actual_combat() -> bool:
 	Input.action_press(&"brake")
 	await _main_frames(90)
-	var area := _main_ship.get_node("ShipBoardingArea") as ShipBoardingArea
 	var state := [_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles]
 	_main_ship.call("_fire_weapon_with_aim",_main_ship.global_position,Vector3.FORWARD)
 	if not _main_check([_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,"explicit crew aim cannot consume Dynamic pilot heat, cooldown or damage"): return false
-	var foreign := RefCounted.new()
-	if not _main_check(area.release_reservation(_main_player) and area.try_reserve(foreign),"public reservation owner establishes foreign-token refusal fixture"): return false
-	_main_ship.call("_fire_weapon")
-	_main_game._on_projectile_fired(_main_ship.to_global(Vector3(0,0.9,-4.9)),Vector3.FORWARD,_main_ship)
-	if not _main_check([_main_ship.get("_weapon_timer"),_main_ship.get("_weapon_heat"),_main_shots,_main_projectiles] == state,"foreign reserved token cannot emit or mint authoritative damage"): return false
-	if not _main_check(area.release_reservation(foreign) and area.try_reserve(_main_player),"same actual seated pilot legitimately reacquires reservation"): return false
 	var camera := _main_ship.get_camera()
 	var direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size*0.5).normalized()
 	var target := _main_new_combat_target(camera.global_position+direction*40,8002)
