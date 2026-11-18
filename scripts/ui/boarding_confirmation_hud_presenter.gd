@@ -136,11 +136,35 @@ func _choice_reading(facts: Dictionary, role: String, speed: float, hull: float)
 
 
 func _bomber_choice_reading(choice: Dictionary, speed: float, hull: float) -> String:
-	if choice.get("ship_id") != &"cinder_long_range_bomber" or choice.get("role_id") != &"cinder_long_range_bomber":
+	for identity: String in ["ship_id", "role_id"]:
+		var value: Variant = choice.get(identity)
+		if not (value is String or value is StringName):
+			return ""
+		if str(value) != "cinder_long_range_bomber":
+			return ""
+	var axes: Variant = choice.get("source_axes")
+	if not axes is Dictionary:
 		return ""
-	if choice.get("source_axes") != {"advantage": [&"maximum_hull", &"brake_acceleration"], "weakness": [&"yaw_speed_degrees", &"roll_speed_degrees", &"weapon_cooldown"]}:
+	var expected_axes := {"advantage": [&"maximum_hull", &"brake_acceleration"], "weakness": [&"yaw_speed_degrees", &"roll_speed_degrees", &"weapon_cooldown"]}
+	if axes.size() != expected_axes.size():
 		return ""
-	if choice.get("advantage") != "TOUGH HULL & BRAKES" or choice.get("weakness") != "SLOW TURN / FIRE":
+	for side: String in expected_axes:
+		var values: Variant = axes.get(side)
+		if not values is Array:
+			return ""
+		if values.size() != expected_axes[side].size():
+			return ""
+		for index in values.size():
+			var value: Variant = values[index]
+			if not (value is String or value is StringName):
+				return ""
+			if str(value) != str(expected_axes[side][index]):
+				return ""
+	var advantage: Variant = choice.get("advantage")
+	var weakness: Variant = choice.get("weakness")
+	if not advantage is String or not weakness is String:
+		return ""
+	if advantage != "TOUGH HULL & BRAKES" or weakness != "SLOW TURN / FIRE":
 		return ""
 	var expected := {"maximum_speed": 72.0, "maximum_hull": 240.0, "brake_acceleration": 28.0, "yaw_speed_degrees": 28.0, "roll_speed_degrees": 34.0, "weapon_cooldown": 0.85}
 	for axis: String in expected:

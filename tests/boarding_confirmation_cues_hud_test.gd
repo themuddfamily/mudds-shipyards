@@ -448,7 +448,7 @@ func _check_bomber_negatives() -> void:
 		var view := presenter.present({"state": state, "craft_name": definition.get_display_name(), "definition_facts": facts})
 		_check(view.title == _expected_bomber_title(state) and view.message == _expected_bomber_message(state) and view.get("bomber_choice_ship_id") == &"cinder_long_range_bomber", "Bomber exact %s choice is sourced" % state)
 	var bad_choices: Array = [null, [], "BOMBER", {}, {"advantage": "TOUGH HULL & BRAKES"}]
-	for patch in [{"ship_id": &"cinder_light_interceptor"}, {"role_id": &"wrong"}, {"source_axes": []}, {"advantage": "FAKE"}, {"weakness": "WRONG\nLINE"}]:
+	for patch in [{"ship_id": &"cinder_light_interceptor"}, {"role_id": &"wrong"}, {"ship_id": []}, {"role_id": []}, {"source_axes": []}, {"source_axes": {"advantage": 28, "weakness": []}}, {"source_axes": {"advantage": [[], &"brake_acceleration"], "weakness": [&"yaw_speed_degrees", &"roll_speed_degrees", &"weapon_cooldown"]}}, {"advantage": []}, {"weakness": []}, {"advantage": "FAKE"}, {"weakness": "WRONG\nLINE"}]:
 		var bad := facts.role_choice.duplicate(true) as Dictionary
 		bad.merge(patch, true)
 		bad_choices.append(bad)
